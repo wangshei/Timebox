@@ -83,7 +83,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         </div>
 
         {/* Partially Completed */}
-        {partiallyCompleted.length > 0 && (
+        {partiallyCompletedTasks.length > 0 && (
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
