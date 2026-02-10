@@ -4,6 +4,7 @@ import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
+import { SettingsPanel } from './components/SettingsPanel';
 import { CalendarContainerList } from './components/CalendarContainerList';
 import { useStore } from './store/useStore';
 import {
@@ -48,6 +49,7 @@ export default function App() {
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const {
     viewMode: mode,
@@ -73,6 +75,15 @@ export default function App() {
     markDidSomethingElse,
     deleteTimeBlock,
     endDay,
+    addCalendarContainer,
+    updateCalendarContainer,
+    deleteCalendarContainer,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addTag,
+    updateTag,
+    deleteTag,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -251,6 +262,13 @@ export default function App() {
               className="w-full py-2.5 px-4 text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
             >
               End day ({selectedDate})
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full mt-2 py-2 px-4 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
+            >
+              Calendars / Categories / Tags
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-6 pb-6">
@@ -441,6 +459,23 @@ export default function App() {
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
         onAddEvent={handleAddEvent}
+      />
+
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        calendarContainers={calendarContainers}
+        categories={categories}
+        tags={tags}
+        onAddCalendar={addCalendarContainer}
+        onUpdateCalendar={updateCalendarContainer}
+        onDeleteCalendar={deleteCalendarContainer}
+        onAddCategory={addCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
+        onAddTag={addTag}
+        onUpdateTag={updateTag}
+        onDeleteTag={deleteTag}
       />
     </div>
   );
