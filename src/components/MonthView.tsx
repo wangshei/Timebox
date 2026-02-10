@@ -107,8 +107,8 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
               <div className="space-y-0.5 md:space-y-1">
                 {blocks.slice(0, 2).map((block) => {
                   const isPlanningMode = mode === 'planning';
-                  const isPlanned = block.type === 'planned';
-                  const isRecorded = block.type === 'recorded';
+                  const isPlanned = block.mode === 'planned';
+                  const isRecorded = block.mode === 'recorded';
 
                   const getOpacity = () => {
                     if (isPlanningMode) {
@@ -121,14 +121,15 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                   return (
                     <div
                       key={block.id}
-                      className="text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded text-white truncate cursor-pointer hover:opacity-100 transition-opacity touch-manipulation"
+                      className="text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded text-white truncate cursor-pointer hover:opacity-100 transition-opacity touch-manipulation border-l-2"
                       style={{
                         backgroundColor: block.category.color,
+                        borderLeftColor: block.calendarContainer.color,
                         opacity: getOpacity(),
                       }}
-                      onClick={() => onSelectBlock(block.id)}
+                      onClick={() => onSelectBlock?.(block.id)}
                     >
-                      <span className="hidden md:inline">{block.startTime} </span>
+                      <span className="hidden md:inline">{block.start} </span>
                       {block.title}
                     </div>
                   );

@@ -128,7 +128,15 @@ flowchart TD
   Rec --> Analytics[Analytics]
 ```
 
-### 2.4 Component hierarchy and responsibilities
+### 2.4 Category, Calendar, Tag (mental model)
+
+- **Category** — *Type of thing to do per day* (e.g. Deep Work, Meetings, Exercise). Each category has its own **color**. That color is the **block fill** on the calendar. Every task and block has exactly one category.
+- **Calendar** — *Function or bucket* (e.g. Work, School, Personal). Each calendar has a color used as the **left border** on blocks to differentiate buckets. Within one calendar you have many categories. Every task and block has exactly one calendar.
+- **Tag** — *Optional* label for things under a bucket that are done often or always (e.g. “dance” under Hobby). Not everything needs a tag; all tasks/blocks need a category and a calendar.
+
+**On the block:** Background = category color. Left border = calendar color. Tags appear as labels (optional).
+
+### 2.5 Component hierarchy and responsibilities
 
 All calendar views (Day, Week, Month) render blocks via **TimeBlockCard**; DayView is the primary grid, WeekView and MonthView use the same card (compact where needed). Block interactions (click → done-as-planned / override) should work in all views where a block is clickable.
 
@@ -164,7 +172,7 @@ flowchart TB
   RightSidebar --> TaskCard[TaskCard]
 ```
 
-### 2.5 Managing different parts of the app
+### 2.6 Managing different parts of the app
 
 ```mermaid
 flowchart LR

@@ -35,8 +35,12 @@ Side panel for **Calendars / Categories / Tags** should be **editable** (add, re
 
 ## 4. Consistency and clarity
 
-- **Naming in UI:** Use the same terms as the code and docs: “Planning” / “Recording,” “Planned” / “Recorded,” “Calendar” (container), “Category,” “Tag,” “Task,” “Time block,” “End day.”
-- **Colors:** Calendar containers have a consistent color (e.g. left border or dot). Categories can have a secondary color (e.g. block fill or tag). Don’t swap meanings (e.g. color = container, not “priority” unless we define it).
+- **Naming in UI:** Use the same terms as the code and docs: “Planning” / “Recording,” “Planned” / “Recorded,” “Calendar” (function/bucket), “Category” (type of activity), “Tag” (optional), “Task,” “Time block,” “End day.”
+- **Category vs Calendar vs Tag:**
+  - **Category** = type of thing to do per day (e.g. Deep Work, Exercise). Category has a **color** → that color is the **block fill** on the calendar. Required for every task/block.
+  - **Calendar** = function or bucket (e.g. Work, School). Calendar has a **color** → that color is the **left border** on blocks to differentiate buckets. Required for every task/block. One calendar contains many categories.
+  - **Tag** = optional label for recurring/specific things (e.g. “dance” under Hobby). Not everything needs a tag.
+- **Colors:** Don’t swap meanings: block fill = category; left border = calendar.
 - **Empty states:** “No time recorded yet,” “No upcoming events,” “No unscheduled tasks.” Short, actionable. Avoid blank panels with no message.
 - **Loading and errors:** Spinner or skeleton for async; toast or inline message for errors. Don’t leave the user guessing.
 

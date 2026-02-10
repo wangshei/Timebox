@@ -79,6 +79,7 @@ export function SettingsPanel({
         </div>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="flex-1 flex flex-col overflow-hidden">
           <div className="px-4 pt-3">
+            <p className="text-xs text-neutral-500 mb-2">Calendar = function/bucket (left border). Category = type of activity (block color). Tag = optional.</p>
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="calendars" className="text-xs">Calendars</TabsTrigger>
               <TabsTrigger value="categories" className="text-xs">Categories</TabsTrigger>

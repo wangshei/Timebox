@@ -12,6 +12,7 @@
 4. **[SYSTEM_INTEGRATION.md](./SYSTEM_INTEGRATION.md)** — How the app fits together (state, persistence, API). Read before touching store or Supabase.
 5. **[UIUX_STANDARDS.md](./UIUX_STANDARDS.md)** — Calendar interaction and UI/UX principles. Read before changing layout or interaction patterns.
 6. **[PROJECT_STANDARDS.md](./PROJECT_STANDARDS.md)** — Code style, testing, commits, PR checklist. Follow for every change.
+7. **[DEPLOYMENT.md](./DEPLOYMENT.md)** — Vercel setup so each commit gets a working link (optional; do before in-app auth).
 
 ---
 
@@ -25,7 +26,8 @@ Timebox/
 │   ├── TASK_LIST.md         # Unfinished work checklist
 │   ├── SYSTEM_INTEGRATION.md
 │   ├── UIUX_STANDARDS.md
-│   └── PROJECT_STANDARDS.md
+│   ├── PROJECT_STANDARDS.md
+│   └── DEPLOYMENT.md        # Vercel setup for live link per commit
 ├── src/
 │   ├── App.tsx              # Root layout, mode toggle, left rail, calendar, right sidebar
 │   ├── main.tsx
@@ -60,9 +62,11 @@ Timebox/
 
 - **Install:** `npm install`
 - **Dev:** `npm run dev` (Vite, usually http://localhost:3000)
-- **Build:** `npm run build` (output in `build/` per vite.config)
+- **Build:** `npm run build` (output in `dist/` per Vite default)
 
 No backend required for current local-only flow. When Supabase is wired, you’ll need a `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see PROJECT_STANDARDS or README).
+
+**Live link:** To see each commit on a working URL, connect the repo to Vercel early — see [DEPLOYMENT.md](./DEPLOYMENT.md). Do this before in-app account creation (Supabase auth).
 
 ---
 
@@ -72,9 +76,9 @@ No backend required for current local-only flow. When Supabase is wired, you’l
 - **TimeBlock** — A slice of time on the calendar. Has `mode: 'planned' | 'recorded'`. Only **recorded** blocks drive task progress and analytics.
 - **Planning mode** — User arranges **planned** blocks (intention).
 - **Recording mode** — User marks what actually happened (**recorded** blocks). Planned blocks appear faded.
-- **CalendarContainer** — Logical bucket (Personal / Work / School). Used for filtering and analytics.
-- **Category** — Type of work (Deep Work, Meetings, Exercise). One per block.
-- **Tag** — Project/hobby label. Multiple per block.
+- **Category** — *Type of thing to do per day* (e.g. Deep Work, Meetings, Exercise). Has a **color** that is the **block fill** on the calendar. Every task/block has one category.
+- **Calendar** — *Function or bucket* (e.g. Work, School, Personal). Has a color shown as the **left border** on blocks. One calendar has many categories. Every task/block has one calendar.
+- **Tag** — *Optional* label for things done often under a bucket (e.g. “dance” under Hobby). Not everything needs a tag.
 
 Details: [ENGINEERING_LEAD.md](./ENGINEERING_LEAD.md) (flowcharts + function inventory).
 
