@@ -7,6 +7,7 @@ interface RightSidebarProps {
   tasks: Task[];
   unscheduledTasks: Task[];
   partiallyCompletedTasks: Task[];
+  selectedDate?: string;
   categories: Category[];
   tags: Tag[];
   onAddTask: (task: {
@@ -16,6 +17,9 @@ interface RightSidebarProps {
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
   }) => void;
+  onScheduleTask?: (taskId: string, params: { date: string; startTime: string; blockMinutes?: number }) => void;
+  onEditTask?: (taskId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   isMobile?: boolean;
   isBottomSheet?: boolean;
@@ -23,7 +27,7 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, categories, tags, onAddTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, selectedDate = new Date().toISOString().split('T')[0], categories, tags, onAddTask, onScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   
   return (
@@ -65,7 +69,14 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <p className="text-sm text-neutral-400">No unscheduled tasks</p>
             ) : (
               unscheduledTasks.map(task => (
-                <TaskCard key={task.id} task={task} viewMode={viewMode} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode={viewMode}
+                  onScheduleTask={onScheduleTask ? () => onScheduleTask(task.id, { date: selectedDate, startTime: '09:00' }) : undefined}
+                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                />
               ))
             )}
           </div>
@@ -77,7 +88,14 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
               {partiallyCompletedTasks.map(task => (
-                <TaskCard key={task.id} task={task} viewMode={viewMode} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode={viewMode}
+                  onScheduleTask={onScheduleTask ? () => onScheduleTask(task.id, { date: selectedDate, startTime: '09:00' }) : undefined}
+                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                />
               ))}
             </div>
           </div>

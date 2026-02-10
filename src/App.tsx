@@ -43,6 +43,7 @@ export interface TimeBlock {
 export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   const {
     viewMode: mode,
@@ -60,6 +61,9 @@ export default function App() {
     tags,
     addTask,
     addTimeBlock,
+    updateTask,
+    deleteTask,
+    createPlannedBlocksFromTask,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -153,9 +157,18 @@ export default function App() {
   };
 
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
+    setEditingTaskId(null);
     setAddModalMode(modalMode);
     setIsAddModalOpen(true);
   };
+
+  const handleEditTask = (id: string) => {
+    setEditingTaskId(id);
+    setAddModalMode('task');
+    setIsAddModalOpen(true);
+  };
+
+  const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
 
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
@@ -277,9 +290,13 @@ export default function App() {
           tasks={displayTasks}
           unscheduledTasks={unscheduledDisplay}
           partiallyCompletedTasks={partiallyCompletedDisplay}
+          selectedDate={selectedDate}
           categories={categories}
           tags={tags}
           onAddTask={handleAddTask}
+          onScheduleTask={createPlannedBlocksFromTask}
+          onEditTask={(id) => { /* TODO: open edit modal */ }}
+          onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
         />
       </div>
@@ -305,21 +322,27 @@ export default function App() {
           tasks={displayTasks}
           unscheduledTasks={unscheduledDisplay}
           partiallyCompletedTasks={partiallyCompletedDisplay}
+          selectedDate={selectedDate}
           categories={categories}
           tags={tags}
           onAddTask={handleAddTask}
+          onScheduleTask={createPlannedBlocksFromTask}
+          onEditTask={handleEditTask}
+          onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
         />
       </div>
 
       <AddModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => { setIsAddModalOpen(false); setEditingTaskId(null); }}
         categories={categories}
         tags={tags}
         calendarContainers={calendarContainers}
         initialMode={addModalMode}
+        editingTask={editingTask}
         onAddTask={handleAddTask}
+        onUpdateTask={updateTask}
         onAddEvent={handleAddEvent}
       />
     </div>

@@ -5,9 +5,12 @@ import { GripVertical, Calendar, Clock, Edit3, X } from 'lucide-react';
 interface TaskCardProps {
   task: Task;
   viewMode?: 'overview' | 'plan';
+  onScheduleTask?: () => void;
+  onEditTask?: () => void;
+  onDeleteTask?: () => void;
 }
 
-export function TaskCard({ task, viewMode = 'overview' }: TaskCardProps) {
+export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTask, onDeleteTask }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const progress = (task.recordedHours / task.estimatedHours) * 100;
   
@@ -176,15 +179,27 @@ export function TaskCard({ task, viewMode = 'overview' }: TaskCardProps) {
 
                 {/* Actions */}
                 <div className="pt-2 border-t border-neutral-200 space-y-1">
-                  <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
+                  >
                     <Calendar className="w-4 h-4" />
                     Schedule task
                   </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    onClick={() => { onEditTask?.(); setShowPopover(false); }}
+                  >
                     <Edit3 className="w-4 h-4" />
                     Edit details
                   </button>
-                  <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
+                  >
                     <X className="w-4 h-4" />
                     Delete task
                   </button>
@@ -343,15 +358,27 @@ export function TaskCard({ task, viewMode = 'overview' }: TaskCardProps) {
 
               {/* Actions */}
               <div className="pt-2 border-t border-neutral-200 space-y-1">
-                <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
+                >
                   <Calendar className="w-4 h-4" />
                   Schedule task
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onEditTask?.(); setShowPopover(false); }}
+                >
                   <Edit3 className="w-4 h-4" />
                   Edit details
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
+                >
                   <X className="w-4 h-4" />
                   Delete task
                 </button>

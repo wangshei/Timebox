@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Tag as TagIcon, Calendar as CalendarIcon } from 'lucide-react';
 import { Category, Tag } from '../App';
-import type { CalendarContainer } from '../types';
+import type { CalendarContainer, Task } from '../types';
 
 type AddMode = 'task' | 'event';
 
@@ -12,6 +12,8 @@ interface AddModalProps {
   tags: Tag[];
   calendarContainers?: CalendarContainer[];
   initialMode?: AddMode;
+  /** When set, modal is in edit mode for this task */
+  editingTask?: Task | null;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -19,6 +21,7 @@ interface AddModalProps {
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
   }) => void;
+  onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -30,7 +33,7 @@ interface AddModalProps {
   }) => void;
 }
 
-export function AddModal({ isOpen, onClose, categories, tags, calendarContainers = [], initialMode = 'task', onAddTask, onAddEvent }: AddModalProps) {
+export function AddModal({ isOpen, onClose, categories, tags, calendarContainers = [], initialMode = 'task', editingTask = null, onAddTask, onUpdateTask, onAddEvent }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
@@ -43,12 +46,24 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
 
-  // Reset when modal opens with new mode
-  React.useEffect(() => {
-    if (isOpen) {
+  // Prefill when editing
+  useEffect(() => {
+    if (isOpen && editingTask) {
+      setMode('task');
+      setTitle(editingTask.title);
+      setEstimatedHours(Math.round((editingTask.estimatedMinutes / 60) * 10) / 10);
+      setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? categories[0] || null);
+      setSelectedTags(tags.filter(t => editingTask.tagIds.includes(t.id)));
+      setSelectedCalendar(editingTask.calendarContainerId);
+    }
+  }, [isOpen, editingTask?.id, categories, tags]);
+
+  // Reset when modal opens with new mode (and not editing)
+  useEffect(() => {
+    if (isOpen && !editingTask) {
       setMode(initialMode);
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, editingTask]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +124,7 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
           <h2 className="text-lg font-medium text-neutral-900">
-            {mode === 'task' ? 'Add New Task' : 'Add New Event'}
+            {mode === 'task' ? (editingTask ? 'Edit Task' : 'Add New Task') : 'Add New Event'}
           </h2>
           <button
             onClick={onClose}
@@ -324,12 +339,13 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={!title.trim() || !selectedCategory}
             className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            Add {mode === 'task' ? 'Task' : 'Event'}
+            {mode === 'task' && editingTask ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
           </button>
         </div>
       </div>
