@@ -217,6 +217,46 @@ export function selectPlanVsActualByContainer(
   );
 }
 
+/** Plan vs Actual by tag for a date. Blocks contribute to each of their tagIds. */
+export function selectPlanVsActualByTag(
+  timeBlocks: TimeBlock[],
+  date: string,
+  tags: Tag[]
+): SummaryRow[] {
+  const byTag = new Map<
+    string,
+    { tag: Tag; plannedMins: number; recordedMins: number }
+  >();
+  const defaultTagColor = '#6b7280';
+  for (const block of timeBlocks.filter((b) => b.date === date)) {
+    const mins =
+      parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
+    for (const tagId of block.tagIds) {
+      const tag = tags.find((t) => t.id === tagId);
+      if (!tag) continue;
+      const prev = byTag.get(tag.id) ?? {
+        tag,
+        plannedMins: 0,
+        recordedMins: 0,
+      };
+      if (block.mode === 'planned')
+        byTag.set(tag.id, { ...prev, plannedMins: prev.plannedMins + mins });
+      else
+        byTag.set(tag.id, { ...prev, recordedMins: prev.recordedMins + mins });
+    }
+  }
+  return Array.from(byTag.values()).map(
+    ({ tag, plannedMins, recordedMins }) => ({
+      id: tag.id,
+      name: tag.name,
+      color: defaultTagColor,
+      plannedHours: plannedMins / 60,
+      recordedHours: recordedMins / 60,
+      deltaHours: (recordedMins - plannedMins) / 60,
+    })
+  );
+}
+
 /** Display shape for backlog (TaskCard expects estimatedHours, recordedHours, category, tags, calendar). */
 export interface DisplayTask {
   id: string;

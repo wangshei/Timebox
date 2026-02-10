@@ -9,6 +9,8 @@ import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForDate,
   selectPlanVsActualByCategory,
+  selectPlanVsActualByContainer,
+  selectPlanVsActualByTag,
   selectDisplayTasksForBacklog,
   selectUnscheduledTasks,
   selectPartiallyCompletedTasks,
@@ -83,11 +85,29 @@ export default function App() {
     [timeBlocks, selectedDate, containerVisibility]
   );
 
-  const planVsActual = useMemo(
+  const planVsActualByCategory = useMemo(
     () =>
       selectPlanVsActualByCategory(timeBlocks, selectedDate, categories),
     [timeBlocks, selectedDate, categories]
   );
+  const planVsActualByContainer = useMemo(
+    () =>
+      selectPlanVsActualByContainer(timeBlocks, selectedDate, calendarContainers),
+    [timeBlocks, selectedDate, calendarContainers]
+  );
+  const planVsActualByTag = useMemo(
+    () => selectPlanVsActualByTag(timeBlocks, selectedDate, tags),
+    [timeBlocks, selectedDate, tags]
+  );
+
+  type PlanVsActualView = 'category' | 'container' | 'tag';
+  const [planVsActualView, setPlanVsActualView] = useState<PlanVsActualView>('category');
+  const planVsActual =
+    planVsActualView === 'category'
+      ? planVsActualByCategory
+      : planVsActualView === 'container'
+        ? planVsActualByContainer
+        : planVsActualByTag;
 
   const displayTasks = useMemo(
     () =>
@@ -234,9 +254,44 @@ export default function App() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-6 pb-6">
-            <h2 className="text-sm font-medium text-neutral-500 mb-4">
+            <h2 className="text-sm font-medium text-neutral-500 mb-2">
               {selectedDate} — Plan vs Actual
             </h2>
+            <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
+              <button
+                type="button"
+                onClick={() => setPlanVsActualView('category')}
+                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                  planVsActualView === 'category'
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Category
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlanVsActualView('container')}
+                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                  planVsActualView === 'container'
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Calendar
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlanVsActualView('tag')}
+                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                  planVsActualView === 'tag'
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Tag
+              </button>
+            </div>
             {planVsActual.length > 0 ? (
               <div className="space-y-4">
                 {planVsActual.map((row) => {
