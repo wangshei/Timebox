@@ -52,7 +52,7 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
       setMode('task');
       setTitle(editingTask.title);
       setEstimatedHours(Math.round((editingTask.estimatedMinutes / 60) * 10) / 10);
-      setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? categories[0] || null);
+      setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? (categories[0] || null));
       setSelectedTags(tags.filter(t => editingTask.tagIds.includes(t.id)));
       setSelectedCalendar(editingTask.calendarContainerId);
     }

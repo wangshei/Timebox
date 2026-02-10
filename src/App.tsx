@@ -3,6 +3,7 @@ import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
+import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { CalendarContainerList } from './components/CalendarContainerList';
 import { useStore } from './store/useStore';
 import {
@@ -44,6 +45,7 @@ export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
 
   const {
     viewMode: mode,
@@ -64,6 +66,7 @@ export default function App() {
     updateTask,
     deleteTask,
     createPlannedBlocksFromTask,
+    defaultBlockMinutes,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -169,6 +172,18 @@ export default function App() {
   };
 
   const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
+  const schedulingTask = schedulingTaskId ? tasks.find((t) => t.id === schedulingTaskId) ?? null : null;
+
+  const handleOpenScheduleTask = (taskId: string) => {
+    setSchedulingTaskId(taskId);
+  };
+
+  const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
+    if (schedulingTaskId) {
+      createPlannedBlocksFromTask(schedulingTaskId, params);
+      setSchedulingTaskId(null);
+    }
+  };
 
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
@@ -294,8 +309,8 @@ export default function App() {
           categories={categories}
           tags={tags}
           onAddTask={handleAddTask}
-          onScheduleTask={createPlannedBlocksFromTask}
-          onEditTask={(id) => { /* TODO: open edit modal */ }}
+          onOpenScheduleTask={handleOpenScheduleTask}
+          onEditTask={handleEditTask}
           onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
         />
@@ -326,12 +341,22 @@ export default function App() {
           categories={categories}
           tags={tags}
           onAddTask={handleAddTask}
-          onScheduleTask={createPlannedBlocksFromTask}
+          onOpenScheduleTask={handleOpenScheduleTask}
           onEditTask={handleEditTask}
           onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
         />
       </div>
+
+      <ScheduleTaskModal
+        isOpen={!!schedulingTaskId}
+        taskTitle={schedulingTask?.title}
+        defaultDate={selectedDate}
+        defaultStartTime="09:00"
+        defaultBlockMinutes={defaultBlockMinutes}
+        onSchedule={handleScheduleSubmit}
+        onClose={() => setSchedulingTaskId(null)}
+      />
 
       <AddModal
         isOpen={isAddModalOpen}
