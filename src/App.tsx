@@ -1,35 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
+import { CalendarContainerList } from './components/CalendarContainerList';
+import { useStore } from './store/useStore';
+import {
+  selectTimeBlocksForDate,
+  selectPlanVsActualByCategory,
+  selectDisplayTasksForBacklog,
+  selectUnscheduledTasks,
+  selectPartiallyCompletedTasks,
+} from './store/selectors';
+import { resolveTimeBlocks } from './utils/dataResolver';
+import type { Category, Tag } from './types';
 
+// Re-export for components that still import from App
 export type Mode = 'planning' | 'recording';
 export type View = 'day' | 'week' | 'month';
-
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-}
-
-export interface TimeBlock {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  date: string; // Add date field for weekly/monthly views
-  category: Category;
-  tags: Tag[];
-  type: 'planned' | 'recorded';
-  calendar: 'personal' | 'work' | 'school';
-}
-
+export type { Category, Tag };
 export interface Task {
   id: string;
   title: string;
@@ -39,174 +28,90 @@ export interface Task {
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
 }
+export interface TimeBlock {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  date: string;
+  category: Category;
+  tags: Tag[];
+  type: 'planned' | 'recorded';
+  calendar: 'personal' | 'work' | 'school';
+}
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>('planning');
-  const [view, setView] = useState<View>('day');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
 
-  // Sample categories
-  const categories: Category[] = [
-    { id: '1', name: 'Deep Work', color: '#0044A8' },
-    { id: '2', name: 'Meetings', color: '#9F5FB0' },
-    { id: '3', name: 'Exercise', color: '#13B49F' },
-    { id: '4', name: 'Learning', color: '#EC8309' },
-  ];
+  const {
+    viewMode: mode,
+    view,
+    setViewMode,
+    setView,
+    selectedDate,
+    setSelectedDate,
+    containerVisibility,
+    toggleContainerVisibility,
+    tasks,
+    timeBlocks,
+    calendarContainers,
+    categories,
+    tags,
+    addTask,
+    addTimeBlock,
+  } = useStore();
 
-  // Sample tags
-  const tags: Tag[] = [
-    { id: '1', name: 'Urgent' },
-    { id: '2', name: 'Client work' },
-    { id: '3', name: 'Personal' },
-  ];
+  const visibleTimeBlocks = useMemo(
+    () =>
+      selectTimeBlocksForDate(
+        timeBlocks,
+        selectedDate,
+        containerVisibility
+      ),
+    [timeBlocks, selectedDate, containerVisibility]
+  );
 
-  // Sample time blocks
-  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([
-    {
-      id: '1',
-      title: 'Morning workout',
-      startTime: '07:00',
-      endTime: '08:00',
-      date: '2026-02-10',
-      category: categories[2],
-      tags: [tags[2]],
-      type: 'planned',
-      calendar: 'personal',
-    },
-    {
-      id: '2',
-      title: 'Client presentation prep',
-      startTime: '09:00',
-      endTime: '11:00',
-      date: '2026-02-10',
-      category: categories[0],
-      tags: [tags[0], tags[1]],
-      type: 'planned',
-      calendar: 'work',
-    },
-    {
-      id: '3',
-      title: 'Team standup',
-      startTime: '11:00',
-      endTime: '11:30',
-      date: '2026-02-10',
-      category: categories[1],
-      tags: [tags[1]],
-      type: 'recorded',
-      calendar: 'work',
-    },
-    {
-      id: '4',
-      title: 'Lunch break',
-      startTime: '12:00',
-      endTime: '13:00',
-      date: '2026-02-10',
-      category: categories[2],
-      tags: [],
-      type: 'recorded',
-      calendar: 'personal',
-    },
-    {
-      id: '5',
-      title: 'Code review',
-      startTime: '14:00',
-      endTime: '15:30',
-      date: '2026-02-10',
-      category: categories[0],
-      tags: [tags[1]],
-      type: 'planned',
-      calendar: 'work',
-    },
-    {
-      id: '6',
-      title: 'Design review',
-      startTime: '10:00',
-      endTime: '11:00',
-      date: '2026-02-11',
-      category: categories[1],
-      tags: [tags[1]],
-      type: 'planned',
-      calendar: 'work',
-    },
-    {
-      id: '7',
-      title: 'Team workshop',
-      startTime: '14:00',
-      endTime: '16:00',
-      date: '2026-02-12',
-      category: categories[0],
-      tags: [tags[0], tags[1]],
-      type: 'planned',
-      calendar: 'work',
-    },
-    {
-      id: '8',
-      title: 'Evening run',
-      startTime: '18:00',
-      endTime: '19:00',
-      date: '2026-02-13',
-      category: categories[2],
-      tags: [tags[2]],
-      type: 'planned',
-      calendar: 'personal',
-    },
-  ]);
+  const planVsActual = useMemo(
+    () =>
+      selectPlanVsActualByCategory(timeBlocks, selectedDate, categories),
+    [timeBlocks, selectedDate, categories]
+  );
 
-  // Sample tasks
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Finish Q1 report',
-      estimatedHours: 3,
-      recordedHours: 0,
-      category: categories[0],
-      tags: [tags[0], tags[1]],
-      calendar: 'work',
-    },
-    {
-      id: '2',
-      title: 'Update portfolio website',
-      estimatedHours: 4,
-      recordedHours: 1.5,
-      category: categories[3],
-      tags: [tags[2]],
-      calendar: 'personal',
-    },
-    {
-      id: '3',
-      title: 'Read React documentation',
-      estimatedHours: 2,
-      recordedHours: 0,
-      category: categories[3],
-      tags: [tags[2]],
-      calendar: 'personal',
-    },
-    {
-      id: '4',
-      title: 'Plan team offsite',
-      estimatedHours: 1.5,
-      recordedHours: 0.5,
-      category: categories[1],
-      tags: [tags[1]],
-      calendar: 'work',
-    },
-  ]);
+  const displayTasks = useMemo(
+    () =>
+      selectDisplayTasksForBacklog(
+        tasks,
+        timeBlocks,
+        categories,
+        tags,
+        calendarContainers
+      ),
+    [tasks, timeBlocks, categories, tags, calendarContainers]
+  );
 
-  // Calculate time spent by category for today
-  const recordedBlocks = timeBlocks.filter(block => block.type === 'recorded');
-  const timeByCategory = categories.map(category => {
-    const categoryBlocks = recordedBlocks.filter(block => block.category.id === category.id);
-    const totalMinutes = categoryBlocks.reduce((sum, block) => {
-      const start = parseTime(block.startTime);
-      const end = parseTime(block.endTime);
-      return sum + (end - start);
-    }, 0);
-    return {
-      category,
-      hours: totalMinutes / 60,
-    };
-  }).filter(item => item.hours > 0);
+  const unscheduledTasks = useMemo(
+    () => selectUnscheduledTasks(tasks, timeBlocks),
+    [tasks, timeBlocks]
+  );
+  const partiallyCompletedTasks = useMemo(
+    () => selectPartiallyCompletedTasks(tasks, timeBlocks),
+    [tasks, timeBlocks]
+  );
+  const unscheduledDisplay = useMemo(
+    () =>
+      displayTasks.filter((t) =>
+        unscheduledTasks.some((u) => u.id === t.id)
+      ),
+    [displayTasks, unscheduledTasks]
+  );
+  const partiallyCompletedDisplay = useMemo(
+    () =>
+      displayTasks.filter((t) =>
+        partiallyCompletedTasks.some((p) => p.id === t.id)
+      ),
+    [displayTasks, partiallyCompletedTasks]
+  );
 
   const handleAddTask = (taskData: {
     title: string;
@@ -215,16 +120,14 @@ export default function App() {
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
   }) => {
-    const newTask: Task = {
-      id: String(Date.now()),
+    addTask({
       title: taskData.title,
-      estimatedHours: taskData.estimatedHours,
-      recordedHours: 0,
-      category: taskData.category,
-      tags: taskData.tags,
-      calendar: taskData.calendar,
-    };
-    setTasks(prev => [...prev, newTask]);
+      estimatedMinutes: taskData.estimatedHours * 60,
+      calendarContainerId: taskData.calendar,
+      categoryId: taskData.category.id,
+      tagIds: taskData.tags.map((t) => t.id),
+      flexible: true,
+    });
   };
 
   const handleAddEvent = (eventData: {
@@ -234,20 +137,19 @@ export default function App() {
     date: string;
     category: Category;
     tags: Tag[];
-    calendar: 'personal' | 'work' | 'school';
+    calendar: string;
   }) => {
-    const newEvent: TimeBlock = {
-      id: String(Date.now()),
+    addTimeBlock({
       title: eventData.title,
-      startTime: eventData.startTime,
-      endTime: eventData.endTime,
+      calendarContainerId: eventData.calendar,
+      categoryId: eventData.category.id,
+      tagIds: eventData.tags.map((t) => t.id),
+      start: eventData.startTime,
+      end: eventData.endTime,
       date: eventData.date,
-      category: eventData.category,
-      tags: eventData.tags,
-      type: 'planned',
-      calendar: eventData.calendar,
-    };
-    setTimeBlocks(prev => [...prev, newEvent]);
+      mode: 'planned',
+      source: 'manual',
+    });
   };
 
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
@@ -257,127 +159,169 @@ export default function App() {
 
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
-      {/* Desktop Layout - 3 columns */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        <div className="w-72 bg-white border-r border-neutral-200 flex flex-col p-6">
-          {/* Mode Toggle */}
-          <div className="mb-8">
-            <div className="bg-neutral-100 rounded-full p-1 flex">
-              <button
-                onClick={() => setMode('planning')}
-                className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
-                  mode === 'planning'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Planning
-              </button>
-              <button
-                onClick={() => setMode('recording')}
-                className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
-                  mode === 'recording'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Recording
-              </button>
+        <div className="w-72 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
+          <div className="p-6 flex-shrink-0">
+            <div className="mb-8">
+              <div className="bg-neutral-100 rounded-full p-1 flex">
+                <button
+                  onClick={() => setViewMode('planning')}
+                  className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
+                    mode === 'planning'
+                      ? 'bg-white text-neutral-900 shadow-sm'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  Planning
+                </button>
+                <button
+                  onClick={() => setViewMode('recording')}
+                  className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
+                    mode === 'recording'
+                      ? 'bg-white text-neutral-900 shadow-sm'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  Recording
+                </button>
+              </div>
+            </div>
+            <div className="mb-8">
+              <CalendarContainerList
+                containers={calendarContainers}
+                visibility={containerVisibility}
+                onToggleVisibility={toggleContainerVisibility}
+              />
             </div>
           </div>
-
-          {/* Today Summary */}
-          <div className="flex-1">
-            <h2 className="text-sm font-medium text-neutral-500 mb-4">Today</h2>
-            
-            {timeByCategory.length > 0 ? (
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <h2 className="text-sm font-medium text-neutral-500 mb-4">
+              {selectedDate} — Plan vs Actual
+            </h2>
+            {planVsActual.length > 0 ? (
               <div className="space-y-4">
-                {timeByCategory.map(({ category, hours }) => {
-                  const totalHours = timeByCategory.reduce((sum, item) => sum + item.hours, 0);
-                  const percentage = (hours / totalHours) * 100;
+                {planVsActual.map((row) => {
+                  const totalP = planVsActual.reduce((s, r) => s + r.plannedHours, 0);
+                  const totalR = planVsActual.reduce((s, r) => s + r.recordedHours, 0);
+                  const pctP = totalP > 0 ? (row.plannedHours / totalP) * 100 : 0;
+                  const pctR = totalR > 0 ? (row.recordedHours / totalR) * 100 : 0;
                   return (
-                    <div key={category.id} className="space-y-2">
+                    <div key={row.id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: category.color }}
+                            style={{ backgroundColor: row.color }}
                           />
-                          <span className="text-sm text-neutral-700">{category.name}</span>
+                          <span className="text-sm text-neutral-700">{row.name}</span>
                         </div>
-                        <span className="text-sm text-neutral-500">{hours.toFixed(1)}h</span>
+                        <span className="text-xs text-neutral-500">
+                          P: {row.plannedHours.toFixed(1)}h · R: {row.recordedHours.toFixed(1)}h
+                        </span>
                       </div>
-                      <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${percentage}%`,
-                            backgroundColor: category.color,
-                            opacity: 0.8,
-                          }}
-                        />
+                      <div className="flex gap-1">
+                        <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-neutral-300"
+                            style={{ width: `${pctP}%` }}
+                          />
+                        </div>
+                        <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pctR}%`,
+                              backgroundColor: row.color,
+                              opacity: 0.8,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-                
                 <div className="pt-4 mt-4 border-t border-neutral-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-neutral-700">Total</span>
-                    <span className="text-sm font-medium text-neutral-900">
-                      {timeByCategory.reduce((sum, item) => sum + item.hours, 0).toFixed(1)}h
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-neutral-700">Total</span>
+                    <span className="font-medium text-neutral-900">
+                      P: {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h · R:{' '}
+                      {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h
                     </span>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="text-sm text-neutral-400 text-center py-8">
-                No time recorded yet
+                No time planned or recorded for this day
               </div>
             )}
           </div>
         </div>
 
-        <CalendarView 
-          mode={mode} 
-          view={view} 
-          onViewChange={setView} 
-          timeBlocks={timeBlocks}
+        <CalendarView
+          mode={mode}
+          view={view}
+          onViewChange={setView}
+          selectedDate={selectedDate}
+          onSelectedDateChange={setSelectedDate}
+          timeBlocks={visibleTimeBlocks}
+          tasks={tasks}
+          categories={categories}
+          tags={tags}
+          containers={calendarContainers}
+          containerVisibility={containerVisibility}
           onOpenAddModal={handleOpenAddModal}
         />
-        
-        <RightSidebar tasks={tasks} categories={categories} tags={tags} onAddTask={handleAddTask} />
+
+        <RightSidebar
+          tasks={displayTasks}
+          unscheduledTasks={unscheduledDisplay}
+          partiallyCompletedTasks={partiallyCompletedDisplay}
+          categories={categories}
+          tags={tags}
+          onAddTask={handleAddTask}
+          onOpenAddModal={handleOpenAddModal}
+        />
       </div>
 
-      {/* Mobile Layout - Calendar with draggable bottom sheet */}
       <div className="flex lg:hidden flex-1 overflow-hidden relative">
-        <CalendarView 
+        <CalendarView
           mode={mode}
-          onModeChange={setMode}
-          view={view} 
-          onViewChange={setView} 
-          timeBlocks={timeBlocks}
+          onModeChange={setViewMode}
+          view={view}
+          onViewChange={setView}
+          selectedDate={selectedDate}
+          onSelectedDateChange={setSelectedDate}
+          timeBlocks={visibleTimeBlocks}
+          tasks={tasks}
+          categories={categories}
+          tags={tags}
+          containers={calendarContainers}
+          containerVisibility={containerVisibility}
           isMobile
           onOpenAddModal={handleOpenAddModal}
         />
-        <DraggableBottomSheet tasks={tasks} categories={categories} tags={tags} onAddTask={handleAddTask} onOpenAddModal={handleOpenAddModal} />
+        <DraggableBottomSheet
+          tasks={displayTasks}
+          unscheduledTasks={unscheduledDisplay}
+          partiallyCompletedTasks={partiallyCompletedDisplay}
+          categories={categories}
+          tags={tags}
+          onAddTask={handleAddTask}
+          onOpenAddModal={handleOpenAddModal}
+        />
       </div>
 
-      {/* Add Modal - Global */}
       <AddModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         categories={categories}
         tags={tags}
+        calendarContainers={calendarContainers}
         initialMode={addModalMode}
         onAddTask={handleAddTask}
         onAddEvent={handleAddEvent}
       />
     </div>
   );
-}
-
-function parseTime(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
 }

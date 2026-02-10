@@ -1,10 +1,11 @@
 import React from 'react';
-import { Mode, TimeBlock } from '../App';
+import { Mode } from '../types';
+import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { TimeBlockCard } from './TimeBlockCard';
 
 interface DayViewProps {
   mode: Mode;
-  timeBlocks: TimeBlock[];
+  timeBlocks: ResolvedTimeBlock[];
   selectedBlock: string | null;
   onSelectBlock: (id: string | null) => void;
 }
@@ -18,9 +19,9 @@ export function DayView({ mode, timeBlocks, selectedBlock, onSelectBlock }: DayV
     return hours * 60 + minutes;
   };
 
-  const getBlockStyle = (block: TimeBlock) => {
-    const startMinutes = parseTime(block.startTime);
-    const endMinutes = parseTime(block.endTime);
+  const getBlockStyle = (block: ResolvedTimeBlock) => {
+    const startMinutes = parseTime(block.start);
+    const endMinutes = parseTime(block.end);
     const duration = endMinutes - startMinutes;
     
     // Calculate position relative to 6 AM (360 minutes)

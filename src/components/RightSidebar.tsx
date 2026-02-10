@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 
 interface RightSidebarProps {
   tasks: Task[];
+  unscheduledTasks: Task[];
+  partiallyCompletedTasks: Task[];
   categories: Category[];
   tags: Tag[];
   onAddTask: (task: {
@@ -21,10 +23,8 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, categories, tags, onAddTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, categories, tags, onAddTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
-  const unscheduledTasks = tasks.filter(task => task.recordedHours === 0);
-  const partiallyCompleted = tasks.filter(task => task.recordedHours > 0 && task.recordedHours < task.estimatedHours);
   
   return (
     <div className={`bg-white flex flex-col overflow-hidden ${
@@ -61,9 +61,13 @@ export function RightSidebar({ tasks, categories, tags, onAddTask, onOpenAddModa
         <div>
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>
           <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
-            {unscheduledTasks.map(task => (
-              <TaskCard key={task.id} task={task} viewMode={viewMode} />
-            ))}
+            {unscheduledTasks.length === 0 ? (
+              <p className="text-sm text-neutral-400">No unscheduled tasks</p>
+            ) : (
+              unscheduledTasks.map(task => (
+                <TaskCard key={task.id} task={task} viewMode={viewMode} />
+              ))
+            )}
           </div>
         </div>
 
@@ -72,7 +76,7 @@ export function RightSidebar({ tasks, categories, tags, onAddTask, onOpenAddModa
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
-              {partiallyCompleted.map(task => (
+              {partiallyCompletedTasks.map(task => (
                 <TaskCard key={task.id} task={task} viewMode={viewMode} />
               ))}
             </div>

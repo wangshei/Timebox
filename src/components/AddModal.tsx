@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Tag as TagIcon, Calendar as CalendarIcon } from 'lucide-react';
 import { Category, Tag } from '../App';
+import type { CalendarContainer } from '../types';
 
 type AddMode = 'task' | 'event';
 
@@ -9,6 +10,7 @@ interface AddModalProps {
   onClose: () => void;
   categories: Category[];
   tags: Tag[];
+  calendarContainers?: CalendarContainer[];
   initialMode?: AddMode;
   onAddTask: (task: {
     title: string;
@@ -24,11 +26,11 @@ interface AddModalProps {
     date: string;
     category: Category;
     tags: Tag[];
-    calendar: 'personal' | 'work' | 'school';
+    calendar: string;
   }) => void;
 }
 
-export function AddModal({ isOpen, onClose, categories, tags, initialMode = 'task', onAddTask, onAddEvent }: AddModalProps) {
+export function AddModal({ isOpen, onClose, categories, tags, calendarContainers = [], initialMode = 'task', onAddTask, onAddEvent }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
@@ -37,7 +39,9 @@ export function AddModal({ isOpen, onClose, categories, tags, initialMode = 'tas
   const [endTime, setEndTime] = useState('10:00');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-  const [selectedCalendar, setSelectedCalendar] = useState<'personal' | 'work' | 'school'>('personal');
+  const defaultCalendars = [{ id: 'personal', name: 'Personal', color: '#86C0F4' }, { id: 'work', name: 'Work', color: '#9F5FB0' }, { id: 'school', name: 'School', color: '#EC8309' }];
+  const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
+  const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
 
   // Reset when modal opens with new mode
   React.useEffect(() => {
@@ -78,7 +82,7 @@ export function AddModal({ isOpen, onClose, categories, tags, initialMode = 'tas
     setEndTime('10:00');
     setSelectedCategory(categories[0] || null);
     setSelectedTags([]);
-    setSelectedCalendar('personal');
+    setSelectedCalendar(calendars[0]?.id ?? 'personal');
     onClose();
   };
 
@@ -264,19 +268,19 @@ export function AddModal({ isOpen, onClose, categories, tags, initialMode = 'tas
             <label className="block text-sm font-medium text-neutral-700 mb-3">
               Calendar
             </label>
-            <div className="flex gap-2">
-              {(['personal', 'work', 'school'] as const).map((cal) => (
+            <div className="flex gap-2 flex-wrap">
+              {calendars.map((cal) => (
                 <button
-                  key={cal}
+                  key={cal.id}
                   type="button"
-                  onClick={() => setSelectedCalendar(cal)}
-                  className={`flex-1 px-4 py-2.5 rounded-lg border-2 transition-all capitalize ${
-                    selectedCalendar === cal
+                  onClick={() => setSelectedCalendar(cal.id)}
+                  className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg border-2 transition-all capitalize ${
+                    selectedCalendar === cal.id
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
                   }`}
                 >
-                  {cal}
+                  {cal.name}
                 </button>
               ))}
             </div>

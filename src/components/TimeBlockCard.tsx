@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { TimeBlock, Mode } from '../App';
+import { Mode } from '../types';
+import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { Check, Edit3, X } from 'lucide-react';
 
 interface TimeBlockCardProps {
-  block: TimeBlock;
+  block: ResolvedTimeBlock;
   mode: Mode;
   style: React.CSSProperties;
   isSelected: boolean;
@@ -16,8 +17,8 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
   const [showPopover, setShowPopover] = useState(false);
   
   const isPlanningMode = mode === 'planning';
-  const isPlanned = block.type === 'planned';
-  const isRecorded = block.type === 'recorded';
+  const isPlanned = block.mode === 'planned';
+  const isRecorded = block.mode === 'recorded';
 
   // Determine opacity based on mode and block type
   const getOpacity = () => {
@@ -29,8 +30,8 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
   };
 
   const getDuration = () => {
-    const [startHour, startMin] = block.startTime.split(':').map(Number);
-    const [endHour, endMin] = block.endTime.split(':').map(Number);
+    const [startHour, startMin] = block.start.split(':').map(Number);
+    const [endHour, endMin] = block.end.split(':').map(Number);
     const minutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -59,10 +60,11 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
           style={{
             backgroundColor: block.category.color,
             opacity: getOpacity(),
+            borderLeft: `4px solid ${block.calendarContainer.color}`,
           }}
         >
           <div className="text-white text-xs truncate font-medium">
-            {block.title}
+            {block.title || 'Untitled'}
           </div>
         </div>
 
@@ -116,11 +118,12 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
         style={{
           backgroundColor: block.category.color,
           opacity: getOpacity(),
+          borderLeft: `4px solid ${block.calendarContainer.color}`,
         }}
       >
         <div className="flex flex-col h-full text-white">
           <div className="flex items-start justify-between gap-2">
-            <span className="font-medium text-sm leading-snug">{block.title}</span>
+            <span className="font-medium text-sm leading-snug">{block.title || 'Untitled'}</span>
             <span className="text-xs opacity-90 whitespace-nowrap">{getDuration()}</span>
           </div>
           

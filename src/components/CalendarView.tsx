@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
-import { Mode, View, TimeBlock } from '../App';
+import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task } from '../types';
+import { resolveTimeBlocks } from '../utils/dataResolver';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
@@ -10,14 +11,43 @@ interface CalendarViewProps {
   onModeChange?: (mode: Mode) => void;
   view: View;
   onViewChange: (view: View) => void;
+  selectedDate: string;
+  onSelectedDateChange?: (date: string) => void;
   timeBlocks: TimeBlock[];
+  tasks: Task[];
+  categories: Category[];
+  tags: Tag[];
+  containers: CalendarContainer[];
+  containerVisibility: { [key: string]: boolean };
   isMobile?: boolean;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
 }
 
-export function CalendarView({ mode, onModeChange, view, onViewChange, timeBlocks, isMobile = false, onOpenAddModal }: CalendarViewProps) {
+export function CalendarView({ 
+  mode, 
+  onModeChange, 
+  view, 
+  onViewChange, 
+  selectedDate,
+  onSelectedDateChange,
+  timeBlocks, 
+  tasks,
+  categories,
+  tags,
+  containers,
+  containerVisibility,
+  isMobile = false, 
+  onOpenAddModal 
+}: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 10)); // Feb 10, 2026
+  const currentDate = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }, [selectedDate]);
+
+  const visibleBlocks = useMemo(() => {
+    return resolveTimeBlocks(timeBlocks, tasks, categories, tags, containers);
+  }, [timeBlocks, tasks, categories, tags, containers]);
 
   const getHeaderTitle = () => {
     const options: Intl.DateTimeFormatOptions = { 
@@ -52,7 +82,7 @@ export function CalendarView({ mode, onModeChange, view, onViewChange, timeBlock
     } else {
       newDate.setMonth(currentDate.getMonth() - 1);
     }
-    setCurrentDate(newDate);
+    onSelectedDateChange?.(newDate.toISOString().split('T')[0]);
   };
 
   const navigateNext = () => {
@@ -64,11 +94,12 @@ export function CalendarView({ mode, onModeChange, view, onViewChange, timeBlock
     } else {
       newDate.setMonth(currentDate.getMonth() + 1);
     }
-    setCurrentDate(newDate);
+    onSelectedDateChange?.(newDate.toISOString().split('T')[0]);
   };
 
   const navigateToday = () => {
-    setCurrentDate(new Date(2026, 1, 10)); // Reset to Feb 10, 2026 (today)
+    const today = new Date();
+    onSelectedDateChange?.(today.toISOString().split('T')[0]);
   };
 
   return (
@@ -190,10 +221,10 @@ export function CalendarView({ mode, onModeChange, view, onViewChange, timeBlock
       </div>
 
       {/* Calendar Content */}
-      <div className="flex-1 overflow-hidden">
-        {view === 'day' && <DayView mode={mode} timeBlocks={timeBlocks} currentDate={currentDate} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={timeBlocks} currentDate={currentDate} />}
-        {view === 'month' && <MonthView mode={mode} timeBlocks={timeBlocks} currentDate={currentDate} />}
+      <div className="flex-1 overflow-y-auto">
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
+        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
+        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
       </div>
 
       {/* Floating Add Button */}

@@ -5,6 +5,8 @@ import { RightSidebar } from './RightSidebar';
 
 interface DraggableBottomSheetProps {
   tasks: Task[];
+  unscheduledTasks: Task[];
+  partiallyCompletedTasks: Task[];
   categories: Category[];
   tags: Tag[];
   onAddTask: (task: {
@@ -17,7 +19,7 @@ interface DraggableBottomSheetProps {
   onOpenAddModal: (mode: 'task' | 'event') => void;
 }
 
-export function DraggableBottomSheet({ tasks, categories, tags, onAddTask, onOpenAddModal }: DraggableBottomSheetProps) {
+export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, categories, tags, onAddTask, onOpenAddModal }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
   const minHeight = 80;
@@ -122,7 +124,7 @@ export function DraggableBottomSheet({ tasks, categories, tags, onAddTask, onOpe
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-hidden">
-        <RightSidebar tasks={tasks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenAddModal={onOpenAddModal} isMobile isBottomSheet />
+        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenAddModal={onOpenAddModal} isMobile isBottomSheet />
       </div>
     </div>
   );

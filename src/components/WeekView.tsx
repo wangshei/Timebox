@@ -1,16 +1,20 @@
 import React from 'react';
-import { Mode, TimeBlock } from '../App';
+import { Mode } from '../types';
+import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { TimeBlockCard } from './TimeBlockCard';
 
 interface WeekViewProps {
   mode: Mode;
-  timeBlocks: TimeBlock[];
+  timeBlocks: ResolvedTimeBlock[];
   currentDate: Date;
-  selectedBlock: string | null;
-  onSelectBlock: (id: string | null) => void;
+  selectedBlock?: string | null;
+  onSelectBlock?: (id: string | null) => void;
 }
 
 export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock }: WeekViewProps) {
+  const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
+  const handleSelect = onSelectBlock || setLocalSelectedBlock;
+  const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
   // Generate hours from 6 AM to 10 PM
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
 
@@ -30,9 +34,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     return hours * 60 + minutes;
   };
 
-  const getBlockStyle = (block: TimeBlock) => {
-    const startMinutes = parseTime(block.startTime);
-    const endMinutes = parseTime(block.endTime);
+  const getBlockStyle = (block: ResolvedTimeBlock) => {
+    const startMinutes = parseTime(block.start);
+    const endMinutes = parseTime(block.end);
     const duration = endMinutes - startMinutes;
     
     // Calculate position relative to 6 AM (360 minutes)
@@ -104,9 +108,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           block={block}
                           mode={mode}
                           style={{ top: `${top}px`, height: `${height}px` }}
-                          isSelected={selectedBlock === block.id}
-                          onSelect={() => onSelectBlock(block.id)}
-                          onDeselect={() => onSelectBlock(null)}
+                          isSelected={currentSelected === block.id}
+                          onSelect={() => handleSelect(block.id)}
+                          onDeselect={() => handleSelect(null)}
                           compact
                         />
                       );

@@ -1,12 +1,13 @@
 import React from 'react';
-import { Mode, TimeBlock } from '../App';
+import { Mode } from '../types';
+import { ResolvedTimeBlock } from '../utils/dataResolver';
 
 interface MonthViewProps {
   mode: Mode;
-  timeBlocks: TimeBlock[];
+  timeBlocks: ResolvedTimeBlock[];
   currentDate: Date;
-  selectedBlock: string | null;
-  onSelectBlock: (id: string | null) => void;
+  selectedBlock?: string | null;
+  onSelectBlock?: (id: string | null) => void;
 }
 
 export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock }: MonthViewProps) {
@@ -65,7 +66,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
     return date.toDateString() === today.toDateString();
   };
 
-  const getBlocksForDate = (date: Date): TimeBlock[] => {
+  const getBlocksForDate = (date: Date): ResolvedTimeBlock[] => {
     const dateStr = formatDate(date);
     return timeBlocks.filter(block => block.date === dateStr);
   };
@@ -89,8 +90,8 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
         {calendarDays.map((day, index) => {
           const blocks = getBlocksForDate(day.date);
           const today = isToday(day.date);
-          const plannedBlocks = blocks.filter(b => b.type === 'planned');
-          const recordedBlocks = blocks.filter(b => b.type === 'recorded');
+          const plannedBlocks = blocks.filter(b => b.mode === 'planned');
+          const recordedBlocks = blocks.filter(b => b.mode === 'recorded');
 
           return (
             <div
