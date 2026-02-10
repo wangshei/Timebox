@@ -67,6 +67,9 @@ export default function App() {
     deleteTask,
     createPlannedBlocksFromTask,
     defaultBlockMinutes,
+    markDoneAsPlanned,
+    markDidSomethingElse,
+    deleteTimeBlock,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -299,6 +302,9 @@ export default function App() {
           containers={calendarContainers}
           containerVisibility={containerVisibility}
           onOpenAddModal={handleOpenAddModal}
+          onDoneAsPlanned={markDoneAsPlanned}
+          onDidSomethingElse={markDidSomethingElse}
+          onDeleteBlock={deleteTimeBlock}
         />
 
         <RightSidebar
@@ -332,6 +338,9 @@ export default function App() {
           containerVisibility={containerVisibility}
           isMobile
           onOpenAddModal={handleOpenAddModal}
+          onDoneAsPlanned={markDoneAsPlanned}
+          onDidSomethingElse={markDidSomethingElse}
+          onDeleteBlock={deleteTimeBlock}
         />
         <DraggableBottomSheet
           tasks={displayTasks}

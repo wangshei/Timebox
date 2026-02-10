@@ -3,6 +3,18 @@ import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { Check, Edit3, X } from 'lucide-react';
 
+/** Payload for creating a recorded block (e.g. "done differently") */
+export type RecordedBlockPayload = {
+  taskId?: string | null;
+  title?: string;
+  calendarContainerId: string;
+  categoryId: string;
+  tagIds: string[];
+  start: string;
+  end: string;
+  date: string;
+};
+
 interface TimeBlockCardProps {
   block: ResolvedTimeBlock;
   mode: Mode;
@@ -10,10 +22,13 @@ interface TimeBlockCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onDeselect: () => void;
-  compact?: boolean; // Add compact mode for week/month views
+  onDoneAsPlanned?: (blockId: string) => void;
+  onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onDeleteBlock?: (blockId: string) => void;
+  compact?: boolean;
 }
 
-export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, compact = false }: TimeBlockCardProps) {
+export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, compact = false }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   
   const isPlanningMode = mode === 'planning';
@@ -28,6 +43,18 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
       return isRecorded ? 1 : 0.3;
     }
   };
+
+  const buildRecordedPayload = (overrides: Partial<RecordedBlockPayload> = {}): RecordedBlockPayload => ({
+    taskId: block.taskId ?? undefined,
+    title: block.title,
+    calendarContainerId: block.calendarContainerId,
+    categoryId: block.category.id,
+    tagIds: block.tags.map((t) => t.id),
+    start: block.start,
+    end: block.end,
+    date: block.date,
+    ...overrides,
+  });
 
   const getDuration = () => {
     const [startHour, startMin] = block.start.split(':').map(Number);
@@ -80,19 +107,37 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
               }}
             />
             <div className="absolute z-20 top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-neutral-200 p-2 min-w-48">
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
-                <Check className="w-4 h-4" />
-                Done as planned
-              </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
-                <Edit3 className="w-4 h-4" />
-                Done differently
-              </button>
-              <div className="border-t border-neutral-200 my-1" />
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
-                <X className="w-4 h-4" />
-                Delete block
-              </button>
+              {mode === 'recording' && isPlanned && (
+                <>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    onClick={() => { onDoneAsPlanned?.(block.id); setShowPopover(false); onDeselect(); }}
+                  >
+                    <Check className="w-4 h-4" />
+                    Done as planned
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    onClick={() => { onDidSomethingElse?.(block.id, buildRecordedPayload()); setShowPopover(false); onDeselect(); }}
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Done differently
+                  </button>
+                  <div className="border-t border-neutral-200 my-1" />
+                </>
+              )}
+              {onDeleteBlock && (
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  onClick={() => { onDeleteBlock(block.id); setShowPopover(false); onDeselect(); }}
+                >
+                  <X className="w-4 h-4" />
+                  Delete block
+                </button>
+              )}
             </div>
           </>
         )}
@@ -157,19 +202,37 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
             }}
           />
           <div className="absolute z-20 top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-neutral-200 p-2 min-w-48">
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
-              <Check className="w-4 h-4" />
-              Done as planned
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors">
-              <Edit3 className="w-4 h-4" />
-              Done differently
-            </button>
-            <div className="border-t border-neutral-200 my-1" />
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
-              <X className="w-4 h-4" />
-              Delete block
-            </button>
+            {mode === 'recording' && isPlanned && (
+              <>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onDoneAsPlanned?.(block.id); setShowPopover(false); onDeselect(); }}
+                >
+                  <Check className="w-4 h-4" />
+                  Done as planned
+                </button>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onDidSomethingElse?.(block.id, buildRecordedPayload()); setShowPopover(false); onDeselect(); }}
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Done differently
+                </button>
+                <div className="border-t border-neutral-200 my-1" />
+              </>
+            )}
+            {onDeleteBlock && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                onClick={() => { onDeleteBlock(block.id); setShowPopover(false); onDeselect(); }}
+              >
+                <X className="w-4 h-4" />
+                Delete block
+              </button>
+            )}
           </div>
         </>
       )}

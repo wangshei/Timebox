@@ -21,6 +21,9 @@ interface CalendarViewProps {
   containerVisibility: { [key: string]: boolean };
   isMobile?: boolean;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
+  onDoneAsPlanned?: (blockId: string) => void;
+  onDidSomethingElse?: (plannedBlockId: string, recorded: import('./TimeBlockCard').RecordedBlockPayload) => void;
+  onDeleteBlock?: (blockId: string) => void;
 }
 
 export function CalendarView({ 
@@ -36,8 +39,11 @@ export function CalendarView({
   tags,
   containers,
   containerVisibility,
-  isMobile = false, 
-  onOpenAddModal 
+  isMobile = false,
+  onOpenAddModal,
+  onDoneAsPlanned,
+  onDidSomethingElse,
+  onDeleteBlock,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const currentDate = useMemo(() => {
@@ -222,8 +228,8 @@ export function CalendarView({
 
       {/* Calendar Content */}
       <div className="flex-1 overflow-y-auto">
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
+        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
         {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
       </div>
 

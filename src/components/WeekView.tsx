@@ -1,7 +1,7 @@
 import React from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
-import { TimeBlockCard } from './TimeBlockCard';
+import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
 
 interface WeekViewProps {
   mode: Mode;
@@ -9,9 +9,12 @@ interface WeekViewProps {
   currentDate: Date;
   selectedBlock?: string | null;
   onSelectBlock?: (id: string | null) => void;
+  onDoneAsPlanned?: (blockId: string) => void;
+  onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onDeleteBlock?: (blockId: string) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -111,6 +114,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           isSelected={currentSelected === block.id}
                           onSelect={() => handleSelect(block.id)}
                           onDeselect={() => handleSelect(null)}
+                          onDoneAsPlanned={onDoneAsPlanned}
+                          onDidSomethingElse={onDidSomethingElse}
+                          onDeleteBlock={onDeleteBlock}
                           compact
                         />
                       );

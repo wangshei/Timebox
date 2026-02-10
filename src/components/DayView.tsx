@@ -1,16 +1,19 @@
 import React from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
-import { TimeBlockCard } from './TimeBlockCard';
+import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
 
 interface DayViewProps {
   mode: Mode;
   timeBlocks: ResolvedTimeBlock[];
   selectedBlock: string | null;
   onSelectBlock: (id: string | null) => void;
+  onDoneAsPlanned?: (blockId: string) => void;
+  onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onDeleteBlock?: (blockId: string) => void;
 }
 
-export function DayView({ mode, timeBlocks, selectedBlock, onSelectBlock }: DayViewProps) {
+export function DayView({ mode, timeBlocks, selectedBlock, onSelectBlock, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: DayViewProps) {
   // Generate hours from 6 AM to 10 PM
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
 
@@ -58,6 +61,9 @@ export function DayView({ mode, timeBlocks, selectedBlock, onSelectBlock }: DayV
                 isSelected={selectedBlock === block.id}
                 onSelect={() => onSelectBlock(block.id)}
                 onDeselect={() => onSelectBlock(null)}
+                onDoneAsPlanned={onDoneAsPlanned}
+                onDidSomethingElse={onDidSomethingElse}
+                onDeleteBlock={onDeleteBlock}
               />
             );
           })}
