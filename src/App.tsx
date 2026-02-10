@@ -70,6 +70,7 @@ export default function App() {
     markDoneAsPlanned,
     markDidSomethingElse,
     deleteTimeBlock,
+    endDay,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -217,13 +218,20 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <div className="mb-8">
+            <div className="mb-6">
               <CalendarContainerList
                 containers={calendarContainers}
                 visibility={containerVisibility}
                 onToggleVisibility={toggleContainerVisibility}
               />
             </div>
+            <button
+              type="button"
+              onClick={() => endDay(selectedDate)}
+              className="w-full py-2.5 px-4 text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+            >
+              End day ({selectedDate})
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto px-6 pb-6">
             <h2 className="text-sm font-medium text-neutral-500 mb-4">
