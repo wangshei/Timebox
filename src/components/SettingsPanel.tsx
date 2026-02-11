@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { ColorPicker } from './ColorPicker';
 
 type TabValue = 'calendars' | 'categories' | 'tags';
 
@@ -88,23 +89,20 @@ export function SettingsPanel({
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-4">
             <TabsContent value="calendars" className="mt-0 space-y-4">
-              <form onSubmit={handleAddCalendar} className="flex gap-2">
-                <input
-                  type="text"
-                  value={newCalendar.name}
-                  onChange={(e) => setNewCalendar((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Name"
-                  className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg"
-                />
-                <input
-                  type="color"
-                  value={newCalendar.color}
-                  onChange={(e) => setNewCalendar((p) => ({ ...p, color: e.target.value }))}
-                  className="w-9 h-9 rounded border border-neutral-200 cursor-pointer"
-                />
-                <button type="submit" className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg">
-                  <Plus className="w-4 h-4" />
-                </button>
+              <form onSubmit={handleAddCalendar} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCalendar.name}
+                    onChange={(e) => setNewCalendar((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Calendar name"
+                    className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                  />
+                  <button type="submit" className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg shrink-0">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <ColorPicker value={newCalendar.color} onChange={(color) => setNewCalendar((p) => ({ ...p, color }))} label="Color (left border)" />
               </form>
               <ul className="space-y-2">
                 {calendarContainers.map((c) =>
@@ -134,23 +132,20 @@ export function SettingsPanel({
               </ul>
             </TabsContent>
             <TabsContent value="categories" className="mt-0 space-y-4">
-              <form onSubmit={handleAddCategory} className="flex gap-2">
-                <input
-                  type="text"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Name"
-                  className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg"
-                />
-                <input
-                  type="color"
-                  value={newCategory.color}
-                  onChange={(e) => setNewCategory((p) => ({ ...p, color: e.target.value }))}
-                  className="w-9 h-9 rounded border border-neutral-200 cursor-pointer"
-                />
-                <button type="submit" className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg">
-                  <Plus className="w-4 h-4" />
-                </button>
+              <form onSubmit={handleAddCategory} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory.name}
+                    onChange={(e) => setNewCategory((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Category name"
+                    className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                  />
+                  <button type="submit" className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg shrink-0">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <ColorPicker value={newCategory.color} onChange={(color) => setNewCategory((p) => ({ ...p, color }))} label="Color (block fill)" />
               </form>
               <ul className="space-y-2">
                 {categories.map((c) =>
@@ -247,11 +242,13 @@ function CalendarEditRow({
   const [name, setName] = useState(item.name);
   const [color, setColor] = useState(item.color);
   return (
-    <li className="flex items-center gap-2 py-2 border-b border-neutral-100">
-      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded border cursor-pointer" />
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="flex-1 px-2 py-1 text-sm border rounded" />
-      <button type="button" onClick={() => onSave(name, color)} className="text-sm text-blue-600 font-medium">Save</button>
-      <button type="button" onClick={onCancel} className="text-sm text-neutral-500">Cancel</button>
+    <li className="py-2 border-b border-neutral-100 space-y-2">
+      <div className="flex gap-2 items-center">
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="flex-1 px-2 py-1 text-sm border rounded" />
+        <button type="button" onClick={() => onSave(name, color)} className="text-sm text-blue-600 font-medium">Save</button>
+        <button type="button" onClick={onCancel} className="text-sm text-neutral-500">Cancel</button>
+      </div>
+      <ColorPicker value={color} onChange={setColor} />
     </li>
   );
 }
@@ -268,11 +265,13 @@ function CategoryEditRow({
   const [name, setName] = useState(item.name);
   const [color, setColor] = useState(item.color);
   return (
-    <li className="flex items-center gap-2 py-2 border-b border-neutral-100">
-      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded border cursor-pointer" />
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="flex-1 px-2 py-1 text-sm border rounded" />
-      <button type="button" onClick={() => onSave(name, color)} className="text-sm text-blue-600 font-medium">Save</button>
-      <button type="button" onClick={onCancel} className="text-sm text-neutral-500">Cancel</button>
+    <li className="py-2 border-b border-neutral-100 space-y-2">
+      <div className="flex gap-2 items-center">
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="flex-1 px-2 py-1 text-sm border rounded" />
+        <button type="button" onClick={() => onSave(name, color)} className="text-sm text-blue-600 font-medium">Save</button>
+        <button type="button" onClick={onCancel} className="text-sm text-neutral-500">Cancel</button>
+      </div>
+      <ColorPicker value={color} onChange={setColor} />
     </li>
   );
 }

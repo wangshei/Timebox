@@ -9,12 +9,14 @@ interface WeekViewProps {
   currentDate: Date;
   selectedBlock?: string | null;
   onSelectBlock?: (id: string | null) => void;
+  focusedCategoryId?: string | null;
+  focusedCalendarId?: string | null;
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -53,10 +55,23 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     return date.toISOString().split('T')[0];
   };
 
-  const isToday = (date: Date): boolean => {
-    const today = new Date(2026, 1, 10); // Feb 10, 2026
-    return date.toDateString() === today.toDateString();
-  };
+  const isToday = (date: Date): boolean =>
+    date.toDateString() === new Date().toDateString();
+
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const PX_PER_HOUR = 64;
+  const START_HOUR = 6;
+  const gridTopOffset = 16;
+  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentTimeTop =
+    currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= (START_HOUR + 16) * 60
+      ? ((currentTimeMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR + gridTopOffset
+      : null;
 
   return (
     <div className="flex-1 overflow-auto">
@@ -79,15 +94,16 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
             const dateStr = formatDate(day);
             const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
             const today = isToday(day);
+            const showCurrentTimeLine = today && currentTimeTop != null;
 
             return (
-              <div key={dayIndex} className="flex-1 min-w-[100px] md:min-w-0 border-r border-neutral-200 last:border-r-0">
+              <div key={dayIndex} className="flex-1 min-w-[100px] md:min-w-0 border-r border-neutral-200 last:border-r-0 relative">
                 {/* Day header */}
-                <div className={`h-10 md:h-12 border-b border-neutral-200 px-2 md:px-3 py-2 sticky top-0 bg-white z-10 ${today ? 'bg-blue-50' : ''}`}>
+                <div className={`h-10 md:h-12 border-b border-neutral-200 px-2 md:px-3 py-2 sticky top-0 bg-white z-10 ${today ? 'bg-neutral-50' : ''}`}>
                   <div className="text-xs text-neutral-500 uppercase">
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
-                  <div className={`text-sm font-medium ${today ? 'text-blue-600' : 'text-neutral-900'}`}>
+                  <div className={`text-sm font-medium ${today ? 'text-neutral-700' : 'text-neutral-900'}`}>
                     {day.getDate()}
                   </div>
                 </div>
@@ -114,6 +130,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           isSelected={currentSelected === block.id}
                           onSelect={() => handleSelect(block.id)}
                           onDeselect={() => handleSelect(null)}
+                          focusedCategoryId={focusedCategoryId}
+                          focusedCalendarId={focusedCalendarId}
                           onDoneAsPlanned={onDoneAsPlanned}
                           onDidSomethingElse={onDidSomethingElse}
                           onDeleteBlock={onDeleteBlock}
@@ -122,6 +140,17 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       );
                     })}
                   </div>
+
+                  {/* Current time line — only in today column */}
+                  {showCurrentTimeLine && (
+                    <div
+                      className="absolute left-1 md:left-2 right-1 md:right-2 top-4 md:top-6 z-20 pointer-events-none flex items-center"
+                      style={{ transform: `translateY(${currentTimeTop}px)` }}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-neutral-500 flex-shrink-0" />
+                      <div className="flex-1 h-px bg-neutral-400" />
+                    </div>
+                  )}
                 </div>
               </div>
             );

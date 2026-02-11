@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
@@ -6,6 +6,7 @@ import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { SettingsPanel } from './components/SettingsPanel';
 import { CalendarContainerList } from './components/CalendarContainerList';
+import { CategoryFocusList } from './components/CategoryFocusList';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForDate,
@@ -50,6 +51,10 @@ export default function App() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
+  const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
 
   const {
     viewMode: mode,
@@ -220,58 +225,64 @@ export default function App() {
     }
   };
 
+  // Keyboard shortcuts: d day, w week, m month, p planning, r recording
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+      if (isInput) return;
+      const key = e.key.toLowerCase();
+      if (key === 'd') { setView('day'); e.preventDefault(); }
+      else if (key === 'w') { setView('week'); e.preventDefault(); }
+      else if (key === 'm') { setView('month'); e.preventDefault(); }
+      else if (key === 'p') { setViewMode('planning'); e.preventDefault(); }
+      else if (key === 'r') { setViewMode('recording'); e.preventDefault(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setView, setViewMode]);
+
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        <div className="w-72 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
-          <div className="p-6 flex-shrink-0">
-            <div className="mb-8">
-              <div className="bg-neutral-100 rounded-full p-1 flex">
-                <button
-                  onClick={() => setViewMode('planning')}
-                  className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
-                    mode === 'planning'
-                      ? 'bg-white text-neutral-900 shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  Planning
-                </button>
-                <button
-                  onClick={() => setViewMode('recording')}
-                  className={`flex-1 py-2.5 px-4 rounded-full transition-all ${
-                    mode === 'recording'
-                      ? 'bg-white text-neutral-900 shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  Recording
-                </button>
-              </div>
+        {/* Left panel — 15% slimmer (w-60), closable */}
+        {leftPanelOpen ? (
+          <div className="w-60 flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100">
+              <span className="text-xs font-medium text-neutral-500">Left</span>
+              <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
             </div>
-            <div className="mb-6">
+            <div className="p-4 flex-shrink-0">
+            <div className="mb-4">
               <CalendarContainerList
                 containers={calendarContainers}
                 visibility={containerVisibility}
                 onToggleVisibility={toggleContainerVisibility}
+                focusedCalendarId={focusedCalendarId}
+                onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+              />
+            </div>
+            <div className="mb-4">
+              <CategoryFocusList
+                categories={categories}
+                focusedCategoryId={focusedCategoryId}
+                onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
               />
             </div>
             <button
               type="button"
               onClick={() => endDay(selectedDate)}
-              className="w-full py-2.5 px-4 text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+              className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-100"
             >
               End day ({selectedDate})
             </button>
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              className="w-full mt-2 py-2 px-4 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
-            >
+            <button type="button" onClick={() => setIsSettingsOpen(true)} className="w-full mt-2 py-2 px-3 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-100">
               Calendars / Categories / Tags
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
             <h2 className="text-sm font-medium text-neutral-500 mb-2">
               {selectedDate} — Plan vs Actual
             </h2>
@@ -368,10 +379,27 @@ export default function App() {
               </div>
             )}
           </div>
+          {/* Shortcuts — small gray box at bottom */}
+          <div className="flex-shrink-0 px-3 py-2.5 border-t border-neutral-100 bg-neutral-50/80">
+            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5">Shortcuts</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-neutral-500">
+              <span><kbd className="font-mono text-neutral-600">d</kbd> Day</span>
+              <span><kbd className="font-mono text-neutral-600">w</kbd> Week</span>
+              <span><kbd className="font-mono text-neutral-600">m</kbd> Month</span>
+              <span><kbd className="font-mono text-neutral-600">p</kbd> Plan</span>
+              <span><kbd className="font-mono text-neutral-600">r</kbd> Record</span>
+            </div>
+          </div>
         </div>
+        ) : (
+          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center bg-white border-r border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open left panel">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        )}
 
         <CalendarView
           mode={mode}
+          onModeChange={setViewMode}
           view={view}
           onViewChange={setView}
           selectedDate={selectedDate}
@@ -382,25 +410,44 @@ export default function App() {
           tags={tags}
           containers={calendarContainers}
           containerVisibility={containerVisibility}
+          focusedCategoryId={focusedCategoryId}
+          focusedCalendarId={focusedCalendarId}
           onOpenAddModal={handleOpenAddModal}
           onDoneAsPlanned={markDoneAsPlanned}
           onDidSomethingElse={markDidSomethingElse}
           onDeleteBlock={deleteTimeBlock}
         />
 
-        <RightSidebar
-          tasks={displayTasks}
-          unscheduledTasks={unscheduledDisplay}
-          partiallyCompletedTasks={partiallyCompletedDisplay}
-          selectedDate={selectedDate}
-          categories={categories}
-          tags={tags}
-          onAddTask={handleAddTask}
-          onOpenScheduleTask={handleOpenScheduleTask}
-          onEditTask={handleEditTask}
-          onDeleteTask={deleteTask}
-          onOpenAddModal={handleOpenAddModal}
-        />
+        {/* Right panel — closable */}
+        {rightPanelOpen ? (
+          <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden border-l border-neutral-200 bg-white">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100">
+              <span className="text-xs font-medium text-neutral-500">Tasks</span>
+              <button type="button" onClick={() => setRightPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close right panel">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <RightSidebar
+                tasks={displayTasks}
+                unscheduledTasks={unscheduledDisplay}
+                partiallyCompletedTasks={partiallyCompletedDisplay}
+                selectedDate={selectedDate}
+                categories={categories}
+                tags={tags}
+                onAddTask={handleAddTask}
+                onOpenScheduleTask={handleOpenScheduleTask}
+                onEditTask={handleEditTask}
+                onDeleteTask={deleteTask}
+                onOpenAddModal={handleOpenAddModal}
+              />
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setRightPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center bg-white border-l border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open right panel">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+        )}
       </div>
 
       <div className="flex lg:hidden flex-1 overflow-hidden relative">

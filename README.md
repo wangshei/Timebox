@@ -18,5 +18,6 @@ All project docs live in **`docs/`**. Start here:
 - **[docs/SYSTEM_INTEGRATION.md](docs/SYSTEM_INTEGRATION.md)** — State, persistence, API.  
 - **[docs/UIUX_STANDARDS.md](docs/UIUX_STANDARDS.md)** — Calendar interaction and UI/UX principles.  
 - **[docs/PROJECT_STANDARDS.md](docs/PROJECT_STANDARDS.md)** — Code style, testing, commits, PR checklist.  
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — Vercel setup so each commit gets a working link (do before in-app auth).  
 
 Follow ONBOARDING first; use the others as needed so the project runs smoothly without constant manual check-ins.

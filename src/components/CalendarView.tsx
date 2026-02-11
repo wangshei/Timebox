@@ -19,6 +19,8 @@ interface CalendarViewProps {
   tags: Tag[];
   containers: CalendarContainer[];
   containerVisibility: { [key: string]: boolean };
+  focusedCategoryId?: string | null;
+  focusedCalendarId?: string | null;
   isMobile?: boolean;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   onDoneAsPlanned?: (blockId: string) => void;
@@ -39,6 +41,8 @@ export function CalendarView({
   tags,
   containers,
   containerVisibility,
+  focusedCategoryId = null,
+  focusedCalendarId = null,
   isMobile = false,
   onOpenAddModal,
   onDoneAsPlanned,
@@ -111,112 +115,98 @@ export function CalendarView({
   return (
     <div className="flex-1 bg-white flex flex-col relative">
       {/* Header */}
-      <div className={`border-b border-neutral-200 ${isMobile ? 'px-4 py-4' : 'px-8 py-5'}`}>
-        {/* Mobile mode toggle */}
-        {isMobile && onModeChange && (
-          <div className="mb-3">
-            <div className="bg-neutral-100 rounded-full p-1 flex max-w-xs mx-auto">
-              <button
-                onClick={() => onModeChange('planning')}
-                className={`flex-1 py-2 px-3 rounded-full transition-all text-sm ${
-                  mode === 'planning'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600'
-                }`}
-              >
-                Planning
-              </button>
-              <button
-                onClick={() => onModeChange('recording')}
-                className={`flex-1 py-2 px-3 rounded-full transition-all text-sm ${
-                  mode === 'recording'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600'
-                }`}
-              >
-                Recording
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className={`flex items-center justify-between ${isMobile ? 'mb-3' : 'mb-4'}`}>
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="flex items-center gap-1 md:gap-2">
+      <div className={`border-b border-neutral-200 ${isMobile ? 'px-4 py-3' : 'px-6 py-3'}`}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-0.5 md:gap-1">
               <button
                 onClick={navigatePrevious}
-                className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors touch-manipulation"
+                className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
               >
-                <ChevronLeft className="w-5 h-5 text-neutral-600" />
+                <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
               </button>
               <button
                 onClick={navigateNext}
-                className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors touch-manipulation"
+                className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
               >
-                <ChevronRight className="w-5 h-5 text-neutral-600" />
+                <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
-            <div>
+            <div className="min-w-0">
               {!isMobile && view === 'day' ? (
-                <h1 className="text-xl">
-                  <span className="font-medium text-neutral-900">{(getHeaderTitle() as any).dayName}</span>
-                  {' '}
-                  <span className="font-normal text-neutral-500">({(getHeaderTitle() as any).dateStr})</span>
+                <h1 className="text-base md:text-lg font-medium text-neutral-900 truncate">
+                  <span>{(getHeaderTitle() as any).dayName}</span>
+                  <span className="font-normal text-neutral-500"> ({(getHeaderTitle() as any).dateStr})</span>
                 </h1>
               ) : (
-                <h1 className={`font-medium text-neutral-900 ${isMobile ? 'text-base' : 'text-xl'}`}>
-                  {isMobile && view === 'day' 
+                <h1 className={`font-medium text-neutral-900 truncate ${isMobile ? 'text-sm' : 'text-base md:text-lg'}`}>
+                  {isMobile && view === 'day'
                     ? currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : getHeaderTitle()}
                 </h1>
               )}
-              {!isMobile && view !== 'day' && (
-                <p className="text-sm text-neutral-500 mt-0.5">
-                  {mode === 'planning' ? 'Planning your time' : 'Recording your time'}
-                </p>
-              )}
             </div>
+            {/* Planning / Recording toggle — beside date, compact */}
+            {onModeChange && (
+              <div className="bg-neutral-50 rounded-md p-0.5 flex shrink-0 border border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => onModeChange('planning')}
+                  className={`py-1 px-2 rounded text-xs font-medium transition-all ${
+                    mode === 'planning' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
+                  }`}
+                >
+                  Plan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onModeChange('recording')}
+                  className={`py-1 px-2 rounded text-xs font-medium transition-all ${
+                    mode === 'recording' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
+                  }`}
+                >
+                  Record
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2">
             {!isMobile && (
               <button
                 onClick={navigateToday}
-                className="px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors flex items-center gap-2"
+                className="px-2 py-1 text-xs text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-md transition-colors flex items-center gap-1 border border-neutral-100"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 text-neutral-500" />
                 Today
               </button>
             )}
 
-            {/* View Selector */}
-            <div className="bg-neutral-100 rounded-lg p-1 flex">
+            {/* View Selector — D / W / M */}
+            <div className="bg-neutral-50 rounded-md p-0.5 flex border border-neutral-100">
               <button
+                type="button"
                 onClick={() => onViewChange('day')}
-                className={`${isMobile ? 'px-2 py-1' : 'px-3 py-1.5'} text-sm rounded-md transition-all touch-manipulation ${
-                  view === 'day'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  view === 'day' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 {isMobile ? 'D' : 'Day'}
               </button>
               <button
+                type="button"
                 onClick={() => onViewChange('week')}
-                className={`${isMobile ? 'px-2 py-1' : 'px-3 py-1.5'} text-sm rounded-md transition-all touch-manipulation ${
-                  view === 'week'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  view === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 {isMobile ? 'W' : 'Week'}
               </button>
               <button
+                type="button"
                 onClick={() => onViewChange('month')}
-                className={`${isMobile ? 'px-2 py-1' : 'px-3 py-1.5'} text-sm rounded-md transition-all touch-manipulation ${
-                  view === 'month'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  view === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 {isMobile ? 'M' : 'Month'}
@@ -228,19 +218,19 @@ export function CalendarView({
 
       {/* Calendar Content */}
       <div className="flex-1 overflow-y-auto">
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
-        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} />}
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
+        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
+        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} />}
       </div>
 
-      {/* Floating Add Button */}
+      {/* Floating Add Button — muted neutral style */}
       {onOpenAddModal && (
         <button
           onClick={() => onOpenAddModal('event')}
-          className="absolute bottom-6 right-6 w-14 h-14 bg-[#0044A8] hover:bg-[#003380] text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+          className="absolute bottom-6 right-6 w-12 h-12 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 rounded-full shadow-sm hover:shadow transition-all flex items-center justify-center"
           aria-label="Add new event"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-5 h-5 text-neutral-600" />
         </button>
       )}
     </div>

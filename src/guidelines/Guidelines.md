@@ -20,7 +20,17 @@ For example:
 --------------
 
 # Design system guidelines
-Rules for how the AI should make generations look like your company's design system
+Rules for how the AI should make generations look like your company's design system.
+
+## Color palette (categories and calendars)
+Use this palette for category/calendar color pickers; support Custom (user hex) as well.
+- Red: #ef4444
+- Orange: #f97316
+- Yellow: #eab308
+- Green: #22c55e
+- Blue: #3b82f6
+- Purple: #a855f7
+- Gray: #6b7280
 
 Additionally, if you select a design system to use in the prompt box, you can reference
 your design system's components, tokens, variables and components.

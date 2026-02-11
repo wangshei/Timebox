@@ -8,9 +8,11 @@ interface MonthViewProps {
   currentDate: Date;
   selectedBlock?: string | null;
   onSelectBlock?: (id: string | null) => void;
+  focusedCategoryId?: string | null;
+  focusedCalendarId?: string | null;
 }
 
-export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock }: MonthViewProps) {
+export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -109,14 +111,16 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                   const isPlanningMode = mode === 'planning';
                   const isPlanned = block.mode === 'planned';
                   const isRecorded = block.mode === 'recorded';
-
-                  const getOpacity = () => {
-                    if (isPlanningMode) {
-                      return isPlanned ? 0.9 : 0.4;
-                    } else {
-                      return isRecorded ? 0.9 : 0.25;
-                    }
-                  };
+                  const baseOpacity = isPlanningMode
+                    ? (isPlanned ? 0.9 : 0.4)
+                    : (isRecorded ? 0.9 : 0.25);
+                  const muted = 0.35;
+                  const opacity =
+                    focusedCategoryId != null
+                      ? block.category.id === focusedCategoryId ? baseOpacity : muted
+                      : focusedCalendarId != null
+                        ? block.calendarContainerId === focusedCalendarId ? baseOpacity : muted
+                        : baseOpacity;
 
                   return (
                     <div
@@ -125,7 +129,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                       style={{
                         backgroundColor: block.category.color,
                         borderLeftColor: block.calendarContainer.color,
-                        opacity: getOpacity(),
+                        opacity,
                       }}
                       onClick={() => onSelectBlock?.(block.id)}
                     >

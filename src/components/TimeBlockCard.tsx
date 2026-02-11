@@ -25,23 +25,39 @@ interface TimeBlockCardProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  focusedCategoryId?: string | null;
+  focusedCalendarId?: string | null;
   compact?: boolean;
 }
 
-export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, compact = false }: TimeBlockCardProps) {
+const FOCUS_MUTED_OPACITY = 0.35;
+
+export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, focusedCategoryId, focusedCalendarId, compact = false }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   
   const isPlanningMode = mode === 'planning';
   const isPlanned = block.mode === 'planned';
   const isRecorded = block.mode === 'recorded';
 
-  // Determine opacity based on mode and block type
-  const getOpacity = () => {
+  // Base opacity from mode and block type
+  const getBaseOpacity = () => {
     if (isPlanningMode) {
       return isPlanned ? 1 : 0.5;
     } else {
       return isRecorded ? 1 : 0.3;
     }
+  };
+
+  // When a category or calendar is focused, exaggerate matching blocks and mute others
+  const getOpacity = () => {
+    const base = getBaseOpacity();
+    if (focusedCategoryId != null) {
+      return block.category.id === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
+    }
+    if (focusedCalendarId != null) {
+      return block.calendarContainerId === focusedCalendarId ? base : FOCUS_MUTED_OPACITY;
+    }
+    return base;
   };
 
   const buildRecordedPayload = (overrides: Partial<RecordedBlockPayload> = {}): RecordedBlockPayload => ({
