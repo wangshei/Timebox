@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Tag as TagIcon, Calendar as CalendarIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Plus, Tag as TagIcon, GripVertical } from 'lucide-react';
 import { Category, Tag } from '../App';
-import type { CalendarContainer, Task } from '../types';
+import type { CalendarContainer, Task, TimeBlock } from '../types';
 
 type AddMode = 'task' | 'event';
 
@@ -14,6 +14,8 @@ interface AddModalProps {
   initialMode?: AddMode;
   /** When set, modal is in edit mode for this task */
   editingTask?: Task | null;
+  /** When set, modal edits an existing time block (event). */
+  editingTimeBlock?: TimeBlock | null;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -22,6 +24,7 @@ interface AddModalProps {
     calendar: 'personal' | 'work' | 'school';
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
+  onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -33,7 +36,23 @@ interface AddModalProps {
   }) => void;
 }
 
-export function AddModal({ isOpen, onClose, categories, tags, calendarContainers = [], initialMode = 'task', editingTask = null, onAddTask, onUpdateTask, onAddEvent }: AddModalProps) {
+const PANEL_WIDTH = 380;
+const PANEL_MAX_HEIGHT = 85; // vh
+
+export function AddModal({
+  isOpen,
+  onClose,
+  categories,
+  tags,
+  calendarContainers = [],
+  initialMode = 'task',
+  editingTask = null,
+  editingTimeBlock = null,
+  onAddTask,
+  onUpdateTask,
+  onUpdateTimeBlock,
+  onAddEvent,
+}: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
@@ -45,6 +64,38 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
   const defaultCalendars = [{ id: 'personal', name: 'Personal', color: '#86C0F4' }, { id: 'work', name: 'Work', color: '#9F5FB0' }, { id: 'school', name: 'School', color: '#EC8309' }];
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
+
+  const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
+
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const maxH = (window.innerHeight * PANEL_MAX_HEIGHT) / 100;
+      const x = Math.max(16, window.innerWidth - PANEL_WIDTH - 24);
+      const y = Math.max(16, window.innerHeight - maxH - 24);
+      setPanelPos({ x, y });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setPanelPos((p) => ({
+        x: Math.max(0, dragStart.current.left + dx),
+        y: Math.max(0, dragStart.current.top + dy),
+      }));
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isDragging]);
 
   // Prefill when editing
   useEffect(() => {
@@ -58,12 +109,25 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
     }
   }, [isOpen, editingTask?.id, categories, tags]);
 
+  useEffect(() => {
+    if (isOpen && editingTimeBlock) {
+      setMode('event');
+      setTitle(editingTimeBlock.title ?? '');
+      setDate(editingTimeBlock.date);
+      setStartTime(editingTimeBlock.start);
+      setEndTime(editingTimeBlock.end);
+      setSelectedCategory(categories.find((c) => c.id === editingTimeBlock.categoryId) ?? (categories[0] || null));
+      setSelectedTags(tags.filter((t) => editingTimeBlock.tagIds.includes(t.id)));
+      setSelectedCalendar(editingTimeBlock.calendarContainerId);
+    }
+  }, [isOpen, editingTimeBlock?.id, categories, tags]);
+
   // Reset when modal opens with new mode (and not editing)
   useEffect(() => {
-    if (isOpen && !editingTask) {
+    if (isOpen && !editingTask && !editingTimeBlock) {
       setMode(initialMode);
     }
-  }, [isOpen, initialMode, editingTask]);
+  }, [isOpen, initialMode, editingTask, editingTimeBlock]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,15 +142,27 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
         calendar: selectedCalendar,
       });
     } else {
-      onAddEvent({
-        title,
-        startTime,
-        endTime,
-        date,
-        category: selectedCategory,
-        tags: selectedTags,
-        calendar: selectedCalendar,
-      });
+      if (editingTimeBlock && onUpdateTimeBlock) {
+        onUpdateTimeBlock(editingTimeBlock.id, {
+          title,
+          start: startTime,
+          end: endTime,
+          date,
+          calendarContainerId: selectedCalendar,
+          categoryId: selectedCategory.id,
+          tagIds: selectedTags.map((t) => t.id),
+        });
+      } else {
+        onAddEvent({
+          title,
+          startTime,
+          endTime,
+          date,
+          category: selectedCategory,
+          tags: selectedTags,
+          calendar: selectedCalendar,
+        });
+      }
     }
 
     // Reset form
@@ -111,37 +187,58 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Light backdrop — calendar stays visible */}
-      <div className="absolute inset-0 bg-black/20" onClick={onClose} aria-hidden />
+  const maxH = typeof window !== 'undefined' ? (window.innerHeight * PANEL_MAX_HEIGHT) / 100 : 560;
 
-      {/* Right-side panel — doesn't block calendar */}
-      <div className="relative bg-white w-full max-w-[380px] sm:w-[380px] h-full shadow-xl flex flex-col border-l border-neutral-200">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 shrink-0">
-          <h2 className="text-base font-medium text-neutral-900">
-            {mode === 'task' ? (editingTask ? 'Edit Task' : 'Add Task') : 'Add Event'}
+  return (
+    <div className="fixed inset-0 z-50 pointer-events-none">
+      {/* Light backdrop — click to close, calendar stays visible */}
+      <div className="absolute inset-0 bg-black/15 pointer-events-auto" onClick={onClose} aria-hidden />
+
+      {/* Draggable small panel — doesn't block calendar */}
+      <div
+        className="absolute pointer-events-auto bg-white w-[380px] max-w-[calc(100vw-32px)] shadow-xl rounded-xl border border-neutral-200 flex flex-col overflow-hidden"
+        style={{
+          left: panelPos.x,
+          top: panelPos.y,
+          maxHeight: maxH,
+        }}
+      >
+        {/* Drag handle + Header */}
+        <div
+          className="flex items-center gap-2 px-3 py-2 border-b border-neutral-200 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            setIsDragging(true);
+            dragStart.current = { x: e.clientX, y: e.clientY, left: panelPos.x, top: panelPos.y };
+          }}
+        >
+          <GripVertical className="w-4 h-4 text-neutral-400 shrink-0" />
+          <h2 className="text-sm font-medium text-neutral-900 flex-1 truncate">
+            {mode === 'task'
+              ? (editingTask ? 'Edit Task' : 'Add Task')
+              : (editingTimeBlock ? 'Edit Event' : 'Add Event')}
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors">
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors shrink-0">
             <X className="w-4 h-4 text-neutral-500" />
           </button>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="px-4 pt-3">
-          <div className="bg-neutral-100 rounded-md p-0.5 flex">
-            <button type="button" onClick={() => setMode('task')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'task' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
-              Task
-            </button>
-            <button type="button" onClick={() => setMode('event')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'event' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
-              Event
-            </button>
+        {/* Mode Toggle (hidden when editing an event block) */}
+        {!editingTimeBlock && (
+          <div className="px-4 pt-3">
+            <div className="bg-neutral-100 rounded-md p-0.5 flex">
+              <button type="button" onClick={() => setMode('task')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'task' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
+                Task
+              </button>
+              <button type="button" onClick={() => setMode('event')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'event' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
+                Event
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Form — compact */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Form — compact, scrollable */}
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal' : 'e.g., Team meeting'} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" autoFocus />
@@ -215,7 +312,7 @@ export function AddModal({ isOpen, onClose, categories, tags, calendarContainers
           </div>
         </form>
 
-        <div className="px-4 py-3 border-t border-neutral-200 flex gap-2 shrink-0">
+        <div className="px-4 py-3 border-t border-neutral-200 flex gap-2 shrink-0 bg-white">
           <button type="button" onClick={onClose} className="flex-1 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200">
             Cancel
           </button>

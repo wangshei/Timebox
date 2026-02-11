@@ -12,6 +12,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTask, onDeleteTask }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const [splitCount, setSplitCount] = useState<number>(1);
   const progress = (task.recordedHours / task.estimatedHours) * 100;
   
   // Calculate remaining hours for partially completed tasks
@@ -47,6 +48,11 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-timebox-task-id', task.id);
+    // Dragging a task should schedule its full remaining time by default.
+    // We pass duration + optional splitCount through the drag payload.
+    const durationMinutes = Math.max(15, Math.round(displayHours * 60));
+    e.dataTransfer.setData('application/x-timebox-task-duration', String(durationMinutes));
+    e.dataTransfer.setData('application/x-timebox-task-split-count', String(splitCount));
     e.dataTransfer.setData('text/plain', task.title);
     e.dataTransfer.effectAllowed = 'copy';
     if (e.dataTransfer.setDragImage) {
@@ -198,6 +204,23 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
                 {/* Actions */}
                 <div className="pt-2 border-t border-neutral-200 space-y-1">
+                  <div className="px-1 pb-2">
+                    <div className="text-xs font-medium text-neutral-700 mb-1">Split on drop (optional)</div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={splitCount}
+                        onChange={(e) => setSplitCount(parseInt(e.target.value, 10))}
+                        className="flex-1 px-2 py-1.5 text-sm bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {[1, 2, 3, 4, 6].map((n) => (
+                          <option key={n} value={n}>
+                            {n === 1 ? 'No split (1 block)' : `${n} blocks`}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[11px] text-neutral-500 whitespace-nowrap">blocks</span>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
@@ -235,10 +258,9 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
   return (
     <>
       <div
-        className={`bg-white border rounded-lg p-4 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-150 ease-out cursor-grab active:cursor-grabbing active:scale-[0.99] group ${
+        className={`bg-white border rounded-lg p-4 h-24 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-150 ease-out cursor-grab active:cursor-grabbing active:scale-[0.99] group ${
           showPopover ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1' : 'border-neutral-200 hover:border-neutral-300'
         }`}
-        style={{ minHeight: `${cardHeight}px` }}
         onClick={handleClick}
         draggable
         onDragStart={handleDragStart}
@@ -249,10 +271,10 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
             <GripVertical className="w-4 h-4" />
           </div>
 
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 flex flex-col justify-between min-w-0">
             {/* Title and duration */}
             <div>
-              <h3 className="font-medium text-sm text-neutral-900 leading-snug mb-1">
+              <h3 className="font-medium text-sm text-neutral-900 leading-snug mb-1 line-clamp-2">
                 {task.title}
               </h3>
               <div className="flex items-center gap-2">
@@ -284,8 +306,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
               </div>
             )}
 
-            {/* Category and tags */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Category and tags (clamped) */}
+            <div className="flex items-center gap-1.5 flex-nowrap overflow-hidden">
               <div className="flex items-center gap-1.5 px-2 py-1 bg-neutral-100 rounded-md">
                 <div
                   className="w-1.5 h-1.5 rounded-full"
@@ -296,7 +318,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
               {task.tags.map(tag => (
                 <span
                   key={tag.id}
-                  className="text-xs px-2 py-1 bg-neutral-100 text-neutral-600 rounded-md"
+                  className="text-xs px-2 py-1 bg-neutral-100 text-neutral-600 rounded-md truncate max-w-[90px] shrink-0"
                 >
                   {tag.name}
                 </span>
@@ -379,6 +401,23 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
               {/* Actions */}
               <div className="pt-2 border-t border-neutral-200 space-y-1">
+                <div className="px-1 pb-2">
+                  <div className="text-xs font-medium text-neutral-700 mb-1">Split on drop (optional)</div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={splitCount}
+                      onChange={(e) => setSplitCount(parseInt(e.target.value, 10))}
+                      className="flex-1 px-2 py-1.5 text-sm bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {[1, 2, 3, 4, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n === 1 ? 'No split (1 block)' : `${n} blocks`}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[11px] text-neutral-500 whitespace-nowrap">blocks</span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Calendar as CalendarIcon, FolderKanban, Tag as TagIcon } from 'lucide-react';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ColorPicker } from './ColorPicker';
@@ -90,10 +90,16 @@ export function SettingsPanel({
         </div>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="flex-1 flex flex-col overflow-hidden min-h-0">
           <div className="px-4 pt-3 pb-2 flex-shrink-0">
-            <TabsList className="w-full grid grid-cols-3 h-9 rounded-lg bg-neutral-100 p-0.5">
-              <TabsTrigger value="calendars" className="text-xs font-medium rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Calendars</TabsTrigger>
-              <TabsTrigger value="categories" className="text-xs font-medium rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Categories</TabsTrigger>
-              <TabsTrigger value="tags" className="text-xs font-medium rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">Tags</TabsTrigger>
+            <TabsList className="w-full h-10 rounded-xl bg-neutral-50 border border-neutral-100 p-1 flex gap-1 justify-start">
+              <TabsTrigger value="calendars" className="flex items-center gap-2 px-3 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <CalendarIcon className="w-4 h-4" /> Calendars
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="flex items-center gap-2 px-3 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <FolderKanban className="w-4 h-4" /> Categories
+              </TabsTrigger>
+              <TabsTrigger value="tags" className="flex items-center gap-2 px-3 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TagIcon className="w-4 h-4" /> Tags
+              </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 space-y-6">
@@ -116,7 +122,9 @@ export function SettingsPanel({
               </form>
               <ul className="space-y-1">
                 {calendarContainers.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg border-l-[3px] hover:bg-neutral-50" style={{ borderLeftColor: c.color, backgroundColor: `${c.color}08` }}>
+                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                    <CalendarIcon className="w-4 h-4 text-neutral-400" />
                     <span className="flex-1 text-sm font-medium text-neutral-900">{c.name}</span>
                     <button type="button" onClick={() => setEditingCalendarId(c.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
@@ -162,7 +170,9 @@ export function SettingsPanel({
               </form>
               <ul className="space-y-1">
                 {categories.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg border-l-[3px] hover:bg-neutral-50" style={{ borderLeftColor: c.color, backgroundColor: `${c.color}08` }}>
+                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                    <FolderKanban className="w-4 h-4 text-neutral-400" />
                     <span className="flex-1 text-sm font-medium text-neutral-900">{c.name}</span>
                     <button type="button" onClick={() => setEditingCategoryId(c.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">
                       <Pencil className="w-3.5 h-3.5" />
@@ -214,6 +224,7 @@ export function SettingsPanel({
               <ul className="space-y-1">
                 {tags.map((t) => (
                   <li key={t.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
+                    <TagIcon className="w-4 h-4 text-neutral-400" />
                     <span className="flex-1 text-sm font-medium text-neutral-900">{t.name}</span>
                     {t.type && <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">{t.type}</span>}
                     <button type="button" onClick={() => setEditingTagId(t.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">

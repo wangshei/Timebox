@@ -26,7 +26,12 @@ interface CalendarViewProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: import('./TimeBlockCard').RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
   onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
+  /** Create a time block from drag on empty grid (day view). */
+  onCreateBlock?: (params: import('./DayView').CreateBlockParams) => string | undefined;
+  /** Move a block to new time/date; may split rest into a new block. */
+  onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
 }
 
 export function CalendarView({ 
@@ -49,7 +54,10 @@ export function CalendarView({
   onDoneAsPlanned,
   onDidSomethingElse,
   onDeleteBlock,
+  onDeleteTask,
   onDropTask,
+  onCreateBlock,
+  onMoveBlock,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const currentDate = useMemo(() => {
@@ -220,17 +228,18 @@ export function CalendarView({
 
       {/* Calendar Content */}
       <div className="flex-1 overflow-y-auto">
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDropTask={onDropTask} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
-        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} />}
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
+        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} />}
+        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} />}
       </div>
 
-      {/* Floating Add Button — circle, muted neutral style */}
+      {/* Floating Add Button — visible in day/week/month, draggable add popup opens */}
       {onOpenAddModal && (
         <button
+          type="button"
           onClick={() => onOpenAddModal('event')}
-          className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow transition-all flex items-center justify-center"
-          aria-label="Add new event"
+          className="absolute bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow transition-all flex items-center justify-center"
+          aria-label="Add task or event"
         >
           <Plus className="w-6 h-6 text-neutral-600" />
         </button>

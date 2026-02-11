@@ -4,12 +4,20 @@ import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
 
 export const SNAP_MINUTES = 15;
-const DEFAULT_DROP_MINUTES = 60;
+const DEFAULT_DROP_MINUTES = 15;
+const MIN_CREATE_MINUTES = 15;
 
 export interface DropTaskParams {
   date: string;
   startTime: string;
   blockMinutes: number;
+  splitCount?: number;
+}
+
+export interface CreateBlockParams {
+  date: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface DayViewProps {
@@ -23,7 +31,12 @@ interface DayViewProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
   onDropTask?: (taskId: string, params: DropTaskParams) => void;
+  /** Create a time block by drag on empty grid. */
+  onCreateBlock?: (params: CreateBlockParams) => string | undefined;
+  /** Move an existing block to new time/date; may split rest into a new block. */
+  onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
 }
 
 const PX_PER_HOUR = 80;
@@ -41,13 +54,20 @@ function minutesToTimeString(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDropTask }: DayViewProps) {
+export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onCreateBlock, onMoveBlock }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
+  const dragPreviewRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
+  const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number } | null>(null);
+  const creatingBlockRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
   const todayStr = now.toISOString().slice(0, 10);
   const isViewingToday = selectedDate === todayStr;
+
+  React.useEffect(() => {
+    dragPreviewRef.current = dragPreview;
+  }, [dragPreview]);
 
   React.useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -60,23 +80,29 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (!onDropTask || !e.dataTransfer.types.includes('application/x-timebox-task-id')) return;
+    const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
+    const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
+    if (!hasTask && !hasBlock) return;
+    if (hasTask && !onDropTask) return;
+    if (hasBlock && !onMoveBlock) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    e.dataTransfer.dropEffect = hasBlock ? 'move' : 'copy';
     setIsDragOver(true);
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
     const offsetY = e.clientY - rect.top;
     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
     const currentMins = offsetYToMinutes(offsetY);
-    setDragPreview((prev) => {
-      if (!prev) {
-        return { startMins: currentMins, endMins: currentMins + DEFAULT_DROP_MINUTES };
-      }
-      const startMins = Math.min(prev.startMins, currentMins);
-      const endMins = Math.max(prev.endMins, currentMins, startMins + DEFAULT_DROP_MINUTES);
-      return { startMins, endMins };
-    });
+    if (hasBlock) {
+      const durationStr = e.dataTransfer.getData('application/x-timebox-block-duration');
+      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
+    } else {
+      const durationStr = e.dataTransfer.getData('application/x-timebox-task-duration');
+      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      // Tasks drag as their full duration (no stretching needed).
+      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
+    }
   };
 
   const handleDragLeave = () => {
@@ -86,23 +112,82 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
 
   const handleDrop = (e: React.DragEvent) => {
     const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
-    const preview = dragPreview;
+    const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
+    const preview = dragPreviewRef.current ?? dragPreview;
     setIsDragOver(false);
     setDragPreview(null);
-    if (!onDropTask || !taskId) return;
+    dragPreviewRef.current = null;
     e.preventDefault();
-    const startTime = preview
-      ? minutesToTimeString(preview.startMins)
-      : (() => {
-          const rect = gridRef.current?.getBoundingClientRect();
-          if (!rect) return '09:00';
-          const offsetY = e.clientY - rect.top;
-          const mins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
-          return minutesToTimeString(mins);
-        })();
-    const blockMinutes = preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES;
-    onDropTask(taskId, { date: selectedDate, startTime, blockMinutes });
+
+    const rect = gridRef.current?.getBoundingClientRect();
+    const fallbackMins = rect
+      ? offsetYToMinutes(Math.max(0, Math.min(e.clientY - rect.top, GRID_HEIGHT)))
+      : 9 * 60;
+    const startMins = preview?.startMins ?? fallbackMins;
+    const endMins = preview?.endMins ?? startMins + DEFAULT_DROP_MINUTES;
+    const startTime = minutesToTimeString(startMins);
+    const endTime = minutesToTimeString(endMins);
+
+    if (blockId && onMoveBlock) {
+      onMoveBlock(blockId, { date: selectedDate, startTime, endTime });
+      return;
+    }
+    if (taskId && onDropTask) {
+      const blockMinutes = Math.max(MIN_CREATE_MINUTES, endMins - startMins);
+      const splitStr = e.dataTransfer.getData('application/x-timebox-task-split-count');
+      const splitCount = splitStr ? parseInt(splitStr, 10) : undefined;
+      onDropTask(taskId, { date: selectedDate, startTime, blockMinutes, splitCount });
+    }
   };
+
+  const getGridRect = () => gridRef.current?.getBoundingClientRect();
+
+  const handleEmptyGridMouseDown = (e: React.MouseEvent) => {
+    if (!onCreateBlock || creatingBlock) return;
+    const rect = getGridRect();
+    if (!rect) return;
+    const offsetY = e.clientY - rect.top;
+    if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+    const startMins = offsetYToMinutes(offsetY);
+    setCreatingBlock({ startMins, endMins: startMins + MIN_CREATE_MINUTES });
+  };
+
+  React.useEffect(() => {
+    creatingBlockRef.current = creatingBlock;
+  }, [creatingBlock]);
+
+  React.useEffect(() => {
+    if (!creatingBlock) return;
+    const rect = getGridRect();
+    const onMove = (e: MouseEvent) => {
+      if (!rect) return;
+      const offsetY = e.clientY - rect.top;
+      const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+      setCreatingBlock((prev) => {
+        if (!prev) return null;
+        const endMins = Math.max(currentMins, prev.startMins + MIN_CREATE_MINUTES);
+        creatingBlockRef.current = { startMins: prev.startMins, endMins };
+        return { startMins: prev.startMins, endMins };
+      });
+    };
+    const onUp = () => {
+      const cur = creatingBlockRef.current ?? creatingBlock;
+      setCreatingBlock(null);
+      creatingBlockRef.current = null;
+      if (!cur || !onCreateBlock) return;
+      const startTime = minutesToTimeString(cur.startMins);
+      const endTime = minutesToTimeString(cur.endMins);
+      onCreateBlock({ date: selectedDate, startTime, endTime });
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [creatingBlock, selectedDate, onCreateBlock]);
 
   // Generate hours from 6 AM to 10 PM
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
@@ -143,22 +228,21 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
           </div>
         ))}
 
-        {/* Drop zone for drag-task-to-calendar */}
-        {onDropTask && (
-          <div
-            ref={gridRef}
-            className={`absolute left-14 md:left-20 right-0 top-0 z-10 rounded-r-lg transition-[background-color,box-shadow] duration-200 ease-out ${
-              isDragOver ? 'bg-blue-50/70 ring-2 ring-blue-200/80 ring-inset' : ''
-            }`}
-            style={{ height: `${GRID_HEIGHT}px` }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          />
-        )}
+        {/* Grid: drop zone (task drag) + mousedown for create-block. Always rendered so ref and create work. */}
+        <div
+          ref={gridRef}
+          className={`absolute left-14 md:left-20 right-0 top-0 z-10 rounded-r-lg transition-[background-color,box-shadow] duration-200 ease-out ${
+            isDragOver ? 'bg-blue-50/70 ring-2 ring-blue-200/80 ring-inset' : ''
+          } ${onCreateBlock ? 'cursor-crosshair' : ''}`}
+          style={{ height: `${GRID_HEIGHT}px` }}
+          onDragOver={onDropTask || onMoveBlock ? handleDragOver : undefined}
+          onDragLeave={onDropTask || onMoveBlock ? handleDragLeave : undefined}
+          onDrop={onDropTask || onMoveBlock ? handleDrop : undefined}
+          onMouseDown={onCreateBlock ? handleEmptyGridMouseDown : undefined}
+        />
 
-        {/* Drag preview block — shows 1h default, extends as user drags */}
-        {onDropTask && dragPreview && (
+        {/* Drag preview — task drop or block move */}
+        {(onDropTask || onMoveBlock) && dragPreview && (
           <div
             className="absolute left-14 md:left-20 right-2 top-0 z-30 pointer-events-none rounded-lg border-2 border-dashed border-blue-400 bg-blue-100/50 transition-[top,height] duration-150 ease-out"
             style={{
@@ -167,14 +251,35 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
             }}
           >
             <span className="absolute bottom-1 left-2 text-xs font-medium text-blue-700">
-              {dragPreview.endMins - dragPreview.startMins} min
+              {minutesToTimeString(dragPreview.startMins)} → {minutesToTimeString(dragPreview.endMins)} · {dragPreview.endMins - dragPreview.startMins} min
             </span>
           </div>
         )}
 
-        {/* Time blocks */}
+        {/* Create-block preview — drag on empty grid */}
+        {creatingBlock && (
+          <div
+            className="absolute left-14 md:left-20 right-2 top-0 z-30 pointer-events-none rounded-lg border-2 border-dashed border-blue-500 bg-blue-200/40"
+            style={{
+              top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+              height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+            }}
+          >
+            <span className="absolute bottom-1 left-2 text-xs font-medium text-blue-800">
+              {minutesToTimeString(creatingBlock.startMins)} → {minutesToTimeString(creatingBlock.endMins)} · {creatingBlock.endMins - creatingBlock.startMins} min
+            </span>
+          </div>
+        )}
+
+        {/* Time blocks — wrapper accepts drop so dropping on a block also moves/creates */}
         <div className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none">
-          <div className="pointer-events-auto">
+          <div
+            className="pointer-events-auto min-h-full"
+            style={{ minHeight: GRID_HEIGHT }}
+            onDragOver={onDropTask || onMoveBlock ? handleDragOver : undefined}
+            onDragLeave={onDropTask || onMoveBlock ? handleDragLeave : undefined}
+            onDrop={onDropTask || onMoveBlock ? handleDrop : undefined}
+          >
           {timeBlocks.map((block) => {
             const { top, height } = getBlockStyle(block);
             return (
@@ -191,6 +296,7 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
                 onDoneAsPlanned={onDoneAsPlanned}
                 onDidSomethingElse={onDidSomethingElse}
                 onDeleteBlock={onDeleteBlock}
+                onDeleteTask={onDeleteTask}
               />
             );
           })}

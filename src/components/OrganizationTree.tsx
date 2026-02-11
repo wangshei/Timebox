@@ -92,17 +92,17 @@ export function OrganizationTree({
               <button
                 type="button"
                 onClick={() => onFocusCalendar(container.id)}
-                className={`flex-1 flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
+                className={`flex-1 flex items-center justify-start gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
                   focusedCalendarId === container.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
                 }`}
                 style={{ borderLeftColor: container.color, backgroundColor: `${container.color}12` }}
               >
                 <Calendar className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
-                <span className="flex-1 truncate">{container.name}</span>
+                <span className="truncate">{container.name}</span>
               </button>
             </div>
             {expanded && calCategories.length > 0 && (
-              <div className="ml-4 mt-0.5 space-y-0.5 border-l border-neutral-200 pl-1.5">
+              <div className="ml-3 mt-0.5 space-y-0.5 border-l border-neutral-200 pl-2">
                 {calCategories.map((cat) => {
                   const catTags = tagsByCategory.get(cat.id) ?? [];
                   const catExpanded = isCategoryExpanded(cat.id);
@@ -120,25 +120,25 @@ export function OrganizationTree({
                         <button
                           type="button"
                           onClick={() => onFocusCategory(cat.id)}
-                          className={`flex-1 flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
+                          className={`flex-1 flex items-center justify-start gap-2 pl-2 pr-1.5 py-1 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
                             focusedCategoryId === cat.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
                           }`}
                           style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
                         >
                           <Folder className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
-                          <span className="flex-1 truncate">{cat.name}</span>
+                          <span className="truncate">{cat.name}</span>
                         </button>
                       </div>
                       {catExpanded && catTags.length > 0 && (
-                        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-neutral-200 pl-1.5">
+                        <div className="ml-6 mt-0.5 space-y-0.5 border-l border-neutral-200 pl-2">
                           {catTags.map((tag) => (
                             <div
                               key={tag.id}
-                              className="flex items-center gap-2 pl-1.5 pr-1.5 py-1 rounded text-left text-sm text-neutral-700 min-w-0"
+                              className="flex items-center justify-start gap-2 pl-1.5 pr-1.5 py-1 rounded text-left text-sm text-neutral-700 min-w-0"
                             >
                               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TAG_DOT_COLOR }} />
                               <TagIcon className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-                              <span className="flex-1 truncate">{tag.name}</span>
+                              <span className="truncate">{tag.name}</span>
                             </div>
                           ))}
                         </div>
@@ -160,13 +160,13 @@ export function OrganizationTree({
                 key={cat.id}
                 type="button"
                 onClick={() => onFocusCategory(cat.id)}
-                className={`w-full flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
+                className={`w-full flex items-center justify-start gap-2 pl-2 pr-1.5 py-1 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
                   focusedCategoryId === cat.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
                 }`}
                 style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
               >
                 <Folder className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
-                <span className="flex-1 truncate">{cat.name}</span>
+                <span className="truncate">{cat.name}</span>
               </button>
             ))}
           </div>
@@ -177,10 +177,10 @@ export function OrganizationTree({
           <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1 pl-1">Ungrouped tags</p>
           <div className="space-y-0.5 pl-0.5">
             {ungroupedTags.map((tag) => (
-              <div key={tag.id} className="flex items-center gap-2 pl-1.5 py-1 text-sm text-neutral-700 min-w-0">
+              <div key={tag.id} className="flex items-center justify-start gap-2 pl-1.5 py-1 text-sm text-neutral-700 min-w-0">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TAG_DOT_COLOR }} />
                 <TagIcon className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-                <span className="flex-1 truncate">{tag.name}</span>
+                <span className="truncate">{tag.name}</span>
               </div>
             ))}
           </div>

@@ -1,13 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
-import { SettingsSidePanel } from './components/SettingsSidePanel';
-import { AddCalendarPopover } from './components/AddCalendarPopover';
-import { OrganizationTree } from './components/OrganizationTree';
+import { LeftSidebar } from './components/LeftSidebar';
+import { SettingsPanel } from './components/SettingsPanel';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForView,
@@ -51,20 +49,15 @@ export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
+  const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
-  const [addCalendarOpen, setAddCalendarOpen] = useState(false);
-  const addCalendarAnchorRef = useRef<HTMLDivElement>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-  const [leftPanelMode, setLeftPanelMode] = useState<'organization' | 'settings'>('organization');
-  const [settingsSnapshot, setSettingsSnapshot] = useState<{
-    calendars: Array<{ id: string; name: string; color: string }>;
-    categories: Array<{ id: string; name: string; color: string; calendarContainerId?: string | null }>;
-    tags: Array<{ id: string; name: string; type?: 'project' | 'hobby'; categoryId?: string | null }>;
-  } | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
-  const [calendarsOpen, setCalendarsOpen] = useState(true);
 
   const {
     viewMode: mode,
@@ -75,6 +68,7 @@ export default function App() {
     setSelectedDate,
     containerVisibility,
     toggleContainerVisibility,
+    setAllCalendarsVisible,
     tasks,
     timeBlocks,
     calendarContainers,
@@ -82,6 +76,7 @@ export default function App() {
     tags,
     addTask,
     addTimeBlock,
+    updateTimeBlock,
     updateTask,
     deleteTask,
     createPlannedBlocksFromTask,
@@ -225,17 +220,22 @@ export default function App() {
 
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
     setEditingTaskId(null);
+    setEditingTimeBlockId(null);
+    setIsDraftTimeBlock(false);
     setAddModalMode(modalMode);
     setIsAddModalOpen(true);
   };
 
   const handleEditTask = (id: string) => {
     setEditingTaskId(id);
+    setEditingTimeBlockId(null);
+    setIsDraftTimeBlock(false);
     setAddModalMode('task');
     setIsAddModalOpen(true);
   };
 
   const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
+  const editingTimeBlock = editingTimeBlockId ? timeBlocks.find((b) => b.id === editingTimeBlockId) ?? null : null;
   const schedulingTask = schedulingTaskId ? tasks.find((t) => t.id === schedulingTaskId) ?? null : null;
 
   const handleOpenScheduleTask = (taskId: string) => {
@@ -249,16 +249,149 @@ export default function App() {
     }
   };
 
-  const handleDropTask = (taskId: string, params: { date: string; startTime: string; blockMinutes: number }) => {
-    createPlannedBlocksFromTask(taskId, {
-      date: params.date,
-      startTime: params.startTime,
-      blockMinutes: params.blockMinutes ?? defaultBlockMinutes,
-      splitTask: true,
-    });
+  const handleDropTask = (
+    taskId: string,
+    params: { date: string; startTime: string; blockMinutes: number; splitCount?: number }
+  ) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const parseTimeToMinsLocal = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h ?? 0) * 60 + (m ?? 0);
+    };
+    const planned = timeBlocks
+      .filter((b) => b.taskId === taskId && b.mode === 'planned')
+      .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
+    const recorded = timeBlocks
+      .filter((b) => b.taskId === taskId && b.mode === 'recorded')
+      .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
+    const remaining = Math.max(0, task.estimatedMinutes - planned - recorded);
+    if (remaining <= 0) return;
+
+    // Schedule the full remaining time by default; only split if user requested.
+    const total = Math.max(15, Math.round(remaining / 15) * 15);
+    const count = Math.max(1, Math.min(12, params.splitCount ?? 1));
+    const startMins = parseTimeToMinsLocal(params.startTime);
+    const minsToTimeString = (mins: number) =>
+      `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
+    if (count === 1) {
+      addTimeBlock({
+        taskId,
+        title: task.title,
+        calendarContainerId: task.calendarContainerId,
+        categoryId: task.categoryId,
+        tagIds: task.tagIds,
+        start: minsToTimeString(startMins),
+        end: minsToTimeString(startMins + total),
+        date: params.date,
+        mode: 'planned',
+        source: 'manual',
+      });
+      return;
+    }
+
+    const chunk = Math.max(15, Math.round((total / count) / 15) * 15);
+    let cur = startMins;
+    let remainingToPlace = total;
+    for (let i = 0; i < count; i++) {
+      const dur = i === count - 1 ? remainingToPlace : Math.min(chunk, remainingToPlace - 15 * (count - i - 1));
+      addTimeBlock({
+        taskId,
+        title: task.title,
+        calendarContainerId: task.calendarContainerId,
+        categoryId: task.categoryId,
+        tagIds: task.tagIds,
+        start: minsToTimeString(cur),
+        end: minsToTimeString(cur + dur),
+        date: params.date,
+        mode: 'planned',
+        source: 'manual',
+      });
+      cur += dur;
+      remainingToPlace -= dur;
+    }
   };
 
-  // Keyboard shortcuts: d day, w week, m month, p planning, r recording
+  const handleCreateBlock = (params: { date: string; startTime: string; endTime: string }) => {
+    const containerId = calendarContainers[0]?.id;
+    const categoryId = categories[0]?.id;
+    if (!containerId || !categoryId) return undefined;
+    const id = addTimeBlock({
+      title: '',
+      calendarContainerId: containerId,
+      categoryId,
+      tagIds: [],
+      start: params.startTime,
+      end: params.endTime,
+      date: params.date,
+      mode: mode === 'planning' ? 'planned' : 'recorded',
+      source: 'manual',
+    });
+    // Immediately open the Add Event popup to fill in details; delete draft on cancel.
+    setEditingTaskId(null);
+    setEditingTimeBlockId(id);
+    setIsDraftTimeBlock(true);
+    setAddModalMode('event');
+    setIsAddModalOpen(true);
+    return id;
+  };
+
+  const parseTimeToMins = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  const minsToTime = (mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
+  const handleMoveBlock = (blockId: string, params: { date: string; startTime: string; endTime: string }) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block) return;
+    // Don't allow moving untitled events; prompt user to name it first.
+    if (!(block.title ?? '').trim() && !block.taskId) {
+      setEditingTaskId(null);
+      setEditingTimeBlockId(blockId);
+      setIsDraftTimeBlock(false);
+      setAddModalMode('event');
+      setIsAddModalOpen(true);
+      return;
+    }
+    const origStart = parseTimeToMins(block.start);
+    const origEnd = parseTimeToMins(block.end);
+    const newStart = parseTimeToMins(params.startTime);
+    const newEnd = parseTimeToMins(params.endTime);
+    updateTimeBlock(blockId, { start: params.startTime, end: params.endTime, date: params.date });
+    if (origStart < newStart) {
+      addTimeBlock({
+        calendarContainerId: block.calendarContainerId,
+        categoryId: block.categoryId,
+        tagIds: block.tagIds ?? [],
+        taskId: block.taskId ?? undefined,
+        title: block.title,
+        start: minsToTime(origStart),
+        end: minsToTime(newStart),
+        date: block.date,
+        mode: block.mode,
+        source: block.source,
+      });
+    }
+    if (newEnd < origEnd) {
+      addTimeBlock({
+        calendarContainerId: block.calendarContainerId,
+        categoryId: block.categoryId,
+        tagIds: block.tagIds ?? [],
+        taskId: block.taskId ?? undefined,
+        title: block.title,
+        start: minsToTime(newEnd),
+        end: minsToTime(origEnd),
+        date: block.date,
+        mode: block.mode,
+        source: block.source,
+      });
+    }
+  };
+
+  // Keyboard shortcuts: d day, w week, m month, p planning, r recording, a all calendars
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -270,10 +403,11 @@ export default function App() {
       else if (key === 'm') { setView('month'); e.preventDefault(); }
       else if (key === 'p') { setViewMode('planning'); e.preventDefault(); }
       else if (key === 'r') { setViewMode('recording'); e.preventDefault(); }
+      else if (key === 'a') { setAllCalendarsVisible(); e.preventDefault(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setView, setViewMode]);
+  }, [setView, setViewMode, setAllCalendarsVisible]);
 
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
@@ -281,35 +415,20 @@ export default function App() {
         {/* Left panel — Notion-like: header (logo + add + edit icon), sections left-aligned */}
         {leftPanelOpen ? (
           <div className="flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden" style={{ width: '260px' }}>
-            {/* Header: logo + name (left), then + add calendar, gear edit, close */}
-            <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-100 min-h-0">
-              <div className="flex items-center min-w-0 flex-1">
-                <img src="/logo.png" alt="Timebox" className="flex-shrink-0 object-contain size-[60px] max-w-[60px] max-h-[60px]" />
-              </div>
-              <div ref={addCalendarAnchorRef} className="relative">
-                <button type="button" onClick={() => setAddCalendarOpen((o) => !o)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Add calendar">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                </button>
-                {addCalendarOpen && (
-                  <AddCalendarPopover
-                    isOpen={addCalendarOpen}
-                    onClose={() => setAddCalendarOpen(false)}
-                    anchorRef={addCalendarAnchorRef}
-                    onAdd={(c) => { addCalendarContainer(c); setAddCalendarOpen(false); }}
-                  />
-                )}
-              </div>
+            {/* Header: shortcuts (help), settings (modal), close */}
+            <div className="relative flex items-center justify-end gap-1 px-2 py-2 border-b border-neutral-100 flex-shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  setSettingsSnapshot({
-                    calendars: calendarContainers.map((c) => ({ ...c })),
-                    categories: categories.map((c) => ({ ...c })),
-                    tags: tags.map((t) => ({ ...t })),
-                  });
-                  setLeftPanelMode('settings');
-                  setLeftPanelOpen(true);
-                }}
+                onClick={() => setIsShortcutsOpen((o) => !o)}
+                className={`p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors ${isShortcutsOpen ? 'bg-blue-50 text-blue-600' : ''}`}
+                aria-label="Shortcuts"
+                title="Keyboard shortcuts"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
                 className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors"
                 aria-label="Settings"
                 title="Settings"
@@ -319,172 +438,148 @@ export default function App() {
               <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
+              {isShortcutsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsShortcutsOpen(false)} aria-hidden />
+                  <div className="fixed top-14 left-4 z-50 w-56 rounded-lg border border-neutral-200 bg-white shadow-lg py-2 px-3">
+                    <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide mb-2">Shortcuts</p>
+                    <div className="space-y-1.5 text-xs text-neutral-700">
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">d</kbd><span>Day view</span></div>
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">w</kbd><span>Week view</span></div>
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">m</kbd><span>Month view</span></div>
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">p</kbd><span>Plan mode</span></div>
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">r</kbd><span>Record mode</span></div>
+                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">a</kbd><span>Show all calendars</span></div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            {leftPanelMode === 'settings' ? (
-              <SettingsSidePanel
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <LeftSidebar
                 calendarContainers={calendarContainers}
                 categories={categories}
                 tags={tags}
-                onAddCalendar={addCalendarContainer}
+                timeBlocks={timeBlocks}
+                visibility={containerVisibility}
+                onToggleVisibility={toggleContainerVisibility}
                 onUpdateCalendar={updateCalendarContainer}
+                onAddCalendar={addCalendarContainer}
                 onDeleteCalendar={deleteCalendarContainer}
-                onAddCategory={addCategory}
                 onUpdateCategory={updateCategory}
+                onAddCategory={addCategory}
                 onDeleteCategory={deleteCategory}
-                onAddTag={addTag}
                 onUpdateTag={updateTag}
+                onAddTag={addTag}
                 onDeleteTag={deleteTag}
-                onSave={() => setLeftPanelMode('organization')}
-                onRevert={() => {
-                  if (settingsSnapshot) {
-                    setCalendarContainers(settingsSnapshot.calendars);
-                    setCategories(settingsSnapshot.categories);
-                    setTags(settingsSnapshot.tags);
-                  }
-                  setLeftPanelMode('organization');
-                }}
-              />
-            ) : (
-              <>
-                {/* ORGANIZATION: nested Calendars → Categories → Tags */}
-                <div className="flex-shrink-0 px-2 pt-3 pb-2">
-                  <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">Organization</p>
-                  <div className="mb-1">
-                    <button type="button" onClick={() => setCalendarsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
-                      {calendarsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
-                      <span>Calendars</span>
-                    </button>
-                    {calendarsOpen && (
-                      <div className="pl-0.5 mt-0.5">
-                        <OrganizationTree
-                          containers={calendarContainers}
-                          categories={categories}
-                          tags={tags}
-                          visibility={containerVisibility}
-                          onToggleVisibility={toggleContainerVisibility}
-                          focusedCalendarId={focusedCalendarId}
-                          focusedCategoryId={focusedCategoryId}
-                          onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
-                          onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
-                        />
+                onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+                onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
+                endDayLabel={`End day (${selectedDate})`}
+                onEndDay={() => endDay(selectedDate)}
+                planVsActualSection={
+                  <div className="px-4 pb-3 pt-3">
+                    <p className="text-[6px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Plan vs Actual</p>
+                    <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">{selectedDate}</p>
+                    <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setPlanVsActualView('category')}
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                          planVsActualView === 'category'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-600 hover:text-neutral-900'
+                        }`}
+                      >
+                        Category
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlanVsActualView('container')}
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                          planVsActualView === 'container'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-600 hover:text-neutral-900'
+                        }`}
+                      >
+                        Calendar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlanVsActualView('tag')}
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                          planVsActualView === 'tag'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-600 hover:text-neutral-900'
+                        }`}
+                      >
+                        Tag
+                      </button>
+                    </div>
+                    {planVsActual.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-x-2 text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1 px-0.5">
+                          <span>Planned</span>
+                          <span className="text-right">Recorded</span>
+                        </div>
+                        {planVsActual.map((row) => {
+                          const totalP = planVsActual.reduce((s, r) => s + r.plannedHours, 0);
+                          const totalR = planVsActual.reduce((s, r) => s + r.recordedHours, 0);
+                          const maxH = Math.max(totalP, totalR, 1);
+                          const pctP = (row.plannedHours / maxH) * 100;
+                          const pctR = (row.recordedHours / maxH) * 100;
+                          return (
+                            <div key={row.id} className="space-y-1.5">
+                              <div className="flex items-center justify-start gap-2 min-w-0">
+                                <div
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: row.color }}
+                                />
+                                <span className="text-sm text-neutral-700 truncate">{row.name}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="bg-neutral-100 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-neutral-300 transition-all"
+                                      style={{ width: `${Math.min(100, pctP)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-neutral-500">{row.plannedHours.toFixed(1)}h</span>
+                                </div>
+                                <div className="space-y-0.5 text-right">
+                                  <div className="bg-neutral-100 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all"
+                                      style={{ width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.9 }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-neutral-500">{row.recordedHours.toFixed(1)}h</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="pt-3 mt-3 border-t border-neutral-200">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-neutral-600">Total</span>
+                            <span className="font-medium text-neutral-800">
+                              {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned · {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h recorded
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-neutral-400 text-center py-8">
+                        No time planned or recorded for this day
                       </div>
                     )}
                   </div>
-                  <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
-                    End day ({selectedDate})
-                  </button>
-                </div>
-          <div className="flex-1 overflow-y-auto px-2 pb-3 min-h-0 border-t border-neutral-100 pt-3">
-            <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">{selectedDate} — Plan vs Actual</p>
-            <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
-              <button
-                type="button"
-                onClick={() => setPlanVsActualView('category')}
-                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                  planVsActualView === 'category'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Category
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlanVsActualView('container')}
-                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                  planVsActualView === 'container'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Calendar
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlanVsActualView('tag')}
-                className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                  planVsActualView === 'tag'
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                Tag
-              </button>
+                }
+              />
             </div>
-            {planVsActual.length > 0 ? (
-              <div className="space-y-4">
-                {planVsActual.map((row) => {
-                  const totalP = planVsActual.reduce((s, r) => s + r.plannedHours, 0);
-                  const totalR = planVsActual.reduce((s, r) => s + r.recordedHours, 0);
-                  const pctP = totalP > 0 ? (row.plannedHours / totalP) * 100 : 0;
-                  const pctR = totalR > 0 ? (row.recordedHours / totalR) * 100 : 0;
-                  return (
-                    <div key={row.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: row.color }}
-                          />
-                          <span className="text-sm text-neutral-700">{row.name}</span>
-                        </div>
-                        <span className="text-xs text-neutral-500">
-                          P: {row.plannedHours.toFixed(1)}h · R: {row.recordedHours.toFixed(1)}h
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-neutral-300"
-                            style={{ width: `${pctP}%` }}
-                          />
-                        </div>
-                        <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${pctR}%`,
-                              backgroundColor: row.color,
-                              opacity: 0.8,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="pt-4 mt-4 border-t border-neutral-200">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-neutral-700">Total</span>
-                    <span className="font-medium text-neutral-900">
-                      P: {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h · R:{' '}
-                      {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-neutral-400 text-center py-8">
-                No time planned or recorded for this day
-              </div>
-            )}
-          </div>
-          {/* Shortcuts — small gray box at bottom */}
-          <div className="flex-shrink-0 px-3 py-2.5 border-t border-neutral-100 bg-neutral-50/80">
-            <div className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5">Shortcuts</div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-neutral-500">
-              <span><kbd className="font-mono text-neutral-600">d</kbd> Day</span>
-              <span><kbd className="font-mono text-neutral-600">w</kbd> Week</span>
-              <span><kbd className="font-mono text-neutral-600">m</kbd> Month</span>
-              <span><kbd className="font-mono text-neutral-600">p</kbd> Plan</span>
-              <span><kbd className="font-mono text-neutral-600">r</kbd> Record</span>
-            </div>
-          </div>
-              </>
-            )}
           </div>
         ) : (
-          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center py-2 bg-white border-r border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open left panel" title="Open left panel">
+          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 h-10 mt-2 ml-2 self-start flex items-center justify-center bg-white border border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors rounded-lg" aria-label="Open left panel" title="Open left panel">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         )}
@@ -508,7 +603,10 @@ export default function App() {
           onDoneAsPlanned={markDoneAsPlanned}
           onDidSomethingElse={markDidSomethingElse}
           onDeleteBlock={deleteTimeBlock}
+          onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
+          onCreateBlock={handleCreateBlock}
+          onMoveBlock={handleMoveBlock}
         />
 
         {/* Right panel — closable */}
@@ -527,6 +625,7 @@ export default function App() {
                 partiallyCompletedTasks={partiallyCompletedDisplay}
                 fixedMissedTasks={fixedMissedDisplay}
                 selectedDate={selectedDate}
+                timeBlocks={timeBlocks}
                 categories={categories}
                 tags={tags}
                 onAddTask={handleAddTask}
@@ -534,6 +633,7 @@ export default function App() {
                 onEditTask={handleEditTask}
                 onDeleteTask={deleteTask}
                 onOpenAddModal={handleOpenAddModal}
+                onDropBlock={deleteTimeBlock}
               />
             </div>
           </div>
@@ -563,7 +663,10 @@ export default function App() {
           onDoneAsPlanned={markDoneAsPlanned}
           onDidSomethingElse={markDidSomethingElse}
           onDeleteBlock={deleteTimeBlock}
+          onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
+          onCreateBlock={handleCreateBlock}
+          onMoveBlock={handleMoveBlock}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -571,6 +674,7 @@ export default function App() {
           partiallyCompletedTasks={partiallyCompletedDisplay}
           fixedMissedTasks={fixedMissedDisplay}
           selectedDate={selectedDate}
+          timeBlocks={timeBlocks}
           categories={categories}
           tags={tags}
           onAddTask={handleAddTask}
@@ -578,6 +682,7 @@ export default function App() {
           onEditTask={handleEditTask}
           onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
+          onDropBlock={deleteTimeBlock}
         />
       </div>
 
@@ -593,15 +698,46 @@ export default function App() {
 
       <AddModal
         isOpen={isAddModalOpen}
-        onClose={() => { setIsAddModalOpen(false); setEditingTaskId(null); }}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingTaskId(null);
+          // If a time block was created as a draft (via drag on calendar) and still has no title, discard it.
+          if (isDraftTimeBlock && editingTimeBlockId) {
+            const b = timeBlocks.find((tb) => tb.id === editingTimeBlockId);
+            if (!b?.title?.trim()) {
+              deleteTimeBlock(editingTimeBlockId);
+            }
+          }
+          setEditingTimeBlockId(null);
+          setIsDraftTimeBlock(false);
+        }}
         categories={categories}
         tags={tags}
         calendarContainers={calendarContainers}
         initialMode={addModalMode}
         editingTask={editingTask}
+        editingTimeBlock={editingTimeBlock}
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
+        onUpdateTimeBlock={updateTimeBlock}
         onAddEvent={handleAddEvent}
+      />
+
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        calendarContainers={calendarContainers}
+        categories={categories}
+        tags={tags}
+        onAddCalendar={addCalendarContainer}
+        onUpdateCalendar={updateCalendarContainer}
+        onDeleteCalendar={deleteCalendarContainer}
+        onAddCategory={addCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
+        onAddTag={addTag}
+        onUpdateTag={updateTag}
+        onDeleteTag={deleteTag}
       />
 
     </div>

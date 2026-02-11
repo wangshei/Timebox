@@ -16,6 +16,8 @@ export type RecordedBlockPayload = {
 };
 
 interface TimeBlockCardProps {
+  /** React key (not used by component, but included to satisfy some typecheckers). */
+  key?: string;
   block: ResolvedTimeBlock;
   mode: Mode;
   style: React.CSSProperties;
@@ -25,6 +27,7 @@ interface TimeBlockCardProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   compact?: boolean;
@@ -32,7 +35,7 @@ interface TimeBlockCardProps {
 
 const FOCUS_MUTED_OPACITY = 0.35;
 
-export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, focusedCategoryId, focusedCalendarId, compact = false }: TimeBlockCardProps) {
+export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, focusedCategoryId, focusedCalendarId, compact = false }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   
   const isPlanningMode = mode === 'planning';
@@ -83,16 +86,49 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
     return `${mins}m`;
   };
 
+  const heightPx =
+    typeof style.height === 'number'
+      ? style.height
+      : typeof style.height === 'string'
+        ? parseFloat(style.height)
+        : 0;
+  const showTags = heightPx >= 72;
+
+  const getDurationMinutes = () => {
+    const [startHour, startMin] = block.start.split(':').map(Number);
+    const [endHour, endMin] = block.end.split(':').map(Number);
+    return (endHour * 60 + endMin) - (startHour * 60 + startMin);
+  };
+
+  const handleBlockDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/x-timebox-block-id', block.id);
+    e.dataTransfer.setData('application/x-timebox-block-duration', String(getDurationMinutes()));
+    e.dataTransfer.setData('text/plain', block.title || 'Block');
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.dataTransfer.setDragImage) {
+      const ghost = document.createElement('div');
+      ghost.className = 'bg-white/95 border border-neutral-200 rounded-lg shadow-xl px-3 py-2 text-sm font-medium text-neutral-800 backdrop-blur-sm';
+      ghost.textContent = block.title || 'Block';
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 8, 8);
+      requestAnimationFrame(() => document.body.removeChild(ghost));
+    }
+  };
+
   // Compact mode for week view
   if (compact) {
     return (
       <div
-        className="absolute left-0 right-0 cursor-pointer"
+        className="absolute left-0 right-0 cursor-grab active:cursor-grabbing"
         style={style}
         onClick={() => {
           onSelect();
           setShowPopover(true);
         }}
+        draggable
+        onDragStart={handleBlockDragStart}
       >
         <div
           className={`h-full rounded px-1.5 py-1 border transition-all ${
@@ -154,6 +190,16 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
                   Delete block
                 </button>
               )}
+              {onDeleteTask && block.taskId && (
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                  onClick={() => { onDeleteTask(block.taskId!); setShowPopover(false); onDeselect(); }}
+                >
+                  <X className="w-4 h-4" />
+                  Delete task
+                </button>
+              )}
             </div>
           </>
         )}
@@ -163,12 +209,14 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
 
   return (
     <div
-      className="absolute left-0 right-2 cursor-pointer group"
+      className="absolute left-0 right-2 cursor-grab active:cursor-grabbing group"
       style={style}
       onClick={() => {
         onSelect();
         setShowPopover(true);
       }}
+      draggable
+      onDragStart={handleBlockDragStart}
     >
       <div
         className={`h-full rounded-lg p-3 border transition-all ${
@@ -188,16 +236,18 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
             <span className="text-xs opacity-90 whitespace-nowrap">{getDuration()}</span>
           </div>
           
-          <div className="mt-auto flex items-center gap-1.5 flex-wrap">
-            {block.tags.map(tag => (
-              <span
-                key={tag.id}
-                className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm"
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
+          {showTags && (
+            <div className="mt-auto flex items-center gap-1.5 flex-nowrap overflow-hidden">
+              {block.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="text-xs px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm truncate max-w-[120px] shrink-0"
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Resize handle */}
@@ -247,6 +297,16 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
               >
                 <X className="w-4 h-4" />
                 Delete block
+              </button>
+            )}
+            {onDeleteTask && block.taskId && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                onClick={() => { onDeleteTask(block.taskId!); setShowPopover(false); onDeselect(); }}
+              >
+                <X className="w-4 h-4" />
+                Delete task
               </button>
             )}
           </div>

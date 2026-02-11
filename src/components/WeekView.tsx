@@ -14,9 +14,12 @@ interface WeekViewProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
+  onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
+  onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -67,6 +70,17 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const PX_PER_HOUR = 64;
   const START_HOUR = 6;
   const gridTopOffset = 16;
+  const GRID_HEIGHT = 17 * PX_PER_HOUR;
+
+  const snapToGrid = (totalMinutes: number) => Math.round(totalMinutes / 15) * 15;
+  const offsetYToMinutes = (offsetY: number) => {
+    const totalMinutes = START_HOUR * 60 + (offsetY / PX_PER_HOUR) * 60;
+    return snapToGrid(totalMinutes);
+  };
+  const minsToTime = (mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+
+  const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   const currentTimeTop =
     currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= (START_HOUR + 16) * 60

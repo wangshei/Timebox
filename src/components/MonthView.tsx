@@ -10,9 +10,10 @@ interface MonthViewProps {
   onSelectBlock?: (id: string | null) => void;
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
+  onSelectDate?: (dateStr: string) => void;
 }
 
-export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId }: MonthViewProps) {
+export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -64,8 +65,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
   };
 
   const isToday = (date: Date): boolean => {
-    const today = new Date(2026, 1, 10); // Feb 10, 2026
-    return date.toDateString() === today.toDateString();
+    return date.toDateString() === new Date().toDateString();
   };
 
   const getBlocksForDate = (date: Date): ResolvedTimeBlock[] => {
@@ -101,6 +101,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
               className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
               } ${today ? 'bg-blue-50' : ''}`}
+              onClick={() => onSelectDate?.(formatDate(day.date))}
             >
               <div className={`text-xs md:text-sm mb-1 md:mb-2 ${today ? 'text-blue-600 font-semibold' : 'text-neutral-900'}`}>
                 {day.date.getDate()}

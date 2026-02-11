@@ -83,12 +83,13 @@ export interface AppActions {
   setView: (view: View) => void;
   setSelectedDate: (date: string) => void;
   toggleContainerVisibility: (containerId: string) => void;
+  setAllCalendarsVisible: () => void;
 
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
 
-  addTimeBlock: (block: Omit<TimeBlock, 'id'>) => void;
+  addTimeBlock: (block: Omit<TimeBlock, 'id'>) => string;
   updateTimeBlock: (id: string, updates: Partial<TimeBlock>) => void;
   deleteTimeBlock: (id: string) => void;
 
@@ -137,6 +138,12 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
         [containerId]: !s.containerVisibility[containerId],
       },
     })),
+  setAllCalendarsVisible: () =>
+    set((s) => ({
+      containerVisibility: Object.fromEntries(
+        s.calendarContainers.map((c) => [c.id, true])
+      ),
+    })),
 
   addTask: (task) =>
     set((s) => ({
@@ -152,10 +159,13 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.taskId !== id),
     })),
 
-  addTimeBlock: (block) =>
+  addTimeBlock: (block) => {
+    const id = generateId();
     set((s) => ({
-      timeBlocks: [...s.timeBlocks, { ...block, id: generateId() }],
-    })),
+      timeBlocks: [...s.timeBlocks, { ...block, id }],
+    }));
+    return id;
+  },
   updateTimeBlock: (id, updates) =>
     set((s) => ({
       timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates } : b)),
@@ -306,10 +316,14 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
       ),
     })),
   deleteCalendarContainer: (id) =>
-    set((s) => ({
-      calendarContainers: s.calendarContainers.filter((c) => c.id !== id),
-      containerVisibility: { ...s.containerVisibility, [id]: undefined },
-    })),
+    set((s) => {
+      const nextVisibility = { ...s.containerVisibility };
+      delete nextVisibility[id];
+      return {
+        calendarContainers: s.calendarContainers.filter((c) => c.id !== id),
+        containerVisibility: nextVisibility,
+      };
+    }),
   addCategory: (c) =>
     set((s) => ({
       categories: [...s.categories, { ...c, id: generateId() }],

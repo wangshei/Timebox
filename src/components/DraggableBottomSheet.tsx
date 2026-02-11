@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GripHorizontal } from 'lucide-react';
 import { Task, Category, Tag } from '../App';
 import { RightSidebar } from './RightSidebar';
+import type { TimeBlock } from '../types';
 
 interface DraggableBottomSheetProps {
   tasks: Task[];
@@ -9,6 +10,7 @@ interface DraggableBottomSheetProps {
   partiallyCompletedTasks: Task[];
   fixedMissedTasks?: Task[];
   selectedDate?: string;
+  timeBlocks?: TimeBlock[];
   categories: Category[];
   tags: Tag[];
   onAddTask: (task: {
@@ -22,9 +24,10 @@ interface DraggableBottomSheetProps {
   onEditTask?: (taskId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   onOpenAddModal: (mode: 'task' | 'event') => void;
+  onDropBlock?: (blockId: string) => void;
 }
 
-export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal }: DraggableBottomSheetProps) {
+export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate, timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
   const minHeight = 80;
@@ -129,7 +132,7 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-hidden">
-        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} selectedDate={selectedDate} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} isMobile isBottomSheet />
+        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} selectedDate={selectedDate} timeBlocks={timeBlocks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} onDropBlock={onDropBlock} isMobile isBottomSheet />
       </div>
     </div>
   );
