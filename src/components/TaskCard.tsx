@@ -45,6 +45,22 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/x-timebox-task-id', task.id);
+    e.dataTransfer.setData('text/plain', task.title);
+    e.dataTransfer.effectAllowed = 'copy';
+    if (e.dataTransfer.setDragImage) {
+      const ghost = document.createElement('div');
+      ghost.className = 'bg-white border border-neutral-200 rounded-lg shadow-lg px-3 py-2 text-sm text-neutral-800';
+      ghost.textContent = task.title;
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 0, 0);
+      requestAnimationFrame(() => document.body.removeChild(ghost));
+    }
+  };
+
   // Plan mode: looks like calendar time blocks
   if (viewMode === 'plan') {
     const showTags = cardHeight >= 100; // Only show tags if block is tall enough
@@ -55,6 +71,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
           className="cursor-grab active:cursor-grabbing group relative"
           style={{ height: `${cardHeight}px` }}
           onClick={handleClick}
+          draggable
+          onDragStart={handleDragStart}
         >
           <div
             className={`h-full rounded-lg p-3 border transition-all ${
@@ -221,6 +239,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
         }`}
         style={{ minHeight: `${cardHeight}px` }}
         onClick={handleClick}
+        draggable
+        onDragStart={handleDragStart}
       >
         <div className="flex items-start gap-3 h-full">
           {/* Drag handle */}

@@ -3,6 +3,11 @@ import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
 
+export interface DropTaskParams {
+  date: string;
+  startTime: string;
+}
+
 interface DayViewProps {
   mode: Mode;
   timeBlocks: ResolvedTimeBlock[];
@@ -14,13 +19,18 @@ interface DayViewProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDropTask?: (taskId: string, params: DropTaskParams) => void;
 }
 
 const PX_PER_HOUR = 80;
 const START_HOUR = 6;
 
-export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock }: DayViewProps) {
+const GRID_HEIGHT = 17 * PX_PER_HOUR; // 6am–10pm
+
+export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDropTask }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
+  const [isDragOver, setIsDragOver] = React.useState(false);
+  const gridRef = React.useRef<HTMLDivElement>(null);
   const todayStr = now.toISOString().slice(0, 10);
   const isViewingToday = selectedDate === todayStr;
 
@@ -28,6 +38,34 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!onDropTask || !e.dataTransfer.types.includes('application/x-timebox-task-id')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => setIsDragOver(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    setIsDragOver(false);
+    if (!onDropTask) return;
+    const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
+    if (!taskId) return;
+    e.preventDefault();
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const offsetY = e.clientY - rect.top;
+    if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+    // Snap to 30 min: 6am + offset
+    const totalMinutes = START_HOUR * 60 + (offsetY / PX_PER_HOUR) * 60;
+    const snapMinutes = Math.round(totalMinutes / 30) * 30;
+    const hour = Math.floor(snapMinutes / 60);
+    const min = snapMinutes % 60;
+    const startTime = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    onDropTask(taskId, { date: selectedDate, startTime });
+  };
 
   // Generate hours from 6 AM to 10 PM
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
@@ -68,8 +106,23 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
           </div>
         ))}
 
+        {/* Drop zone for drag-task-to-calendar */}
+        {onDropTask && (
+          <div
+            ref={gridRef}
+            className={`absolute left-14 md:left-20 right-0 top-0 z-10 rounded-r-lg transition-colors ${
+              isDragOver ? 'bg-blue-50/80 ring-2 ring-blue-200 ring-inset' : ''
+            }`}
+            style={{ height: `${GRID_HEIGHT}px` }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          />
+        )}
+
         {/* Time blocks */}
-        <div className="absolute left-14 md:left-20 right-0 top-0">
+        <div className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none">
+          <div className="pointer-events-auto">
           {timeBlocks.map((block) => {
             const { top, height } = getBlockStyle(block);
             return (
@@ -89,6 +142,7 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
               />
             );
           })}
+          </div>
         </div>
 
         {/* Current time line — only when viewing today */}

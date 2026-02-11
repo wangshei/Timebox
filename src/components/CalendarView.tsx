@@ -26,6 +26,7 @@ interface CalendarViewProps {
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: import('./TimeBlockCard').RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
 }
 
 export function CalendarView({ 
@@ -48,6 +49,7 @@ export function CalendarView({
   onDoneAsPlanned,
   onDidSomethingElse,
   onDeleteBlock,
+  onDropTask,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const currentDate = useMemo(() => {
@@ -218,7 +220,7 @@ export function CalendarView({
 
       {/* Calendar Content */}
       <div className="flex-1 overflow-y-auto">
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDropTask={onDropTask} />}
         {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} />}
         {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} />}
       </div>
