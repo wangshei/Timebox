@@ -5,6 +5,8 @@ interface CategoryFocusListProps {
   categories: Category[];
   focusedCategoryId: string | null;
   onFocusCategory: (id: string) => void;
+  /** Notion-like: tighter rows, left-aligned */
+  compact?: boolean;
 }
 
 /** Click a category to exaggerate its blocks and mute others; click again to clear. */
@@ -12,26 +14,24 @@ export function CategoryFocusList({
   categories,
   focusedCategoryId,
   onFocusCategory,
+  compact = false,
 }: CategoryFocusListProps) {
   return (
     <div className="space-y-0.5">
-      <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">
-        Categories (click to focus)
-      </h3>
       {categories.map((cat) => (
         <button
           key={cat.id}
           type="button"
           onClick={() => onFocusCategory(cat.id)}
-          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm transition-colors ${
-            focusedCategoryId === cat.id ? 'bg-neutral-200 text-neutral-900' : 'hover:bg-neutral-50 text-neutral-700'
+          className={`w-full flex items-center gap-2 px-1.5 py-1 rounded text-left text-sm transition-colors min-w-0 ${
+            focusedCategoryId === cat.id ? 'bg-neutral-100 text-neutral-900' : 'hover:bg-neutral-50 text-neutral-700'
           }`}
         >
           <div
-            className="w-3 h-3 rounded-full flex-shrink-0"
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ backgroundColor: cat.color }}
           />
-          <span className="flex-1 truncate">{cat.name}</span>
+          <span className="flex-1 truncate text-left">{cat.name}</span>
         </button>
       ))}
     </div>

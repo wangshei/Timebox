@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { SettingsPanel } from './components/SettingsPanel';
+import { AddCalendarPopover } from './components/AddCalendarPopover';
 import { CalendarContainerList } from './components/CalendarContainerList';
 import { CategoryFocusList } from './components/CategoryFocusList';
 import { useStore } from './store/useStore';
@@ -52,6 +53,8 @@ export default function App() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [addCalendarOpen, setAddCalendarOpen] = useState(false);
+  const addCalendarAnchorRef = useRef<HTMLDivElement>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
@@ -265,50 +268,63 @@ export default function App() {
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        {/* Left panel — 60px slimmer than right (right w-80=320px → left 260px), closable */}
+        {/* Left panel — Notion-like: header (logo + add + edit icon), sections left-aligned */}
         {leftPanelOpen ? (
           <div className="flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden" style={{ width: '260px' }}>
-            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-100">
-              <div className="flex items-center gap-2 min-w-0">
-                <img src="/logo.png" alt="" className="h-7 w-auto flex-shrink-0 object-contain" />
+            {/* Header: logo + name (left), then + add calendar, gear edit, close */}
+            <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-100 min-h-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <img src="/logo.png" alt="" className="h-6 w-auto flex-shrink-0 object-contain" />
                 <span className="text-sm font-medium text-neutral-800 truncate">Timebox</span>
               </div>
+              <div ref={addCalendarAnchorRef} className="relative">
+                <button type="button" onClick={() => setAddCalendarOpen((o) => !o)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Add calendar">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                </button>
+                {addCalendarOpen && (
+                  <AddCalendarPopover
+                    isOpen={addCalendarOpen}
+                    onClose={() => setAddCalendarOpen(false)}
+                    anchorRef={addCalendarAnchorRef}
+                    onAdd={(c) => { addCalendarContainer(c); setAddCalendarOpen(false); }}
+                  />
+                )}
+              </div>
+              <button type="button" onClick={() => setIsSettingsOpen(true)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Edit calendars & categories" title="Edit calendars & categories">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </button>
               <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
             </div>
-            <div className="p-4 flex-shrink-0">
-            <div className="mb-4">
-              <CalendarContainerList
-                containers={calendarContainers}
-                visibility={containerVisibility}
-                onToggleVisibility={toggleContainerVisibility}
-                focusedCalendarId={focusedCalendarId}
-                onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
-              />
+            {/* Notion-like sections: Private (calendars), Categories, then End day, then scroll area */}
+            <div className="flex-shrink-0 px-2 pt-3 pb-2">
+              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Private</p>
+              <div className="space-y-0.5">
+                <CalendarContainerList
+                  containers={calendarContainers}
+                  visibility={containerVisibility}
+                  onToggleVisibility={toggleContainerVisibility}
+                  focusedCalendarId={focusedCalendarId}
+                  onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+                  compact
+                />
+              </div>
+              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 mt-4 pl-0.5">Categories</p>
+              <div className="space-y-0.5">
+                <CategoryFocusList
+                  categories={categories}
+                  focusedCategoryId={focusedCategoryId}
+                  onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
+                  compact
+                />
+              </div>
+              <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
+                End day ({selectedDate})
+              </button>
             </div>
-            <div className="mb-4">
-              <CategoryFocusList
-                categories={categories}
-                focusedCategoryId={focusedCategoryId}
-                onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => endDay(selectedDate)}
-              className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-100"
-            >
-              End day ({selectedDate})
-            </button>
-            <button type="button" onClick={() => setIsSettingsOpen(true)} className="w-full mt-2 py-2 px-3 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-lg transition-colors border border-neutral-100">
-              Calendars / Categories / Tags
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
-            <h2 className="text-sm font-medium text-neutral-500 mb-2">
-              {selectedDate} — Plan vs Actual
-            </h2>
+          <div className="flex-1 overflow-y-auto px-2 pb-3 min-h-0 border-t border-neutral-100 pt-3">
+            <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">{selectedDate} — Plan vs Actual</p>
             <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
               <button
                 type="button"

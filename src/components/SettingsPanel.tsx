@@ -70,24 +70,23 @@ export function SettingsPanel({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} aria-hidden />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-xl flex flex-col border-l border-neutral-200">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
-          <h2 className="text-lg font-medium text-neutral-900">Settings</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-lg">
-            <X className="w-5 h-5 text-neutral-500" />
+      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} aria-hidden />
+      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm max-h-[85vh] bg-white shadow-xl rounded-xl border border-neutral-200 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100">
+          <h2 className="text-sm font-medium text-neutral-800">Edit calendars & categories</h2>
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-4 pt-3">
-            <p className="text-xs text-neutral-500 mb-2">Calendar = function/bucket (left border). Category = type of activity (block color). Tag = optional.</p>
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="calendars" className="text-xs">Calendars</TabsTrigger>
-              <TabsTrigger value="categories" className="text-xs">Categories</TabsTrigger>
-              <TabsTrigger value="tags" className="text-xs">Tags</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="px-3 pt-2 pb-2 flex-shrink-0">
+            <TabsList className="w-full grid grid-cols-3 h-8">
+              <TabsTrigger value="calendars" className="text-xs py-1">Calendars</TabsTrigger>
+              <TabsTrigger value="categories" className="text-xs py-1">Categories</TabsTrigger>
+              <TabsTrigger value="tags" className="text-xs py-1">Tags</TabsTrigger>
             </TabsList>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
             <TabsContent value="calendars" className="mt-0 space-y-4">
               <form onSubmit={handleAddCalendar} className="space-y-3">
                 <div className="flex gap-2">
