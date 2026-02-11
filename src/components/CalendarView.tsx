@@ -223,14 +223,14 @@ export function CalendarView({
         {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} />}
       </div>
 
-      {/* Floating Add Button — muted neutral style */}
+      {/* Floating Add Button — circle, muted neutral style */}
       {onOpenAddModal && (
         <button
           onClick={() => onOpenAddModal('event')}
-          className="absolute bottom-6 right-6 w-12 h-12 bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 rounded-full shadow-sm hover:shadow transition-all flex items-center justify-center"
+          className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow transition-all flex items-center justify-center"
           aria-label="Add new event"
         >
-          <Plus className="w-5 h-5 text-neutral-600" />
+          <Plus className="w-6 h-6 text-neutral-600" />
         </button>
       )}
     </div>

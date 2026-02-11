@@ -9,7 +9,7 @@ import { CalendarContainerList } from './components/CalendarContainerList';
 import { CategoryFocusList } from './components/CategoryFocusList';
 import { useStore } from './store/useStore';
 import {
-  selectTimeBlocksForDate,
+  selectTimeBlocksForView,
   selectPlanVsActualByCategory,
   selectPlanVsActualByContainer,
   selectPlanVsActualByTag,
@@ -93,12 +93,13 @@ export default function App() {
 
   const visibleTimeBlocks = useMemo(
     () =>
-      selectTimeBlocksForDate(
+      selectTimeBlocksForView(
         timeBlocks,
         selectedDate,
+        view,
         containerVisibility
       ),
-    [timeBlocks, selectedDate, containerVisibility]
+    [timeBlocks, selectedDate, view, containerVisibility]
   );
 
   const planVsActualByCategory = useMemo(
@@ -245,11 +246,14 @@ export default function App() {
   return (
     <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        {/* Left panel — 15% slimmer (w-60), closable */}
+        {/* Left panel — 15% smaller than before (w-52), closable */}
         {leftPanelOpen ? (
-          <div className="w-60 flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100">
-              <span className="text-xs font-medium text-neutral-500">Left</span>
+          <div className="w-52 flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-100">
+              <div className="flex items-center gap-2 min-w-0">
+                <img src="/logo.svg" alt="" className="h-6 w-6 flex-shrink-0" />
+                <span className="text-sm font-medium text-neutral-800 truncate">Timebox</span>
+              </div>
               <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
@@ -392,8 +396,9 @@ export default function App() {
           </div>
         </div>
         ) : (
-          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center bg-white border-r border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open left panel">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 flex flex-col items-center justify-center gap-0.5 py-2 bg-white border-r border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open left panel" title="Open left panel">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <span className="text-[10px] uppercase tracking-wide">Open</span>
           </button>
         )}
 
@@ -444,8 +449,9 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => setRightPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center bg-white border-l border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open right panel">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <button type="button" onClick={() => setRightPanelOpen(true)} className="flex-shrink-0 w-10 flex flex-col items-center justify-center gap-0.5 py-2 bg-white border-l border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open right panel" title="Open right panel">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <span className="text-[10px] uppercase tracking-wide">Open</span>
           </button>
         )}
       </div>

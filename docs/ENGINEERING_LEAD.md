@@ -24,13 +24,13 @@ New engineers: read ONBOARDING first, then the rest as needed. Before changing s
 | Checkpoint | Phase | Scope | Done |
 |------------|--------|--------|------|
 | **CP0** | Phase 0 | Baseline: scrolling, container filtering, single seed data | ☑ |
-| **CP1** | Phase 1 | Single state store + selectors (backlog, analytics) | ☐ |
+| **CP1** | Phase 1 | Single state store + selectors (backlog, analytics) | ☑ |
 | **CP2** | Phase 1 | Task creation + backlog sections (Unscheduled, Partially Completed, Fixed/Missed, Events) | ☐ |
-| **CP3** | Phase 1 | Task → Planned TimeBlocks (split/schedule) | ☐ |
-| **CP4** | Phase 1 | Recording: done-as-planned, done-different, did-something-else | ☐ |
-| **CP5** | Phase 1 | End Day sweep (auto-assume unrecorded planned blocks) | ☐ |
-| **CP6** | Phase 1 | Analytics: Planned + Recorded by container/category/tag, with Plan vs Actual comparison | ☐ |
-| **CP6b** | Phase 1 | Side panel: editable Calendar/Tag/Category management (tabs, Notion-style; categories groupable) | ☐ |
+| **CP3** | Phase 1 | Task → Planned TimeBlocks (split/schedule) | ☑ |
+| **CP4** | Phase 1 | Recording: done-as-planned, done-different, did-something-else | ☑ |
+| **CP5** | Phase 1 | End Day sweep (auto-assume unrecorded planned blocks) | ☑ |
+| **CP6** | Phase 1 | Analytics: Planned + Recorded by container/category/tag, with Plan vs Actual comparison | ☑ |
+| **CP6b** | Phase 1 | Side panel: editable Calendar/Tag/Category management (tabs, Notion-style; categories groupable) | ☑ |
 | **CP7** | Phase 1 | Unit + E2E tests for core flows | ☐ |
 | **CP8** | Phase 2 | Supabase: auth (Email OTP) + tables + RLS | ☐ |
 | **CP9** | Phase 2 | Persistence layer swap (localStorage → Supabase) | ☐ |

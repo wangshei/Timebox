@@ -9,6 +9,7 @@ import type {
   CalendarContainer,
   Category,
   Tag,
+  View,
 } from '../types';
 import {
   getPlannedMinutes,
@@ -56,6 +57,48 @@ export function selectTimeBlocksForDate(
       b.date === date &&
       containerVisibility[b.calendarContainerId] !== false
   );
+}
+
+/** Date string YYYY-MM-DD to set of dates for week containing that date (Sun–Sat). */
+function getWeekDateSet(dateStr: string): Set<string> {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const day = date.getDay();
+  const start = new Date(date);
+  start.setDate(date.getDate() - day);
+  const set = new Set<string>();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    set.add(d.toISOString().slice(0, 10));
+  }
+  return set;
+}
+
+/** Date string YYYY-MM-DD to set of dates in that month. */
+function getMonthDateSet(dateStr: string): Set<string> {
+  const [y, m] = dateStr.split('-').map(Number);
+  const set = new Set<string>();
+  const lastDay = new Date(y, m, 0).getDate();
+  for (let d = 1; d <= lastDay; d++) {
+    set.add(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+  }
+  return set;
+}
+
+/** Blocks visible for the current view range (day, week, or month). */
+export function selectTimeBlocksForView(
+  timeBlocks: TimeBlock[],
+  selectedDate: string,
+  view: View,
+  containerVisibility: Record<string, boolean>
+): TimeBlock[] {
+  const visible = (b: TimeBlock) => containerVisibility[b.calendarContainerId] !== false;
+  if (view === 'day') {
+    return timeBlocks.filter((b) => b.date === selectedDate && visible(b));
+  }
+  const dateSet = view === 'week' ? getWeekDateSet(selectedDate) : getMonthDateSet(selectedDate);
+  return timeBlocks.filter((b) => dateSet.has(b.date) && visible(b));
 }
 
 /** Planned time by category for a date. */
