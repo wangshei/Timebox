@@ -129,10 +129,10 @@ export function SettingsPanel({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white rounded-xl shadow-2xl w-[30%] min-w-[320px] max-w-md mr-4 max-h-[80vh] flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-2xl w-[50%] min-w-[400px] max-w-2xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
           <h2 className="text-xl font-medium text-neutral-900">Settings</h2>
