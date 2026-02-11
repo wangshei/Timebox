@@ -37,12 +37,14 @@ interface DayViewProps {
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
   /** Move an existing block to new time/date; may split rest into a new block. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
+  compareMatchedTaskIds?: string[];
 }
 
-const PX_PER_HOUR = 80;
-const START_HOUR = 6;
+const PX_PER_HOUR = 64;
+const START_HOUR = 0;
 
-const GRID_HEIGHT = 17 * PX_PER_HOUR; // 6am–10pm
+const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight–midnight)
 
 function snapToGrid(totalMinutes: number): number {
   return Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
@@ -54,7 +56,7 @@ function minutesToTimeString(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onCreateBlock, onMoveBlock }: DayViewProps) {
+export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onCreateBlock, onMoveBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -189,8 +191,8 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
     };
   }, [creatingBlock, selectedDate, onCreateBlock]);
 
-  // Generate hours from 6 AM to 10 PM
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6);
+  // Generate hours from 12 AM to 11 PM
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const parseTime = (time: string): number => {
     const [h, m] = time.split(':').map(Number);
@@ -209,19 +211,52 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
   const currentTimeTop: number | null = isViewingToday
     ? (() => {
         const mins = now.getHours() * 60 + now.getMinutes();
-        if (mins < START_HOUR * 60 || mins > (START_HOUR + 16) * 60) return null;
+        if (mins < 0 || mins > 24 * 60) return null;
         return ((mins - START_HOUR * 60) / 60) * PX_PER_HOUR;
       })()
     : null;
 
+  const outerRef = React.useRef<HTMLDivElement>(null);
+
+  // On mount / when date changes, scroll so current time is roughly centered (for today).
+  React.useEffect(() => {
+    if (!outerRef.current) return;
+    if (!isViewingToday || currentTimeTop == null) {
+      outerRef.current.scrollTop = 0;
+      return;
+    }
+    const containerHeight = outerRef.current.clientHeight;
+    const target = Math.max(0, currentTimeTop - containerHeight / 2);
+    outerRef.current.scrollTop = target;
+  }, [isViewingToday, currentTimeTop]);
+
+  const selectedIsPast = (() => {
+    const today = new Date();
+    const todayStripped = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const sel = new Date(y, m - 1, d);
+    return sel < todayStripped;
+  })();
+
   return (
-    <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6">
+    <div
+      ref={outerRef}
+      className={`flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 ${
+        mode === 'compare' && selectedIsPast ? 'bg-neutral-50' : ''
+      }`}
+    >
       <div className="relative">
         {/* Time labels and grid lines */}
         {hours.map((hour) => (
           <div key={hour} className="relative" style={{ height: `${PX_PER_HOUR}px` }}>
             <div className="absolute left-0 top-0 w-12 md:w-16 text-xs text-neutral-400">
-              {hour === 12 ? '12:00 PM' : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
+              {hour === 0
+                ? '12:00 AM'
+                : hour === 12
+                  ? '12:00 PM'
+                  : hour > 12
+                    ? `${hour - 12}:00 PM`
+                    : `${hour}:00 AM`}
             </div>
             <div className="absolute left-14 md:left-20 right-0 top-0 border-t border-neutral-200" />
             <div className="absolute left-14 md:left-20 right-0 top-10 border-t border-neutral-100" />
@@ -297,6 +332,7 @@ export function DayView({ mode, timeBlocks, selectedDate, selectedBlock, onSelec
                 onDidSomethingElse={onDidSomethingElse}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
+                compareMatchedTaskIds={compareMatchedTaskIds}
               />
             );
           })}

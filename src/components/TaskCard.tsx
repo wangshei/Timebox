@@ -292,7 +292,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
             {/* Progress bar */}
             {task.recordedHours > 0 && (
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 mb-1">
                 <div className="w-full bg-neutral-100 rounded-full h-1.5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
@@ -308,8 +308,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
               </div>
             )}
 
-            {/* Category and tags (clamped) */}
-            <div className="flex items-center gap-1.5 flex-nowrap overflow-hidden">
+            {/* Category and tags (wrap) */}
+            <div className="flex flex-wrap gap-1.5">
               <div className="flex items-center gap-1.5 px-2 py-1 bg-neutral-100 rounded-md">
                 <div
                   className="w-1.5 h-1.5 rounded-full"
@@ -320,7 +320,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
               {task.tags.map(tag => (
                 <span
                   key={tag.id}
-                  className="text-xs px-2 py-1 bg-neutral-100 text-neutral-600 rounded-md truncate max-w-[90px] shrink-0"
+                  className="text-xs px-2 py-1 bg-neutral-100 text-neutral-600 rounded-md"
                 >
                   {tag.name}
                 </span>

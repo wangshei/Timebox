@@ -120,6 +120,9 @@ export interface AppActions {
 }
 
 function generateId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
   return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 9);
 }
 
@@ -355,3 +358,66 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
 
   resetToSeed: () => set(getInitialState()),
 }));
+
+// --- Local persistence (Phase 2: adapter-ready localStorage layer) ---
+
+const STORAGE_KEY = 'timebox-state-v1';
+
+type PersistedSlice = Pick<
+  AppState,
+  | 'tasks'
+  | 'timeBlocks'
+  | 'calendarContainers'
+  | 'categories'
+  | 'tags'
+  | 'events'
+  | 'viewMode'
+  | 'view'
+  | 'selectedDate'
+  | 'containerVisibility'
+  | 'defaultBlockMinutes'
+>;
+
+/** Hydrate store from localStorage on app startup (no-op on server). */
+export function hydrateFromLocalStorage() {
+  if (typeof window === 'undefined') return;
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedSlice>;
+    useStore.setState((prev) => ({
+      ...prev,
+      ...parsed,
+    }));
+  } catch {
+    // Ignore corrupted cache; keep seed state.
+  }
+}
+
+/** Subscribe to store changes and persist a minimal slice into localStorage. */
+export function startLocalStoragePersistence() {
+  if (typeof window === 'undefined') return () => {};
+  const unsubscribe = useStore.subscribe<PersistedSlice>(
+    (state) => ({
+      tasks: state.tasks,
+      timeBlocks: state.timeBlocks,
+      calendarContainers: state.calendarContainers,
+      categories: state.categories,
+      tags: state.tags,
+      events: state.events,
+      viewMode: state.viewMode,
+      view: state.view,
+      selectedDate: state.selectedDate,
+      containerVisibility: state.containerVisibility,
+      defaultBlockMinutes: state.defaultBlockMinutes,
+    }),
+    (slice) => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slice));
+      } catch {
+        // Quota or privacy mode; fail silently.
+      }
+    }
+  );
+  return unsubscribe;
+}

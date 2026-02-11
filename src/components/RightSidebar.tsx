@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { TaskCard } from './TaskCard';
-import { Plus } from 'lucide-react';
+import { Plus, Square } from 'lucide-react';
 import type { TimeBlock } from '../types';
 
 interface RightSidebarProps {
@@ -105,61 +105,56 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Mode Toggle */}
-      <div className={`border-b border-neutral-200 ${isBottomSheet ? 'px-4 py-3' : 'px-6 py-4'}`}>
-        <div className="bg-neutral-100 rounded-lg p-1 flex">
-          <button
-            onClick={() => setViewMode('overview')}
-            className={`flex-1 py-1.5 px-3 text-sm rounded-md transition-all ${
-              viewMode === 'overview'
-                ? 'bg-white text-neutral-900 shadow-sm'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setViewMode('plan')}
-            className={`flex-1 py-1.5 px-3 text-sm rounded-md transition-all ${
-              viewMode === 'plan'
-                ? 'bg-white text-neutral-900 shadow-sm'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            Plan
-          </button>
-        </div>
-        {viewMode === 'overview' && (
-          <div className="mt-3 flex rounded-lg bg-neutral-100 p-0.5">
+      {/* Mode Toggle + Overview range */}
+      <div className={`border-b border-neutral-200 ${isBottomSheet ? 'px-4 py-3' : 'px-6 py-3'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
+            <span>Overview</span>
             <button
               type="button"
-              onClick={() => setOverviewRange('today')}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded-md transition-all ${
-                overviewRange === 'today' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+              onClick={() => setViewMode(viewMode === 'overview' ? 'plan' : 'overview')}
+              className={`inline-flex items-center justify-center w-6 h-6 rounded border transition-all ${
+                viewMode === 'plan'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'bg-neutral-50 border-neutral-200 text-neutral-400'
               }`}
+              title="Toggle planning blocks"
             >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => setOverviewRange('week')}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded-md transition-all ${
-                overviewRange === 'week' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              This week
-            </button>
-            <button
-              type="button"
-              onClick={() => setOverviewRange('month')}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded-md transition-all ${
-                overviewRange === 'month' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              This month
+              <Square className="w-3.5 h-3.5" />
             </button>
           </div>
-        )}
+          {viewMode === 'overview' && (
+            <div className="flex rounded-lg bg-neutral-100 p-0.5">
+              <button
+                type="button"
+                onClick={() => setOverviewRange('today')}
+                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
+                  overviewRange === 'today' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverviewRange('week')}
+                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
+                  overviewRange === 'week' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverviewRange('month')}
+                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
+                  overviewRange === 'month' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Month
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={`flex-1 overflow-y-auto space-y-6 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'p-6 pb-8'}`}>

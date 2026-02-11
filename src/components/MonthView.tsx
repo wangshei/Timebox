@@ -110,11 +110,20 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
               <div className="space-y-0.5 md:space-y-1">
                 {blocks.slice(0, 2).map((block) => {
                   const isPlanningMode = mode === 'planning';
+                  const isRecordingMode = mode === 'recording';
+                  const isCompareMode = mode === 'compare';
                   const isPlanned = block.mode === 'planned';
                   const isRecorded = block.mode === 'recorded';
-                  const baseOpacity = isPlanningMode
-                    ? (isPlanned ? 0.9 : 0.4)
-                    : (isRecorded ? 0.9 : 0.25);
+                  let baseOpacity: number;
+                  if (isPlanningMode) {
+                    baseOpacity = isPlanned ? 0.9 : 0.4;
+                  } else if (isRecordingMode) {
+                    baseOpacity = isRecorded ? 0.9 : 0.25;
+                  } else if (isCompareMode) {
+                    baseOpacity = isRecorded ? 0.9 : 0.25;
+                  } else {
+                    baseOpacity = 0.8;
+                  }
                   const muted = 0.35;
                   const opacity =
                     focusedCategoryId != null

@@ -45,7 +45,8 @@
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
             "vaul": "^1.1.2",
-            "zustand": "^5.0.11"
+            "zustand": "^5.0.11",
+            "@supabase/supabase-js": "^2.49.1"
       },
       "devDependencies": {
             "@types/node": "^20.10.0",

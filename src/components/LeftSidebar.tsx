@@ -9,6 +9,8 @@ import {
   ChevronDown,
   Pencil,
   Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { CalendarContainer, Category, Tag, TimeBlock } from '../types';
 import type { CalendarContainerVisibility } from '../types';
@@ -86,6 +88,8 @@ export function LeftSidebar({
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
   const [addName, setAddName] = useState('');
   const [addColor, setAddColor] = useState('#0044A8');
+  const [addExistingCategoryId, setAddExistingCategoryId] = useState<string | null>(null);
+  const [isPlanVsActualOpen, setIsPlanVsActualOpen] = useState(true);
 
   const toggleExpandCalendar = (id: string) => {
     setExpandedCalendars((prev) => {
@@ -137,6 +141,7 @@ export function LeftSidebar({
     setIsAdding(true);
     setAddName('');
     setAddColor('#0044A8');
+    setAddExistingCategoryId(null);
     setEditingId(null);
   };
 
@@ -145,6 +150,7 @@ export function LeftSidebar({
     setAddingType(null);
     setAddingParentId(null);
     setAddName('');
+    setAddExistingCategoryId(null);
   };
 
   const saveAdd = () => {
@@ -152,8 +158,16 @@ export function LeftSidebar({
     if (addingType === 'calendar') {
       onAddCalendar({ name: addName.trim(), color: addColor });
     } else if (addingType === 'category') {
-      // Categories are global; they appear under a calendar when blocks use that calendar+category
-      onAddCategory({ name: addName.trim(), color: addColor });
+      if (addingParentId && addExistingCategoryId) {
+        // Attach an existing category to this calendar (via calendarContainerId)
+        onUpdateCategory(addExistingCategoryId, { calendarContainerId: addingParentId });
+      } else if (addingParentId) {
+        // Create a new category already associated with this calendar
+        onAddCategory({ name: addName.trim(), color: addColor, calendarContainerId: addingParentId });
+      } else {
+        // Global category (no specific calendar yet)
+        onAddCategory({ name: addName.trim(), color: addColor });
+      }
     } else if (addingType === 'tag' && addingParentId) {
       onAddTag({ name: addName.trim(), categoryId: addingParentId });
     }
@@ -166,7 +180,7 @@ export function LeftSidebar({
     else onDeleteTag(id);
   };
 
-  // Sidebar hierarchy is a VIEW: derive from timeBlocks. Categories/tags are global; we show them under a calendar only when blocks exist for that calendar (+ category/tag).
+  // Sidebar hierarchy is a VIEW: derive from timeBlocks, plus any categories explicitly associated to a calendar.
   const categoryIdsByCalendar = new Map<string, Set<string>>();
   const tagIdsByCalendarCategory = new Map<string, Set<string>>();
   timeBlocks.forEach((b) => {
@@ -177,6 +191,15 @@ export function LeftSidebar({
     const key = `${calId}:${catId}`;
     if (!tagIdsByCalendarCategory.has(key)) tagIdsByCalendarCategory.set(key, new Set());
     (b.tagIds ?? []).forEach((tid) => tagIdsByCalendarCategory.get(key)!.add(tid));
+  });
+
+  // Also include categories that have an explicit calendarContainerId, even if no blocks yet
+  categories.forEach((cat) => {
+    if (!cat.calendarContainerId) return;
+    if (!categoryIdsByCalendar.has(cat.calendarContainerId)) {
+      categoryIdsByCalendar.set(cat.calendarContainerId, new Set());
+    }
+    categoryIdsByCalendar.get(cat.calendarContainerId)!.add(cat.id);
   });
   const categoriesByCalendar = new Map<string, Category[]>();
   calendarContainers.forEach((cal) => {
@@ -295,7 +318,7 @@ export function LeftSidebar({
             onCancel={cancelAdd}
           />
         )}
-        {isAdding && addingType === 'category' && (
+        {isAdding && addingType === 'category' && !addingParentId && (
           <InlineEditForm
             name={addName}
             setName={setAddName}
@@ -308,7 +331,7 @@ export function LeftSidebar({
         )}
 
         {calendarContainers.map((calendar) => (
-          <div key={calendar.id}>
+          <div key={calendar.id} className="rounded-lg bg-neutral-50/60 pb-1">
             {editingId === calendar.id && editingType === 'calendar' ? (
               <InlineEditForm
                 name={editName}
@@ -384,6 +407,44 @@ export function LeftSidebar({
 
             {expandedCalendars.has(calendar.id) && (
               <div className="ml-5 mt-1 space-y-1">
+                {isEditMode && (
+                  <>
+                    {isAdding && addingType === 'category' && addingParentId === calendar.id && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                        <p className="text-xs font-medium text-neutral-600">Add or attach a category</p>
+                        <div className="flex flex-wrap gap-1">
+                          {categories.map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setAddExistingCategoryId(cat.id);
+                                setAddName(cat.name);
+                                setAddColor(cat.color);
+                              }}
+                              className={`px-2 py-1 rounded-md border text-xs ${
+                                addExistingCategoryId === cat.id
+                                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                  : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                              }`}
+                            >
+                              {cat.name}
+                            </button>
+                          ))}
+                        </div>
+                        <InlineEditForm
+                          name={addName}
+                          setName={setAddName}
+                          color={addColor}
+                          setColor={setAddColor}
+                          showColor
+                          onSave={saveAdd}
+                          onCancel={cancelAdd}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
                 {(categoriesByCalendar.get(calendar.id) ?? []).map((category) => (
                   <div key={category.id}>
                     {editingId === category.id && editingType === 'category' ? (
@@ -532,6 +593,33 @@ export function LeftSidebar({
         ))}
       </div>
 
+      {planVsActualSection && (
+        <div className="flex-shrink-0 border-t border-neutral-100">
+          {isPlanVsActualOpen ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPlanVsActualOpen(false)}
+                className="absolute top-2 right-3 p-1 rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
+                title="Hide plan vs actual"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+              </button>
+              {planVsActualSection}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPlanVsActualOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-medium text-neutral-500 uppercase tracking-wide hover:bg-neutral-50 transition-colors"
+            >
+              <span>Plan vs Actual</span>
+              <Eye className="w-3.5 h-3.5 text-neutral-400" />
+            </button>
+          )}
+        </div>
+      )}
+
       {onEndDay && endDayLabel && (
         <div className="flex-shrink-0 px-4 py-2 border-t border-neutral-100">
           <button
@@ -541,12 +629,6 @@ export function LeftSidebar({
           >
             {endDayLabel}
           </button>
-        </div>
-      )}
-
-      {planVsActualSection && (
-        <div className="flex-shrink-0 border-t border-neutral-100">
-          {planVsActualSection}
         </div>
       )}
     </div>

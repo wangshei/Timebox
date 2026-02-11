@@ -62,9 +62,10 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 
 **Note:** Backend is **Supabase** (auth + DB), not Vercel. Vercel can host the frontend; persistence is Supabase.
 
-- [ ] **LocalStorage (v0):** Persist store to localStorage; hydrate on load. *(optional before CP8)*
-- [ ] **Supabase:** Auth (Email OTP), tables, RLS. *(CP8)*
-- [ ] **Supabase:** Persistence layer — swap from localStorage to Supabase. *(CP9)*
+- [x] **LocalStorage (v0):** Persist store to localStorage; hydrate on load. *(optional before CP8; implemented in `main.tsx` + `useStore`.)*
+- [x] **Supabase (app wiring):** Auth (Email OTP) bar in `App`, central client, load/save via `supabasePersistence.ts` for signed-in users. *(CP8 – app side)*
+- [ ] **Supabase (DB hardening):** Confirm `user_id` columns, foreign keys, and RLS policies on all tables (`calendar_containers`, `categories`, `tags`, `tasks`, `time_blocks`, `events`) so each user only sees their own data. *(CP8 – DB side)*
+- [ ] **Supabase:** Persistence layer — make Supabase the primary source of truth (define behavior vs localStorage, error/retry strategy). *(CP9)*
 
 ---
 

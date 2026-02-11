@@ -1,6 +1,6 @@
 // Core entities matching the refined v0 spec
 
-export type Mode = 'planning' | 'recording';
+export type Mode = 'planning' | 'recording' | 'compare';
 export type View = 'day' | 'week' | 'month';
 
 export interface CalendarContainer {

@@ -28,6 +28,8 @@ interface TimeBlockCardProps {
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
+  /** For compare mode: taskIds that have both planned and recorded blocks that day. */
+  compareMatchedTaskIds?: string[];
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   compact?: boolean;
@@ -35,25 +37,81 @@ interface TimeBlockCardProps {
 
 const FOCUS_MUTED_OPACITY = 0.35;
 
-export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDeselect, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, focusedCategoryId, focusedCalendarId, compact = false }: TimeBlockCardProps) {
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return null;
+  return {
+    r: parseInt(m[1], 16),
+    g: parseInt(m[2], 16),
+    b: parseInt(m[3], 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (v: number) => v.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Lighten a hex color by mixing it with white (ratio 0–1)
+function lighten(hex: string, ratio: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const r = Math.round(rgb.r + (255 - rgb.r) * ratio);
+  const g = Math.round(rgb.g + (255 - rgb.g) * ratio);
+  const b = Math.round(rgb.b + (255 - rgb.b) * ratio);
+  return rgbToHex(r, g, b);
+}
+
+export function TimeBlockCard({
+  block,
+  mode,
+  style,
+  isSelected,
+  onSelect,
+  onDeselect,
+  onDoneAsPlanned,
+  onDidSomethingElse,
+  onDeleteBlock,
+  onDeleteTask,
+  compareMatchedTaskIds,
+  focusedCategoryId,
+  focusedCalendarId,
+  compact = false,
+}: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   
   const isPlanningMode = mode === 'planning';
+  const isRecordingMode = mode === 'recording';
+  const isCompareMode = mode === 'compare';
   const isPlanned = block.mode === 'planned';
   const isRecorded = block.mode === 'recorded';
+  const matchedSet = compareMatchedTaskIds ? new Set(compareMatchedTaskIds) : null;
 
   // Base opacity from mode and block type
   const getBaseOpacity = () => {
     if (isPlanningMode) {
       return isPlanned ? 1 : 0.5;
-    } else {
+    }
+    if (isRecordingMode) {
       return isRecorded ? 1 : 0.3;
     }
+    // compare: recorded = strong, planned = ghosted
+    if (isCompareMode) {
+      return isRecorded ? 1 : 0.25;
+    }
+    return 1;
   };
 
   // When a category or calendar is focused, exaggerate matching blocks and mute others
   const getOpacity = () => {
-    const base = getBaseOpacity();
+    let base = getBaseOpacity();
+
+    // In compare mode, dim matched tasks and highlight mismatches.
+    if (isCompareMode && matchedSet) {
+      const isMatched = block.taskId && matchedSet.has(block.taskId);
+      base = isMatched ? base * 0.4 : Math.min(1, base + 0.25);
+    }
+
     if (focusedCategoryId != null) {
       return block.category.id === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
     }
@@ -61,6 +119,13 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
       return block.calendarContainerId === focusedCalendarId ? base : FOCUS_MUTED_OPACITY;
     }
     return base;
+  };
+
+  const getBackgroundColor = () => {
+    const base = block.category.color;
+    // Planned blocks: lighter variant; recorded blocks: primary color.
+    if (isRecorded) return base;
+    return lighten(base, 0.25);
   };
 
   const buildRecordedPayload = (overrides: Partial<RecordedBlockPayload> = {}): RecordedBlockPayload => ({
@@ -137,7 +202,7 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
               : 'border-transparent'
           } ${isSelected ? 'ring-1 ring-blue-400' : ''}`}
           style={{
-            backgroundColor: block.category.color,
+            backgroundColor: getBackgroundColor(),
             opacity: getOpacity(),
             borderLeft: `4px solid ${block.calendarContainer.color}`,
           }}
@@ -225,7 +290,7 @@ export function TimeBlockCard({ block, mode, style, isSelected, onSelect, onDese
             : 'border-neutral-200'
         } ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
         style={{
-          backgroundColor: block.category.color,
+          backgroundColor: getBackgroundColor(),
           opacity: getOpacity(),
           borderLeft: `4px solid ${block.calendarContainer.color}`,
         }}

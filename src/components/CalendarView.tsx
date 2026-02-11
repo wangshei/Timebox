@@ -69,6 +69,23 @@ export function CalendarView({
     return resolveTimeBlocks(timeBlocks, tasks, categories, tags, containers);
   }, [timeBlocks, tasks, categories, tags, containers]);
 
+  const compareMatchedTaskIds = useMemo(() => {
+    if (mode !== 'compare') return [];
+    const dayBlocks = visibleBlocks.filter((b) => b.date === selectedDate && b.taskId);
+    const perTask = new Map<string, Set<'planned' | 'recorded'>>();
+    dayBlocks.forEach((b) => {
+      if (!b.taskId) return;
+      const set = perTask.get(b.taskId) ?? new Set();
+      set.add(b.mode);
+      perTask.set(b.taskId, set);
+    });
+    const result: string[] = [];
+    perTask.forEach((set, taskId) => {
+      if (set.has('planned') && set.has('recorded')) result.push(taskId);
+    });
+    return result;
+  }, [mode, visibleBlocks, selectedDate]);
+
   const getHeaderTitle = () => {
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
@@ -156,7 +173,7 @@ export function CalendarView({
                 </h1>
               )}
             </div>
-            {/* Planning / Recording toggle — beside date, compact */}
+            {/* Plan / Record / Compare toggle — beside date, compact */}
             {onModeChange && (
               <div className="bg-neutral-50 rounded-md p-0.5 flex shrink-0 border border-neutral-100">
                 <button
@@ -176,6 +193,15 @@ export function CalendarView({
                   }`}
                 >
                   Record
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onModeChange('compare')}
+                  className={`py-1 px-2 rounded text-xs font-medium transition-all ${
+                    mode === 'compare' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
+                  }`}
+                >
+                  Compare
                 </button>
               </div>
             )}
@@ -228,9 +254,54 @@ export function CalendarView({
 
       {/* Calendar Content */}
       <div className="flex-1 overflow-y-auto">
+        {view === 'day' && mode === 'compare' ? (
+          <div className="flex h-full border-t border-neutral-100">
+            <div className="w-1/2 border-r border-neutral-100">
+              <DayView
+                mode={mode}
+                timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
+                selectedDate={selectedDate}
+                selectedBlock={selectedBlock}
+                onSelectBlock={setSelectedBlock}
+                focusedCategoryId={focusedCategoryId}
+                focusedCalendarId={focusedCalendarId}
+                onDoneAsPlanned={onDoneAsPlanned}
+                onDidSomethingElse={onDidSomethingElse}
+                onDeleteBlock={onDeleteBlock}
+                onDeleteTask={onDeleteTask}
+                onDropTask={onDropTask}
+                onCreateBlock={onCreateBlock}
+                onMoveBlock={onMoveBlock}
+                compareMatchedTaskIds={compareMatchedTaskIds}
+              />
+            </div>
+            <div className="w-1/2">
+              <DayView
+                mode={mode}
+                timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
+                selectedDate={selectedDate}
+                selectedBlock={selectedBlock}
+                onSelectBlock={setSelectedBlock}
+                focusedCategoryId={focusedCategoryId}
+                focusedCalendarId={focusedCalendarId}
+                onDoneAsPlanned={onDoneAsPlanned}
+                onDidSomethingElse={onDidSomethingElse}
+                onDeleteBlock={onDeleteBlock}
+                onDeleteTask={onDeleteTask}
+                onDropTask={onDropTask}
+                onCreateBlock={onCreateBlock}
+                onMoveBlock={onMoveBlock}
+                compareMatchedTaskIds={compareMatchedTaskIds}
+              />
+            </div>
+          </div>
+        ) : (
+        <>
         {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
         {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} />}
         {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} />}
+        </>
+        )}
       </div>
 
       {/* Floating Add Button — visible in day/week/month, draggable add popup opens */}

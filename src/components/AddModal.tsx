@@ -131,38 +131,43 @@ export function AddModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !selectedCategory) return;
+    if (!title.trim()) return;
 
-    if (mode === 'task') {
+    const fallbackCategory = selectedCategory ?? categories[0] ?? null;
+    const fallbackCalendar =
+      selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? '');
+
+    if (!fallbackCategory || !fallbackCalendar) return;
+
+    // When editing an existing time block (e.g. created by drag), always treat as event submit.
+    if (editingTimeBlock && onUpdateTimeBlock) {
+      onUpdateTimeBlock(editingTimeBlock.id, {
+        title,
+        start: startTime,
+        end: endTime,
+        date,
+        calendarContainerId: fallbackCalendar,
+        categoryId: fallbackCategory.id,
+        tagIds: selectedTags.map((t) => t.id),
+      });
+    } else if (mode === 'task') {
       onAddTask({
         title,
         estimatedHours,
-        category: selectedCategory,
+        category: fallbackCategory,
         tags: selectedTags,
-        calendar: selectedCalendar,
+        calendar: fallbackCalendar,
       });
     } else {
-      if (editingTimeBlock && onUpdateTimeBlock) {
-        onUpdateTimeBlock(editingTimeBlock.id, {
-          title,
-          start: startTime,
-          end: endTime,
-          date,
-          calendarContainerId: selectedCalendar,
-          categoryId: selectedCategory.id,
-          tagIds: selectedTags.map((t) => t.id),
-        });
-      } else {
-        onAddEvent({
-          title,
-          startTime,
-          endTime,
-          date,
-          category: selectedCategory,
-          tags: selectedTags,
-          calendar: selectedCalendar,
-        });
-      }
+      onAddEvent({
+        title,
+        startTime,
+        endTime,
+        date,
+        category: fallbackCategory,
+        tags: selectedTags,
+        calendar: fallbackCalendar,
+      });
     }
 
     // Reset form

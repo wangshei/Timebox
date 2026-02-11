@@ -18,10 +18,13 @@ import {
   selectFixedTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
-import type { Category, Tag } from './types';
+import type { Category, Tag, Mode as StoreMode } from './types';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
+import { loadSupabaseState, startSupabasePersistence } from './supabasePersistence';
 
 // Re-export for components that still import from App
-export type Mode = 'planning' | 'recording';
+export type Mode = StoreMode;
 export type View = 'day' | 'week' | 'month';
 export type { Category, Tag };
 export interface Task {
@@ -58,6 +61,9 @@ export default function App() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
 
   const {
     viewMode: mode,
@@ -391,6 +397,37 @@ export default function App() {
     }
   };
 
+  // Supabase auth session + persistence
+  useEffect(() => {
+    if (!supabase) return;
+    let unsubscribePersistence: (() => void) | undefined;
+
+    const setupForSession = async (next: Session | null) => {
+      setSession(next);
+      if (unsubscribePersistence) {
+        unsubscribePersistence();
+        unsubscribePersistence = undefined;
+      }
+      if (next) {
+        await loadSupabaseState();
+        unsubscribePersistence = startSupabasePersistence();
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      void setupForSession(data.session);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void setupForSession(nextSession);
+    });
+
+    return () => {
+      data.subscription.unsubscribe();
+      if (unsubscribePersistence) unsubscribePersistence();
+    };
+  }, []);
+
   // Keyboard shortcuts: d day, w week, m month, p planning, r recording, a all calendars
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -409,8 +446,62 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setView, setViewMode, setAllCalendarsVisible]);
 
+  const handleSendMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !authEmail.trim()) return;
+    setAuthMessage(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: authEmail.trim(),
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) {
+      setAuthMessage(error.message);
+    } else {
+      setAuthMessage('Check your email for a magic link.');
+    }
+  };
+
   return (
-    <div className="h-screen w-full bg-neutral-50 flex flex-col overflow-hidden">
+    <div className={`h-screen w-full flex flex-col overflow-hidden ${mode === 'recording' ? 'bg-neutral-100' : 'bg-neutral-50'}`}>
+      {/* Supabase auth bar */}
+      {supabase && (
+        <div className="w-full border-b border-neutral-200 bg-white px-4 py-1.5 flex items-center justify-end gap-3 text-xs">
+          {session ? (
+            <>
+              <span className="text-neutral-500">
+                Signed in as <span className="font-medium text-neutral-800">{session.user.email}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => supabase.auth.signOut()}
+                className="px-2 py-1 rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleSendMagicLink} className="flex items-center gap-2">
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="Email for login"
+                className="px-2 py-1 text-xs border border-neutral-200 rounded bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="px-2 py-1 rounded border border-blue-500 text-blue-700 text-xs font-medium hover:bg-blue-50"
+              >
+                Send link
+              </button>
+              {authMessage && <span className="text-[10px] text-neutral-500">{authMessage}</span>}
+            </form>
+          )}
+        </div>
+      )}
+
       <div className="hidden lg:flex flex-1 overflow-hidden">
         {/* Left panel — Notion-like: header (logo + add + edit icon), sections left-aligned */}
         {leftPanelOpen ? (
@@ -478,8 +569,13 @@ export default function App() {
                 onEndDay={() => endDay(selectedDate)}
                 planVsActualSection={
                   <div className="px-4 pb-6 pt-3">
-                    <p className="text-[6px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Plan vs Actual</p>
-                    <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">{selectedDate}</p>
+                    <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">
+                      {view === 'week'
+                        ? `Week of ${selectedDate}`
+                        : view === 'month'
+                          ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                          : selectedDate}
+                    </p>
                     <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
                       <button
                         type="button"
@@ -559,13 +655,9 @@ export default function App() {
                             </div>
                           );
                         })}
-                        <div className="pt-3 mt-3 border-t border-neutral-200">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-semibold text-neutral-700">Total</span>
-                            <span className="font-semibold text-neutral-900">
-                              {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned · {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h completed
-                            </span>
-                          </div>
+                        <div className="pt-3 mt-3 border-t border-neutral-200 text-sm font-semibold text-neutral-900">
+                          {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned ·{' '}
+                          {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h completed
                         </div>
                       </div>
                     ) : (
@@ -613,7 +705,9 @@ export default function App() {
         {rightPanelOpen ? (
           <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden border-l border-neutral-200 bg-white">
             <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100">
-              <span className="text-xs font-medium text-neutral-500">Tasks</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-neutral-500">Tasks</span>
+              </div>
               <button type="button" onClick={() => setRightPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close right panel">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </button>
