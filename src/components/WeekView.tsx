@@ -123,7 +123,50 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 </div>
 
                 {/* Day grid */}
-                <div className="relative px-1 md:px-2 py-4 md:py-6">
+                <div
+                  className="relative px-1 md:px-2 py-4 md:py-6"
+                  onDragOver={(e) => {
+                    const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
+                    const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
+                    if (!hasTask && !hasBlock) return;
+                    if (hasTask && !onDropTask) return;
+                    if (hasBlock && !onMoveBlock) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                    const offsetY = e.clientY - rect.top - gridTopOffset;
+                    if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                    const startMins = offsetYToMinutes(offsetY);
+                    const durationStr = hasBlock
+                      ? e.dataTransfer.getData('application/x-timebox-block-duration')
+                      : e.dataTransfer.getData('application/x-timebox-task-duration');
+                    const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 60;
+                    setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
+                  }}
+                  onDragLeave={() => setDragPreview(null)}
+                  onDrop={(e) => {
+                    const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
+                    const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
+                    if (!taskId && !blockId) return;
+                    e.preventDefault();
+                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                    const offsetY = e.clientY - rect.top - gridTopOffset;
+                    const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+
+                    if (blockId && onMoveBlock) {
+                      const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
+                      const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                      onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                    } else if (taskId && onDropTask) {
+                      const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
+                      const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                      const splitStr = e.dataTransfer.getData('application/x-timebox-task-split-count');
+                      const splitCount = splitStr ? parseInt(splitStr, 10) : undefined;
+                      onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur, splitCount });
+                    }
+                    setDragPreview(null);
+                  }}
+                >
                   {/* Grid lines */}
                   {hours.map((hour) => (
                     <div key={hour} className="relative" style={{ height: '64px' }}>
@@ -149,11 +192,23 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           onDoneAsPlanned={onDoneAsPlanned}
                           onDidSomethingElse={onDidSomethingElse}
                           onDeleteBlock={onDeleteBlock}
+                          onDeleteTask={onDeleteTask}
                           compact
                         />
                       );
                     })}
                   </div>
+
+                  {/* Drag preview */}
+                  {dragPreview && dragPreview.date === dateStr && (
+                    <div
+                      className="absolute left-1 md:left-2 right-1 md:right-2 top-4 md:top-6 z-30 pointer-events-none rounded border-2 border-dashed border-blue-400 bg-blue-100/50"
+                      style={{
+                        top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                        height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                      }}
+                    />
+                  )}
 
                   {/* Current time line — only in today column */}
                   {showCurrentTimeLine && (

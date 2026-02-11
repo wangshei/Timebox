@@ -98,7 +98,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           return (
             <div
               key={index}
-              className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 ${
+              className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer hover:bg-neutral-50 ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
               } ${today ? 'bg-blue-50' : ''}`}
               onClick={() => onSelectDate?.(formatDate(day.date))}

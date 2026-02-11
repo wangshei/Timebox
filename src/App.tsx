@@ -477,7 +477,7 @@ export default function App() {
                 endDayLabel={`End day (${selectedDate})`}
                 onEndDay={() => endDay(selectedDate)}
                 planVsActualSection={
-                  <div className="px-4 pb-3 pt-3">
+                  <div className="px-4 pb-6 pt-3">
                     <p className="text-[6px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Plan vs Actual</p>
                     <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">{selectedDate}</p>
                     <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
@@ -560,10 +560,10 @@ export default function App() {
                           );
                         })}
                         <div className="pt-3 mt-3 border-t border-neutral-200">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-neutral-600">Total</span>
-                            <span className="font-medium text-neutral-800">
-                              {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned · {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h recorded
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-semibold text-neutral-700">Total</span>
+                            <span className="font-semibold text-neutral-900">
+                              {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned · {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h completed
                             </span>
                           </div>
                         </div>

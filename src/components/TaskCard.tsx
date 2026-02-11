@@ -3,6 +3,8 @@ import { Task } from '../App';
 import { GripVertical, Calendar, Clock, Edit3, X } from 'lucide-react';
 
 interface TaskCardProps {
+  /** React key (not used by component, but included to satisfy some typecheckers). */
+  key?: string;
   task: Task;
   viewMode?: 'overview' | 'plan';
   onScheduleTask?: () => void;
