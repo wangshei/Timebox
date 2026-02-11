@@ -14,8 +14,8 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 
 ## 1. Design / UI (current design gaps)
 
-- [ ] **Right sidebar:** Backlog sections — show Unscheduled (flexible), Partially Completed, Fixed/Missed, Events (per spec). *(CP2)*
-- [ ] **Right sidebar:** Task cards — wire “Schedule task” / “Edit” / “Delete” in TaskCard popover.
+- [x] **Right sidebar:** Backlog sections — show Unscheduled (flexible), Partially Completed, Fixed/Missed, Events (per spec). *(CP2)*
+- [x] **Right sidebar:** Task cards — wire “Schedule task” / “Edit” / “Delete” in TaskCard popover.
 - [x] **TimeBlockCard:** Recording actions — “Done as planned” / “Done differently” / “Delete” actually create/update/delete recorded blocks. *(CP4)*
 - [x] **Calendar:** Day view — filter blocks by selected date (not only today).
 - [x] **Left rail:** Today summary — show both **Planned** and **Recorded** by CalendarContainer, Category, Tag; add **Plan vs Actual** comparison (e.g. side-by-side or delta). *(CP6)*

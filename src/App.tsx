@@ -16,6 +16,7 @@ import {
   selectDisplayTasksForBacklog,
   selectUnscheduledTasks,
   selectPartiallyCompletedTasks,
+  selectFixedTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import type { Category, Tag } from './types';
@@ -159,6 +160,16 @@ export default function App() {
         partiallyCompletedTasks.some((p) => p.id === t.id)
       ),
     [displayTasks, partiallyCompletedTasks]
+  );
+
+  const fixedTasks = useMemo(
+    () => selectFixedTasks(tasks),
+    [tasks]
+  );
+  const fixedMissedDisplay = useMemo(
+    () =>
+      displayTasks.filter((t) => fixedTasks.some((f) => f.id === t.id)),
+    [displayTasks, fixedTasks]
   );
 
   const handleAddTask = (taskData: {
@@ -437,6 +448,7 @@ export default function App() {
                 tasks={displayTasks}
                 unscheduledTasks={unscheduledDisplay}
                 partiallyCompletedTasks={partiallyCompletedDisplay}
+                fixedMissedTasks={fixedMissedDisplay}
                 selectedDate={selectedDate}
                 categories={categories}
                 tags={tags}
@@ -480,6 +492,7 @@ export default function App() {
           tasks={displayTasks}
           unscheduledTasks={unscheduledDisplay}
           partiallyCompletedTasks={partiallyCompletedDisplay}
+          fixedMissedTasks={fixedMissedDisplay}
           selectedDate={selectedDate}
           categories={categories}
           tags={tags}

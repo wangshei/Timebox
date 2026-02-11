@@ -7,6 +7,7 @@ interface RightSidebarProps {
   tasks: Task[];
   unscheduledTasks: Task[];
   partiallyCompletedTasks: Task[];
+  fixedMissedTasks?: Task[];
   selectedDate?: string;
   categories: Category[];
   tags: Tag[];
@@ -27,7 +28,7 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, selectedDate = new Date().toISOString().split('T')[0], categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = new Date().toISOString().split('T')[0], categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   
   return (
@@ -88,6 +89,25 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
               {partiallyCompletedTasks.map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode={viewMode}
+                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Fixed / Missed */}
+        {fixedMissedTasks.length > 0 && (
+          <div>
+            <h2 className="text-sm font-medium text-neutral-500 mb-4">Fixed / Missed</h2>
+            <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
+              {fixedMissedTasks.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}

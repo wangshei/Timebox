@@ -7,6 +7,7 @@ interface DraggableBottomSheetProps {
   tasks: Task[];
   unscheduledTasks: Task[];
   partiallyCompletedTasks: Task[];
+  fixedMissedTasks?: Task[];
   selectedDate?: string;
   categories: Category[];
   tags: Tag[];
@@ -23,7 +24,7 @@ interface DraggableBottomSheetProps {
   onOpenAddModal: (mode: 'task' | 'event') => void;
 }
 
-export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, selectedDate, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal }: DraggableBottomSheetProps) {
+export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
   const minHeight = 80;
@@ -128,7 +129,7 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-hidden">
-        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} selectedDate={selectedDate} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} isMobile isBottomSheet />
+        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} selectedDate={selectedDate} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} isMobile isBottomSheet />
       </div>
     </div>
   );
