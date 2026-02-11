@@ -34,7 +34,7 @@ export function CalendarContainerList({
           <button
             type="button"
             onClick={() => onFocusCalendar?.(container.id)}
-            className={`flex-1 flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
+            className={`flex-1 flex items-left gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
               focusedCalendarId === container.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
             }`}
             style={{ borderLeftColor: container.color, backgroundColor: `${container.color}12` }}

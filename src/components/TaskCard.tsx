@@ -51,12 +51,13 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
     e.dataTransfer.effectAllowed = 'copy';
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
-      ghost.className = 'bg-white border border-neutral-200 rounded-lg shadow-lg px-3 py-2 text-sm text-neutral-800';
+      ghost.className = 'bg-white/95 border border-neutral-200 rounded-lg shadow-xl px-3 py-2 text-sm font-medium text-neutral-800 backdrop-blur-sm';
       ghost.textContent = task.title;
       ghost.style.position = 'absolute';
       ghost.style.top = '-9999px';
+      ghost.style.transition = 'opacity 0.15s ease';
       document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 0, 0);
+      e.dataTransfer.setDragImage(ghost, 8, 8);
       requestAnimationFrame(() => document.body.removeChild(ghost));
     }
   };
@@ -75,8 +76,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
           onDragStart={handleDragStart}
         >
           <div
-            className={`h-full rounded-lg p-3 border transition-all ${
-              showPopover ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1' : 'border-neutral-200 hover:border-neutral-300 hover:shadow-sm'
+            className={`h-full rounded-lg p-3 border transition-[border-color,box-shadow,transform] duration-150 ease-out ${
+              showPopover ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1' : 'border-neutral-200 hover:border-neutral-300 hover:shadow-sm active:scale-[0.99]'
             }`}
             style={{
               backgroundColor: task.category.color,
@@ -234,7 +235,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
   return (
     <>
       <div
-        className={`bg-white border rounded-lg p-4 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing group ${
+        className={`bg-white border rounded-lg p-4 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-150 ease-out cursor-grab active:cursor-grabbing active:scale-[0.99] group ${
           showPopover ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1' : 'border-neutral-200 hover:border-neutral-300'
         }`}
         style={{ minHeight: `${cardHeight}px` }}

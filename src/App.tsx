@@ -5,11 +5,9 @@ import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
-import { SettingsPanel } from './components/SettingsPanel';
+import { SettingsSidePanel } from './components/SettingsSidePanel';
 import { AddCalendarPopover } from './components/AddCalendarPopover';
-import { CalendarContainerList } from './components/CalendarContainerList';
-import { CategoryFocusList } from './components/CategoryFocusList';
-import { TagFocusList } from './components/TagFocusList';
+import { OrganizationTree } from './components/OrganizationTree';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForView,
@@ -54,16 +52,19 @@ export default function App() {
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [addCalendarOpen, setAddCalendarOpen] = useState(false);
   const addCalendarAnchorRef = useRef<HTMLDivElement>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [leftPanelMode, setLeftPanelMode] = useState<'organization' | 'settings'>('organization');
+  const [settingsSnapshot, setSettingsSnapshot] = useState<{
+    calendars: Array<{ id: string; name: string; color: string }>;
+    categories: Array<{ id: string; name: string; color: string; calendarContainerId?: string | null }>;
+    tags: Array<{ id: string; name: string; type?: 'project' | 'hobby'; categoryId?: string | null }>;
+  } | null>(null);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [calendarsOpen, setCalendarsOpen] = useState(true);
-  const [categoriesOpen, setCategoriesOpen] = useState(true);
-  const [tagsOpen, setTagsOpen] = useState(true);
 
   const {
     viewMode: mode,
@@ -98,6 +99,9 @@ export default function App() {
     addTag,
     updateTag,
     deleteTag,
+    setCalendarContainers,
+    setCategories,
+    setTags,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -245,11 +249,12 @@ export default function App() {
     }
   };
 
-  const handleDropTask = (taskId: string, params: { date: string; startTime: string }) => {
+  const handleDropTask = (taskId: string, params: { date: string; startTime: string; blockMinutes: number }) => {
     createPlannedBlocksFromTask(taskId, {
       date: params.date,
       startTime: params.startTime,
-      blockMinutes: defaultBlockMinutes,
+      blockMinutes: params.blockMinutes ?? defaultBlockMinutes,
+      splitTask: true,
     });
   };
 
@@ -294,69 +299,81 @@ export default function App() {
                   />
                 )}
               </div>
-              <button type="button" onClick={() => setIsSettingsOpen(true)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Edit calendars & categories" title="Edit calendars & categories">
+              <button
+                type="button"
+                onClick={() => {
+                  setSettingsSnapshot({
+                    calendars: calendarContainers.map((c) => ({ ...c })),
+                    categories: categories.map((c) => ({ ...c })),
+                    tags: tags.map((t) => ({ ...t })),
+                  });
+                  setLeftPanelMode('settings');
+                  setLeftPanelOpen(true);
+                }}
+                className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors"
+                aria-label="Settings"
+                title="Settings"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               </button>
               <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
             </div>
-            {/* ORGANIZATION: Calendars, Categories, Tags — each section expand/collapse */}
-            <div className="flex-shrink-0 px-2 pt-3 pb-2">
-              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">Organization</p>
-
-              <div className="mb-1">
-                <button type="button" onClick={() => setCalendarsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
-                  {calendarsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
-                  <span>Calendars</span>
-                </button>
-                {calendarsOpen && (
-                  <div className="space-y-0.5 pl-0.5 mt-0.5">
-                    <CalendarContainerList
-                      containers={calendarContainers}
-                      visibility={containerVisibility}
-                      onToggleVisibility={toggleContainerVisibility}
-                      focusedCalendarId={focusedCalendarId}
-                      onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
-                      compact
-                    />
+            {leftPanelMode === 'settings' ? (
+              <SettingsSidePanel
+                calendarContainers={calendarContainers}
+                categories={categories}
+                tags={tags}
+                onAddCalendar={addCalendarContainer}
+                onUpdateCalendar={updateCalendarContainer}
+                onDeleteCalendar={deleteCalendarContainer}
+                onAddCategory={addCategory}
+                onUpdateCategory={updateCategory}
+                onDeleteCategory={deleteCategory}
+                onAddTag={addTag}
+                onUpdateTag={updateTag}
+                onDeleteTag={deleteTag}
+                onSave={() => setLeftPanelMode('organization')}
+                onRevert={() => {
+                  if (settingsSnapshot) {
+                    setCalendarContainers(settingsSnapshot.calendars);
+                    setCategories(settingsSnapshot.categories);
+                    setTags(settingsSnapshot.tags);
+                  }
+                  setLeftPanelMode('organization');
+                }}
+              />
+            ) : (
+              <>
+                {/* ORGANIZATION: nested Calendars → Categories → Tags */}
+                <div className="flex-shrink-0 px-2 pt-3 pb-2">
+                  <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">Organization</p>
+                  <div className="mb-1">
+                    <button type="button" onClick={() => setCalendarsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
+                      {calendarsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
+                      <span>Calendars</span>
+                    </button>
+                    {calendarsOpen && (
+                      <div className="pl-0.5 mt-0.5">
+                        <OrganizationTree
+                          containers={calendarContainers}
+                          categories={categories}
+                          tags={tags}
+                          visibility={containerVisibility}
+                          onToggleVisibility={toggleContainerVisibility}
+                          focusedCalendarId={focusedCalendarId}
+                          focusedCategoryId={focusedCategoryId}
+                          onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+                          onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              <div className="mb-1 mt-3">
-                <button type="button" onClick={() => setCategoriesOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
-                  {categoriesOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
-                  <span>Categories</span>
-                </button>
-                {categoriesOpen && (
-                  <div className="space-y-0.5 pl-0.5 mt-0.5">
-                    <CategoryFocusList
-                      categories={categories}
-                      focusedCategoryId={focusedCategoryId}
-                      onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
-                      compact
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-1 mt-3">
-                <button type="button" onClick={() => setTagsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
-                  {tagsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
-                  <span>Tags</span>
-                </button>
-                {tagsOpen && (
-                  <div className="space-y-0.5 pl-0.5 mt-0.5">
-                    <TagFocusList tags={tags} compact />
-                  </div>
-                )}
-              </div>
-
-              <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
-                End day ({selectedDate})
-              </button>
-            </div>
+                  <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
+                    End day ({selectedDate})
+                  </button>
+                </div>
           <div className="flex-1 overflow-y-auto px-2 pb-3 min-h-0 border-t border-neutral-100 pt-3">
             <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">{selectedDate} — Plan vs Actual</p>
             <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
@@ -463,7 +480,9 @@ export default function App() {
               <span><kbd className="font-mono text-neutral-600">r</kbd> Record</span>
             </div>
           </div>
-        </div>
+              </>
+            )}
+          </div>
         ) : (
           <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center py-2 bg-white border-r border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open left panel" title="Open left panel">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -585,22 +604,6 @@ export default function App() {
         onAddEvent={handleAddEvent}
       />
 
-      <SettingsPanel
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        calendarContainers={calendarContainers}
-        categories={categories}
-        tags={tags}
-        onAddCalendar={addCalendarContainer}
-        onUpdateCalendar={updateCalendarContainer}
-        onDeleteCalendar={deleteCalendarContainer}
-        onAddCategory={addCategory}
-        onUpdateCategory={updateCategory}
-        onDeleteCategory={deleteCategory}
-        onAddTag={addTag}
-        onUpdateTag={updateTag}
-        onDeleteTag={deleteTag}
-      />
     </div>
   );
 }

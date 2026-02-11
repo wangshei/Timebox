@@ -24,6 +24,7 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 - [ ] **Mobile:** DraggableBottomSheet and mobile layout — ensure parity with desktop where needed.
 - [ ] **Calendar views:** Ensure **WeekView** and **MonthView** connect to **TimeBlockCard** the same way as DayView (click block → recording actions). Currently all three use TimeBlockCard; verify interactions work in Week/Month. *(CP4)*
 - [x] **Side panel (Notion-style tabs):** Add a tabbed side panel for **Calendar / Tag / Category management**. Reference Notion side tab: categories (e.g. Exercise, Eating) can be **grouped under a parent** (e.g. Personal care). Panel must be **editable** — add, edit, delete calendars, categories, tags. *(CP6b)*
+- [x] **Left panel hierarchy:** Calendars → Categories (under calendar) → Tags (under category). Data: `Category.calendarContainerId`, `Tag.categoryId`. Settings: category pick calendar; tag pick category. Organization tree with expand/collapse.
 
 ---
 
@@ -58,6 +59,8 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 ---
 
 ## 5. Persistence and backend (Phase 2)
+
+**Note:** Backend is **Supabase** (auth + DB), not Vercel. Vercel can host the frontend; persistence is Supabase.
 
 - [ ] **LocalStorage (v0):** Persist store to localStorage; hydrate on load. *(optional before CP8)*
 - [ ] **Supabase:** Auth (Email OTP), tables, RLS. *(CP8)*

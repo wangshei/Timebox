@@ -13,12 +13,16 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  /** When set, category appears under this calendar in the left panel. */
+  calendarContainerId?: string | null;
 }
 
 export interface Tag {
   id: string;
   name: string;
   type?: 'project' | 'hobby';
+  /** When set, tag appears under this category in the left panel. */
+  categoryId?: string | null;
 }
 
 export interface Task {

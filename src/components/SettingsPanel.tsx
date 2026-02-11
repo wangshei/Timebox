@@ -46,8 +46,8 @@ export function SettingsPanel({
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [newCalendar, setNewCalendar] = useState({ name: '', color: '#86C0F4' });
-  const [newCategory, setNewCategory] = useState({ name: '', color: '#6b7280' });
-  const [newTag, setNewTag] = useState({ name: '', type: '' as 'project' | 'hobby' | undefined });
+  const [newCategory, setNewCategory] = useState({ name: '', color: '#6b7280', calendarContainerId: '' as string | null });
+  const [newTag, setNewTag] = useState({ name: '', type: '' as 'project' | 'hobby' | undefined, categoryId: '' as string | null });
 
   if (!isOpen) return null;
 
@@ -60,14 +60,22 @@ export function SettingsPanel({
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory.name.trim()) return;
-    onAddCategory({ name: newCategory.name.trim(), color: newCategory.color || '#6b7280' });
-    setNewCategory({ name: '', color: '#6b7280' });
+    onAddCategory({
+      name: newCategory.name.trim(),
+      color: newCategory.color || '#6b7280',
+      calendarContainerId: newCategory.calendarContainerId || undefined,
+    });
+    setNewCategory({ name: '', color: '#6b7280', calendarContainerId: null });
   };
   const handleAddTag = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTag.name.trim()) return;
-    onAddTag({ name: newTag.name.trim(), type: newTag.type || undefined });
-    setNewTag({ name: '', type: undefined });
+    onAddTag({
+      name: newTag.name.trim(),
+      type: newTag.type || undefined,
+      categoryId: newTag.categoryId || undefined,
+    });
+    setNewTag({ name: '', type: undefined, categoryId: null });
   };
 
   return (
@@ -135,6 +143,21 @@ export function SettingsPanel({
                     <Plus className="w-4 h-4" /> Add
                   </button>
                 </div>
+                {calendarContainers.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 mb-1">Parent calendar</label>
+                    <select
+                      value={newCategory.calendarContainerId ?? ''}
+                      onChange={(e) => setNewCategory((p) => ({ ...p, calendarContainerId: e.target.value || null }))}
+                      className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                    >
+                      <option value="">— None</option>
+                      {calendarContainers.map((cal) => (
+                        <option key={cal.id} value={cal.id}>{cal.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <ColorPicker value={newCategory.color} onChange={(color) => setNewCategory((p) => ({ ...p, color }))} label="Color" />
               </form>
               <ul className="space-y-1">
@@ -152,26 +175,41 @@ export function SettingsPanel({
               </ul>
             </TabsContent>
             <TabsContent value="tags" className="mt-0 space-y-5">
-              <form onSubmit={handleAddTag} className="flex gap-2 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <input
-                  type="text"
-                  value={newTag.name}
-                  onChange={(e) => setNewTag((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Tag name"
-                  className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <select
-                  value={newTag.type || ''}
-                  onChange={(e) => setNewTag((p) => ({ ...p, type: (e.target.value || undefined) as 'project' | 'hobby' | undefined }))}
-                  className="px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">—</option>
-                  <option value="project">Project</option>
-                  <option value="hobby">Hobby</option>
-                </select>
-                <button type="submit" className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shrink-0 inline-flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" /> Add
-                </button>
+              <form onSubmit={handleAddTag} className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Add tag</p>
+                <div className="flex gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={newTag.name}
+                    onChange={(e) => setNewTag((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Tag name"
+                    className="flex-1 min-w-[120px] px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {categories.length > 0 && (
+                    <select
+                      value={newTag.categoryId ?? ''}
+                      onChange={(e) => setNewTag((p) => ({ ...p, categoryId: e.target.value || null }))}
+                      className="px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                    >
+                      <option value="">— Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <select
+                    value={newTag.type || ''}
+                    onChange={(e) => setNewTag((p) => ({ ...p, type: (e.target.value || undefined) as 'project' | 'hobby' | undefined }))}
+                    className="px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                  >
+                    <option value="">— Type</option>
+                    <option value="project">Project</option>
+                    <option value="hobby">Hobby</option>
+                  </select>
+                  <button type="submit" className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shrink-0 inline-flex items-center gap-1.5">
+                    <Plus className="w-4 h-4" /> Add
+                  </button>
+                </div>
               </form>
               <ul className="space-y-1">
                 {tags.map((t) => (
@@ -209,8 +247,10 @@ export function SettingsPanel({
         title="Edit Category"
         initialName={categories.find((c) => c.id === editingCategoryId)?.name ?? ''}
         initialColor={categories.find((c) => c.id === editingCategoryId)?.color ?? '#6b7280'}
-        onSave={(name, color) => {
-          if (editingCategoryId) onUpdateCategory(editingCategoryId, { name, color });
+        calendarContainers={calendarContainers}
+        initialCalendarContainerId={categories.find((c) => c.id === editingCategoryId)?.calendarContainerId}
+        onSave={(name, color, calendarContainerId) => {
+          if (editingCategoryId) onUpdateCategory(editingCategoryId, { name, color, calendarContainerId: calendarContainerId ?? undefined });
           setEditingCategoryId(null);
         }}
       />
@@ -219,8 +259,10 @@ export function SettingsPanel({
         onClose={() => setEditingTagId(null)}
         initialName={tags.find((t) => t.id === editingTagId)?.name ?? ''}
         initialType={tags.find((t) => t.id === editingTagId)?.type}
-        onSave={(name, type) => {
-          if (editingTagId) onUpdateTag(editingTagId, { name, type });
+        initialCategoryId={tags.find((t) => t.id === editingTagId)?.categoryId}
+        categories={categories}
+        onSave={(name, type, categoryId) => {
+          if (editingTagId) onUpdateTag(editingTagId, { name, type, categoryId: categoryId ?? undefined });
           setEditingTagId(null);
         }}
       />

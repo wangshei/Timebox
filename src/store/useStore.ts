@@ -94,7 +94,7 @@ export interface AppActions {
 
   createPlannedBlocksFromTask: (
     taskId: string,
-    params: { date: string; startTime: string; blockMinutes?: number }
+    params: { date: string; startTime: string; blockMinutes?: number; splitTask?: boolean }
   ) => void;
   markDoneAsPlanned: (plannedBlockId: string) => void;
   markDidSomethingElse: (plannedBlockId: string, recorded: Omit<TimeBlock, 'id' | 'mode' | 'source'>) => void;
@@ -109,6 +109,11 @@ export interface AppActions {
   addTag: (t: Omit<Tag, 'id'>) => void;
   updateTag: (id: string, updates: Partial<Tag>) => void;
   deleteTag: (id: string) => void;
+
+  /** Replace organization data (for Revert in settings). */
+  setCalendarContainers: (containers: CalendarContainer[]) => void;
+  setCategories: (categories: Category[]) => void;
+  setTags: (tags: Tag[]) => void;
 
   resetToSeed: () => void;
 }
@@ -160,7 +165,7 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.id !== id),
     })),
 
-  createPlannedBlocksFromTask: (taskId, { date, startTime, blockMinutes }) => {
+  createPlannedBlocksFromTask: (taskId, { date, startTime, blockMinutes, splitTask }) => {
     const state = get();
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -172,6 +177,37 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
 
     const startMins = parseTimeToMinutes(startTime);
     const blocks: TimeBlock[] = [];
+
+    if (splitTask) {
+      // Drop: create exactly one block; reduce task so remainder stays in todo
+      const scheduledMins = Math.min(remaining, blockMins);
+      const endMins = startMins + scheduledMins;
+      const startStr = `${Math.floor(startMins / 60)}:${String(startMins % 60).padStart(2, '0')}`;
+      const endStr = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+      blocks.push({
+        id: generateId(),
+        taskId,
+        title: task.title,
+        calendarContainerId: task.calendarContainerId,
+        categoryId: task.categoryId,
+        tagIds: task.tagIds,
+        start: startStr,
+        end: endStr,
+        date,
+        mode: 'planned',
+        source: 'manual',
+      });
+      set((s) => ({
+        timeBlocks: [...s.timeBlocks, ...blocks],
+        tasks: s.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, estimatedMinutes: Math.max(0, t.estimatedMinutes - scheduledMins) }
+            : t
+        ),
+      }));
+      return;
+    }
+
     let remainingToSchedule = Math.min(remaining, Math.floor(remaining / blockMins) * blockMins || blockMins);
     let currentStart = startMins;
 
@@ -298,6 +334,10 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
     set((s) => ({
       tags: s.tags.filter((t) => t.id !== id),
     })),
+
+  setCalendarContainers: (containers) => set({ calendarContainers: containers }),
+  setCategories: (categories) => set({ categories }),
+  setTags: (tags) => set({ tags }),
 
   resetToSeed: () => set(getInitialState()),
 }));

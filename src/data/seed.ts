@@ -3,7 +3,7 @@
  * Used by App.tsx and tests. Replace with Supabase/API in v1.
  */
 
-import type { CalendarContainer } from '../types';
+import type { CalendarContainer, Category, Tag } from '../types';
 
 export const calendarContainers: CalendarContainer[] = [
   { id: 'personal', name: 'Personal', color: '#86C0F4' },
@@ -11,21 +11,18 @@ export const calendarContainers: CalendarContainer[] = [
   { id: 'school', name: 'School', color: '#EC8309' },
 ];
 
-export const categories = [
-  { id: '1', name: 'Deep Work', color: '#0044A8' },
-  { id: '2', name: 'Meetings', color: '#9F5FB0' },
-  { id: '3', name: 'Exercise', color: '#13B49F' },
-  { id: '4', name: 'Learning', color: '#EC8309' },
-] as const;
+export const categories: Category[] = [
+  { id: '1', name: 'Deep Work', color: '#0044A8', calendarContainerId: 'work' },
+  { id: '2', name: 'Meetings', color: '#9F5FB0', calendarContainerId: 'work' },
+  { id: '3', name: 'Exercise', color: '#13B49F', calendarContainerId: 'personal' },
+  { id: '4', name: 'Learning', color: '#EC8309', calendarContainerId: 'personal' },
+];
 
-export const tags = [
-  { id: '1', name: 'Urgent' },
-  { id: '2', name: 'Client work' },
-  { id: '3', name: 'Personal' },
-] as const;
-
-type Category = (typeof categories)[number];
-type Tag = (typeof tags)[number];
+export const tags: Tag[] = [
+  { id: '1', name: 'Urgent', categoryId: '1' },
+  { id: '2', name: 'Client work', categoryId: '1' },
+  { id: '3', name: 'Personal', categoryId: '3' },
+];
 
 /** Old-format time blocks for initial state (embedded category/tags/calendar). */
 export const initialTimeBlocks = [

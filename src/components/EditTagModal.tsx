@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import type { Tag } from '../types';
+import type { Category, Tag } from '../types';
 
 interface EditTagModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialName: string;
   initialType?: 'project' | 'hobby';
-  onSave: (name: string, type?: 'project' | 'hobby') => void;
+  initialCategoryId?: string | null;
+  onSave: (name: string, type?: 'project' | 'hobby', categoryId?: string | null) => void;
+  categories?: Category[];
 }
 
 export function EditTagModal({
@@ -15,24 +17,28 @@ export function EditTagModal({
   onClose,
   initialName,
   initialType,
+  initialCategoryId,
   onSave,
+  categories = [],
 }: EditTagModalProps) {
   const [name, setName] = useState(initialName);
   const [type, setType] = useState<'project' | 'hobby' | ''>(initialType || '');
+  const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId ?? null);
 
   useEffect(() => {
     if (isOpen) {
       setName(initialName);
       setType(initialType || '');
+      setCategoryId(initialCategoryId ?? null);
     }
-  }, [isOpen, initialName, initialType]);
+  }, [isOpen, initialName, initialType, initialCategoryId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(name.trim(), type === '' ? undefined : type);
+    onSave(name.trim(), type === '' ? undefined : type, categoryId);
     onClose();
   };
 
@@ -58,6 +64,21 @@ export function EditTagModal({
               autoFocus
             />
           </div>
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">Parent category</label>
+              <select
+                value={categoryId ?? ''}
+                onChange={(e) => setCategoryId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">— None (ungrouped)</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">Type</label>
             <select

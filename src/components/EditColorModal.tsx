@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { PALETTE_COLORS } from '../constants/colors';
+import type { CalendarContainer } from '../types';
 
 interface EditColorModalProps {
   isOpen: boolean;
@@ -8,10 +9,13 @@ interface EditColorModalProps {
   title: string;
   initialName: string;
   initialColor: string;
-  onSave: (name: string, color: string) => void;
+  onSave: (name: string, color: string, calendarContainerId?: string | null) => void;
+  /** When set, show "Parent calendar" dropdown (for Edit Category). */
+  calendarContainers?: CalendarContainer[];
+  initialCalendarContainerId?: string | null;
 }
 
-/** Edit Category / Edit Calendar style: modal with Name, Color (2×4 swatches), Cancel, Save (blue + check). */
+/** Edit Category / Edit Calendar style: modal with Name, Color (2×4 swatches), optional Calendar, Cancel, Save (blue + check). */
 export function EditColorModal({
   isOpen,
   onClose,
@@ -19,23 +23,27 @@ export function EditColorModal({
   initialName,
   initialColor,
   onSave,
+  calendarContainers,
+  initialCalendarContainerId,
 }: EditColorModalProps) {
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
+  const [calendarContainerId, setCalendarContainerId] = useState<string | null>(initialCalendarContainerId ?? null);
 
   useEffect(() => {
     if (isOpen) {
       setName(initialName);
       setColor(initialColor);
+      setCalendarContainerId(initialCalendarContainerId ?? null);
     }
-  }, [isOpen, initialName, initialColor]);
+  }, [isOpen, initialName, initialColor, initialCalendarContainerId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(name.trim(), color);
+    onSave(name.trim(), color, calendarContainers ? calendarContainerId : undefined);
     onClose();
   };
 
@@ -61,6 +69,21 @@ export function EditColorModal({
               autoFocus
             />
           </div>
+          {calendarContainers && calendarContainers.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">Parent calendar</label>
+              <select
+                value={calendarContainerId ?? ''}
+                onChange={(e) => setCalendarContainerId(e.target.value || null)}
+                className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">— None (ungrouped)</option>
+                {calendarContainers.map((cal) => (
+                  <option key={cal.id} value={cal.id}>{cal.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
             <div className="grid grid-cols-4 gap-2">
