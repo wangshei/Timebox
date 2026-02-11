@@ -34,6 +34,8 @@ interface AddModalProps {
     tags: Tag[];
     calendar: string;
   }) => void;
+  /** When the user needs to add a calendar (e.g. no calendars exist yet). */
+  onRequireCalendar?: () => void;
 }
 
 const PANEL_WIDTH = 380;
@@ -52,6 +54,7 @@ export function AddModal({
   onUpdateTask,
   onUpdateTimeBlock,
   onAddEvent,
+  onRequireCalendar,
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -61,7 +64,12 @@ export function AddModal({
   const [endTime, setEndTime] = useState('10:00');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-  const defaultCalendars = [{ id: 'personal', name: 'Personal', color: '#86C0F4' }, { id: 'work', name: 'Work', color: '#9F5FB0' }, { id: 'school', name: 'School', color: '#EC8309' }];
+  // Use real calendars when available; fall back to seed IDs only in legacy/no-Supabase scenarios.
+  const defaultCalendars = [
+    { id: 'personal', name: 'Personal', color: '#86C0F4' },
+    { id: 'work', name: 'Work', color: '#9F5FB0' },
+    { id: 'school', name: 'School', color: '#EC8309' },
+  ];
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
 
@@ -137,7 +145,13 @@ export function AddModal({
     const fallbackCalendar =
       selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? '');
 
-    if (!fallbackCategory || !fallbackCalendar) return;
+    if (!fallbackCategory || !fallbackCalendar) {
+      // If there is no calendar configured yet, nudge user into calendar creation.
+      if (!calendars.length && onRequireCalendar) {
+        onRequireCalendar();
+      }
+      return;
+    }
 
     // When editing an existing time block (e.g. created by drag), always treat as event submit.
     if (editingTimeBlock && onUpdateTimeBlock) {
@@ -201,7 +215,7 @@ export function AddModal({
 
       {/* Draggable small panel — doesn't block calendar */}
       <div
-        className="absolute pointer-events-auto bg-white w-[380px] max-w-[calc(100vw-32px)] shadow-xl rounded-xl border border-neutral-200 flex flex-col overflow-hidden"
+        className="absolute pointer-events-auto bg-white w-[380px] max-w-[calc(100vw-32px)] shadow-xl rounded-2xl border border-neutral-200 flex flex-col overflow-hidden"
         style={{
           left: panelPos.x,
           top: panelPos.y,
@@ -263,39 +277,102 @@ export function AddModal({
             <>
               <div>
                 <label className="block text-xs font-medium text-neutral-600 mb-1">Date</label>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 mb-1">Start</label>
-                  <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 mb-1">End</label>
-                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             </>
           )}
 
+          {/* Calendar before category so category choices can depend on calendar */}
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Category (type of activity — color on block)</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {categories.map((category) => (
-                <button key={category.id} type="button" onClick={() => setSelectedCategory(category)} className={`px-2 py-2 rounded-md border transition-all flex items-center gap-1.5 text-xs font-medium ${selectedCategory?.id === category.id ? 'border-current shadow-sm' : 'border-neutral-200 hover:border-neutral-300'}`} style={{ color: selectedCategory?.id === category.id ? category.color : '#737373', backgroundColor: selectedCategory?.id === category.id ? `${category.color}15` : 'transparent' }}>
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: category.color }} />
-                  {category.name}
-                </button>
-              ))}
-            </div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">
+              Calendar (e.g. Work, School — left border on block)
+            </label>
+            {calendars.length === 0 ? (
+              <button
+                type="button"
+                onClick={onRequireCalendar}
+                className="w-full px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-dashed border-blue-300 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add a calendar to schedule events
+              </button>
+            ) : (
+              <div className="flex gap-1.5 flex-wrap">
+                {calendars.map((cal) => (
+                  <button
+                    key={cal.id}
+                    type="button"
+                    onClick={() => setSelectedCalendar(cal.id)}
+                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all capitalize ${
+                      selectedCalendar === cal.id
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                    }`}
+                  >
+                    {cal.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Calendar (e.g. Work, School — left border on block)</label>
-            <div className="flex gap-1.5 flex-wrap">
-              {calendars.map((cal) => (
-                <button key={cal.id} type="button" onClick={() => setSelectedCalendar(cal.id)} className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all capitalize ${selectedCalendar === cal.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'}`}>
-                  {cal.name}
+            <label className="block text-xs font-medium text-neutral-600 mb-1">
+              Category (type of activity — color on block)
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(categories.length
+                ? categories.filter((category) =>
+                    selectedCalendar && category.calendarContainerId
+                      ? category.calendarContainerId === selectedCalendar
+                      : true
+                  )
+                : categories
+              ).map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-2 py-2 rounded-md border transition-all flex items-center gap-1.5 text-xs font-medium ${
+                    selectedCategory?.id === category.id
+                      ? 'border-current shadow-sm'
+                      : 'border-neutral-200 hover:border-neutral-300'
+                  }`}
+                  style={{
+                    color: selectedCategory?.id === category.id ? category.color : '#737373',
+                    backgroundColor: selectedCategory?.id === category.id ? `${category.color}15` : 'transparent',
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  {category.name}
                 </button>
               ))}
             </div>

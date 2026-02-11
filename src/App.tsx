@@ -815,6 +815,7 @@ export default function App() {
         onUpdateTask={updateTask}
         onUpdateTimeBlock={updateTimeBlock}
         onAddEvent={handleAddEvent}
+        onRequireCalendar={() => setIsSettingsOpen(true)}
       />
 
       <SettingsPanel
