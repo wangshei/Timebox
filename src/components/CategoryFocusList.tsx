@@ -23,15 +23,12 @@ export function CategoryFocusList({
           key={cat.id}
           type="button"
           onClick={() => onFocusCategory(cat.id)}
-          className={`w-full flex items-center gap-2 px-1.5 py-1 rounded text-left text-sm transition-colors min-w-0 ${
-            focusedCategoryId === cat.id ? 'bg-neutral-100 text-neutral-900' : 'hover:bg-neutral-50 text-neutral-700'
+          className={`w-full flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
+            focusedCategoryId === cat.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
           }`}
+          style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
         >
-          <div
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: cat.color }}
-          />
-          <span className="flex-1 truncate text-left">{cat.name}</span>
+          <span className="flex-1 truncate">{cat.name}</span>
         </button>
       ))}
     </div>

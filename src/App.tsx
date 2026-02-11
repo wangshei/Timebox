@@ -8,6 +8,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { AddCalendarPopover } from './components/AddCalendarPopover';
 import { CalendarContainerList } from './components/CalendarContainerList';
 import { CategoryFocusList } from './components/CategoryFocusList';
+import { TagFocusList } from './components/TagFocusList';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForView,
@@ -273,9 +274,8 @@ export default function App() {
           <div className="flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden" style={{ width: '260px' }}>
             {/* Header: logo + name (left), then + add calendar, gear edit, close */}
             <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-100 min-h-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <img src="/logo.png" alt="" className="flex-shrink-0 object-contain" style={{ width: 50, height: 50 }} />
-                <span className="text-sm font-medium text-neutral-800 truncate">Timebox</span>
+              <div className="flex items-center min-w-0 flex-1">
+                <img src="/logo.png" alt="Timebox" className="flex-shrink-0 object-contain size-[60px] max-w-[60px] max-h-[60px]" />
               </div>
               <div ref={addCalendarAnchorRef} className="relative">
                 <button type="button" onClick={() => setAddCalendarOpen((o) => !o)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Add calendar">
@@ -318,6 +318,10 @@ export default function App() {
                   onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                   compact
                 />
+              </div>
+              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 mt-4 pl-0.5">Tags</p>
+              <div className="space-y-0.5">
+                <TagFocusList tags={tags} compact />
               </div>
               <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
                 End day ({selectedDate})
