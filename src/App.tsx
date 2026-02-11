@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
@@ -60,6 +61,9 @@ export default function App() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
+  const [calendarsOpen, setCalendarsOpen] = useState(true);
+  const [categoriesOpen, setCategoriesOpen] = useState(true);
+  const [tagsOpen, setTagsOpen] = useState(true);
 
   const {
     viewMode: mode,
@@ -297,32 +301,58 @@ export default function App() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
             </div>
-            {/* Notion-like sections: Private (calendars), Categories, then End day, then scroll area */}
+            {/* ORGANIZATION: Calendars, Categories, Tags — each section expand/collapse */}
             <div className="flex-shrink-0 px-2 pt-3 pb-2">
-              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Private</p>
-              <div className="space-y-0.5">
-                <CalendarContainerList
-                  containers={calendarContainers}
-                  visibility={containerVisibility}
-                  onToggleVisibility={toggleContainerVisibility}
-                  focusedCalendarId={focusedCalendarId}
-                  onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
-                  compact
-                />
+              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-2 pl-0.5">Organization</p>
+
+              <div className="mb-1">
+                <button type="button" onClick={() => setCalendarsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
+                  {calendarsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
+                  <span>Calendars</span>
+                </button>
+                {calendarsOpen && (
+                  <div className="space-y-0.5 pl-0.5 mt-0.5">
+                    <CalendarContainerList
+                      containers={calendarContainers}
+                      visibility={containerVisibility}
+                      onToggleVisibility={toggleContainerVisibility}
+                      focusedCalendarId={focusedCalendarId}
+                      onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+                      compact
+                    />
+                  </div>
+                )}
               </div>
-              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 mt-4 pl-0.5">Categories</p>
-              <div className="space-y-0.5">
-                <CategoryFocusList
-                  categories={categories}
-                  focusedCategoryId={focusedCategoryId}
-                  onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
-                  compact
-                />
+
+              <div className="mb-1 mt-3">
+                <button type="button" onClick={() => setCategoriesOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
+                  {categoriesOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
+                  <span>Categories</span>
+                </button>
+                {categoriesOpen && (
+                  <div className="space-y-0.5 pl-0.5 mt-0.5">
+                    <CategoryFocusList
+                      categories={categories}
+                      focusedCategoryId={focusedCategoryId}
+                      onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
+                      compact
+                    />
+                  </div>
+                )}
               </div>
-              <p className="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 mt-4 pl-0.5">Tags</p>
-              <div className="space-y-0.5">
-                <TagFocusList tags={tags} compact />
+
+              <div className="mb-1 mt-3">
+                <button type="button" onClick={() => setTagsOpen((o) => !o)} className="w-full flex items-center gap-1 py-1 pr-1.5 rounded text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide hover:text-neutral-700 hover:bg-neutral-50">
+                  {tagsOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
+                  <span>Tags</span>
+                </button>
+                {tagsOpen && (
+                  <div className="space-y-0.5 pl-0.5 mt-0.5">
+                    <TagFocusList tags={tags} compact />
+                  </div>
+                )}
               </div>
+
               <button type="button" onClick={() => endDay(selectedDate)} className="mt-3 w-full text-left px-2 py-1.5 text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded transition-colors">
                 End day ({selectedDate})
               </button>
