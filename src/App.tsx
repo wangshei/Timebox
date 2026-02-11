@@ -274,7 +274,7 @@ export default function App() {
             {/* Header: logo + name (left), then + add calendar, gear edit, close */}
             <div className="flex items-center gap-1 px-2 py-2 border-b border-neutral-100 min-h-0">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <img src="/logo.png" alt="" className="h-6 w-auto flex-shrink-0 object-contain" />
+                <img src="/logo.png" alt="" className="flex-shrink-0 object-contain" style={{ width: 50, height: 50 }} />
                 <span className="text-sm font-medium text-neutral-800 truncate">Timebox</span>
               </div>
               <div ref={addCalendarAnchorRef} className="relative">
