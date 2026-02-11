@@ -475,7 +475,7 @@ export default function App() {
               </span>
               <button
                 type="button"
-                onClick={() => supabase.auth.signOut()}
+                onClick={() => supabase?.auth.signOut()}
                 className="px-2 py-1 rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
               >
                 Sign out
@@ -506,45 +506,18 @@ export default function App() {
         {/* Left panel — Notion-like: header (logo + add + edit icon), sections left-aligned */}
         {leftPanelOpen ? (
           <div className="flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden" style={{ width: '260px' }}>
-            {/* Header: shortcuts (help), settings (modal), close */}
+            {/* Header: close left panel; Manage & shortcuts live inside LeftSidebar */}
             <div className="relative flex items-center justify-end gap-1 px-2 py-2 border-b border-neutral-100 flex-shrink-0">
               <button
                 type="button"
-                onClick={() => setIsShortcutsOpen((o) => !o)}
-                className={`p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors ${isShortcutsOpen ? 'bg-blue-50 text-blue-600' : ''}`}
-                aria-label="Shortcuts"
-                title="Keyboard shortcuts"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(true)}
+                onClick={() => setLeftPanelOpen(false)}
                 className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors"
-                aria-label="Settings"
-                title="Settings"
+                aria-label="Close left panel"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
-              <button type="button" onClick={() => setLeftPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close left panel">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              {isShortcutsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsShortcutsOpen(false)} aria-hidden />
-                  <div className="fixed top-14 left-4 z-50 w-56 rounded-lg border border-neutral-200 bg-white shadow-lg py-2 px-3">
-                    <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide mb-2">Shortcuts</p>
-                    <div className="space-y-1.5 text-xs text-neutral-700">
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">d</kbd><span>Day view</span></div>
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">w</kbd><span>Week view</span></div>
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">m</kbd><span>Month view</span></div>
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">p</kbd><span>Plan mode</span></div>
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">r</kbd><span>Record mode</span></div>
-                      <div className="flex justify-between gap-4"><kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">a</kbd><span>Show all calendars</span></div>
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <LeftSidebar
@@ -667,6 +640,10 @@ export default function App() {
                     )}
                   </div>
                 }
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                canEditOrganization={calendarContainers.length > 0 && tasks.length > 0}
+                isShortcutsOpen={isShortcutsOpen}
+                onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
               />
             </div>
           </div>

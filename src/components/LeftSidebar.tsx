@@ -50,6 +50,13 @@ interface LeftSidebarProps {
   endDayLabel?: string;
   onEndDay?: () => void;
   planVsActualSection?: React.ReactNode;
+  /** Open the full manage/settings panel. */
+  onOpenSettings?: () => void;
+  /** Whether inline edit mode is allowed (e.g. only when there is data to edit). */
+  canEditOrganization?: boolean;
+  /** Shortcuts popup state, controlled by parent. */
+  isShortcutsOpen?: boolean;
+  onToggleShortcuts?: () => void;
 }
 
 export function LeftSidebar({
@@ -73,6 +80,10 @@ export function LeftSidebar({
   endDayLabel,
   onEndDay,
   planVsActualSection,
+  onOpenSettings,
+  canEditOrganization = true,
+  isShortcutsOpen = false,
+  onToggleShortcuts,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -270,18 +281,44 @@ export function LeftSidebar({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 pb-4">
-      {/* Organization header: title + edit toggle; add actions one line below */}
+      {/* Organization header: title + Manage + Edit; add actions one line below */}
       <div className="px-4 py-3 border-b border-neutral-100 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[6px] font-medium text-neutral-500 uppercase tracking-wide">Organization</h2>
-          <button
-            type="button"
-            onClick={() => setIsEditMode(!isEditMode)}
-            className={`p-2 rounded-lg transition-colors ${isEditMode ? 'bg-blue-50 text-[#0044A8]' : 'hover:bg-neutral-100 text-neutral-500'}`}
-            title={isEditMode ? 'Done editing' : 'Edit organization'}
-          >
-            {isEditMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
-          </button>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[6px] font-medium text-neutral-500 uppercase tracking-wide">
+            Organization
+          </h2>
+          <div className="flex items-center gap-1.5">
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="px-2 py-1 rounded-lg text-[10px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
+              >
+                Manage
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => canEditOrganization && setIsEditMode(!isEditMode)}
+              className={`p-2 rounded-lg transition-colors ${
+                !canEditOrganization
+                  ? 'text-neutral-300 cursor-not-allowed'
+                  : isEditMode
+                    ? 'bg-blue-50 text-[#0044A8]'
+                    : 'hover:bg-neutral-100 text-neutral-500'
+              }`}
+              title={
+                !canEditOrganization
+                  ? 'Add a calendar and tasks to edit'
+                  : isEditMode
+                    ? 'Done editing'
+                    : 'Edit organization'
+              }
+              disabled={!canEditOrganization}
+            >
+              {isEditMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
         {isEditMode && (
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -630,6 +667,76 @@ export function LeftSidebar({
             {endDayLabel}
           </button>
         </div>
+      )}
+
+      {/* Shortcuts trigger at very bottom */}
+      {onToggleShortcuts && (
+        <>
+          <div className="flex-shrink-0 px-4 py-2 border-t border-neutral-100">
+            <button
+              type="button"
+              onClick={onToggleShortcuts}
+              className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 rounded transition-colors"
+            >
+              <span>Keyboard shortcuts</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] rounded border border-neutral-300 bg-neutral-50">
+                ?
+              </span>
+            </button>
+          </div>
+          {isShortcutsOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={onToggleShortcuts}
+                aria-hidden
+              />
+              <div className="fixed bottom-16 left-4 z-50 w-56 rounded-lg border border-neutral-200 bg-white shadow-lg py-2 px-3">
+                <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide mb-2">
+                  Shortcuts
+                </p>
+                <div className="space-y-1.5 text-xs text-neutral-700">
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      d
+                    </kbd>
+                    <span>Day view</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      w
+                    </kbd>
+                    <span>Week view</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      m
+                    </kbd>
+                    <span>Month view</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      p
+                    </kbd>
+                    <span>Plan mode</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      r
+                    </kbd>
+                    <span>Record mode</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
+                      a
+                    </kbd>
+                    <span>Show all calendars</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );
