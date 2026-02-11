@@ -34,7 +34,7 @@ New engineers: read ONBOARDING first, then the rest as needed. Before changing s
 | **CP7** | Phase 1 | Unit + E2E tests for core flows | ☐ |
 | **CP8** | Phase 2 | Supabase: auth (Email OTP) + tables + RLS | ☐ |
 | **CP9** | Phase 2 | Persistence layer swap (localStorage → Supabase) | ☐ |
-| **CP10** | Phase 3 | Drag-and-drop from backlog to calendar + resize blocks (30-min snap) | ☐ |
+| **CP10** | Phase 3 | Drag-and-drop from backlog to calendar + resize blocks (30-min snap) | ☑ |
 | **CP11** | Phase 4 | Google Calendar integration (deferred) | ☐ |
 
 **How to use:** When a checkpoint is complete, mark `Done` (☑). New features or bugs should map to a checkpoint or a new one.

@@ -49,9 +49,9 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 
 ---
 
-## 4. Drag-and-drop (Phase 3) — *not implemented yet*
+## 4. Drag-and-drop (Phase 3)
 
-- [ ] **Drag task to calendar:** Drop task (or task chunk) onto day grid to create planned block(s). *(CP10)*
+- [x] **Drag task to calendar:** Drop task (or task chunk) onto day grid to create planned block(s). *(CP10)*
 - [ ] **Resize blocks:** Resize planned/recorded blocks on grid with 30-min snap. *(CP10)*
 - [ ] **Move blocks:** Move blocks between times/days.
 
