@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
-import { X, Plus, Pencil, Trash2, Calendar as CalendarIcon, FolderKanban, Tag as TagIcon } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Calendar as CalendarIcon, FolderKanban, Tag as TagIcon } from 'lucide-react';
 import type { CalendarContainer, Category, Tag } from '../types';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { ColorPicker } from './ColorPicker';
-import { EditColorModal } from './EditColorModal';
-import { EditTagModal } from './EditTagModal';
-
-type TabValue = 'calendars' | 'categories' | 'tags';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -25,259 +19,416 @@ interface SettingsPanelProps {
   onDeleteTag: (id: string) => void;
 }
 
+type TabType = 'calendars' | 'categories' | 'tags';
+
+const colorOptions = [
+  '#0044A8', // Blue
+  '#9F5FB0', // Purple
+  '#13B49F', // Teal
+  '#EC8309', // Orange
+  '#D93D3D', // Red
+  '#E85C8B', // Pink
+  '#8B7355', // Brown
+  '#5B5B5B', // Gray
+  '#7FB800', // Green
+  '#E6B800', // Yellow
+];
+
 export function SettingsPanel({
   isOpen,
   onClose,
   calendarContainers,
   categories,
   tags,
-  onAddCalendar,
   onUpdateCalendar,
-  onDeleteCalendar,
-  onAddCategory,
   onUpdateCategory,
-  onDeleteCategory,
-  onAddTag,
   onUpdateTag,
+  onDeleteCalendar,
+  onDeleteCategory,
   onDeleteTag,
+  onAddCalendar,
+  onAddCategory,
+  onAddTag,
 }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabValue>('calendars');
-  const [editingCalendarId, setEditingCalendarId] = useState<string | null>(null);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [editingTagId, setEditingTagId] = useState<string | null>(null);
-  const [newCalendar, setNewCalendar] = useState({ name: '', color: '#86C0F4' });
-  const [newCategory, setNewCategory] = useState({ name: '', color: '#6b7280', calendarContainerId: '' as string | null });
-  const [newTag, setNewTag] = useState({ name: '', type: '' as 'project' | 'hobby' | undefined, categoryId: '' as string | null });
+  const [activeTab, setActiveTab] = useState<TabType>('calendars');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('#0044A8');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState('#0044A8');
 
   if (!isOpen) return null;
 
-  const handleAddCalendar = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCalendar.name.trim()) return;
-    onAddCalendar({ name: newCalendar.name.trim(), color: newCalendar.color || '#86C0F4' });
-    setNewCalendar({ name: '', color: '#86C0F4' });
+  const handleStartEdit = (id: string, name: string, color?: string) => {
+    setEditingId(id);
+    setEditName(name);
+    setEditColor(color || '#0044A8');
+    setIsAdding(false);
   };
-  const handleAddCategory = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCategory.name.trim()) return;
-    onAddCategory({
-      name: newCategory.name.trim(),
-      color: newCategory.color || '#6b7280',
-      calendarContainerId: newCategory.calendarContainerId || undefined,
-    });
-    setNewCategory({ name: '', color: '#6b7280', calendarContainerId: null });
+
+  const handleSaveEdit = () => {
+    if (!editName.trim() || !editingId) return;
+
+    if (activeTab === 'calendars' && onUpdateCalendar) {
+      onUpdateCalendar(editingId, { name: editName, color: editColor });
+    } else if (activeTab === 'categories' && onUpdateCategory) {
+      onUpdateCategory(editingId, { name: editName, color: editColor });
+    } else if (activeTab === 'tags' && onUpdateTag) {
+      onUpdateTag(editingId, { name: editName });
+    }
+
+    setEditingId(null);
+    setEditName('');
   };
-  const handleAddTag = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTag.name.trim()) return;
-    onAddTag({
-      name: newTag.name.trim(),
-      type: newTag.type || undefined,
-      categoryId: newTag.categoryId || undefined,
-    });
-    setNewTag({ name: '', type: undefined, categoryId: null });
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setIsAdding(false);
+    setNewName('');
   };
+
+  const handleStartAdd = () => {
+    setIsAdding(true);
+    setEditingId(null);
+    setNewName('');
+    setNewColor('#0044A8');
+  };
+
+  const handleSaveAdd = () => {
+    if (!newName.trim()) return;
+
+    if (activeTab === 'calendars' && onAddCalendar) {
+      onAddCalendar({ name: newName, color: newColor });
+    } else if (activeTab === 'categories' && onAddCategory) {
+      onAddCategory({ name: newName, color: newColor });
+    } else if (activeTab === 'tags' && onAddTag) {
+      onAddTag({ name: newName });
+    }
+
+    setIsAdding(false);
+    setNewName('');
+    setNewColor('#0044A8');
+  };
+
+  const handleDelete = (id: string) => {
+    if (activeTab === 'calendars' && onDeleteCalendar) {
+      onDeleteCalendar(id);
+    } else if (activeTab === 'categories' && onDeleteCategory) {
+      onDeleteCategory(id);
+    } else if (activeTab === 'tags' && onDeleteTag) {
+      onDeleteTag(id);
+    }
+  };
+
+  const tabs = [
+    { id: 'calendars' as const, label: 'Calendars', icon: CalendarIcon },
+    { id: 'categories' as const, label: 'Categories', icon: FolderKanban },
+    { id: 'tags' as const, label: 'Tags', icon: TagIcon },
+  ];
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} aria-hidden />
-      <div className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md max-h-[85vh] bg-white shadow-xl rounded-2xl border border-neutral-200 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-100">
-          <h2 className="text-base font-semibold text-neutral-900">Settings</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-500 transition-colors">
-            <X className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+          <h2 className="text-xl font-medium text-neutral-900">Settings</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-neutral-500" />
           </button>
         </div>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="flex-1 flex flex-col overflow-hidden min-h-0">
-          <div className="px-4 pt-3 pb-2 flex-shrink-0">
-            <TabsList className="w-full h-10 rounded-xl bg-neutral-50 border border-neutral-100 p-1 flex gap-1 justify-start">
-              <TabsTrigger value="calendars" className="flex items-center gap-2 px-3 text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <CalendarIcon className="w-4 h-4" /> Calendars
-              </TabsTrigger>
-              <TabsTrigger value="categories" className="flex items-center gap-2 px-3 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                Categories
-              </TabsTrigger>
-              <TabsTrigger value="tags" className="flex items-center gap-2 px-3 text-sm font-medium rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <TagIcon className="w-4 h-4" /> Tags
-              </TabsTrigger>
-            </TabsList>
+
+        {/* Tabs */}
+        <div className="border-b border-neutral-200 px-6 pt-4">
+          <div className="flex gap-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setEditingId(null);
+                    setIsAdding(false);
+                  }}
+                  className={`px-4 py-2.5 rounded-t-lg transition-all text-sm font-medium flex items-center gap-2 ${
+                    activeTab === tab.id
+                      ? 'bg-neutral-100 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0 space-y-6">
-            <TabsContent value="calendars" className="mt-0 space-y-5">
-              <form onSubmit={handleAddCalendar} className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Add calendar</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newCalendar.name}
-                    onChange={(e) => setNewCalendar((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Calendar name"
-                    className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button type="submit" className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shrink-0 inline-flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Add
-                  </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-3">
+            {/* Calendars List */}
+            {activeTab === 'calendars' &&
+              calendarContainers.map((calendar) => (
+                <div key={calendar.id}>
+                  {editingId === calendar.id ? (
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Calendar name"
+                        autoFocus
+                      />
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
+                        <div className="flex gap-2">
+                          {colorOptions.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setEditColor(c)}
+                              className={`w-8 h-8 rounded-lg transition-all ${
+                                editColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
+                              }`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: calendar.color }} />
+                      <CalendarIcon className="w-4 h-4 text-neutral-400" />
+                      <span className="flex-1 text-sm text-neutral-700">{calendar.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
+                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(calendar.id)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <ColorPicker value={newCalendar.color} onChange={(color) => setNewCalendar((p) => ({ ...p, color }))} label="Color" />
-              </form>
-              <ul className="space-y-1">
-                {calendarContainers.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                    <CalendarIcon className="w-4 h-4 text-neutral-400" />
-                    <span className="flex-1 text-sm font-semibold text-neutral-900">{c.name}</span>
-                    <button type="button" onClick={() => setEditingCalendarId(c.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button type="button" onClick={() => onDeleteCalendar(c.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-600 transition-colors" title="Delete">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </TabsContent>
-            <TabsContent value="categories" className="mt-0 space-y-5">
-              <form onSubmit={handleAddCategory} className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Add category</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newCategory.name}
-                    onChange={(e) => setNewCategory((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Category name"
-                    className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button type="submit" className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shrink-0 inline-flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Add
-                  </button>
+              ))}
+
+            {/* Categories List */}
+            {activeTab === 'categories' &&
+              categories.map((category) => (
+                <div key={category.id}>
+                  {editingId === category.id ? (
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Category name"
+                        autoFocus
+                      />
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
+                        <div className="flex gap-2">
+                          {colorOptions.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setEditColor(c)}
+                              className={`w-8 h-8 rounded-lg transition-all ${
+                                editColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
+                              }`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+                      <FolderKanban className="w-4 h-4 text-neutral-400" />
+                      <span className="flex-1 text-sm text-neutral-700">{category.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(category.id, category.name, category.color)}
+                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(category.id)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {calendarContainers.length > 0 && (
+              ))}
+
+            {/* Tags List */}
+            {activeTab === 'tags' &&
+              tags.map((tag) => (
+                <div key={tag.id}>
+                  {editingId === tag.id ? (
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tag name"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
+                      <TagIcon className="w-4 h-4 text-neutral-400" />
+                      <span className="flex-1 text-sm text-neutral-700">{tag.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(tag.id, tag.name)}
+                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(tag.id)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+            {/* Add New Button/Form */}
+            {isAdding ? (
+              <div className="bg-neutral-50 border-2 border-dashed border-neutral-300 rounded-lg p-4 space-y-3">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={`New ${activeTab.slice(0, -1)} name`}
+                  autoFocus
+                />
+                {(activeTab === 'calendars' || activeTab === 'categories') && (
                   <div>
-                    <label className="block text-xs font-medium text-neutral-600 mb-1">Parent calendar</label>
-                    <select
-                      value={newCategory.calendarContainerId ?? ''}
-                      onChange={(e) => setNewCategory((p) => ({ ...p, calendarContainerId: e.target.value || null }))}
-                      className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg"
-                    >
-                      <option value="">— None</option>
-                      {calendarContainers.map((cal) => (
-                        <option key={cal.id} value={cal.id}>{cal.name}</option>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
+                    <div className="flex gap-2">
+                      {colorOptions.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewColor(c)}
+                          className={`w-8 h-8 rounded-lg transition-all ${
+                            newColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
                       ))}
-                    </select>
+                    </div>
                   </div>
                 )}
-                <ColorPicker value={newCategory.color} onChange={(color) => setNewCategory((p) => ({ ...p, color }))} label="Color" />
-              </form>
-              <ul className="space-y-1">
-                {categories.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                    <FolderKanban className="w-4 h-4 text-neutral-400" />
-                    <span className="flex-1 text-sm font-medium text-neutral-900">{c.name}</span>
-                    <button type="button" onClick={() => setEditingCategoryId(c.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button type="button" onClick={() => onDeleteCategory(c.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-600 transition-colors" title="Delete">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </TabsContent>
-            <TabsContent value="tags" className="mt-0 space-y-5">
-              <form onSubmit={handleAddTag} className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Add tag</p>
-                <div className="flex gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    value={newTag.name}
-                    onChange={(e) => setNewTag((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Tag name"
-                    className="flex-1 min-w-[120px] px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {categories.length > 0 && (
-                    <select
-                      value={newTag.categoryId ?? ''}
-                      onChange={(e) => setNewTag((p) => ({ ...p, categoryId: e.target.value || null }))}
-                      className="px-3 py-2 text-sm border border-neutral-200 rounded-lg"
-                    >
-                      <option value="">— Category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <select
-                    value={newTag.type || ''}
-                    onChange={(e) => setNewTag((p) => ({ ...p, type: (e.target.value || undefined) as 'project' | 'hobby' | undefined }))}
-                    className="px-3 py-2 text-sm border border-neutral-200 rounded-lg"
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveAdd}
+                    className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
                   >
-                    <option value="">— Type</option>
-                    <option value="project">Project</option>
-                    <option value="hobby">Hobby</option>
-                  </select>
-                  <button type="submit" className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shrink-0 inline-flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Add
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
+                  >
+                    Cancel
                   </button>
                 </div>
-              </form>
-              <ul className="space-y-1">
-                {tags.map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-neutral-50">
-                    <TagIcon className="w-4 h-4 text-neutral-400" />
-                    <span className="flex-1 text-sm font-medium text-neutral-900">{t.name}</span>
-                    {t.type && <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">{t.type}</span>}
-                    <button type="button" onClick={() => setEditingTagId(t.id)} className="p-2 hover:bg-white rounded-lg text-neutral-400 hover:text-neutral-600 transition-colors" title="Edit">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button type="button" onClick={() => onDeleteTag(t.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500 hover:text-red-600 transition-colors" title="Delete">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </TabsContent>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartAdd}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-neutral-300 rounded-lg text-neutral-500 hover:text-neutral-700 hover:border-neutral-400 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add {activeTab.slice(0, -1)}
+              </button>
+            )}
           </div>
-        </Tabs>
+        </div>
       </div>
-
-      <EditColorModal
-        isOpen={editingCalendarId !== null}
-        onClose={() => setEditingCalendarId(null)}
-        title="Edit Calendar"
-        initialName={calendarContainers.find((c) => c.id === editingCalendarId)?.name ?? ''}
-        initialColor={calendarContainers.find((c) => c.id === editingCalendarId)?.color ?? '#86C0F4'}
-        onSave={(name, color) => {
-          if (editingCalendarId) onUpdateCalendar(editingCalendarId, { name, color });
-          setEditingCalendarId(null);
-        }}
-      />
-      <EditColorModal
-        isOpen={editingCategoryId !== null}
-        onClose={() => setEditingCategoryId(null)}
-        title="Edit Category"
-        initialName={categories.find((c) => c.id === editingCategoryId)?.name ?? ''}
-        initialColor={categories.find((c) => c.id === editingCategoryId)?.color ?? '#6b7280'}
-        calendarContainers={calendarContainers}
-        initialCalendarContainerId={categories.find((c) => c.id === editingCategoryId)?.calendarContainerId}
-        onSave={(name, color, calendarContainerId) => {
-          if (editingCategoryId) onUpdateCategory(editingCategoryId, { name, color, calendarContainerId: calendarContainerId ?? undefined });
-          setEditingCategoryId(null);
-        }}
-      />
-      <EditTagModal
-        isOpen={editingTagId !== null}
-        onClose={() => setEditingTagId(null)}
-        initialName={tags.find((t) => t.id === editingTagId)?.name ?? ''}
-        initialType={tags.find((t) => t.id === editingTagId)?.type}
-        initialCategoryId={tags.find((t) => t.id === editingTagId)?.categoryId}
-        categories={categories}
-        onSave={(name, type, categoryId) => {
-          if (editingTagId) onUpdateTag(editingTagId, { name, type, categoryId: categoryId ?? undefined });
-          setEditingTagId(null);
-        }}
-      />
-    </>
+    </div>
   );
 }
-
