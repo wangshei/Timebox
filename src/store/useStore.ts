@@ -25,6 +25,7 @@ import {
   parseTimeToMinutes,
 } from '../utils/taskHelpers';
 import { convertOldTimeBlockToNew, convertOldTaskToNew } from '../utils/migrateData';
+import { getLocalDateString } from '../utils/dateTime';
 import {
   calendarContainers as seedContainers,
   categories as seedCategories,
@@ -71,7 +72,7 @@ function getInitialState(): AppState {
     events: [],
     viewMode: 'planning',
     view: 'day',
-    selectedDate: '2026-02-10',
+    selectedDate: getLocalDateString(),
     containerVisibility: visibility,
     defaultBlockMinutes: 60,
   };
@@ -111,6 +112,10 @@ export interface AppActions {
   addTag: (t: Omit<Tag, 'id'>) => Tag;
   updateTag: (id: string, updates: Partial<Tag>) => void;
   deleteTag: (id: string) => void;
+
+  addEvent: (e: Omit<Event, 'id'>) => string;
+  updateEvent: (id: string, updates: Partial<Event>) => void;
+  deleteEvent: (id: string) => void;
 
   /** Replace organization data (for Revert in settings). */
   setCalendarContainers: (containers: CalendarContainer[]) => void;
@@ -356,6 +361,20 @@ export const useStore = create<AppState & AppActions>()(
   deleteTag: (id) =>
     set((s) => ({
       tags: s.tags.filter((t) => t.id !== id),
+    })),
+
+  addEvent: (e) => {
+    const id = generateId();
+    set((s) => ({ events: [...s.events, { ...e, id }] }));
+    return id;
+  },
+  updateEvent: (id, updates) =>
+    set((s) => ({
+      events: s.events.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    })),
+  deleteEvent: (id) =>
+    set((s) => ({
+      events: s.events.filter((e) => e.id !== id),
     })),
 
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),

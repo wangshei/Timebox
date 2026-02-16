@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
+import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, StopIcon } from '@heroicons/react/24/solid';
-import type { TimeBlock } from '../types';
+import { PlusIcon, StopIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import type { TimeBlock, Event } from '../types';
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -26,16 +27,25 @@ interface RightSidebarProps {
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   /** When a block is dropped from the calendar, unschedule it (remove from calendar). */
   onDropBlock?: (blockId: string) => void;
+  events?: Event[];
+  onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
   isBottomSheet?: boolean;
 }
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = new Date().toISOString().split('T')[0], timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
+
+  const upcomingEvents = useMemo(() => {
+    const today = getLocalDateString();
+    return events
+      .filter((e) => e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  }, [events]);
 
   const dateSet = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number);
@@ -48,7 +58,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       for (let i = 0; i < 7; i++) {
         const di = new Date(start);
         di.setDate(start.getDate() + i);
-        s.add(di.toISOString().slice(0, 10));
+        s.add(getLocalDateString(di));
       }
       return s;
     }
@@ -57,7 +67,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     const first = new Date(base.getFullYear(), base.getMonth(), 1);
     const next = new Date(base.getFullYear(), base.getMonth() + 1, 1);
     for (let dt = new Date(first); dt < next; dt.setDate(dt.getDate() + 1)) {
-      s.add(dt.toISOString().slice(0, 10));
+      s.add(getLocalDateString(dt));
     }
     return s;
   }, [selectedDate, overviewRange]);
@@ -123,7 +133,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <StopIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          {viewMode === 'overview' && (
+          {viewMode === 'plan' && (
             <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-100">
               <button
                 type="button"
@@ -161,7 +171,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Unscheduled Tasks */}
         <div>
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>
-          <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
+          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
             {unscheduledTasks.length === 0 ? (
               <div className="text-sm text-neutral-400 text-center py-4">No unscheduled tasks</div>
             ) : (
@@ -169,7 +179,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode}
+                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
@@ -183,12 +193,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {partiallyCompletedTasks.length > 0 && (
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
-            <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
               {filteredPartially.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode}
+                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
@@ -202,12 +212,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {fixedMissedTasks.length > 0 && (
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Fixed / Missed</h2>
-            <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
               {filteredFixed.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode}
+                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
@@ -220,9 +230,34 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Events */}
         <div>
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Events</h2>
-          <div className="text-sm text-neutral-400 text-center py-4">
-            No upcoming events
-          </div>
+          {upcomingEvents.length === 0 ? (
+            <div className="text-sm text-neutral-400 text-center py-4">
+              No upcoming events
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {upcomingEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-100 group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-neutral-700 truncate">{event.title}</div>
+                    <div className="text-xs text-neutral-400">{event.start} – {event.end} · {event.date}</div>
+                  </div>
+                  {onDeleteEvent && (
+                    <button
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-neutral-200 transition-opacity flex-shrink-0"
+                      onClick={() => onDeleteEvent(event.id)}
+                      title="Delete event"
+                    >
+                      <XMarkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

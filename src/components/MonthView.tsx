@@ -1,6 +1,7 @@
 import React from 'react';
-import { Mode } from '../types';
+import { Mode, Event } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
+import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
 
 interface MonthViewProps {
   mode: Mode;
@@ -11,9 +12,10 @@ interface MonthViewProps {
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   onSelectDate?: (dateStr: string) => void;
+  events?: Event[];
 }
 
-export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate }: MonthViewProps) {
+export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [] }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -60,13 +62,9 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
     });
   }
 
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-  };
+  const formatDate = (date: Date): string => getLocalDateString(date);
 
-  const isToday = (date: Date): boolean => {
-    return date.toDateString() === new Date().toDateString();
-  };
+  const isToday = (date: Date): boolean => isTodayLocal(getLocalDateString(date));
 
   const getBlocksForDate = (date: Date): ResolvedTimeBlock[] => {
     const dateStr = formatDate(date);
@@ -91,24 +89,33 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
         {/* Calendar days */}
         {calendarDays.map((day, index) => {
           const blocks = getBlocksForDate(day.date);
+          const dateStr = formatDate(day.date);
+          const dayEvents = events.filter(e => e.date === dateStr);
           const today = isToday(day.date);
           const plannedBlocks = blocks.filter(b => b.mode === 'planned');
           const recordedBlocks = blocks.filter(b => b.mode === 'recorded');
+          const allItems = [...blocks.map(b => ({ ...b, _type: 'block' as const })), ...dayEvents.map(e => ({ ...e, _type: 'event' as const }))];
+          const totalItems = allItems.length;
 
           return (
             <div
               key={index}
-              className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer hover:bg-neutral-50 ${
+              className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer hover:bg-neutral-50 relative ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
               } ${today ? 'bg-blue-50' : ''}`}
               onClick={() => onSelectDate?.(formatDate(day.date))}
             >
-              <div className={`text-xs md:text-sm mb-1 md:mb-2 ${today ? 'text-blue-600 font-semibold' : 'text-neutral-900'}`}>
+              {/* Current day indicator — red line on left for today */}
+              {today && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 rounded-l" aria-hidden />
+              )}
+              <div className={`text-xs md:text-sm mb-1 md:mb-2 flex items-center gap-1 ${today ? 'text-blue-600 font-semibold' : 'text-neutral-900'}`}>
                 {day.date.getDate()}
+                {today && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" aria-label="Today" />}
               </div>
 
               <div className="space-y-0.5 md:space-y-1">
-                {blocks.slice(0, 2).map((block) => {
+                {blocks.slice(0, dayEvents.length > 0 ? 1 : 2).map((block) => {
                   const isPlanningMode = mode === 'planning';
                   const isRecordingMode = mode === 'recording';
                   const isCompareMode = mode === 'compare';
@@ -141,16 +148,31 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                         borderLeftColor: block.calendarContainer.color,
                         opacity,
                       }}
-                      onClick={() => onSelectBlock?.(block.id)}
+                      onClick={(e) => { e.stopPropagation(); onSelectBlock?.(block.id); }}
                     >
                       <span className="hidden md:inline">{block.start} </span>
                       {block.title}
                     </div>
                   );
                 })}
-                {blocks.length > 2 && (
+                {dayEvents.slice(0, blocks.length > 0 ? 1 : 2).map((event) => (
+                  <div
+                    key={event.id}
+                    className="text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded truncate cursor-pointer hover:opacity-100 transition-opacity touch-manipulation border-l-2 border-dashed"
+                    style={{
+                      backgroundColor: '#e0e7ff',
+                      borderLeftColor: '#6366f1',
+                      color: '#4338ca',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="hidden md:inline">{event.start} </span>
+                    {event.title}
+                  </div>
+                ))}
+                {totalItems > 2 && (
                   <div className="text-xs text-neutral-500 px-1.5 md:px-2">
-                    +{blocks.length - 2} more
+                    +{totalItems - 2} more
                   </div>
                 )}
               </div>

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/solid';
 import { Category, Tag } from '../App';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
-import type { CalendarContainer, Task, TimeBlock } from '../types';
+import { getLocalDateString } from '../utils/dateTime';
+import type { CalendarContainer, Task, TimeBlock, Mode } from '../types';
 
 type AddMode = 'task' | 'event';
 
@@ -13,6 +14,10 @@ interface AddModalProps {
   tags: Tag[];
   calendarContainers?: CalendarContainer[];
   initialMode?: AddMode;
+  /** App plan/record mode — when recording, modal shows only "Record Event" with gray header */
+  viewMode?: Mode;
+  /** Switch plan/record from modal (so user can change mode with popup open) */
+  onViewModeChange?: (mode: Mode) => void;
   /** When set, modal is in edit mode for this task */
   editingTask?: Task | null;
   /** When set, modal edits an existing time block (event). */
@@ -53,6 +58,8 @@ export function AddModal({
   tags,
   calendarContainers = [],
   initialMode = 'task',
+  viewMode = 'planning',
+  onViewModeChange,
   editingTask = null,
   editingTimeBlock = null,
   onAddTask,
@@ -63,10 +70,11 @@ export function AddModal({
   onAddCategory,
   onAddTag,
 }: AddModalProps) {
+  const isRecording = viewMode === 'recording';
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
@@ -139,12 +147,12 @@ export function AddModal({
     }
   }, [isOpen, editingTimeBlock?.id, categories, tags]);
 
-  // Reset when modal opens with new mode (and not editing)
+  // Reset when modal opens with new mode (and not editing). When recording, force event-only.
   useEffect(() => {
     if (isOpen && !editingTask && !editingTimeBlock) {
-      setMode(initialMode);
+      setMode(isRecording ? 'event' : initialMode);
     }
-  }, [isOpen, initialMode, editingTask, editingTimeBlock]);
+  }, [isOpen, initialMode, isRecording, editingTask, editingTimeBlock]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +219,7 @@ export function AddModal({
 
     setTitle('');
     setEstimatedHours(1);
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getLocalDateString());
     setStartTime('09:00');
     setEndTime('10:00');
     setSelectedCategory(categories[0] || null);
@@ -248,9 +256,11 @@ export function AddModal({
           maxHeight: maxH,
         }}
       >
-        {/* Drag handle + Header */}
+        {/* Drag handle + Header — gray when recording to differentiate "Record Event" */}
         <div
-          className="flex items-center gap-2 px-3 py-2 border-b border-neutral-200 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className={`flex items-center gap-2 px-3 py-2 border-b border-neutral-200 shrink-0 cursor-grab active:cursor-grabbing select-none ${
+            isRecording ? 'bg-neutral-200' : ''
+          }`}
           onMouseDown={(e) => {
             if ((e.target as HTMLElement).closest('button')) return;
             setIsDragging(true);
@@ -258,18 +268,33 @@ export function AddModal({
           }}
         >
           <Bars3Icon className="h-4 w-4 text-neutral-400 shrink-0" />
-          <h2 className="text-sm font-medium text-neutral-900 flex-1 truncate">
-            {mode === 'task'
-              ? (editingTask ? 'Edit Task' : 'Add Task')
-              : (editingTimeBlock ? 'Edit Event' : 'Add Event')}
+          <h2 className="text-sm font-medium text-neutral-900 flex-1 min-w-0 truncate">
+            {editingTask
+              ? 'Edit Task'
+              : editingTimeBlock
+                ? 'Edit Event'
+                : isRecording
+                  ? 'Record Event'
+                  : mode === 'task'
+                    ? 'Add Task'
+                    : 'Add Planned'}
           </h2>
+          {!editingTask && !editingTimeBlock && onViewModeChange && (
+            <button
+              type="button"
+              onClick={() => onViewModeChange(viewMode === 'planning' ? 'recording' : 'planning')}
+              className="px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation bg-white text-neutral-800 shadow-sm border border-neutral-100 shrink-0 hover:bg-neutral-50"
+            >
+              {viewMode === 'planning' ? 'Record Mode' : 'Plan Mode'}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors shrink-0">
             <XMarkIcon className="h-4 w-4 text-neutral-500" />
           </button>
         </div>
 
-        {/* Mode Toggle (hidden when editing an event block) */}
-        {!editingTimeBlock && (
+        {/* Task/Event Toggle — only in planning mode; recording is event-only (things that happened) */}
+        {!editingTimeBlock && !isRecording && (
           <div className="px-4 pt-3">
             <div className="bg-neutral-100 rounded-md p-0.5 flex">
               <button type="button" onClick={() => setMode('task')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'task' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
@@ -487,7 +512,7 @@ export function AddModal({
               className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
+              {mode === 'task' && editingTask ? 'Save' : isRecording ? 'Record Event' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
             </button>
           </div>
         </form>

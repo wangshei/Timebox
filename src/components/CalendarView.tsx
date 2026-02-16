@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task } from '../types';
-import { resolveTimeBlocks } from '../utils/dataResolver';
+import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event } from '../types';
+import { resolveTimeBlocks, resolveEvents } from '../utils/dataResolver';
+import { getLocalDateString } from '../utils/dateTime';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
@@ -32,6 +33,8 @@ interface CalendarViewProps {
   onCreateBlock?: (params: import('./DayView').CreateBlockParams) => string | undefined;
   /** Move a block to new time/date; may split rest into a new block. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  events?: Event[];
+  onDeleteEvent?: (eventId: string) => void;
 }
 
 export function CalendarView({ 
@@ -58,6 +61,8 @@ export function CalendarView({
   onDropTask,
   onCreateBlock,
   onMoveBlock,
+  events: eventsProp = [],
+  onDeleteEvent,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const currentDate = useMemo(() => {
@@ -68,6 +73,10 @@ export function CalendarView({
   const visibleBlocks = useMemo(() => {
     return resolveTimeBlocks(timeBlocks, tasks, categories, tags, containers);
   }, [timeBlocks, tasks, categories, tags, containers]);
+
+  const resolvedEvents = useMemo(() => {
+    return resolveEvents(eventsProp, categories, containers);
+  }, [eventsProp, categories, containers]);
 
   const compareMatchedTaskIds = useMemo(() => {
     if (mode !== 'compare') return [];
@@ -119,7 +128,7 @@ export function CalendarView({
     } else {
       newDate.setMonth(currentDate.getMonth() - 1);
     }
-    onSelectedDateChange?.(newDate.toISOString().split('T')[0]);
+    onSelectedDateChange?.(getLocalDateString(newDate));
   };
 
   const navigateNext = () => {
@@ -131,12 +140,11 @@ export function CalendarView({
     } else {
       newDate.setMonth(currentDate.getMonth() + 1);
     }
-    onSelectedDateChange?.(newDate.toISOString().split('T')[0]);
+    onSelectedDateChange?.(getLocalDateString(newDate));
   };
 
   const navigateToday = () => {
-    const today = new Date();
-    onSelectedDateChange?.(today.toISOString().split('T')[0]);
+    onSelectedDateChange?.(getLocalDateString());
   };
 
   return (
@@ -260,6 +268,7 @@ export function CalendarView({
               <DayView
                 mode={mode}
                 timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
+                events={resolvedEvents}
                 selectedDate={selectedDate}
                 selectedBlock={selectedBlock}
                 onSelectBlock={setSelectedBlock}
@@ -269,6 +278,7 @@ export function CalendarView({
                 onDidSomethingElse={onDidSomethingElse}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
+                onDeleteEvent={onDeleteEvent}
                 onDropTask={onDropTask}
                 onCreateBlock={onCreateBlock}
                 onMoveBlock={onMoveBlock}
@@ -279,6 +289,7 @@ export function CalendarView({
               <DayView
                 mode={mode}
                 timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
+                events={resolvedEvents}
                 selectedDate={selectedDate}
                 selectedBlock={selectedBlock}
                 onSelectBlock={setSelectedBlock}
@@ -288,6 +299,7 @@ export function CalendarView({
                 onDidSomethingElse={onDidSomethingElse}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
+                onDeleteEvent={onDeleteEvent}
                 onDropTask={onDropTask}
                 onCreateBlock={onCreateBlock}
                 onMoveBlock={onMoveBlock}
@@ -297,9 +309,9 @@ export function CalendarView({
           </div>
         ) : (
         <>
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} />}
-        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} />}
+        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
+        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} />}
+        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} events={eventsProp} />}
         </>
         )}
       </div>

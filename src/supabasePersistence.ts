@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { useStore } from './store/useStore';
 import { DEFAULT_PALETTE_COLOR } from './constants/colors';
+import { getLocalTimeZone } from './utils/dateTime';
 import type { Task, TimeBlock, CalendarContainer, Category, Tag, Event } from './types';
 
 function generateId(): string {
@@ -16,6 +17,12 @@ type PersistableState = {
   tags: Tag[];
   events: Event[];
 };
+
+// Gate: saves are blocked until the initial Supabase load completes.
+// This prevents the seed/localStorage state (with empty categories/events)
+// from wiping Supabase data during the window between subscription start
+// and loadSupabaseState completion.
+let supabaseLoaded = false;
 
 async function getCurrentUserId(): Promise<string | null> {
   if (!supabase) return null;
@@ -37,13 +44,14 @@ export async function loadSupabaseState() {
   // eslint-disable-next-line no-console
   console.log('[supabasePersistence] Loading state for user', userId);
 
-  const [containersRes, categoriesRes, tagsRes, tasksRes, blocksRes, eventsRes] = await Promise.all([
+  const [containersRes, categoriesRes, tagsRes, tasksRes, blocksRes, eventsRes, settingsRes] = await Promise.all([
     supabase.from('calendar_containers').select('*').eq('user_id', userId),
     supabase.from('categories').select('*').eq('user_id', userId),
     supabase.from('tags').select('*').eq('user_id', userId),
     supabase.from('tasks').select('*').eq('user_id', userId),
     supabase.from('time_blocks').select('*').eq('user_id', userId),
     supabase.from('events').select('*').eq('user_id', userId),
+    supabase.from('user_settings').select('timezone').eq('user_id', userId).maybeSingle(),
   ]);
 
   const hasError =
@@ -53,6 +61,7 @@ export async function loadSupabaseState() {
     tasksRes.error ||
     blocksRes.error ||
     eventsRes.error;
+  // settingsRes.error is non-fatal (table may not exist yet)
   if (hasError) {
     // eslint-disable-next-line no-console
     console.error(
@@ -80,6 +89,18 @@ export async function loadSupabaseState() {
     events: (eventsRes.data ?? []).length,
   });
 
+  // Ensure user timezone is stored; use browser timezone if missing (table may not exist yet)
+  const settings = settingsRes.data as { timezone?: string } | null;
+  const timezone = (settings?.timezone?.trim() || getLocalTimeZone());
+  const upsertRes = await supabase.from('user_settings').upsert(
+    { user_id: userId, timezone },
+    { onConflict: 'user_id' }
+  );
+  if (upsertRes.error) {
+    // eslint-disable-next-line no-console
+    console.warn('[supabasePersistence] user_settings upsert skipped (table may not exist):', upsertRes.error);
+  }
+
   let containers = (containersRes.data ?? []) as any[];
   let categories = (categoriesRes.data ?? []) as any[];
   const tags = (tagsRes.data ?? []) as any[];
@@ -87,19 +108,21 @@ export async function loadSupabaseState() {
   const blocks = (blocksRes.data ?? []) as any[];
   const events = (eventsRes.data ?? []) as any[];
 
-  // New user: give them a default Personal calendar + a General category so
-  // they can start adding tasks/events immediately. The persistence
+  // New user (or data lost): give them a default Personal calendar + a General
+  // category so they can start adding tasks/events immediately. The persistence
   // subscription (started before this function) will save these to Supabase.
   if (containers.length === 0) {
     const defaultCalId = generateId();
     containers = [
       { id: defaultCalId, name: 'Personal', color: DEFAULT_PALETTE_COLOR },
     ];
-    if (categories.length === 0) {
-      categories = [
-        { id: generateId(), name: 'General', color: DEFAULT_PALETTE_COLOR, calendar_container_id: defaultCalId },
-      ];
-    }
+  }
+  // Always ensure at least one category exists (categories may have been lost
+  // independently of containers, e.g. due to a previous persistence bug).
+  if (categories.length === 0 && containers.length > 0) {
+    categories = [
+      { id: generateId(), name: 'General', color: DEFAULT_PALETTE_COLOR, calendar_container_id: containers[0].id },
+    ];
   }
 
   useStore.setState((prev) => {
@@ -172,6 +195,9 @@ export async function loadSupabaseState() {
     ),
     };
   });
+
+  // Mark as loaded so the persistence subscription can start saving.
+  supabaseLoaded = true;
 }
 
 // --- Persist from Zustand store into Supabase ---
@@ -204,56 +230,61 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     return;
   }
 
-  // Insert parent tables first, then children, to satisfy FK constraints.
+  // Upsert parent tables first, then children, to satisfy FK constraints.
+  // Using upsert (onConflict: 'id') so duplicate keys are updated instead of failing.
   if (state.calendarContainers.length) {
-    check('calendar_containers', 'insert', await supabase.from('calendar_containers').insert(
+    check('calendar_containers', 'upsert', await supabase.from('calendar_containers').upsert(
       state.calendarContainers.map((c) => ({
         id: c.id,
         user_id: userId,
         name: c.name,
         color: c.color,
-      }))
+      })),
+      { onConflict: 'id' }
     ));
   }
   if (state.categories.length) {
-    check('categories', 'insert', await supabase.from('categories').insert(
+    check('categories', 'upsert', await supabase.from('categories').upsert(
       state.categories.map((c) => ({
         id: c.id,
         user_id: userId,
         name: c.name,
         color: c.color,
         calendar_container_id: c.calendarContainerId ?? null,
-      }))
+      })),
+      { onConflict: 'id' }
     ));
   }
   if (state.tags.length) {
-    check('tags', 'insert', await supabase.from('tags').insert(
+    check('tags', 'upsert', await supabase.from('tags').upsert(
       state.tags.map((t) => ({
         id: t.id,
         user_id: userId,
         name: t.name,
         type: t.type ?? null,
         category_id: t.categoryId ?? null,
-      }))
+      })),
+      { onConflict: 'id' }
     ));
   }
   if (state.tasks.length) {
-    check('tasks', 'insert', await supabase.from('tasks').insert(
+    check('tasks', 'upsert', await supabase.from('tasks').upsert(
       state.tasks.map((t) => ({
         id: t.id,
         user_id: userId,
-        title: t.title,
-        estimated_minutes: t.estimatedMinutes,
+        title: t.title ?? '',
+        estimated_minutes: t.estimatedMinutes ?? 0,
         calendar_container_id: t.calendarContainerId,
         category_id: t.categoryId,
-        tag_ids: t.tagIds,
-        flexible: t.flexible,
+        tag_ids: Array.isArray(t.tagIds) ? t.tagIds : [],
+        flexible: t.flexible ?? true,
         status: t.status ?? null,
-      }))
+      })),
+      { onConflict: 'id' }
     ));
   }
   if (state.timeBlocks.length) {
-    check('time_blocks', 'insert', await supabase.from('time_blocks').insert(
+    check('time_blocks', 'upsert', await supabase.from('time_blocks').upsert(
       state.timeBlocks.map((b) => ({
         id: b.id,
         user_id: userId,
@@ -261,29 +292,31 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         title: b.title ?? null,
         calendar_container_id: b.calendarContainerId,
         category_id: b.categoryId,
-        tag_ids: b.tagIds,
-        start: b.start,
-        end: b.end,
-        date: b.date,
-        mode: b.mode,
-        source: b.source,
-      }))
+        tag_ids: Array.isArray(b.tagIds) ? b.tagIds : [],
+        start: b.start ?? '',
+        end: b.end ?? '',
+        date: b.date ?? '',
+        mode: b.mode ?? 'planned',
+        source: b.source ?? 'manual',
+      })),
+      { onConflict: 'id' }
     ));
   }
   if (state.events.length) {
-    check('events', 'insert', await supabase.from('events').insert(
+    check('events', 'upsert', await supabase.from('events').upsert(
       state.events.map((e) => ({
         id: e.id,
         user_id: userId,
-        title: e.title,
+        title: e.title ?? '',
         calendar_container_id: e.calendarContainerId,
         category_id: e.categoryId,
-        start: e.start,
-        end: e.end,
-        date: e.date,
-        recurring: e.recurring,
+        start: e.start ?? '',
+        end: e.end ?? '',
+        date: e.date ?? '',
+        recurring: e.recurring ?? false,
         recurrence_pattern: e.recurrencePattern ?? null,
-      }))
+      })),
+      { onConflict: 'id' }
     ));
   }
 
@@ -307,25 +340,41 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
 export function startSupabasePersistence() {
   if (!supabase || typeof window === 'undefined') return () => {};
 
+  // Reset the loaded flag so saves are blocked until loadSupabaseState finishes.
+  supabaseLoaded = false;
+
   let saving = false;
   let pendingSlice: PersistableState | null = null;
 
   async function flush(slice: PersistableState) {
+    if (!supabaseLoaded) {
+      // eslint-disable-next-line no-console
+      console.log('[supabasePersistence] Skipping save — initial load not yet complete.');
+      saving = false;
+      return;
+    }
     const userId = await getCurrentUserId();
-    if (!userId) return;
-    saving = true;
+    if (!userId) {
+      // eslint-disable-next-line no-console
+      console.warn('[supabasePersistence] Skipping save — not signed in.');
+      saving = false;
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.log('[supabasePersistence] Saving...', { tasks: slice.tasks.length, timeBlocks: slice.timeBlocks.length, events: slice.events.length });
     try {
       await saveSupabaseStateForUser(userId, slice);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[supabasePersistence] Save error', e);
     } finally {
-      saving = false;
       // If the store changed while we were saving, save the latest state now.
       if (pendingSlice) {
         const next = pendingSlice;
         pendingSlice = null;
         void flush(next);
+      } else {
+        saving = false;
       }
     }
   }
@@ -341,10 +390,13 @@ export function startSupabasePersistence() {
     }),
     (slice) => {
       if (saving) {
-        // Queue latest state so it's saved after the current save completes.
         pendingSlice = slice;
         return;
       }
+      // Set saving SYNCHRONOUSLY before the async flush starts,
+      // so a second change arriving before getCurrentUserId() returns
+      // will be queued instead of starting a parallel save.
+      saving = true;
       void flush(slice);
     }
   );

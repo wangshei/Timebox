@@ -1,4 +1,4 @@
-import { TimeBlock, Task, Category, Tag, CalendarContainer } from '../types';
+import { TimeBlock, Task, Category, Tag, CalendarContainer, Event } from '../types';
 
 /** Fallback when category/container list is empty or ID not found (avoids undefined in resolved block). */
 const FALLBACK_CATEGORY: Category = { id: '__fallback__', name: 'Unknown', color: '#6b7280' };
@@ -65,4 +65,42 @@ export function resolveTimeBlocks(
   containers: CalendarContainer[]
 ): ResolvedTimeBlock[] {
   return blocks.map(block => resolveTimeBlock(block, tasks, categories, tags, containers));
+}
+
+/**
+ * Resolved Event with full objects instead of IDs
+ */
+export interface ResolvedEvent {
+  id: string;
+  title: string;
+  calendarContainerId: string;
+  category: Category;
+  calendarContainer: CalendarContainer;
+  start: string;
+  end: string;
+  date: string;
+  recurring: boolean;
+  recurrencePattern?: string;
+}
+
+export function resolveEvent(
+  event: Event,
+  categories: Category[],
+  containers: CalendarContainer[]
+): ResolvedEvent {
+  const category = categories.find(c => c.id === event.categoryId) ?? categories[0] ?? FALLBACK_CATEGORY;
+  const container = containers.find(c => c.id === event.calendarContainerId) ?? containers[0] ?? FALLBACK_CONTAINER;
+  return {
+    ...event,
+    category,
+    calendarContainer: container,
+  };
+}
+
+export function resolveEvents(
+  events: Event[],
+  categories: Category[],
+  containers: CalendarContainer[]
+): ResolvedEvent[] {
+  return events.map(e => resolveEvent(e, categories, containers));
 }

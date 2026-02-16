@@ -239,6 +239,10 @@ export function LeftSidebar({
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); onSave(); }
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        }}
         className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
         autoFocus
       />
@@ -470,22 +474,24 @@ export function LeftSidebar({
                             </div>
                           )
                         )}
-                        {isEditMode && (
-                          <button
-                            type="button"
-                            onClick={() => startAdd('tag', category.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
-                          >
-                            <PlusIcon className="h-3 w-3" />
-                            Add Tag
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => startAdd('tag', category.id)}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          Add Tag
+                        </button>
                         {isAdding && addingType === 'tag' && addingParentId === category.id && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
                             <input
                               type="text"
                               value={addName}
                               onChange={(e) => setAddName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); saveAdd(); }
+                                if (e.key === 'Escape') { e.preventDefault(); cancelAdd(); }
+                              }}
                               placeholder="Tag name"
                               className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               autoFocus
@@ -504,51 +510,47 @@ export function LeftSidebar({
                     )}
                   </div>
                 ))}
-                {isEditMode && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => startAdd('category', calendar.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
-                    >
-                      <PlusIcon className="h-3 w-3" />
-                      Add Category
-                    </button>
-                    {isAdding && addingType === 'category' && addingParentId === calendar.id && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
-                        <p className="text-xs font-medium text-neutral-600">Add or attach a category</p>
-                        <div className="flex flex-wrap gap-1">
-                          {categories.map((cat) => (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => {
-                                setAddExistingCategoryId(cat.id);
-                                setAddName(cat.name);
-                                setAddColor(cat.color);
-                              }}
-                              className={`px-2 py-1 rounded-md border text-xs ${
-                                addExistingCategoryId === cat.id
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                  : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                              }`}
-                            >
-                              {cat.name}
-                            </button>
-                          ))}
-                        </div>
-                        <InlineEditForm
-                          name={addName}
-                          setName={setAddName}
-                          color={addColor}
-                          setColor={setAddColor}
-                          showColor
-                          onSave={saveAdd}
-                          onCancel={cancelAdd}
-                        />
-                      </div>
-                    )}
-                  </>
+                <button
+                  type="button"
+                  onClick={() => startAdd('category', calendar.id)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Add Category
+                </button>
+                {isAdding && addingType === 'category' && addingParentId === calendar.id && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                    <p className="text-xs font-medium text-neutral-600">Add or attach a category</p>
+                    <div className="flex flex-wrap gap-1">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setAddExistingCategoryId(cat.id);
+                            setAddName(cat.name);
+                            setAddColor(cat.color);
+                          }}
+                          className={`px-2 py-1 rounded-md border text-xs ${
+                            addExistingCategoryId === cat.id
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                    <InlineEditForm
+                      name={addName}
+                      setName={setAddName}
+                      color={addColor}
+                      setColor={setAddColor}
+                      showColor
+                      onSave={saveAdd}
+                      onCancel={cancelAdd}
+                    />
+                  </div>
                 )}
               </div>
             )}

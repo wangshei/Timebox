@@ -100,6 +100,14 @@ create table if not exists events (
   recurring boolean not null default false,
   recurrence_pattern text
 );
+
+-- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
+create table if not exists user_settings (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  timezone text not null default 'UTC'
+);
+
+comment on column user_settings.timezone is 'IANA timezone e.g. America/Los_Angeles; used for date/time display and "today" logic';
 ```
 
 > **Note:** The app generates IDs with `crypto.randomUUID()`, which is compatible with `uuid` columns.
@@ -118,6 +126,7 @@ alter table tags enable row level security;
 alter table tasks enable row level security;
 alter table time_blocks enable row level security;
 alter table events enable row level security;
+alter table user_settings enable row level security;
 
 -- IMPORTANT: You must create policies for EVERY table below.
 -- If RLS is enabled but no policies exist, ALL operations are denied by default.
@@ -181,9 +190,77 @@ create policy "Users can write own events"
   on events for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- user_settings
+create policy "Users can read own user_settings"
+  on user_settings for select
+  using (auth.uid() = user_id);
+
+create policy "Users can write own user_settings"
+  on user_settings for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 ```
 
 This matches the queries in `src/supabasePersistence.ts`, which always filter by `user_id`.
+
+---
+
+## 2b. If you get 403 / "violates row-level security policy" on INSERT
+
+If the app is signed in but inserts fail with **403** and error code **42501** ("new row violates row-level security policy"), run this in the Supabase SQL Editor. It **drops all existing policies** on these tables and creates fresh ones that explicitly allow the **authenticated** role to INSERT/UPDATE/DELETE when `user_id = auth.uid()`.
+
+(The "Personal" row is missing from the calendar table *because* these inserts are blocked—fixing RLS will let the app create it.)
+
+```sql
+-- 1) Drop ALL existing policies on these tables (clean slate)
+do $$
+declare r record;
+begin
+  for r in (
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+    and tablename in ('calendar_containers','categories','tags','tasks','time_blocks','events')
+  ) loop
+    execute format('drop policy if exists %I on %I.%I', r.policyname, r.schemaname, r.tablename);
+  end loop;
+end $$;
+
+-- 2) SELECT: allow authenticated users to read their own rows
+create policy "sel_cc" on calendar_containers for select to authenticated using (auth.uid() = user_id);
+create policy "sel_cat" on categories for select to authenticated using (auth.uid() = user_id);
+create policy "sel_tags" on tags for select to authenticated using (auth.uid() = user_id);
+create policy "sel_tasks" on tasks for select to authenticated using (auth.uid() = user_id);
+create policy "sel_tb" on time_blocks for select to authenticated using (auth.uid() = user_id);
+create policy "sel_ev" on events for select to authenticated using (auth.uid() = user_id);
+
+-- 3) INSERT: allow authenticated users to insert rows with their own user_id
+create policy "ins_cc" on calendar_containers for insert to authenticated with check (auth.uid() = user_id);
+create policy "ins_cat" on categories for insert to authenticated with check (auth.uid() = user_id);
+create policy "ins_tags" on tags for insert to authenticated with check (auth.uid() = user_id);
+create policy "ins_tasks" on tasks for insert to authenticated with check (auth.uid() = user_id);
+create policy "ins_tb" on time_blocks for insert to authenticated with check (auth.uid() = user_id);
+create policy "ins_ev" on events for insert to authenticated with check (auth.uid() = user_id);
+
+-- 4) UPDATE: allow authenticated users to update their own rows
+create policy "upd_cc" on calendar_containers for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "upd_cat" on categories for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "upd_tags" on tags for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "upd_tasks" on tasks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "upd_tb" on time_blocks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "upd_ev" on events for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 5) DELETE: allow authenticated users to delete their own rows
+create policy "del_cc" on calendar_containers for delete to authenticated using (auth.uid() = user_id);
+create policy "del_cat" on categories for delete to authenticated using (auth.uid() = user_id);
+create policy "del_tags" on tags for delete to authenticated using (auth.uid() = user_id);
+create policy "del_tasks" on tasks for delete to authenticated using (auth.uid() = user_id);
+create policy "del_tb" on time_blocks for delete to authenticated using (auth.uid() = user_id);
+create policy "del_ev" on events for delete to authenticated using (auth.uid() = user_id);
+```
+
+After this runs successfully: **refresh the app** (or sign out and sign back in), then add an event again. The app will create the default "Personal" calendar and "General" category on first sync.
 
 ---
 

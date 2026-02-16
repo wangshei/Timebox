@@ -69,6 +69,7 @@ export default function App() {
   const rightBarDragJustEnded = useRef(false);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
+  const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -109,6 +110,10 @@ export default function App() {
     addTag,
     updateTag,
     deleteTag,
+    events,
+    addEvent,
+    updateEvent,
+    deleteEvent,
     setCalendarContainers,
     setCategories,
     setTags,
@@ -124,6 +129,13 @@ export default function App() {
       ),
     [timeBlocks, selectedDate, view, containerVisibility]
   );
+
+  const visibleEvents = useMemo(() => {
+    if (view === 'day') {
+      return events.filter((e) => e.date === selectedDate && containerVisibility[e.calendarContainerId] !== false);
+    }
+    return events.filter((e) => containerVisibility[e.calendarContainerId] !== false);
+  }, [events, selectedDate, view, containerVisibility]);
 
   const planVsActualByCategory = useMemo(
     () =>
@@ -220,16 +232,20 @@ export default function App() {
     tags: Tag[];
     calendar: string;
   }) => {
-    addTimeBlock({
+    // If we were editing a draft timeBlock (from drag-to-create), remove it.
+    if (isDraftTimeBlock && editingTimeBlockId) {
+      deleteTimeBlock(editingTimeBlockId);
+      setEditingTimeBlockId(null);
+      setIsDraftTimeBlock(false);
+    }
+    addEvent({
       title: eventData.title,
       calendarContainerId: eventData.calendar,
       categoryId: eventData.category.id,
-      tagIds: eventData.tags.map((t) => t.id),
       start: eventData.startTime,
       end: eventData.endTime,
       date: eventData.date,
-      mode: 'planned',
-      source: 'manual',
+      recurring: false,
     });
   };
 
@@ -328,10 +344,44 @@ export default function App() {
     }
   };
 
+  const checkRecordingOverlap = useCallback((date: string, startTime: string, endTime: string, excludeBlockId?: string) => {
+    if (mode !== 'recording') return false;
+    const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const newStart = parseT(startTime);
+    const newEnd = parseT(endTime);
+    const overlapping = timeBlocks.filter((b) =>
+      b.date === date &&
+      b.mode === 'recorded' &&
+      b.id !== excludeBlockId &&
+      parseT(b.start) < newEnd &&
+      parseT(b.end) > newStart
+    );
+    if (overlapping.length > 0) {
+      setRecordingOverlapWarning(
+        'You already have a recorded block during this time. Consider editing the existing block or splitting it — you shouldn\'t record the same time twice.'
+      );
+      return true;
+    }
+    return false;
+  }, [mode, timeBlocks]);
+
   const handleCreateBlock = (params: { date: string; startTime: string; endTime: string }) => {
-    const containerId = calendarContainers[0]?.id;
-    const categoryId = categories[0]?.id;
-    if (!containerId || !categoryId) return undefined;
+    let containerId = calendarContainers[0]?.id;
+    if (!containerId) {
+      // Should not normally happen, but create a default calendar as a fallback.
+      addCalendarContainer({ name: 'Personal', color: '#0044A8' });
+      containerId = useStore.getState().calendarContainers[0]?.id;
+      if (!containerId) return undefined;
+    }
+    let categoryId = categories[0]?.id;
+    if (!categoryId) {
+      // No categories exist — create a default one so drag-to-create works.
+      const newCat = addCategory({ name: 'General', color: '#6b7280', calendarContainerId: containerId });
+      categoryId = newCat.id;
+    }
+    if (!categoryId) return undefined;
+    // Warn if recording and overlapping an existing recorded block.
+    checkRecordingOverlap(params.date, params.startTime, params.endTime);
     const id = addTimeBlock({
       title: '',
       calendarContainerId: containerId,
@@ -375,6 +425,10 @@ export default function App() {
     const origEnd = parseTimeToMins(block.end);
     const newStart = parseTimeToMins(params.startTime);
     const newEnd = parseTimeToMins(params.endTime);
+    // Warn if recording and the moved block overlaps an existing recorded block.
+    if (block.mode === 'recorded') {
+      checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId);
+    }
     updateTimeBlock(blockId, { start: params.startTime, end: params.endTime, date: params.date });
     if (origStart < newStart) {
       addTimeBlock({
@@ -764,6 +818,8 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          events={visibleEvents}
+          onDeleteEvent={deleteEvent}
         />
 
         {/* Right bar — 8px, gray center line; click toggles, drag right closes / drag left opens */}
@@ -828,6 +884,8 @@ export default function App() {
                 onDeleteTask={deleteTask}
                 onOpenAddModal={handleOpenAddModal}
                 onDropBlock={deleteTimeBlock}
+                events={events}
+                onDeleteEvent={deleteEvent}
               />
             </div>
           </div>
@@ -857,6 +915,8 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          events={visibleEvents}
+          onDeleteEvent={deleteEvent}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -905,16 +965,64 @@ export default function App() {
         tags={tags}
         calendarContainers={calendarContainers}
         initialMode={addModalMode}
+        viewMode={mode}
+        onViewModeChange={setViewMode}
         editingTask={editingTask}
         editingTimeBlock={editingTimeBlock}
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
-        onUpdateTimeBlock={updateTimeBlock}
+        onUpdateTimeBlock={(id, updates) => {
+          // If this is a draft block being finalized in event mode,
+          // convert it to a proper Event and remove the draft timeBlock.
+          if (isDraftTimeBlock && id === editingTimeBlockId) {
+            const block = timeBlocks.find((b) => b.id === id);
+            if (block) {
+              deleteTimeBlock(id);
+              addEvent({
+                title: updates.title ?? block.title ?? '',
+                calendarContainerId: updates.calendarContainerId ?? block.calendarContainerId,
+                categoryId: updates.categoryId ?? block.categoryId,
+                start: updates.start ?? block.start,
+                end: updates.end ?? block.end,
+                date: updates.date ?? block.date,
+                recurring: false,
+              });
+              setEditingTimeBlockId(null);
+              setIsDraftTimeBlock(false);
+              return;
+            }
+          }
+          updateTimeBlock(id, updates);
+        }}
         onAddEvent={handleAddEvent}
         onRequireCalendar={() => setIsSettingsOpen(true)}
         onAddCategory={addCategory}
         onAddTag={addTag}
       />
+
+      {/* Recording overlap warning dialog */}
+      {recordingOverlapWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-xl border border-neutral-200 p-6 max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-semibold text-neutral-800">Overlapping Recording</h3>
+            </div>
+            <p className="text-sm text-neutral-600 mb-4">{recordingOverlapWarning}</p>
+            <button
+              type="button"
+              className="w-full py-2 px-4 bg-neutral-800 text-white text-sm font-medium rounded-lg hover:bg-neutral-700 transition-colors"
+              onClick={() => setRecordingOverlapWarning(null)}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       <SettingsPanel
         isOpen={isSettingsOpen}

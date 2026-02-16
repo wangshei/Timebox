@@ -186,8 +186,9 @@ export function TimeBlockCard({
   if (compact) {
     return (
       <div
-        className="absolute left-0 right-0 cursor-grab active:cursor-grabbing"
+        className="absolute cursor-grab active:cursor-grabbing pointer-events-auto"
         style={style}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={() => {
           onSelect();
           setShowPopover(true);
@@ -274,8 +275,9 @@ export function TimeBlockCard({
 
   return (
     <div
-      className="absolute left-0 right-2 cursor-grab active:cursor-grabbing group"
+      className="absolute cursor-grab active:cursor-grabbing group pr-1 pointer-events-auto"
       style={style}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={() => {
         onSelect();
         setShowPopover(true);

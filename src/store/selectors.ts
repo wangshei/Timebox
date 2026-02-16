@@ -11,6 +11,7 @@ import type {
   Tag,
   View,
 } from '../types';
+import { getLocalDateString } from '../utils/dateTime';
 import {
   getPlannedMinutes,
   getRecordedMinutes,
@@ -70,7 +71,7 @@ function getWeekDateSet(dateStr: string): Set<string> {
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-    set.add(d.toISOString().slice(0, 10));
+    set.add(getLocalDateString(d));
   }
   return set;
 }
