@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../App';
-import { GripVertical, Calendar, Clock, Edit3, X } from 'lucide-react';
+import { Bars3Icon, CalendarIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -123,7 +123,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
             {/* Drag handle */}
             <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <GripVertical className="w-3 h-3 text-white/60" />
+              <Bars3Icon className="h-3 w-3 text-white/60" />
             </div>
 
             {/* Resize handle */}
@@ -150,7 +150,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                   <h3 className="font-medium text-neutral-900 mb-1">{task.title}</h3>
                   <div className="flex items-center gap-3 text-xs text-neutral-500">
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" />
+                      <ClockIcon className="h-3.5 w-3.5" />
                       {task.estimatedHours}h estimated
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -228,7 +228,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                     onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
                   >
-                    <Calendar className="w-4 h-4" />
+                    <CalendarIcon className="h-4 w-4" />
                     Schedule task
                   </button>
                   <button
@@ -236,7 +236,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                     onClick={() => { onEditTask?.(); setShowPopover(false); }}
                   >
-                    <Edit3 className="w-4 h-4" />
+                    <PencilIcon className="h-4 w-4" />
                     Edit details
                   </button>
                   <button
@@ -244,7 +244,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
                     onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
                   >
-                    <X className="w-4 h-4" />
+                    <XMarkIcon className="h-4 w-4" />
                     Delete task
                   </button>
                 </div>
@@ -270,7 +270,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
         <div className="flex items-start gap-3 h-full">
           {/* Drag handle */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-400">
-            <GripVertical className="w-4 h-4" />
+            <Bars3Icon className="h-4 w-4" />
           </div>
 
           <div className="flex-1 flex flex-col justify-between min-w-0">

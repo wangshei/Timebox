@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
-import { Check, Edit3, X } from 'lucide-react';
+import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 /** Payload for creating a recorded block (e.g. "done differently") */
 export type RecordedBlockPayload = {
@@ -113,7 +113,7 @@ export function TimeBlockCard({
     }
 
     if (focusedCategoryId != null) {
-      return block.category.id === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
+      return (block.category?.id ?? block.categoryId) === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
     }
     if (focusedCalendarId != null) {
       return block.calendarContainerId === focusedCalendarId ? base : FOCUS_MUTED_OPACITY;
@@ -122,7 +122,7 @@ export function TimeBlockCard({
   };
 
   const getBackgroundColor = () => {
-    const base = block.category.color;
+    const base = block.category?.color ?? '#6b7280';
     // Planned blocks: lighter variant; recorded blocks: primary color.
     if (isRecorded) return base;
     return lighten(base, 0.25);
@@ -132,7 +132,7 @@ export function TimeBlockCard({
     taskId: block.taskId ?? undefined,
     title: block.title,
     calendarContainerId: block.calendarContainerId,
-    categoryId: block.category.id,
+    categoryId: block.category?.id ?? block.categoryId ?? '',
     tagIds: block.tags.map((t) => t.id),
     start: block.start,
     end: block.end,
@@ -204,7 +204,7 @@ export function TimeBlockCard({
           style={{
             backgroundColor: getBackgroundColor(),
             opacity: getOpacity(),
-            borderLeft: `4px solid ${block.calendarContainer.color}`,
+            borderLeft: `4px solid ${block.calendarContainer?.color ?? '#6b7280'}`,
           }}
         >
           <div className="text-white text-xs truncate font-medium">
@@ -231,7 +231,7 @@ export function TimeBlockCard({
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                     onClick={() => { onDoneAsPlanned?.(block.id); setShowPopover(false); onDeselect(); }}
                   >
-                    <Check className="w-4 h-4" />
+                    <CheckIcon className="h-4 w-4" />
                     Done as planned
                   </button>
                   <button
@@ -239,7 +239,7 @@ export function TimeBlockCard({
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                     onClick={() => { onDidSomethingElse?.(block.id, buildRecordedPayload()); setShowPopover(false); onDeselect(); }}
                   >
-                    <Edit3 className="w-4 h-4" />
+                    <PencilIcon className="h-4 w-4" />
                     Done differently
                   </button>
                   <div className="border-t border-neutral-200 my-1" />
@@ -251,7 +251,7 @@ export function TimeBlockCard({
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   onClick={() => { onDeleteBlock(block.id); setShowPopover(false); onDeselect(); }}
                 >
-                  <X className="w-4 h-4" />
+                  <XMarkIcon className="h-4 w-4" />
                   Delete block
                 </button>
               )}
@@ -261,7 +261,7 @@ export function TimeBlockCard({
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-700 hover:bg-red-50 rounded-md transition-colors"
                   onClick={() => { onDeleteTask(block.taskId!); setShowPopover(false); onDeselect(); }}
                 >
-                  <X className="w-4 h-4" />
+                  <XMarkIcon className="h-4 w-4" />
                   Delete task
                 </button>
               )}
@@ -292,7 +292,7 @@ export function TimeBlockCard({
         style={{
           backgroundColor: getBackgroundColor(),
           opacity: getOpacity(),
-          borderLeft: `4px solid ${block.calendarContainer.color}`,
+          borderLeft: `4px solid ${block.calendarContainer?.color ?? '#6b7280'}`,
         }}
       >
         <div className="flex flex-col h-full text-white">

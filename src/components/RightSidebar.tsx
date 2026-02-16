@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { TaskCard } from './TaskCard';
-import { Plus, Square } from 'lucide-react';
+import { PlusIcon, StopIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock } from '../types';
 
 interface RightSidebarProps {
@@ -99,7 +99,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
   return (
     <div
       className={`bg-white flex flex-col overflow-hidden ${
-        isBottomSheet ? 'h-full' : isMobile ? 'w-full border-l border-neutral-200' : 'w-80 border-l border-neutral-200'
+        isBottomSheet ? 'h-full' : isMobile ? 'w-full border-l border-neutral-200' : 'w-80'
       } ${isDragOverBlock ? 'ring-2 ring-inset ring-blue-300 bg-blue-50/50' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -120,16 +120,16 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               }`}
               title="Toggle planning blocks"
             >
-              <Square className="w-3.5 h-3.5" />
+              <StopIcon className="h-3.5 w-3.5" />
             </button>
           </div>
           {viewMode === 'overview' && (
-            <div className="flex rounded-lg bg-neutral-100 p-0.5">
+            <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-100">
               <button
                 type="button"
                 onClick={() => setOverviewRange('today')}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
-                  overviewRange === 'today' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  overviewRange === 'today' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 Today
@@ -137,8 +137,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <button
                 type="button"
                 onClick={() => setOverviewRange('week')}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
-                  overviewRange === 'week' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  overviewRange === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 Week
@@ -146,8 +146,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <button
                 type="button"
                 onClick={() => setOverviewRange('month')}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-all ${
-                  overviewRange === 'month' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
+                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                  overviewRange === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
                 }`}
               >
                 Month
@@ -163,7 +163,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>
           <div className={viewMode === 'plan' ? 'space-y-2' : 'space-y-3'}>
             {unscheduledTasks.length === 0 ? (
-              <p className="text-sm text-neutral-400">No unscheduled tasks</p>
+              <div className="text-sm text-neutral-400 text-center py-4">No unscheduled tasks</div>
             ) : (
               unscheduledTasks.map(task => (
                 <TaskCard

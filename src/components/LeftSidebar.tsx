@@ -1,32 +1,20 @@
 import React, { useState } from 'react';
 import {
-  Calendar as CalendarIcon,
-  Tag as TagIcon,
-  FolderKanban,
-  Plus,
-  Check,
-  ChevronRight,
-  ChevronDown,
-  Pencil,
-  Trash2,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+  CalendarIcon,
+  TagIcon,
+  FolderIcon,
+  PlusIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag, TimeBlock } from '../types';
 import type { CalendarContainerVisibility } from '../types';
-
-const COLOR_OPTIONS = [
-  '#0044A8',
-  '#9F5FB0',
-  '#13B49F',
-  '#EC8309',
-  '#D93D3D',
-  '#E85C8B',
-  '#8B7355',
-  '#5B5B5B',
-  '#7FB800',
-  '#E6B800',
-];
+import { ColorPicker } from './ColorPicker';
+import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
 interface LeftSidebarProps {
   calendarContainers: CalendarContainer[];
@@ -50,13 +38,13 @@ interface LeftSidebarProps {
   endDayLabel?: string;
   onEndDay?: () => void;
   planVsActualSection?: React.ReactNode;
-  /** Open the full manage/settings panel. */
-  onOpenSettings?: () => void;
   /** Whether inline edit mode is allowed (e.g. only when there is data to edit). */
   canEditOrganization?: boolean;
   /** Shortcuts popup state, controlled by parent. */
   isShortcutsOpen?: boolean;
   onToggleShortcuts?: () => void;
+  /** Edit mode state, controlled by parent header. */
+  isEditMode?: boolean;
 }
 
 export function LeftSidebar({
@@ -80,25 +68,24 @@ export function LeftSidebar({
   endDayLabel,
   onEndDay,
   planVsActualSection,
-  onOpenSettings,
   canEditOrganization = true,
   isShortcutsOpen = false,
   onToggleShortcuts,
+  isEditMode = false,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [isEditMode, setIsEditMode] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingType, setEditingType] = useState<'calendar' | 'category' | 'tag' | null>(null);
   const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('#0044A8');
+  const [editColor, setEditColor] = useState(DEFAULT_PALETTE_COLOR);
 
   const [isAdding, setIsAdding] = useState(false);
   const [addingType, setAddingType] = useState<'calendar' | 'category' | 'tag' | null>(null);
   const [addingParentId, setAddingParentId] = useState<string | null>(null);
   const [addName, setAddName] = useState('');
-  const [addColor, setAddColor] = useState('#0044A8');
+  const [addColor, setAddColor] = useState(DEFAULT_PALETTE_COLOR);
   const [addExistingCategoryId, setAddExistingCategoryId] = useState<string | null>(null);
   const [isPlanVsActualOpen, setIsPlanVsActualOpen] = useState(true);
 
@@ -124,7 +111,7 @@ export function LeftSidebar({
     setEditingType(type);
     setEditingId(item.id);
     setEditName(item.name);
-    setEditColor(item.color ?? '#0044A8');
+    setEditColor(item.color ?? DEFAULT_PALETTE_COLOR);
     setIsAdding(false);
   };
 
@@ -151,7 +138,7 @@ export function LeftSidebar({
     setAddingParentId(parentId ?? null);
     setIsAdding(true);
     setAddName('');
-    setAddColor('#0044A8');
+    setAddColor(DEFAULT_PALETTE_COLOR);
     setAddExistingCategoryId(null);
     setEditingId(null);
   };
@@ -256,17 +243,7 @@ export function LeftSidebar({
         autoFocus
       />
       {showColor && (
-        <div className="flex gap-1.5 flex-wrap">
-          {COLOR_OPTIONS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(c)}
-              className={`w-6 h-6 rounded transition-all ${color === c ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-105'}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
+        <ColorPicker value={color} onChange={setColor} swatchSize="sm" />
       )}
       <div className="flex gap-2">
         <button type="button" onClick={onSave} className="flex-1 px-3 py-1.5 bg-[#0044A8] text-white text-sm rounded hover:bg-[#003380] transition-colors">
@@ -281,65 +258,16 @@ export function LeftSidebar({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 pb-4">
-      {/* Organization header: title + Manage + Edit; add actions one line below */}
-      <div className="px-4 py-3 border-b border-neutral-100 flex-shrink-0">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-[6px] font-medium text-neutral-500 uppercase tracking-wide">
-            Organization
-          </h2>
-          <div className="flex items-center gap-1.5">
-            {onOpenSettings && (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="px-2 py-1 rounded-lg text-[10px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
-              >
-                Manage
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => canEditOrganization && setIsEditMode(!isEditMode)}
-              className={`p-2 rounded-lg transition-colors ${
-                !canEditOrganization
-                  ? 'text-neutral-300 cursor-not-allowed'
-                  : isEditMode
-                    ? 'bg-blue-50 text-[#0044A8]'
-                    : 'hover:bg-neutral-100 text-neutral-500'
-              }`}
-              title={
-                !canEditOrganization
-                  ? 'Add a calendar and tasks to edit'
-                  : isEditMode
-                    ? 'Done editing'
-                    : 'Edit organization'
-              }
-              disabled={!canEditOrganization}
-            >
-              {isEditMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-        {isEditMode && (
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => startAdd('calendar')}
-              className="text-xs font-medium text-[#0044A8] hover:text-[#003380] transition-colors flex items-center gap-1"
-            >
-              <Plus className="w-3 h-3" />
-              Add Calendar
-            </button>
-            <button
-              type="button"
-              onClick={() => startAdd('category')}
-              className="text-xs font-medium text-[#0044A8] hover:text-[#003380] transition-colors flex items-center gap-1"
-            >
-              <Plus className="w-3 h-3" />
-              Add Category
-            </button>
-          </div>
-        )}
+      {/* Add calendar link */}
+      <div className="px-4 pt-2 pb-1 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => startAdd('calendar')}
+          className="text-xs font-medium text-neutral-600 hover:text-[#0044A8] transition-colors flex items-center gap-1.5 py-1.5 px-0"
+        >
+          <PlusIcon className="h-3.5 w-3.5" />
+          Add calendar
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
@@ -387,9 +315,9 @@ export function LeftSidebar({
                   className="p-0.5 hover:bg-neutral-200 rounded transition-colors"
                 >
                   {expandedCalendars.has(calendar.id) ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
+                    <ChevronDownIcon className="h-3.5 w-3.5 text-neutral-500" />
                   ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />
+                    <ChevronRightIcon className="h-3.5 w-3.5 text-neutral-500" />
                   )}
                 </button>
                 <button
@@ -397,7 +325,7 @@ export function LeftSidebar({
                   onClick={() => onFocusCalendar?.(calendar.id)}
                   className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                 >
-                  <CalendarIcon className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                  <CalendarIcon className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                   <span className="text-sm font-bold truncate" style={{ color: calendar.color }}>
                     {calendar.name}
                   </span>
@@ -415,19 +343,11 @@ export function LeftSidebar({
                   <div className="flex gap-1 flex-shrink-0 items-center">
                     <button
                       type="button"
-                      onClick={() => startAdd('category', calendar.id)}
-                      className="p-1 hover:bg-blue-100 rounded transition-colors text-blue-600"
-                      title="Add category under this calendar"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => startEdit('calendar', calendar)}
                       className="p-1 hover:bg-blue-100 rounded transition-colors"
                       title="Edit calendar"
                     >
-                      <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                      <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
                     </button>
                     <button
                       type="button"
@@ -435,7 +355,7 @@ export function LeftSidebar({
                       className="p-1 hover:bg-red-100 rounded transition-colors"
                       title="Delete"
                     >
-                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                      <TrashIcon className="h-3.5 w-3.5 text-red-600" />
                     </button>
                   </div>
                 )}
@@ -443,9 +363,157 @@ export function LeftSidebar({
             )}
 
             {expandedCalendars.has(calendar.id) && (
-              <div className="ml-5 mt-1 space-y-1">
+              <div className="ml-10 mt-1 space-y-1">
+                {(categoriesByCalendar.get(calendar.id) ?? []).map((category) => (
+                  <div key={category.id}>
+                    {editingId === category.id && editingType === 'category' ? (
+                      <InlineEditForm
+                        name={editName}
+                        setName={setEditName}
+                        color={editColor}
+                        setColor={setEditColor}
+                        showColor
+                        onSave={saveEdit}
+                        onCancel={cancelEdit}
+                      />
+                    ) : (
+                      <div className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpandCategory(category.id)}
+                          className="p-0.5 hover:bg-neutral-200 rounded transition-colors"
+                        >
+                          {expandedCategories.has(category.id) ? (
+                            <ChevronDownIcon className="h-3.5 w-3.5 text-neutral-500" />
+                          ) : (
+                            <ChevronRightIcon className="h-3.5 w-3.5 text-neutral-500" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onFocusCategory?.(category.id)}
+                          className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+                        >
+                          <FolderIcon className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                          <span className="text-sm text-neutral-700 truncate">{category.name}</span>
+                        </button>
+                        {isEditMode && (
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEdit('category', category)}
+                              className="p-1 hover:bg-blue-100 rounded transition-colors"
+                              title="Edit"
+                            >
+                              <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete('category', category.id)}
+                              className="p-1 hover:bg-red-100 rounded transition-colors"
+                              title="Delete"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5 text-red-600" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {expandedCategories.has(category.id) && (
+                      <div className="ml-8 mt-1 space-y-1">
+                        {(tagsByCalendarCategory.get(`${calendar.id}:${category.id}`) ?? []).map((tag) =>
+                          editingId === tag.id && editingType === 'tag' ? (
+                            <div key={tag.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                              <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <button type="button" onClick={saveEdit} className="flex-1 px-3 py-1.5 bg-[#0044A8] text-white text-sm rounded hover:bg-[#003380] transition-colors">
+                                  Save
+                                </button>
+                                <button type="button" onClick={cancelEdit} className="px-3 py-1.5 bg-neutral-200 text-neutral-700 text-sm rounded hover:bg-neutral-300 transition-colors">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div key={tag.id} className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
+                              <span className="w-3.5 flex-shrink-0" />
+                              <TagIcon className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
+                              <span className="flex-1 text-sm text-neutral-600 truncate min-w-0">{tag.name}</span>
+                              {isEditMode && (
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit('tag', tag)}
+                                    className="p-1 hover:bg-blue-100 rounded transition-colors"
+                                    title="Edit"
+                                  >
+                                    <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete('tag', tag.id)}
+                                    className="p-1 hover:bg-red-100 rounded transition-colors"
+                                    title="Delete"
+                                  >
+                                    <TrashIcon className="h-3.5 w-3.5 text-red-600" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        )}
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => startAdd('tag', category.id)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
+                          >
+                            <PlusIcon className="h-3 w-3" />
+                            Add Tag
+                          </button>
+                        )}
+                        {isAdding && addingType === 'tag' && addingParentId === category.id && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                            <input
+                              type="text"
+                              value={addName}
+                              onChange={(e) => setAddName(e.target.value)}
+                              placeholder="Tag name"
+                              className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button type="button" onClick={saveAdd} className="flex-1 px-3 py-1.5 bg-[#0044A8] text-white text-sm rounded hover:bg-[#003380] transition-colors">
+                                Save
+                              </button>
+                              <button type="button" onClick={cancelAdd} className="px-3 py-1.5 bg-neutral-200 text-neutral-700 text-sm rounded hover:bg-neutral-300 transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
                 {isEditMode && (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => startAdd('category', calendar.id)}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
+                    >
+                      <PlusIcon className="h-3 w-3" />
+                      Add Category
+                    </button>
                     {isAdding && addingType === 'category' && addingParentId === calendar.id && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
                         <p className="text-xs font-medium text-neutral-600">Add or attach a category</p>
@@ -482,148 +550,6 @@ export function LeftSidebar({
                     )}
                   </>
                 )}
-                {(categoriesByCalendar.get(calendar.id) ?? []).map((category) => (
-                  <div key={category.id}>
-                    {editingId === category.id && editingType === 'category' ? (
-                      <InlineEditForm
-                        name={editName}
-                        setName={setEditName}
-                        color={editColor}
-                        setColor={setEditColor}
-                        showColor
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
-                      />
-                    ) : (
-                      <div className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpandCategory(category.id)}
-                          className="p-0.5 hover:bg-neutral-200 rounded transition-colors"
-                        >
-                          {expandedCategories.has(category.id) ? (
-                            <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onFocusCategory?.(category.id)}
-                          className="flex-1 flex items-center gap-1.5 text-left min-w-0"
-                        >
-                          <FolderKanban className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
-                          <span className="text-sm text-neutral-700 truncate">{category.name}</span>
-                        </button>
-                        {isEditMode && (
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => startEdit('category', category)}
-                              className="p-1 hover:bg-blue-100 rounded transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-3.5 h-3.5 text-blue-600" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete('category', category.id)}
-                              className="p-1 hover:bg-red-100 rounded transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {expandedCategories.has(category.id) && (
-                      <div className="ml-6 mt-1 space-y-1">
-                        {isEditMode && (
-                          <button
-                            type="button"
-                            onClick={() => startAdd('tag', category.id)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-neutral-500 hover:text-[#0044A8] hover:bg-neutral-50 rounded-lg transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Add Tag
-                          </button>
-                        )}
-
-                        {isAdding && addingType === 'tag' && addingParentId === category.id && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                            <input
-                              type="text"
-                              value={addName}
-                              onChange={(e) => setAddName(e.target.value)}
-                              placeholder="Tag name"
-                              className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              autoFocus
-                            />
-                            <div className="flex gap-2">
-                              <button type="button" onClick={saveAdd} className="flex-1 px-3 py-1.5 bg-[#0044A8] text-white text-sm rounded hover:bg-[#003380] transition-colors">
-                                Save
-                              </button>
-                              <button type="button" onClick={cancelAdd} className="px-3 py-1.5 bg-neutral-200 text-neutral-700 text-sm rounded hover:bg-neutral-300 transition-colors">
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {(tagsByCalendarCategory.get(`${calendar.id}:${category.id}`) ?? []).map((tag) =>
-                          editingId === tag.id && editingType === 'tag' ? (
-                            <div key={tag.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                              <input
-                                type="text"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm bg-white border border-neutral-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                autoFocus
-                              />
-                              <div className="flex gap-2">
-                                <button type="button" onClick={saveEdit} className="flex-1 px-3 py-1.5 bg-[#0044A8] text-white text-sm rounded hover:bg-[#003380] transition-colors">
-                                  Save
-                                </button>
-                                <button type="button" onClick={cancelEdit} className="px-3 py-1.5 bg-neutral-200 text-neutral-700 text-sm rounded hover:bg-neutral-300 transition-colors">
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div key={tag.id} className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
-                              <span className="w-3.5 flex-shrink-0" />
-                              <TagIcon className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-                              <span className="flex-1 text-sm text-neutral-600 truncate min-w-0">{tag.name}</span>
-                              {isEditMode && (
-                                <div className="flex gap-1 flex-shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => startEdit('tag', tag)}
-                                    className="p-1 hover:bg-blue-100 rounded transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5 text-blue-600" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete('tag', tag.id)}
-                                    className="p-1 hover:bg-red-100 rounded transition-colors"
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -632,30 +558,33 @@ export function LeftSidebar({
 
       {planVsActualSection && (
         <div className="flex-shrink-0 border-t border-neutral-100">
-          {isPlanVsActualOpen ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsPlanVsActualOpen(false)}
-                className="absolute top-2 right-3 p-1 rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
-                title="Hide plan vs actual"
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-              </button>
-              {planVsActualSection}
-            </div>
-          ) : (
+          {/* Header: label left, eye right (same structure as Organization) */}
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-transparent">
+            <span className="text-[8px] font-medium text-neutral-500 tracking-wide">
+              Plan vs Actual
+            </span>
             <button
               type="button"
-              onClick={() => setIsPlanVsActualOpen(true)}
-              className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-medium text-neutral-500 uppercase tracking-wide hover:bg-neutral-50 transition-colors"
+              onClick={() => setIsPlanVsActualOpen(!isPlanVsActualOpen)}
+              className="p-2 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
+              title={isPlanVsActualOpen ? 'Hide' : 'Show'}
+              aria-label={isPlanVsActualOpen ? 'Hide Plan vs Actual' : 'Show Plan vs Actual'}
             >
-              <span>Plan vs Actual</span>
-              <Eye className="w-3.5 h-3.5 text-neutral-400" />
+              {isPlanVsActualOpen ? (
+                <EyeSlashIcon className="h-4 w-4" />
+              ) : (
+                <EyeIcon className="h-4 w-4" />
+              )}
             </button>
+          </div>
+          {isPlanVsActualOpen && (
+            <div className="px-4 pb-4">
+              {planVsActualSection}
+            </div>
           )}
         </div>
       )}
+
 
       {onEndDay && endDayLabel && (
         <div className="flex-shrink-0 px-4 py-2 border-t border-neutral-100">

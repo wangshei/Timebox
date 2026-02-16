@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { EditColorModal } from './EditColorModal';
@@ -89,7 +89,7 @@ export function SettingsSidePanel({
               className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-300"
             />
             <button type="submit" className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 shrink-0" title="Add">
-              <Plus className="w-3.5 h-3.5" />
+              <PlusIcon className="h-3.5 w-3.5" />
             </button>
           </form>
           <div className="space-y-0.5">
@@ -101,10 +101,10 @@ export function SettingsSidePanel({
               >
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{c.name}</span>
                 <button type="button" onClick={() => setEditingCalendarId(c.id)} className="p-1 rounded text-neutral-400 hover:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">
-                  <Pencil className="w-3 h-3" />
+                  <PencilIcon className="h-3 w-3" />
                 </button>
                 <button type="button" onClick={() => onDeleteCalendar(c.id)} className="p-1 rounded text-neutral-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">
-                  <Trash2 className="w-3 h-3" />
+                  <TrashIcon className="h-3 w-3" />
                 </button>
               </div>
             ))}
@@ -123,7 +123,7 @@ export function SettingsSidePanel({
               className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-300"
             />
             <button type="submit" className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 shrink-0" title="Add">
-              <Plus className="w-3.5 h-3.5" />
+              <PlusIcon className="h-3.5 w-3.5" />
             </button>
           </form>
           {calendarContainers.length > 0 && (
@@ -148,10 +148,10 @@ export function SettingsSidePanel({
               >
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{c.name}</span>
                 <button type="button" onClick={() => setEditingCategoryId(c.id)} className="p-1 rounded text-neutral-400 hover:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">
-                  <Pencil className="w-3 h-3" />
+                  <PencilIcon className="h-3 w-3" />
                 </button>
                 <button type="button" onClick={() => onDeleteCategory(c.id)} className="p-1 rounded text-neutral-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">
-                  <Trash2 className="w-3 h-3" />
+                  <TrashIcon className="h-3 w-3" />
                 </button>
               </div>
             ))}
@@ -182,7 +182,7 @@ export function SettingsSidePanel({
               </select>
             )}
             <button type="submit" className="p-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 shrink-0" title="Add">
-              <Plus className="w-3.5 h-3.5" />
+              <PlusIcon className="h-3.5 w-3.5" />
             </button>
           </form>
           <div className="space-y-0.5">
@@ -191,10 +191,10 @@ export function SettingsSidePanel({
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{t.name}</span>
                 {t.type && <span className="text-[10px] text-neutral-400">{t.type}</span>}
                 <button type="button" onClick={() => setEditingTagId(t.id)} className="p-1 rounded text-neutral-400 hover:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">
-                  <Pencil className="w-3 h-3" />
+                  <PencilIcon className="h-3 w-3" />
                 </button>
                 <button type="button" onClick={() => onDeleteTag(t.id)} className="p-1 rounded text-neutral-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">
-                  <Trash2 className="w-3 h-3" />
+                  <TrashIcon className="h-3 w-3" />
                 </button>
               </div>
             ))}

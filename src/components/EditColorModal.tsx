@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
-import { PALETTE_COLORS } from '../constants/colors';
+import { XMarkIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { ColorPicker } from './ColorPicker';
 import type { CalendarContainer } from '../types';
 
 interface EditColorModalProps {
@@ -54,7 +54,7 @@ export function EditColorModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500 transition-colors">
-            <X className="w-4 h-4" />
+            <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-5">
@@ -84,35 +84,12 @@ export function EditColorModal({
               </select>
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
-            <div className="grid grid-cols-4 gap-2">
-              {PALETTE_COLORS.map(({ name: n, value: hex }, i) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setColor(hex)}
-                  className={`aspect-square rounded-lg border-2 transition-all flex-shrink-0 ${
-                    color.toLowerCase() === hex.toLowerCase()
-                      ? 'border-neutral-400 ring-2 ring-neutral-300'
-                      : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
-                  style={{ backgroundColor: hex }}
-                  title={n}
-                  aria-label={n}
-                />
-              ))}
-              <label className="aspect-square rounded-lg border-2 border-neutral-200 hover:border-neutral-300 cursor-pointer flex items-center justify-center overflow-hidden">
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-full h-full cursor-pointer opacity-0 absolute inset-0"
-                />
-                <span className="text-[10px] text-neutral-500 px-1">Custom</span>
-              </label>
-            </div>
-          </div>
+          <ColorPicker
+            label="Color"
+            value={color}
+            onChange={setColor}
+            swatchSize="md"
+          />
           <div className="flex items-center justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors">
               Cancel
@@ -122,7 +99,7 @@ export function EditColorModal({
               disabled={!name.trim()}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none rounded-lg transition-colors"
             >
-              <Check className="w-4 h-4" />
+              <CheckIcon className="h-4 w-4" />
               Save
             </button>
           </div>

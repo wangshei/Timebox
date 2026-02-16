@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task } from '../types';
 import { resolveTimeBlocks } from '../utils/dataResolver';
 import { DayView } from './DayView';
@@ -150,13 +150,13 @@ export function CalendarView({
                 onClick={navigatePrevious}
                 className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
               >
-                <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+                <ChevronLeftIcon className="h-4 w-4 md:h-5 md:w-5" />
               </button>
               <button
                 onClick={navigateNext}
                 className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
               >
-                <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+                <ChevronRightIcon className="h-4 w-4 md:h-5 md:w-5" />
               </button>
             </div>
             <div className="min-w-0">
@@ -213,7 +213,7 @@ export function CalendarView({
                 onClick={navigateToday}
                 className="px-2 py-1 text-xs text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-md transition-colors flex items-center gap-1 border border-neutral-100"
               >
-                <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+                <CalendarIcon className="h-3.5 w-3.5 text-neutral-500" />
                 Today
               </button>
             )}
@@ -312,7 +312,7 @@ export function CalendarView({
           className="absolute bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow transition-all flex items-center justify-center"
           aria-label="Add task or event"
         >
-          <Plus className="w-6 h-6 text-neutral-600" />
+          <PlusIcon className="h-6 w-6 text-neutral-600" />
         </button>
       )}
     </div>

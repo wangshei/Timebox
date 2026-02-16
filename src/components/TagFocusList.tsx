@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag as TagIcon } from 'lucide-react';
+import { TagIcon } from '@heroicons/react/24/solid';
 import type { Tag } from '../types';
 
 const TAG_DOT_COLOR = '#6b7280';

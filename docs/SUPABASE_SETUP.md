@@ -2,9 +2,30 @@
 
 Project URL and keys are stored in **`.env`** (gitignored). Do not commit real keys.
 
-- **`.env.example`** — lists variable names; copy to `.env` and fill in from [Supabase Dashboard](https://supabase.com/dashboard/project/_/settings/api).
+---
+
+## New project checklist
+
+**1. New Supabase accounts don’t include our tables.**  
+Create the tables by running the SQL in **§1 Expected schema** and **§2 RLS** below in the Supabase Dashboard → **SQL Editor**.
+
+**2. Yes, enable Row Level Security (RLS).**  
+RLS is what makes each user see only their own data. The message “anonymous users will not be able to read/write” refers to unauthenticated requests. In this app, users **sign in with a magic link**; after sign-in, requests use their JWT, so RLS allows read/write for their `user_id`. Enable RLS and add the policies in §2.
+
+**3. Keys — what to use and what not to share.**
+
+- **Use in the app (in `.env`):** `VITE_SUPABASE_URL` and **`VITE_SUPABASE_ANON_KEY`** (the “anon” / public key from Dashboard → Settings → API). The app only needs these two; they are safe in the frontend.
+- **Do not put in the app and do not share with anyone:** the **service_role** (secret) key. It bypasses RLS and must only be used in a secure server environment. You do **not** need to give a secret key to anyone for this app to work.
+
+- **`.env.example`** — lists variable names; copy to `.env` and fill in from [Supabase Dashboard](https://supabase.com/dashboard/project/_/settings/api) (Project URL + anon public key).
 - **Frontend** uses only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- **`SUPABASE_SERVICE_ROLE_KEY`** — use only server-side (e.g. Edge Functions, backend); never in client code.
+- **`SUPABASE_SERVICE_ROLE_KEY`** — use only server-side (e.g. Edge Functions, backend); never in client code or in this Timebox frontend.
+
+**Magic link (email sign-in):**
+
+- The app sends `emailRedirectTo: window.location.origin + pathname` so the link returns to the same URL you’re on (e.g. `http://localhost:3001/`).
+- In [Supabase Dashboard](https://supabase.com/dashboard) → **Authentication** → **URL Configuration**, add your app URL(s) under **Redirect URLs** (e.g. `http://localhost:3000`, `http://localhost:3001`). If the redirect URL isn’t listed, the magic link will fail.
+- Magic links expire (default 1 hour). If you see “Email link is invalid or has expired”, request a new link from the app; the UI will show a short message and let you try again.
 
 ---
 
@@ -90,6 +111,7 @@ create table if not exists events (
 Enable RLS on each table, then add policies so each user can only see and modify their own rows:
 
 ```sql
+-- Enable RLS on every table
 alter table calendar_containers enable row level security;
 alter table categories enable row level security;
 alter table tags enable row level security;
@@ -97,6 +119,10 @@ alter table tasks enable row level security;
 alter table time_blocks enable row level security;
 alter table events enable row level security;
 
+-- IMPORTANT: You must create policies for EVERY table below.
+-- If RLS is enabled but no policies exist, ALL operations are denied by default.
+
+-- calendar_containers
 create policy "Users can read own calendar_containers"
   on calendar_containers for select
   using (auth.uid() = user_id);
@@ -106,7 +132,7 @@ create policy "Users can write own calendar_containers"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Repeat for each table, replacing the table name:
+-- categories
 create policy "Users can read own categories"
   on categories for select
   using (auth.uid() = user_id);
@@ -116,7 +142,45 @@ create policy "Users can write own categories"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- ...same pattern for tags, tasks, time_blocks, events.
+-- tags
+create policy "Users can read own tags"
+  on tags for select
+  using (auth.uid() = user_id);
+
+create policy "Users can write own tags"
+  on tags for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- tasks
+create policy "Users can read own tasks"
+  on tasks for select
+  using (auth.uid() = user_id);
+
+create policy "Users can write own tasks"
+  on tasks for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- time_blocks
+create policy "Users can read own time_blocks"
+  on time_blocks for select
+  using (auth.uid() = user_id);
+
+create policy "Users can write own time_blocks"
+  on time_blocks for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- events
+create policy "Users can read own events"
+  on events for select
+  using (auth.uid() = user_id);
+
+create policy "Users can write own events"
+  on events for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 ```
 
 This matches the queries in `src/supabasePersistence.ts`, which always filter by `user_id`.
@@ -134,4 +198,4 @@ This matches the queries in `src/supabasePersistence.ts`, which always filter by
   - `loadSupabaseState()` reads all tables for the current `user_id` and hydrates the Zustand store.
   - `startSupabasePersistence()` subscribes to store changes and mirrors the current state into Supabase for that user.
 
-When you **edit the calendar or tasks in the UI while signed in**, the store updates, and Supabase is kept in sync automatically.
+When you **edit the calendar or tasks in the UI while signed in**, the store updates, and Supabase is kept in sync automatically. The store uses Zustand’s `subscribeWithSelector` middleware so the persistence subscription runs only when the persisted slice changes. When **not signed in**, changes are stored in the browser (localStorage) only and do not sync to Supabase until you sign in.

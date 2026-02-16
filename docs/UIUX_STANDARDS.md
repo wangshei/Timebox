@@ -47,7 +47,28 @@ Side panel for **Calendars / Categories / Tags** should be **editable** (add, re
 
 ---
 
-## 5. Accessibility and responsiveness
+## 5. Text hierarchy (typography)
+
+Use a single hierarchy so the same level of content has the same size everywhere.
+
+| Level | Use case | Tailwind | Notes |
+|-------|----------|----------|--------|
+| **Page/section title** | Modal title, panel heading | `text-base font-semibold text-neutral-900` or `text-lg font-medium` | One per modal or major section |
+| **Section heading** | "Calendars", "Categories", "Unscheduled Tasks" | `text-sm font-medium text-neutral-700` or `text-neutral-500` | Section labels in sidebars and forms |
+| **Body / list** | List items, card text, form value | `text-sm text-neutral-700` or `text-neutral-800` | Default readable size |
+| **Label** | Form labels (Name, Color, Date) | `text-sm font-medium text-neutral-700` | Same as section heading when inline with inputs |
+| **Caption / secondary** | Hints, range labels, "Overview" | `text-xs text-neutral-500` or `text-neutral-600` | Smaller than body |
+| **Overline / category** | "ORGANIZATION", small caps | `text-[10px] font-medium text-neutral-500 uppercase tracking-wide` | Sparingly for grouping |
+
+Rules:
+- **Modals:** Title = `text-base font-semibold`; form labels = `text-sm font-medium text-neutral-700`; body/inputs = `text-sm`.
+- **Sidebars:** Section headings = `text-sm font-medium text-neutral-500`; list items = `text-sm text-neutral-700`; overline = `text-[10px] uppercase`.
+- **Buttons:** Primary action text = `text-sm font-medium`; secondary/cancel = `text-sm font-medium` or `text-xs` for compact.
+- **Toggles (Day/Week/Month, Today/Week/Month):** Use `text-xs font-medium` so they match across calendar and Tasks panel.
+
+---
+
+## 6. Accessibility and responsiveness
 
 - **Keyboard:** Tab through focusable elements; Enter/Space activate buttons. Calendar blocks and task cards should be focusable and activatable from keyboard.
 - **Screen readers:** Labels on controls; live region for "block added" / "task created" where it helps. Headings for main regions (e.g. "Calendar," "Backlog").
@@ -56,7 +77,7 @@ Side panel for **Calendars / Categories / Tags** should be **editable** (add, re
 
 ---
 
-## 6. "Is this the most intuitive way?" checklist
+## 7. "Is this the most intuitive way?" checklist
 
 Before shipping a UI change, ask:
 
@@ -71,7 +92,32 @@ If any answer is no, adjust the design or document the exception (e.g. "Month vi
 
 ---
 
-## 7. References
+## 8. Icons
+
+- **Package:** Use **@heroicons/react** for core UI and interface icons.
+- **Import:** Use the `/24/solid` set for primary UI actions and interface icons; use `/24/outline` for secondary or less prominent actions.
+
+  ```tsx
+  import { CalendarIcon } from "@heroicons/react/24/solid";
+  <CalendarIcon className="h-6 w-6 text-gray-800" />
+  ```
+
+  Best for: Core UI actions, navigation, and interface icons. Use a single icon library project-wide for consistency.
+
+- **Icon sizing (use Tailwind `h-*` / `w-*` consistently):**
+
+  | Use case | Class | Notes |
+  |----------|--------|------|
+  | Inline with body text, list bullets, compact controls | `h-4 w-4` | Matches ~16px text |
+  | Buttons, nav items, form labels, table headers | `h-5 w-5` | Default for most buttons and nav |
+  | Primary actions, section headers, feature callouts | `h-6 w-6` | Emphasized UI elements |
+  | Empty states, onboarding, large CTAs | `h-8 w-8` or `h-10 w-10` | Sparingly, for emphasis |
+
+  Prefer `h-X w-X` (square) so icons don’t stretch. Use `text-*` (e.g. `text-gray-800`, `text-neutral-500`) for color; avoid inline `style` for icon color.
+
+---
+
+## 9. References
 
 - **Notion:** Sidebar grouping, database views, simple property editing. Use as reference for side panel (Calendars / Categories / Tags) and grouping (e.g. categories under "Personal care").
 - **Google Calendar:** Day/Week/Month grid, event creation from slot click, calendar visibility toggles. Use for grid behavior and visibility, not for task-first or Planning vs Recording (we add those).

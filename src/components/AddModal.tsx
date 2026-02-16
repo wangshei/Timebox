@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Tag as TagIcon, GripVertical } from 'lucide-react';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/solid';
 import { Category, Tag } from '../App';
+import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import type { CalendarContainer, Task, TimeBlock } from '../types';
 
 type AddMode = 'task' | 'event';
@@ -36,6 +37,10 @@ interface AddModalProps {
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
+  /** Create a category (e.g. from typed name); return the new category. Used for type-to-add. */
+  onAddCategory?: (c: Omit<Category, 'id'>) => Category;
+  /** Create a tag under a category; return the new tag. Used for type-to-add. */
+  onAddTag?: (t: Omit<Tag, 'id'>) => Tag;
 }
 
 const PANEL_WIDTH = 380;
@@ -55,6 +60,8 @@ export function AddModal({
   onUpdateTimeBlock,
   onAddEvent,
   onRequireCalendar,
+  onAddCategory,
+  onAddTag,
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -64,6 +71,8 @@ export function AddModal({
   const [endTime, setEndTime] = useState('10:00');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [categoryInput, setCategoryInput] = useState('');
+  const [tagInput, setTagInput] = useState('');
   // Use real calendars when available; fall back to seed IDs only in legacy/no-Supabase scenarios.
   const defaultCalendars = [
     { id: 'personal', name: 'Personal', color: '#86C0F4' },
@@ -141,19 +150,35 @@ export function AddModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const fallbackCategory = selectedCategory ?? categories[0] ?? null;
     const fallbackCalendar =
       selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? '');
-
-    if (!fallbackCategory || !fallbackCalendar) {
-      // If there is no calendar configured yet, nudge user into calendar creation.
-      if (!calendars.length && onRequireCalendar) {
-        onRequireCalendar();
-      }
+    if (!fallbackCalendar) {
+      if (!calendars.length && onRequireCalendar) onRequireCalendar();
       return;
     }
 
-    // When editing an existing time block (e.g. created by drag), always treat as event submit.
+    // Resolve category: use selected, or create from typed name if we have onAddCategory
+    let categoryToUse = selectedCategory ?? categories.find((c) => c.calendarContainerId === fallbackCalendar) ?? null;
+    if (!categoryToUse && categoryInput.trim() && onAddCategory) {
+      categoryToUse = onAddCategory({
+        name: categoryInput.trim(),
+        color: DEFAULT_PALETTE_COLOR,
+        calendarContainerId: fallbackCalendar,
+      });
+    }
+    if (!categoryToUse) return;
+
+    // Resolve tags: selectedTags + create from tagInput (comma-separated) under categoryToUse
+    let tagsToUse = [...selectedTags];
+    if (tagInput.trim() && onAddTag) {
+      const names = tagInput.split(',').map((s) => s.trim()).filter(Boolean);
+      for (const name of names) {
+        const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === categoryToUse!.id);
+        if (existing) tagsToUse.push(existing);
+        else tagsToUse.push(onAddTag({ name, categoryId: categoryToUse.id }));
+      }
+    }
+
     if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
         title,
@@ -161,15 +186,15 @@ export function AddModal({
         end: endTime,
         date,
         calendarContainerId: fallbackCalendar,
-        categoryId: fallbackCategory.id,
-        tagIds: selectedTags.map((t) => t.id),
+        categoryId: categoryToUse.id,
+        tagIds: tagsToUse.map((t) => t.id),
       });
     } else if (mode === 'task') {
       onAddTask({
         title,
         estimatedHours,
-        category: fallbackCategory,
-        tags: selectedTags,
+        category: categoryToUse,
+        tags: tagsToUse,
         calendar: fallbackCalendar,
       });
     } else {
@@ -178,13 +203,12 @@ export function AddModal({
         startTime,
         endTime,
         date,
-        category: fallbackCategory,
-        tags: selectedTags,
+        category: categoryToUse,
+        tags: tagsToUse,
         calendar: fallbackCalendar,
       });
     }
 
-    // Reset form
     setTitle('');
     setEstimatedHours(1);
     setDate(new Date().toISOString().split('T')[0]);
@@ -192,6 +216,8 @@ export function AddModal({
     setEndTime('10:00');
     setSelectedCategory(categories[0] || null);
     setSelectedTags([]);
+    setCategoryInput('');
+    setTagInput('');
     setSelectedCalendar(calendars[0]?.id ?? 'personal');
     onClose();
   };
@@ -231,14 +257,14 @@ export function AddModal({
             dragStart.current = { x: e.clientX, y: e.clientY, left: panelPos.x, top: panelPos.y };
           }}
         >
-          <GripVertical className="w-4 h-4 text-neutral-400 shrink-0" />
+          <Bars3Icon className="h-4 w-4 text-neutral-400 shrink-0" />
           <h2 className="text-sm font-medium text-neutral-900 flex-1 truncate">
             {mode === 'task'
               ? (editingTask ? 'Edit Task' : 'Add Task')
               : (editingTimeBlock ? 'Edit Event' : 'Add Event')}
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors shrink-0">
-            <X className="w-4 h-4 text-neutral-500" />
+            <XMarkIcon className="h-4 w-4 text-neutral-500" />
           </button>
         </div>
 
@@ -256,8 +282,12 @@ export function AddModal({
           </div>
         )}
 
-        {/* Form — compact, scrollable */}
-        <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Form — compact, scrollable; primary button is type="submit" so Enter submits */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 min-h-0 flex flex-col overflow-hidden"
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal' : 'e.g., Team meeting'} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" autoFocus />
@@ -318,7 +348,7 @@ export function AddModal({
                 onClick={onRequireCalendar}
                 className="w-full px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-dashed border-blue-300 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1.5"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <PlusIcon className="h-3.5 w-3.5" />
                 Add a calendar to schedule events
               </button>
             ) : (
@@ -345,64 +375,122 @@ export function AddModal({
             <label className="block text-xs font-medium text-neutral-600 mb-1">
               Category (type of activity — color on block)
             </label>
+            <input
+              type="text"
+              value={categoryInput}
+              onChange={(e) => setCategoryInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const name = categoryInput.trim();
+                  if (!name) return;
+                  const forCalendar = categories.filter((c) => c.calendarContainerId === selectedCalendar);
+                  const existing = forCalendar.find((c) => c.name.toLowerCase() === name.toLowerCase());
+                  if (existing) {
+                    setSelectedCategory(existing);
+                    setCategoryInput('');
+                  } else if (onAddCategory && selectedCalendar) {
+                    const newCat = onAddCategory({ name, color: DEFAULT_PALETTE_COLOR, calendarContainerId: selectedCalendar });
+                    setSelectedCategory(newCat);
+                    setCategoryInput('');
+                  }
+                }
+              }}
+              placeholder="Type category name and press Enter to add or select"
+              className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            />
             <div className="grid grid-cols-2 gap-1.5">
-              {(categories.length
-                ? categories.filter((category) =>
-                    selectedCalendar && category.calendarContainerId
-                      ? category.calendarContainerId === selectedCalendar
-                      : true
-                  )
-                : categories
-              ).map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-2 py-2 rounded-md border transition-all flex items-center gap-1.5 text-xs font-medium ${
-                    selectedCategory?.id === category.id
-                      ? 'border-current shadow-sm'
-                      : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
-                  style={{
-                    color: selectedCategory?.id === category.id ? category.color : '#737373',
-                    backgroundColor: selectedCategory?.id === category.id ? `${category.color}15` : 'transparent',
-                  }}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  {category.name}
-                </button>
-              ))}
+              {categories
+                .filter((category) =>
+                  selectedCalendar && category.calendarContainerId
+                    ? category.calendarContainerId === selectedCalendar
+                    : true
+                )
+                .map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
+                    className={`px-2 py-2 rounded-md border transition-all flex items-center gap-1.5 text-xs font-medium ${
+                      selectedCategory?.id === category.id
+                        ? 'border-current shadow-sm'
+                        : 'border-neutral-200 hover:border-neutral-300'
+                    }`}
+                    style={{
+                      color: selectedCategory?.id === category.id ? category.color : '#737373',
+                      backgroundColor: selectedCategory?.id === category.id ? `${category.color}15` : 'transparent',
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name}
+                  </button>
+                ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Tags (optional — e.g. dance under Hobby)</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Tags (optional — type and press Enter to add)</label>
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  const name = tagInput.trim().replace(/,/g, '');
+                  if (!name) return;
+                  const categoryId = selectedCategory?.id ?? null;
+                  if (!categoryId) return;
+                  const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === categoryId);
+                  if (existing) setSelectedTags((prev) => (prev.some((t) => t.id === existing.id) ? prev : [...prev, existing]));
+                  else if (onAddTag) setSelectedTags((prev) => [...prev, onAddTag({ name, categoryId })]);
+                  setTagInput('');
+                }
+              }}
+              placeholder="Type tag name, press Enter to add"
+              className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            />
             <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => {
-                const isSelected = selectedTags.find(t => t.id === tag.id);
-                return (
-                  <button key={tag.id} type="button" onClick={() => toggleTag(tag)} className={`px-2 py-1 rounded-full text-xs transition-all flex items-center gap-1 ${isSelected ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
-                    <TagIcon className="w-3 h-3" />
+              {selectedTags.map((tag) => (
+                <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-neutral-800 text-white">
+                  <TagIcon className="h-3 w-3" />
+                  {tag.name}
+                </span>
+              ))}
+              {tags
+                .filter((t) => t.categoryId === selectedCategory?.id && !selectedTags.some((s) => s.id === t.id))
+                .map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className="px-2 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-neutral-200 flex items-center gap-1"
+                  >
+                    <TagIcon className="h-3 w-3" />
                     {tag.name}
                   </button>
-                );
-              })}
+                ))}
             </div>
           </div>
-        </form>
+          </div>
 
-        <div className="px-4 py-3 border-t border-neutral-200 flex gap-2 shrink-0 bg-white">
-          <button type="button" onClick={onClose} className="flex-1 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200">
-            Cancel
-          </button>
-          <button type="button" onClick={handleSubmit} disabled={!title.trim() || !selectedCategory} className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
-            <Plus className="w-4 h-4" />
-            {mode === 'task' && editingTask ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
-          </button>
-        </div>
+          <div className="px-4 py-3 border-t border-neutral-200 flex gap-2 shrink-0 bg-white">
+            <button type="button" onClick={onClose} className="flex-1 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || (!selectedCategory && !categoryInput.trim())}
+              className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <PlusIcon className="h-4 w-4" />
+              {mode === 'task' && editingTask ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

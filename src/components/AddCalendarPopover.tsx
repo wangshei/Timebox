@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { CalendarContainer } from '../types';
 import { ColorPicker } from './ColorPicker';
+import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
 interface AddCalendarPopoverProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface AddCalendarPopoverProps {
 
 export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCalendarPopoverProps) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState('#86C0F4');
+  const [color, setColor] = useState(DEFAULT_PALETTE_COLOR);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,9 +34,9 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onAdd({ name: name.trim(), color: color || '#86C0F4' });
+    onAdd({ name: name.trim(), color: color || DEFAULT_PALETTE_COLOR });
     setName('');
-    setColor('#86C0F4');
+    setColor(DEFAULT_PALETTE_COLOR);
     onClose();
   };
 

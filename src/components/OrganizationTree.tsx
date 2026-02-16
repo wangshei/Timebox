@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Calendar, Folder, Tag as TagIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, CalendarIcon, FolderIcon, TagIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarContainerVisibility } from '../types';
 
@@ -77,7 +77,7 @@ export function OrganizationTree({
                 className="p-0.5 rounded text-neutral-400 hover:text-neutral-600 flex-shrink-0"
                 aria-label={expanded ? 'Collapse' : 'Expand'}
               >
-                {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                {expanded ? <ChevronDownIcon className="h-3.5 w-3.5" /> : <ChevronRightIcon className="h-3.5 w-3.5" />}
               </button>
               <input
                 id={`cal-${container.id}`}
@@ -97,7 +97,7 @@ export function OrganizationTree({
                 }`}
                 style={{ borderLeftColor: container.color, backgroundColor: `${container.color}12` }}
               >
-                <Calendar className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+                <CalendarIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                 <span className="truncate">{container.name}</span>
               </button>
             </div>
@@ -115,7 +115,7 @@ export function OrganizationTree({
                           className="p-0.5 rounded text-neutral-400 hover:text-neutral-600 flex-shrink-0"
                           aria-label={catExpanded ? 'Collapse' : 'Expand'}
                         >
-                          {catExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                          {catExpanded ? <ChevronDownIcon className="h-3 w-3" /> : <ChevronRightIcon className="h-3 w-3" />}
                         </button>
                         <button
                           type="button"
@@ -125,7 +125,7 @@ export function OrganizationTree({
                           }`}
                           style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
                         >
-                          <Folder className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+                          <FolderIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                           <span className="truncate">{cat.name}</span>
                         </button>
                       </div>
@@ -137,7 +137,7 @@ export function OrganizationTree({
                               className="flex items-center justify-start gap-2 pl-1.5 pr-1.5 py-1 rounded text-left text-sm text-neutral-700 min-w-0"
                             >
                               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: TAG_DOT_COLOR }} />
-                              <TagIcon className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
+                              <TagIcon className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
                               <span className="truncate">{tag.name}</span>
                             </div>
                           ))}
@@ -165,7 +165,7 @@ export function OrganizationTree({
                 }`}
                 style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
               >
-                <Folder className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+                <FolderIcon className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
                 <span className="truncate">{cat.name}</span>
               </button>
             ))}

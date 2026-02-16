@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 export interface ScheduleTaskParams {
   date: string;
@@ -59,7 +59,7 @@ export function ScheduleTaskModal({
             onClick={onClose}
             className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-neutral-500" />
+            <XMarkIcon className="h-5 w-5 text-neutral-500" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder } from 'lucide-react';
+import { FolderIcon } from '@heroicons/react/24/solid';
 import type { Category } from '../types';
 
 interface CategoryFocusListProps {
@@ -29,7 +29,7 @@ export function CategoryFocusList({
           }`}
           style={{ borderLeftColor: cat.color, backgroundColor: `${cat.color}18` }}
         >
-          <Folder className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+          <FolderIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
           <span className="flex-1 truncate">{cat.name}</span>
         </button>
       ))}

@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import type {
   Task,
   TimeBlock,
@@ -104,10 +105,10 @@ export interface AppActions {
   addCalendarContainer: (c: Omit<CalendarContainer, 'id'>) => void;
   updateCalendarContainer: (id: string, updates: Partial<CalendarContainer>) => void;
   deleteCalendarContainer: (id: string) => void;
-  addCategory: (c: Omit<Category, 'id'>) => void;
+  addCategory: (c: Omit<Category, 'id'>) => Category;
   updateCategory: (id: string, updates: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
-  addTag: (t: Omit<Tag, 'id'>) => void;
+  addTag: (t: Omit<Tag, 'id'>) => Tag;
   updateTag: (id: string, updates: Partial<Tag>) => void;
   deleteTag: (id: string) => void;
 
@@ -128,7 +129,8 @@ function generateId(): string {
 
 // --- Store ---
 
-export const useStore = create<AppState & AppActions>((set, get) => ({
+export const useStore = create<AppState & AppActions>()(
+  subscribeWithSelector((set, get) => ({
   ...getInitialState(),
 
   setViewMode: (mode) => set({ viewMode: mode }),
@@ -327,10 +329,12 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
         containerVisibility: nextVisibility,
       };
     }),
-  addCategory: (c) =>
-    set((s) => ({
-      categories: [...s.categories, { ...c, id: generateId() }],
-    })),
+  addCategory: (c) => {
+    const id = generateId();
+    const newCategory: Category = { ...c, id };
+    set((s) => ({ categories: [...s.categories, newCategory] }));
+    return newCategory;
+  },
   updateCategory: (id, updates) =>
     set((s) => ({
       categories: s.categories.map((c) => (c.id === id ? { ...c, ...updates } : c)),
@@ -339,10 +343,12 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
     set((s) => ({
       categories: s.categories.filter((c) => c.id !== id),
     })),
-  addTag: (t) =>
-    set((s) => ({
-      tags: [...s.tags, { ...t, id: generateId() }],
-    })),
+  addTag: (t) => {
+    const id = generateId();
+    const newTag: Tag = { ...t, id };
+    set((s) => ({ tags: [...s.tags, newTag] }));
+    return newTag;
+  },
   updateTag: (id, updates) =>
     set((s) => ({
       tags: s.tags.map((t) => (t.id === id ? { ...t, ...updates } : t)),
@@ -357,11 +363,13 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
   setTags: (tags) => set({ tags }),
 
   resetToSeed: () => set(getInitialState()),
-}));
+}))
+);
 
 // --- Local persistence (Phase 2: adapter-ready localStorage layer) ---
 
-const STORAGE_KEY = 'timebox-state-v1';
+/** Bump version to reset cached state so users see new default (e.g. single Personal calendar). */
+const STORAGE_KEY = 'timebox-state-v2';
 
 type PersistedSlice = Pick<
   AppState,

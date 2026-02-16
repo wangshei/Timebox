@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar } from 'lucide-react';
+import { CalendarIcon } from '@heroicons/react/24/solid';
 import { CalendarContainer, CalendarContainerVisibility } from '../types';
 
 interface CalendarContainerListProps {
@@ -39,7 +39,7 @@ export function CalendarContainerList({
             }`}
             style={{ borderLeftColor: container.color, backgroundColor: `${container.color}12` }}
           >
-            <Calendar className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
+            <CalendarIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
             <span className="flex-1 truncate">{container.name}</span>
           </button>
         </div>

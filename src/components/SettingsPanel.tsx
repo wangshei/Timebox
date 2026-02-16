@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Plus, Edit2, Trash2, Calendar as CalendarIcon, FolderKanban, Tag as TagIcon } from 'lucide-react';
+import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
+import { ColorPicker } from './ColorPicker';
+import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -21,19 +23,6 @@ interface SettingsPanelProps {
 
 type TabType = 'calendars' | 'categories' | 'tags';
 
-const colorOptions = [
-  '#0044A8', // Blue
-  '#9F5FB0', // Purple
-  '#13B49F', // Teal
-  '#EC8309', // Orange
-  '#D93D3D', // Red
-  '#E85C8B', // Pink
-  '#8B7355', // Brown
-  '#5B5B5B', // Gray
-  '#7FB800', // Green
-  '#E6B800', // Yellow
-];
-
 export function SettingsPanel({
   isOpen,
   onClose,
@@ -53,17 +42,17 @@ export function SettingsPanel({
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('#0044A8');
+  const [editColor, setEditColor] = useState(DEFAULT_PALETTE_COLOR);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#0044A8');
+  const [newColor, setNewColor] = useState(DEFAULT_PALETTE_COLOR);
 
   if (!isOpen) return null;
 
   const handleStartEdit = (id: string, name: string, color?: string) => {
     setEditingId(id);
     setEditName(name);
-    setEditColor(color || '#0044A8');
+    setEditColor(color || DEFAULT_PALETTE_COLOR);
     setIsAdding(false);
   };
 
@@ -93,23 +82,24 @@ export function SettingsPanel({
     setIsAdding(true);
     setEditingId(null);
     setNewName('');
-    setNewColor('#0044A8');
+    setNewColor(DEFAULT_PALETTE_COLOR);
   };
 
   const handleSaveAdd = () => {
     if (!newName.trim()) return;
 
+    const color = newColor && /^#[0-9A-Fa-f]{6}$/.test(newColor) ? newColor : DEFAULT_PALETTE_COLOR;
     if (activeTab === 'calendars' && onAddCalendar) {
-      onAddCalendar({ name: newName, color: newColor });
+      onAddCalendar({ name: newName.trim(), color });
     } else if (activeTab === 'categories' && onAddCategory) {
-      onAddCategory({ name: newName, color: newColor });
+      onAddCategory({ name: newName.trim(), color });
     } else if (activeTab === 'tags' && onAddTag) {
-      onAddTag({ name: newName });
+      onAddTag({ name: newName.trim() });
     }
 
     setIsAdding(false);
     setNewName('');
-    setNewColor('#0044A8');
+    setNewColor(DEFAULT_PALETTE_COLOR);
   };
 
   const handleDelete = (id: string) => {
@@ -124,7 +114,7 @@ export function SettingsPanel({
 
   const tabs = [
     { id: 'calendars' as const, label: 'Calendars', icon: CalendarIcon },
-    { id: 'categories' as const, label: 'Categories', icon: FolderKanban },
+    { id: 'categories' as const, label: 'Categories', icon: FolderIcon },
     { id: 'tags' as const, label: 'Tags', icon: TagIcon },
   ];
 
@@ -140,7 +130,7 @@ export function SettingsPanel({
             onClick={onClose}
             className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-neutral-500" />
+            <XMarkIcon className="h-5 w-5 text-neutral-500" />
           </button>
         </div>
 
@@ -163,7 +153,7 @@ export function SettingsPanel({
                       : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                   {tab.label}
                 </button>
               );
@@ -188,22 +178,12 @@ export function SettingsPanel({
                         placeholder="Calendar name"
                         autoFocus
                       />
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
-                        <div className="flex gap-2">
-                          {colorOptions.map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setEditColor(c)}
-                              className={`w-8 h-8 rounded-lg transition-all ${
-                                editColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
-                              }`}
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <ColorPicker
+                        label="Color"
+                        value={editColor}
+                        onChange={setEditColor}
+                        swatchSize="sm"
+                      />
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -224,21 +204,21 @@ export function SettingsPanel({
                   ) : (
                     <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: calendar.color }} />
-                      <CalendarIcon className="w-4 h-4 text-neutral-400" />
+                      <CalendarIcon className="h-4 w-4 text-neutral-400" />
                       <span className="flex-1 text-sm text-neutral-700">{calendar.name}</span>
                       <button
                         type="button"
                         onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
                         className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                        <PencilIcon className="h-4 w-4 text-neutral-500" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(calendar.id)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <TrashIcon className="h-4 w-4 text-red-500" />
                       </button>
                     </div>
                   )}
@@ -259,22 +239,12 @@ export function SettingsPanel({
                         placeholder="Category name"
                         autoFocus
                       />
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
-                        <div className="flex gap-2">
-                          {colorOptions.map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setEditColor(c)}
-                              className={`w-8 h-8 rounded-lg transition-all ${
-                                editColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
-                              }`}
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <ColorPicker
+                        label="Color"
+                        value={editColor}
+                        onChange={setEditColor}
+                        swatchSize="sm"
+                      />
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -295,21 +265,21 @@ export function SettingsPanel({
                   ) : (
                     <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
-                      <FolderKanban className="w-4 h-4 text-neutral-400" />
+                      <FolderIcon className="h-4 w-4 text-neutral-400" />
                       <span className="flex-1 text-sm text-neutral-700">{category.name}</span>
                       <button
                         type="button"
                         onClick={() => handleStartEdit(category.id, category.name, category.color)}
                         className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                        <PencilIcon className="h-4 w-4 text-neutral-500" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(category.id)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <TrashIcon className="h-4 w-4 text-red-500" />
                       </button>
                     </div>
                   )}
@@ -349,21 +319,21 @@ export function SettingsPanel({
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
-                      <TagIcon className="w-4 h-4 text-neutral-400" />
+                      <TagIcon className="h-4 w-4 text-neutral-400" />
                       <span className="flex-1 text-sm text-neutral-700">{tag.name}</span>
                       <button
                         type="button"
                         onClick={() => handleStartEdit(tag.id, tag.name)}
                         className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Edit2 className="w-4 h-4 text-neutral-500" />
+                        <PencilIcon className="h-4 w-4 text-neutral-500" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(tag.id)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <TrashIcon className="h-4 w-4 text-red-500" />
                       </button>
                     </div>
                   )}
@@ -382,22 +352,12 @@ export function SettingsPanel({
                   autoFocus
                 />
                 {(activeTab === 'calendars' || activeTab === 'categories') && (
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Color</label>
-                    <div className="flex gap-2">
-                      {colorOptions.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setNewColor(c)}
-                          className={`w-8 h-8 rounded-lg transition-all ${
-                            newColor === c ? 'ring-2 ring-offset-2 ring-neutral-400' : 'hover:scale-110'
-                          }`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <ColorPicker
+                    label="Color"
+                    value={newColor}
+                    onChange={setNewColor}
+                    swatchSize="sm"
+                  />
                 )}
                 <div className="flex gap-2">
                   <button
@@ -422,7 +382,7 @@ export function SettingsPanel({
                 onClick={handleStartAdd}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-neutral-300 rounded-lg text-neutral-500 hover:text-neutral-700 hover:border-neutral-400 transition-colors"
               >
-                <Plus className="w-4 h-4" />
+                <PlusIcon className="h-4 w-4" />
                 Add {activeTab.slice(0, -1)}
               </button>
             )}

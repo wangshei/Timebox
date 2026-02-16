@@ -1,5 +1,9 @@
 import { TimeBlock, Task, Category, Tag, CalendarContainer } from '../types';
 
+/** Fallback when category/container list is empty or ID not found (avoids undefined in resolved block). */
+const FALLBACK_CATEGORY: Category = { id: '__fallback__', name: 'Unknown', color: '#6b7280' };
+const FALLBACK_CONTAINER: CalendarContainer = { id: '__fallback__', name: 'Unknown', color: '#6b7280' };
+
 /**
  * Resolved TimeBlock with full objects instead of IDs
  * Used for component rendering
@@ -20,7 +24,8 @@ export interface ResolvedTimeBlock {
 }
 
 /**
- * Resolve a TimeBlock with full Category, Tag, and CalendarContainer objects
+ * Resolve a TimeBlock with full Category, Tag, and CalendarContainer objects.
+ * Uses fallback category/container when list is empty or ID not found so block never has undefined.
  */
 export function resolveTimeBlock(
   block: TimeBlock,
@@ -29,8 +34,8 @@ export function resolveTimeBlock(
   tags: Tag[],
   containers: CalendarContainer[]
 ): ResolvedTimeBlock {
-  const category = categories.find(c => c.id === block.categoryId) || categories[0];
-  const container = containers.find(c => c.id === block.calendarContainerId) || containers[0];
+  const category = categories.find(c => c.id === block.categoryId) ?? categories[0] ?? FALLBACK_CATEGORY;
+  const container = containers.find(c => c.id === block.calendarContainerId) ?? containers[0] ?? FALLBACK_CONTAINER;
   const blockTags = tags.filter(t => block.tagIds.includes(t.id));
   
   // Resolve title: from linked Task if exists, otherwise from TimeBlock.title

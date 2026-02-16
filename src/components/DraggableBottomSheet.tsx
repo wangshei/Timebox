@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GripHorizontal } from 'lucide-react';
+import { Bars3Icon } from '@heroicons/react/24/solid';
 import { Task, Category, Tag } from '../App';
 import { RightSidebar } from './RightSidebar';
 import type { TimeBlock } from '../types';

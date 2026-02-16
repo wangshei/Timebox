@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
+import { XMarkIcon, CheckIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 
 interface EditTagModalProps {
@@ -49,7 +49,7 @@ export function EditTagModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
           <h2 className="text-base font-semibold text-neutral-900">Edit Tag</h2>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500 transition-colors">
-            <X className="w-4 h-4" />
+            <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-5">
@@ -100,7 +100,7 @@ export function EditTagModal({
               disabled={!name.trim()}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none rounded-lg transition-colors"
             >
-              <Check className="w-4 h-4" />
+              <CheckIcon className="h-4 w-4" />
               Save
             </button>
           </div>

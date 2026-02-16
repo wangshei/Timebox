@@ -1,4 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import {
+  Cog6ToothIcon,
+  CheckIcon,
+  PencilIcon,
+} from '@heroicons/react/24/solid';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
 import { RightSidebar } from './components/RightSidebar';
@@ -58,12 +63,16 @@ export default function App() {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const leftBarDragJustEnded = useRef(false);
+  const rightBarDragJustEnded = useRef(false);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [authErrorFromUrl, setAuthErrorFromUrl] = useState<string | null>(null);
 
   const {
     viewMode: mode,
@@ -409,8 +418,11 @@ export default function App() {
         unsubscribePersistence = undefined;
       }
       if (next) {
-        await loadSupabaseState();
+        // Start persistence subscription BEFORE loading so that the store
+        // changes made by loadSupabaseState (e.g. default Personal calendar)
+        // are captured and saved to Supabase.
         unsubscribePersistence = startSupabasePersistence();
+        await loadSupabaseState();
       }
     };
 
@@ -446,14 +458,32 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setView, setViewMode, setAllCalendarsVisible]);
 
+  // Show friendly message when returning from Supabase with an error (e.g. expired magic link)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.slice(1));
+    const error = params.get('error');
+    const description = params.get('error_description');
+    if (error === 'access_denied' && (params.get('error_code') === 'otp_expired' || description?.toLowerCase().includes('expired'))) {
+      setAuthErrorFromUrl('That sign-in link has expired. Request a new one below.');
+    } else if (error) {
+      setAuthErrorFromUrl(description?.replace(/\+/g, ' ') ?? 'Sign-in failed. Try again.');
+    }
+    if (error && hash) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
+
   const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !authEmail.trim()) return;
     setAuthMessage(null);
+    setAuthErrorFromUrl(null);
     const { error } = await supabase.auth.signInWithOtp({
       email: authEmail.trim(),
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: window.location.origin + window.location.pathname,
       },
     });
     if (error) {
@@ -472,6 +502,7 @@ export default function App() {
             <>
               <span className="text-neutral-500">
                 Signed in as <span className="font-medium text-neutral-800">{session.user.email}</span>
+                <span className="ml-1.5 text-neutral-400">· changes sync to Supabase</span>
               </span>
               <button
                 type="button"
@@ -482,7 +513,12 @@ export default function App() {
               </button>
             </>
           ) : (
-            <form onSubmit={handleSendMagicLink} className="flex items-center gap-2">
+            <form onSubmit={handleSendMagicLink} className="flex items-center gap-2 flex-wrap">
+              {authErrorFromUrl && (
+                <span className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 w-full sm:w-auto">
+                  {authErrorFromUrl}
+                </span>
+              )}
               <input
                 type="email"
                 value={authEmail}
@@ -503,21 +539,37 @@ export default function App() {
       )}
 
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        {/* Left panel — Notion-like: header (logo + add + edit icon), sections left-aligned */}
-        {leftPanelOpen ? (
-          <div className="flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col overflow-hidden" style={{ width: '260px' }}>
-            {/* Header: close left panel; Manage & shortcuts live inside LeftSidebar */}
-            <div className="relative flex items-center justify-end gap-1 px-2 py-2 border-b border-neutral-100 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setLeftPanelOpen(false)}
-                className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors"
-                aria-label="Close left panel"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
+        {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
+        {leftPanelOpen && (
+          <div className="flex-shrink-0 bg-white flex flex-col overflow-hidden" style={{ width: '260px' }}>
+            {/* Header: Organization heading + settings + edit */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-100 flex-shrink-0">
+              <h2 className="text-[8px] font-medium text-neutral-500 tracking-wide">
+                Organization
+              </h2>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+                  title="Settings"
+                  aria-label="Open settings"
+                >
+                  <Cog6ToothIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isEditMode
+                      ? 'bg-blue-50 text-[#0044A8]'
+                      : 'hover:bg-neutral-100 text-neutral-500'
+                  }`}
+                  title={isEditMode ? 'Done editing' : 'Edit organization'}
+                >
+                  {isEditMode ? <CheckIcon className="h-4 w-4" /> : <PencilIcon className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <LeftSidebar
@@ -640,18 +692,54 @@ export default function App() {
                     )}
                   </div>
                 }
-                onOpenSettings={() => setIsSettingsOpen(true)}
-                canEditOrganization={calendarContainers.length > 0 && tasks.length > 0}
+                canEditOrganization={true}
                 isShortcutsOpen={isShortcutsOpen}
                 onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
+                isEditMode={isEditMode}
               />
             </div>
           </div>
-        ) : (
-          <button type="button" onClick={() => setLeftPanelOpen(true)} className="flex-shrink-0 w-10 h-10 mt-2 ml-2 self-start flex items-center justify-center bg-white border border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors rounded-lg" aria-label="Open left panel" title="Open left panel">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
         )}
+        {/* Left bar — 8px, gray center line; click toggles, drag left closes / drag right opens */}
+        <div
+          className="flex-shrink-0 flex cursor-col-resize group"
+          style={{ width: 8, cursor: 'col-resize' }}
+          onClick={() => {
+            if (leftBarDragJustEnded.current) {
+              leftBarDragJustEnded.current = false;
+              return;
+            }
+            setLeftPanelOpen((open) => !open);
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const onMove = (ev: MouseEvent) => {
+              const dx = ev.clientX - startX;
+              if (leftPanelOpen && -dx > 80) {
+                setLeftPanelOpen(false);
+                leftBarDragJustEnded.current = true;
+                cleanup();
+              } else if (!leftPanelOpen && dx > 80) {
+                setLeftPanelOpen(true);
+                leftBarDragJustEnded.current = true;
+                cleanup();
+              }
+            };
+            const cleanup = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', cleanup);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', cleanup);
+          }}
+        >
+          <div className="w-px bg-neutral-200" />
+          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
+          <div className="w-0.5 bg-neutral-300" />
+          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
+          <div className="w-px bg-neutral-200" />
+        </div>
 
         <CalendarView
           mode={mode}
@@ -678,16 +766,51 @@ export default function App() {
           onMoveBlock={handleMoveBlock}
         />
 
-        {/* Right panel — closable */}
-        {rightPanelOpen ? (
-          <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden border-l border-neutral-200 bg-white">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-neutral-500">Tasks</span>
-              </div>
-              <button type="button" onClick={() => setRightPanelOpen(false)} className="p-1.5 rounded text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Close right panel">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </button>
+        {/* Right bar — 8px, gray center line; click toggles, drag right closes / drag left opens */}
+        <div
+          className="flex-shrink-0 flex cursor-col-resize group"
+          style={{ width: 8, cursor: 'col-resize' }}
+          onClick={() => {
+            if (rightBarDragJustEnded.current) {
+              rightBarDragJustEnded.current = false;
+              return;
+            }
+            setRightPanelOpen((open) => !open);
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const onMove = (ev: MouseEvent) => {
+              const dx = ev.clientX - startX;
+              if (rightPanelOpen && dx > 80) {
+                setRightPanelOpen(false);
+                rightBarDragJustEnded.current = true;
+                cleanup();
+              } else if (!rightPanelOpen && -dx > 80) {
+                setRightPanelOpen(true);
+                rightBarDragJustEnded.current = true;
+                cleanup();
+              }
+            };
+            const cleanup = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', cleanup);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', cleanup);
+          }}
+        >
+          <div className="w-px bg-neutral-200" />
+          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
+          <div className="w-0.5 bg-neutral-300" />
+          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
+          <div className="w-px bg-neutral-200" />
+        </div>
+        {/* Right panel */}
+        {rightPanelOpen && (
+          <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden bg-white">
+            <div className="flex items-center px-3 py-2 border-b border-neutral-100">
+              <span className="text-xs font-medium text-neutral-500">Tasks</span>
             </div>
             <div className="flex-1 overflow-hidden">
               <RightSidebar
@@ -708,10 +831,6 @@ export default function App() {
               />
             </div>
           </div>
-        ) : (
-          <button type="button" onClick={() => setRightPanelOpen(true)} className="flex-shrink-0 w-10 flex items-center justify-center py-2 bg-white border-l border-neutral-200 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors" aria-label="Open right panel" title="Open right panel">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
         )}
       </div>
 
@@ -793,6 +912,8 @@ export default function App() {
         onUpdateTimeBlock={updateTimeBlock}
         onAddEvent={handleAddEvent}
         onRequireCalendar={() => setIsSettingsOpen(true)}
+        onAddCategory={addCategory}
+        onAddTag={addTag}
       />
 
       <SettingsPanel
