@@ -247,7 +247,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   return (
     <div
       ref={outerRef}
-      className={`flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 ${
+      className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-4 py-4 md:py-6' : 'px-4 md:px-8 py-4 md:py-6'} ${
         mode === 'compare' && selectedIsPast ? 'bg-neutral-50' : ''
       }`}
     >
@@ -357,8 +357,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {isViewingToday && currentTimeTop != null && (
           <>
             <div
-              className="absolute left-14 md:left-20 right-0 z-30 pointer-events-none bg-red-500"
-              style={{ top: currentTimeTop, height: '2px' }}
+              className="absolute left-14 md:left-20 right-0 z-30 pointer-events-none"
+              style={{
+                top: currentTimeTop,
+                height: 0,
+                width: '100%',
+                borderTop: '3px solid rgb(239 68 68)',
+              }}
               aria-hidden
             />
             <div

@@ -75,6 +75,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authErrorFromUrl, setAuthErrorFromUrl] = useState<string | null>(null);
+  const [visitMode, setVisitMode] = useState(false);
 
   const {
     viewMode: mode,
@@ -115,6 +116,7 @@ export default function App() {
     addEvent,
     updateEvent,
     deleteEvent,
+    convertTimeBlockToEvent,
     setCalendarContainers,
     setCategories,
     setTags,
@@ -233,13 +235,7 @@ export default function App() {
     tags: Tag[];
     calendar: string;
   }) => {
-    // If we were editing a draft timeBlock (from drag-to-create), remove it.
-    if (isDraftTimeBlock && editingTimeBlockId) {
-      deleteTimeBlock(editingTimeBlockId);
-      setEditingTimeBlockId(null);
-      setIsDraftTimeBlock(false);
-    }
-    addEvent({
+    const eventPayload = {
       title: eventData.title,
       calendarContainerId: eventData.calendar,
       categoryId: eventData.category.id,
@@ -247,7 +243,16 @@ export default function App() {
       end: eventData.endTime,
       date: eventData.date,
       recurring: false,
-    });
+    };
+    // If we were editing a draft timeBlock (from drag-to-create),
+    // atomically convert it to an event in a single state change.
+    if (isDraftTimeBlock && editingTimeBlockId) {
+      convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+      setEditingTimeBlockId(null);
+      setIsDraftTimeBlock(false);
+    } else {
+      addEvent(eventPayload);
+    }
   };
 
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
@@ -548,32 +553,38 @@ export default function App() {
     }
   };
 
-  // Auth gate: if Supabase is configured and user is not signed in, show full-page login
-  if (supabase && !session) {
+  // Auth gate — in production, always require sign-in; in dev, allow local-only mode when Supabase isn't configured
+  const requireAuth = import.meta.env.PROD || !!supabase;
+
+  if (requireAuth && !session && !visitMode) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
-        <div className="w-full max-w-[380px] mx-auto px-6">
-          <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 flex flex-col overflow-hidden">
-            {/* Header — matches AddModal header style */}
-            <div className="px-6 pt-6 pb-4 border-b border-neutral-100">
-              <div className="flex items-center gap-2.5 mb-1">
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50 px-4 py-8">
+        <div className="w-full max-w-xs">
+          <div className="bg-white rounded-xl shadow-xl border border-neutral-200 flex flex-col overflow-hidden px-5 py-4 h-fit">
+            <div className="px-5 pt-5 pb-3 border-b border-neutral-100">
+              <div className="flex items-center gap-2 mb-0.5">
                 <CalendarIcon className="h-5 w-5 text-blue-600" />
                 <h1 className="text-base font-semibold text-neutral-900">Timebox</h1>
               </div>
-              <p className="text-sm text-neutral-500">Sign in to sync your tasks and calendar</p>
+              <p className="text-xs text-neutral-500">Sign in to sync your tasks and calendar</p>
             </div>
 
-            {/* Body */}
-            <div className="px-6 py-5">
+            <div className="px-5 py-4">
+              {!supabase && (
+                <div className="mb-3 text-xs text-red-700 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200">
+                  Backend not configured. Set <code className="font-mono">VITE_SUPABASE_URL</code> and <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
+                </div>
+              )}
+
               {authErrorFromUrl && (
-                <div className="mb-4 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                <div className="mb-3 text-xs text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
                   {authErrorFromUrl}
                 </div>
               )}
 
-              <form onSubmit={handleSendMagicLink} className="space-y-4">
+              <form onSubmit={handleSendMagicLink} className="space-y-3">
                 <div>
-                  <label htmlFor="auth-email" className="block text-sm font-medium text-neutral-700 mb-1.5">
+                  <label htmlFor="auth-email" className="block text-xs font-medium text-neutral-700 mb-1">
                     Email address
                   </label>
                   <input
@@ -582,28 +593,40 @@ export default function App() {
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full px-3 py-2 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    disabled={!supabase}
+                    className="w-full px-2.5 py-1.5 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     autoFocus
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
+                  disabled={!supabase}
+                  className="w-full py-1.5 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Send magic link
                 </button>
                 {authMessage && (
-                  <p className="text-xs text-neutral-500 text-center pt-1">{authMessage}</p>
+                  <p className="text-xs text-neutral-500 text-center pt-0.5">{authMessage}</p>
                 )}
               </form>
+
+              <div className="relative my-3">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-200" /></div>
+                <div className="relative flex justify-center py-3"><span className="bg-white px-2 text-xs text-neutral-400 uppercase tracking-wide">or</span></div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setVisitMode(true)}
+                className="w-full py-1.5 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:ring-offset-2"
+              >
+                Try without signing in
+              </button>
             </div>
 
-            {/* Footer hint */}
-            <div className="px-6 pb-5">
-              <p className="text-xs text-neutral-400 text-center">
-                We'll email you a sign-in link — no password needed.
-              </p>
-            </div>
+            <p className="text-[10px] text-neutral-400 text-center leading-relaxed">
+              Sign in to save across sessions. Visit mode resets on refresh.
+            </p>
           </div>
         </div>
       </div>
@@ -612,6 +635,22 @@ export default function App() {
 
   return (
     <div className={`h-screen w-full flex flex-col overflow-hidden ${mode === 'recording' ? 'bg-neutral-100' : 'bg-neutral-50'}`}>
+      {/* Visit-mode warning banner */}
+      {visitMode && !session && (
+        <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
+          <span className="text-amber-800 font-medium">
+            Visit Mode — nothing will be saved. Sign in to keep your data.
+          </span>
+          <button
+            type="button"
+            onClick={() => setVisitMode(false)}
+            className="px-2 py-1 rounded border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 transition-colors"
+          >
+            Sign in
+          </button>
+        </div>
+      )}
+
       {/* Supabase auth bar */}
       {session && (
         <div className="w-full border-b border-neutral-200 bg-white px-4 py-1.5 flex items-center justify-end gap-3 text-xs">
@@ -988,10 +1027,12 @@ export default function App() {
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingTaskId(null);
-          // If a time block was created as a draft (via drag on calendar) and still has no title, discard it.
+          // If a draft time block still exists (user cancelled without submitting), discard it.
+          // Note: if the user submitted, the draft was already converted to an event
+          // (and isDraftTimeBlock was set to false), so this won't fire.
           if (isDraftTimeBlock && editingTimeBlockId) {
             const b = timeBlocks.find((tb) => tb.id === editingTimeBlockId);
-            if (!b?.title?.trim()) {
+            if (b && !b.title?.trim()) {
               deleteTimeBlock(editingTimeBlockId);
             }
           }
@@ -1010,12 +1051,13 @@ export default function App() {
         onUpdateTask={updateTask}
         onUpdateTimeBlock={(id, updates) => {
           // If this is a draft block being finalized in event mode,
-          // convert it to a proper Event and remove the draft timeBlock.
+          // convert it to a proper Event and remove the draft timeBlock
+          // in a SINGLE atomic state change so the persistence layer
+          // never sees an intermediate state with events: [].
           if (isDraftTimeBlock && id === editingTimeBlockId) {
             const block = timeBlocks.find((b) => b.id === id);
             if (block) {
-              deleteTimeBlock(id);
-              addEvent({
+              convertTimeBlockToEvent(id, {
                 title: updates.title ?? block.title ?? '',
                 calendarContainerId: updates.calendarContainerId ?? block.calendarContainerId,
                 categoryId: updates.categoryId ?? block.categoryId,

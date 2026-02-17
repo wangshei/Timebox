@@ -148,7 +148,7 @@ export function CalendarView({
   };
 
   return (
-    <div className="flex-1 bg-white flex flex-col relative">
+    <div className="flex-1 bg-white flex flex-col relative min-w-0">
       {/* Header */}
       <div className={`border-b border-neutral-200 ${isMobile ? 'px-4 py-3' : 'px-6 py-3'}`}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -262,11 +262,11 @@ export function CalendarView({
 
       {/* Calendar Content */}
       {view === 'day' && mode === 'compare' ? (
-        <div className="flex-1 flex overflow-hidden border-t border-neutral-100 min-h-0">
-          <div className="w-1/2 border-r border-neutral-100 flex flex-col min-h-0">
+        <div className="flex-1 flex overflow-hidden border-t border-neutral-100 min-h-0 min-w-0">
+          <div className="flex-1 min-w-0 border-r border-neutral-100 flex flex-col min-h-0">
             <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Plan</div>
             <DayView
-              mode={mode}
+              mode="planning"
               timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
               events={resolvedEvents}
               selectedDate={selectedDate}
@@ -274,21 +274,18 @@ export function CalendarView({
               onSelectBlock={setSelectedBlock}
               focusedCategoryId={focusedCategoryId}
               focusedCalendarId={focusedCalendarId}
-              onDoneAsPlanned={onDoneAsPlanned}
-              onDidSomethingElse={onDidSomethingElse}
               onDeleteBlock={onDeleteBlock}
               onDeleteTask={onDeleteTask}
               onDeleteEvent={onDeleteEvent}
               onDropTask={onDropTask}
               onCreateBlock={onCreateBlock}
               onMoveBlock={onMoveBlock}
-              compareMatchedTaskIds={compareMatchedTaskIds}
             />
           </div>
-          <div className="w-1/2 flex flex-col min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
             <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Record</div>
             <DayView
-              mode={mode}
+              mode="recording"
               timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
               events={resolvedEvents}
               selectedDate={selectedDate}
@@ -304,7 +301,6 @@ export function CalendarView({
               onDropTask={onDropTask}
               onCreateBlock={onCreateBlock}
               onMoveBlock={onMoveBlock}
-              compareMatchedTaskIds={compareMatchedTaskIds}
             />
           </div>
         </div>

@@ -215,23 +215,9 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     }
   }
 
-  // Delete child tables first, then parents, to avoid FK issues.
-  check('time_blocks', 'delete', await supabase.from('time_blocks').delete().eq('user_id', userId));
-  check('events', 'delete', await supabase.from('events').delete().eq('user_id', userId));
-  check('tasks', 'delete', await supabase.from('tasks').delete().eq('user_id', userId));
-  check('tags', 'delete', await supabase.from('tags').delete().eq('user_id', userId));
-  check('categories', 'delete', await supabase.from('categories').delete().eq('user_id', userId));
-  check('calendar_containers', 'delete', await supabase.from('calendar_containers').delete().eq('user_id', userId));
+  // --- PHASE 1: UPSERT everything first (parent → child order for FK safety) ---
+  // This ensures data is never lost even if the delete phase fails.
 
-  // Bail early if deletes failed (e.g. missing RLS policies) — don't lose data by inserting partial state.
-  if (errors.length > 0) {
-    // eslint-disable-next-line no-console
-    console.error('[supabasePersistence] Aborting inserts due to delete errors — check RLS policies and table existence');
-    return;
-  }
-
-  // Upsert parent tables first, then children, to satisfy FK constraints.
-  // Using upsert (onConflict: 'id') so duplicate keys are updated instead of failing.
   if (state.calendarContainers.length) {
     check('calendar_containers', 'upsert', await supabase.from('calendar_containers').upsert(
       state.calendarContainers.map((c) => ({
@@ -318,6 +304,56 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       })),
       { onConflict: 'id' }
     ));
+  }
+
+  // Bail if upserts failed — don't delete orphans when we couldn't even write current data.
+  if (errors.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error(`[supabasePersistence] Save had ${errors.length} upsert error(s) — skipping orphan cleanup`, errors);
+    return;
+  }
+
+  // --- PHASE 2: Delete orphaned rows (items removed from the store) ---
+  // Only delete by specific IDs, NOT "delete all". This way, if phase 1 partially
+  // failed on a previous run, we don't wipe data that hasn't been re-inserted.
+
+  const containerIds = state.calendarContainers.map((c) => c.id);
+  const categoryIds = state.categories.map((c) => c.id);
+  const tagIds = state.tags.map((t) => t.id);
+  const taskIds = state.tasks.map((t) => t.id);
+  const blockIds = state.timeBlocks.map((b) => b.id);
+  const eventIds = state.events.map((e) => e.id);
+
+  // Delete children first (FK order), then parents.
+  if (blockIds.length > 0) {
+    check('time_blocks', 'delete-orphans', await supabase.from('time_blocks').delete().eq('user_id', userId).not('id', 'in', `(${blockIds.join(',')})`));
+  } else {
+    check('time_blocks', 'delete-all', await supabase.from('time_blocks').delete().eq('user_id', userId));
+  }
+  if (eventIds.length > 0) {
+    check('events', 'delete-orphans', await supabase.from('events').delete().eq('user_id', userId).not('id', 'in', `(${eventIds.join(',')})`));
+  } else {
+    check('events', 'delete-all', await supabase.from('events').delete().eq('user_id', userId));
+  }
+  if (taskIds.length > 0) {
+    check('tasks', 'delete-orphans', await supabase.from('tasks').delete().eq('user_id', userId).not('id', 'in', `(${taskIds.join(',')})`));
+  } else {
+    check('tasks', 'delete-all', await supabase.from('tasks').delete().eq('user_id', userId));
+  }
+  if (tagIds.length > 0) {
+    check('tags', 'delete-orphans', await supabase.from('tags').delete().eq('user_id', userId).not('id', 'in', `(${tagIds.join(',')})`));
+  } else {
+    check('tags', 'delete-all', await supabase.from('tags').delete().eq('user_id', userId));
+  }
+  if (categoryIds.length > 0) {
+    check('categories', 'delete-orphans', await supabase.from('categories').delete().eq('user_id', userId).not('id', 'in', `(${categoryIds.join(',')})`));
+  } else {
+    check('categories', 'delete-all', await supabase.from('categories').delete().eq('user_id', userId));
+  }
+  if (containerIds.length > 0) {
+    check('calendar_containers', 'delete-orphans', await supabase.from('calendar_containers').delete().eq('user_id', userId).not('id', 'in', `(${containerIds.join(',')})`));
+  } else {
+    check('calendar_containers', 'delete-all', await supabase.from('calendar_containers').delete().eq('user_id', userId));
   }
 
   if (errors.length > 0) {

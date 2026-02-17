@@ -116,6 +116,8 @@ export interface AppActions {
   addEvent: (e: Omit<Event, 'id'>) => string;
   updateEvent: (id: string, updates: Partial<Event>) => void;
   deleteEvent: (id: string) => void;
+  /** Atomically delete a time block and create an event in a single state update. */
+  convertTimeBlockToEvent: (blockId: string, event: Omit<Event, 'id'>) => string;
 
   /** Replace organization data (for Revert in settings). */
   setCalendarContainers: (containers: CalendarContainer[]) => void;
@@ -376,6 +378,15 @@ export const useStore = create<AppState & AppActions>()(
     set((s) => ({
       events: s.events.filter((e) => e.id !== id),
     })),
+
+  convertTimeBlockToEvent: (blockId, event) => {
+    const eventId = generateId();
+    set((s) => ({
+      timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
+      events: [...s.events, { ...event, id: eventId }],
+    }));
+    return eventId;
+  },
 
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),
   setCategories: (categories) => set({ categories }),

@@ -318,7 +318,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             top: currentTimeTop,
                             height: 0,
                             width: '100%',
-                            borderTop: '2px solid rgb(239 68 68)',
+                            borderTop: '3px solid rgb(239 68 68)',
                           }}
                           aria-hidden
                         />
