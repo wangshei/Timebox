@@ -559,9 +559,9 @@ export default function App() {
   if (requireAuth && !session && !visitMode) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-neutral-50 px-4 py-8">
-        <div className="w-full max-w-xs">
-          <div className="bg-white rounded-xl shadow-xl border border-neutral-200 flex flex-col overflow-hidden px-5 py-4 h-fit">
-            <div className="px-5 pt-5 pb-3 border-b border-neutral-100">
+        <div className="w-full max-w-xs rounded-lg">
+          <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 flex flex-col px-5 py-4 h-fit">
+            <div className="pt-5 pb-3 border-b border-neutral-100 px-4">
               <div className="flex items-center gap-2 mb-0.5">
                 <CalendarIcon className="h-5 w-5 text-blue-600" />
                 <h1 className="text-base font-semibold text-neutral-900">Timebox</h1>
@@ -569,7 +569,7 @@ export default function App() {
               <p className="text-xs text-neutral-500">Sign in to sync your tasks and calendar</p>
             </div>
 
-            <div className="px-5 py-4">
+            <div className="py-4 px-4">
               {!supabase && (
                 <div className="mb-3 text-xs text-red-700 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200">
                   Backend not configured. Set <code className="font-mono">VITE_SUPABASE_URL</code> and <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
@@ -594,7 +594,7 @@ export default function App() {
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="you@example.com"
                     disabled={!supabase}
-                    className="w-full px-2.5 py-1.5 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-1.5 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     autoFocus
                   />
                 </div>
@@ -624,7 +624,7 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-[10px] text-neutral-400 text-center leading-relaxed">
+            <p className="text-xs text-neutral-400 text-center leading-relaxed">
               Sign in to save across sessions. Visit mode resets on refresh.
             </p>
           </div>
