@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Task } from '../App';
 import { Bars3Icon, CalendarIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -7,15 +8,52 @@ interface TaskCardProps {
   key?: string;
   task: Task;
   viewMode?: 'overview' | 'plan';
+  /** When 'left', popover opens to the left of the card (e.g. in right sidebar). Default 'right'. */
+  popoverSide?: 'left' | 'right';
   onScheduleTask?: () => void;
   onEditTask?: () => void;
   onDeleteTask?: () => void;
+  /** Break task into smaller tasks (e.g. 30min, 1h chunks) and add to backlog. */
+  onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
+  /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
+  onSplitTask?: (taskId: string, chunkMinutes: number) => void;
 }
 
-export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTask, onDeleteTask }: TaskCardProps) {
+const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const; // minutes: 30m, 1h, 1.5h, 2h
+
+export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', onScheduleTask, onEditTask, onDeleteTask, onBreakIntoChunks, onSplitTask }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
-  const [splitCount, setSplitCount] = useState<number>(1);
+  const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
+  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const progress = (task.recordedHours / task.estimatedHours) * 100;
+
+  // Position overview popover with fixed coords; clamp to viewport so it doesn't go off-screen
+  useLayoutEffect(() => {
+    if (!showPopover || viewMode !== 'overview' || !cardRef.current) return;
+    const el = cardRef.current;
+    const popoverWidth = 288;
+    const popoverMaxHeight = 420;
+    const gap = 8;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      let left = popoverSide === 'left' ? rect.left - popoverWidth - gap : rect.right + gap;
+      let top = rect.top;
+      left = Math.max(gap, Math.min(left, typeof window !== 'undefined' ? window.innerWidth - popoverWidth - gap : left));
+      top = Math.max(gap, Math.min(top, typeof window !== 'undefined' ? window.innerHeight - popoverMaxHeight - gap : top));
+      setPopoverRect({ top, left });
+    };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [showPopover, viewMode, popoverSide]);
   
   // Calculate remaining hours for partially completed tasks
   const remainingHours = task.recordedHours > 0 
@@ -50,11 +88,8 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-timebox-task-id', task.id);
-    // Dragging a task should schedule its full remaining time by default.
-    // We pass duration + optional splitCount through the drag payload.
     const durationMinutes = Math.max(15, Math.round(displayHours * 60));
     e.dataTransfer.setData('application/x-timebox-task-duration', String(durationMinutes));
-    e.dataTransfer.setData('application/x-timebox-task-split-count', String(splitCount));
     e.dataTransfer.setData('text/plain', task.title);
     e.dataTransfer.effectAllowed = 'copy';
     if (e.dataTransfer.setDragImage) {
@@ -143,12 +178,16 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                 setShowPopover(false);
               }}
             />
-            <div className="absolute z-20 top-0 left-full ml-2 bg-white rounded-lg shadow-xl border border-neutral-200 p-4 min-w-72">
+            <div
+              className={`absolute z-20 top-0 bg-white rounded-lg shadow-xl border border-neutral-200 p-4 min-w-72 ${
+                popoverSide === 'left' ? 'right-full mr-2' : 'left-full ml-2'
+              }`}
+            >
               <div className="space-y-4">
                 {/* Header */}
                 <div>
                   <h3 className="font-medium text-neutral-900 mb-1">{task.title}</h3>
-                  <div className="flex items-center gap-3 text-xs text-neutral-500">
+                  <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <ClockIcon className="h-3.5 w-3.5" />
                       {task.estimatedHours}h estimated
@@ -160,6 +199,12 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                       />
                       {task.calendar}
                     </div>
+                    {'dueDate' in task && task.dueDate && (
+                      <div className="flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        Due {task.dueDate}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -206,60 +251,79 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
                 {/* Actions */}
                 <div className="pt-2 border-t border-neutral-200 space-y-1">
+                  {onBreakIntoChunks && task.estimatedHours > 0 && (
+                    <div className="px-1 pb-2">
+                      <div className="text-xs font-medium text-neutral-700 mb-1">Break into blocks</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button type="button" onClick={() => { onBreakIntoChunks(task.id, 30); setShowPopover(false); }} className="px-2 py-1.5 text-xs font-medium rounded border border-neutral-200 hover:bg-neutral-50">30 min</button>
+                        <button type="button" onClick={() => { onBreakIntoChunks(task.id, 60); setShowPopover(false); }} className="px-2 py-1.5 text-xs font-medium rounded border border-neutral-200 hover:bg-neutral-50">1 h</button>
+                      </div>
+                    </div>
+                  )}
+                  {onSplitTask && task.estimatedHours > 0 && (
                   <div className="px-1 pb-2">
-                    <div className="text-xs font-medium text-neutral-700 mb-1">Split on drop (optional)</div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={splitCount}
-                        onChange={(e) => setSplitCount(parseInt(e.target.value, 10))}
-                        className="flex-1 px-2 py-1.5 text-sm bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <div className="text-xs font-medium text-neutral-700 mb-1">Get a block</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SPLIT_BLOCK_OPTIONS.map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setSplitBlockMinutes(mins)}
+                          className={`px-2 py-1.5 text-xs font-medium rounded border transition-all ${
+                            splitBlockMinutes === mins ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {mins === 60 ? '1h' : mins < 60 ? `${mins}m` : `${mins / 60}h`}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => { onSplitTask(task.id, splitBlockMinutes); setShowPopover(false); }}
+                        className="px-2 py-1.5 text-xs font-medium rounded border border-green-600 text-green-700 bg-green-50 hover:bg-green-100"
                       >
-                        {[1, 2, 3, 4, 6].map((n) => (
-                          <option key={n} value={n}>
-                            {n === 1 ? 'No split (1 block)' : `${n} blocks`}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-[11px] text-neutral-500 whitespace-nowrap">blocks</span>
+                        Split
+                      </button>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
-                    onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
-                  >
-                    <CalendarIcon className="h-4 w-4" />
-                    Schedule task
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
-                    onClick={() => { onEditTask?.(); setShowPopover(false); }}
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                    Edit details
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                    Delete task
-                  </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                  Schedule task
+                </button>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onEditTask?.(); setShowPopover(false); }}
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Edit details
+                </button>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                  Delete task
+                </button>
               </div>
             </div>
-          </>
-        )}
-      </>
-    );
+          </div>
+        </>
+      )}
+    </>
+  );
   }
 
   // Overview mode: compact card view
   return (
     <>
       <div
+        ref={cardRef}
         className={`bg-white border rounded-lg p-4 h-24 hover:shadow-sm transition-[border-color,box-shadow,transform] duration-150 ease-out cursor-grab active:cursor-grabbing active:scale-[0.99] group ${
           showPopover ? 'border-blue-400 ring-2 ring-blue-400 ring-offset-1' : 'border-neutral-200 hover:border-neutral-300'
         }`}
@@ -279,7 +343,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
               <h3 className="font-medium text-sm text-neutral-900 leading-snug mb-1 line-clamp-2">
                 {task.title}
               </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: calendarColors[task.calendar] }}
@@ -287,6 +351,11 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                 <span className="text-xs text-neutral-500">
                   {task.estimatedHours}h total
                 </span>
+                {'dueDate' in task && task.dueDate && (
+                  <span className="text-xs text-neutral-500">
+                    · Due {task.dueDate}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -330,24 +399,28 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
         </div>
       </div>
 
-      {/* Popover */}
-      {showPopover && (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPopover(false);
-            }}
-          />
-          <div className="absolute z-20 top-0 left-full ml-2 bg-white rounded-lg shadow-xl border border-neutral-200 p-4 min-w-72">
+      {/* Popover: portal with fixed position so it's visible outside overflow:hidden sidebar */}
+      {showPopover && (typeof document !== 'undefined' && popoverRect
+        ? createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPopover(false);
+                }}
+              />
+              <div
+                className="fixed z-50 bg-white rounded-lg shadow-xl border border-neutral-200 p-4 min-w-72"
+                style={{ top: popoverRect.top, left: popoverRect.left }}
+              >
             <div className="space-y-4">
               {/* Header */}
               <div>
                 <h3 className="font-medium text-neutral-900 mb-1">{task.title}</h3>
-                <div className="flex items-center gap-3 text-xs text-neutral-500">
+                <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
+                    <ClockIcon className="h-3.5 w-3.5" />
                     {task.estimatedHours}h estimated
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -357,6 +430,12 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                     />
                     {task.calendar}
                   </div>
+                  {'dueDate' in task && task.dueDate && (
+                    <div className="flex items-center gap-1.5">
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      Due {task.dueDate}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -403,29 +482,47 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
 
               {/* Actions */}
               <div className="pt-2 border-t border-neutral-200 space-y-1">
-                <div className="px-1 pb-2">
-                  <div className="text-xs font-medium text-neutral-700 mb-1">Split on drop (optional)</div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={splitCount}
-                      onChange={(e) => setSplitCount(parseInt(e.target.value, 10))}
-                      className="flex-1 px-2 py-1.5 text-sm bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {[1, 2, 3, 4, 6].map((n) => (
-                        <option key={n} value={n}>
-                          {n === 1 ? 'No split (1 block)' : `${n} blocks`}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-[11px] text-neutral-500 whitespace-nowrap">blocks</span>
+                {onBreakIntoChunks && task.estimatedHours > 0 && (
+                  <div className="px-1 pb-2">
+                    <div className="text-xs font-medium text-neutral-700 mb-1">Break into blocks</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button type="button" onClick={() => { onBreakIntoChunks(task.id, 30); setShowPopover(false); }} className="px-2 py-1.5 text-xs font-medium rounded border border-neutral-200 hover:bg-neutral-50">30 min</button>
+                      <button type="button" onClick={() => { onBreakIntoChunks(task.id, 60); setShowPopover(false); }} className="px-2 py-1.5 text-xs font-medium rounded border border-neutral-200 hover:bg-neutral-50">1 h</button>
+                    </div>
                   </div>
-                </div>
+                )}
+                {onSplitTask && task.estimatedHours > 0 && (
+                  <div className="px-1 pb-2">
+                    <div className="text-xs font-medium text-neutral-700 mb-1">Get a block</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SPLIT_BLOCK_OPTIONS.map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setSplitBlockMinutes(mins)}
+                          className={`px-2 py-1.5 text-xs font-medium rounded border transition-all ${
+                            splitBlockMinutes === mins ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {mins === 60 ? '1h' : mins < 60 ? `${mins}m` : `${mins / 60}h`}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => { onSplitTask(task.id, splitBlockMinutes); setShowPopover(false); }}
+                        className="px-2 py-1.5 text-xs font-medium rounded border border-green-600 text-green-700 bg-green-50 hover:bg-green-100"
+                      >
+                        Split
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                   onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
                 >
-                  <Calendar className="w-4 h-4" />
+                  <CalendarIcon className="h-4 w-4" />
                   Schedule task
                 </button>
                 <button
@@ -433,7 +530,7 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                   onClick={() => { onEditTask?.(); setShowPopover(false); }}
                 >
-                  <Edit3 className="w-4 h-4" />
+                  <PencilIcon className="h-4 w-4" />
                   Edit details
                 </button>
                 <button
@@ -441,14 +538,16 @@ export function TaskCard({ task, viewMode = 'overview', onScheduleTask, onEditTa
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   onClick={() => { onDeleteTask?.(); setShowPopover(false); }}
                 >
-                  <X className="w-4 h-4" />
+                  <XMarkIcon className="h-4 w-4" />
                   Delete task
                 </button>
               </div>
             </div>
           </div>
-        </>
-      )}
+        </>,
+        document.body
+      )
+        : null)}
     </>
   );
 }

@@ -143,6 +143,7 @@ export async function loadSupabaseState() {
         name: c.name,
         color: c.color,
         calendarContainerId: c.calendar_container_id ?? null,
+        calendarContainerIds: c.calendar_container_ids ?? null,
       })
     ),
     tags: tags.map(
@@ -163,6 +164,7 @@ export async function loadSupabaseState() {
         tagIds: t.tag_ids ?? [],
         flexible: t.flexible,
         status: t.status ?? undefined,
+        dueDate: t.due_date ?? null,
       })
     ),
     timeBlocks: blocks.map(
@@ -191,6 +193,8 @@ export async function loadSupabaseState() {
         date: e.date,
         recurring: e.recurring,
         recurrencePattern: e.recurrence_pattern ?? undefined,
+        recurrenceDays: e.recurrence_days ?? undefined,
+        recurrenceSeriesId: e.recurrence_series_id ?? null,
       })
     ),
     };
@@ -237,6 +241,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         name: c.name,
         color: c.color,
         calendar_container_id: c.calendarContainerId ?? null,
+        calendar_container_ids: c.calendarContainerIds ?? null,
       })),
       { onConflict: 'id' }
     ));
@@ -265,6 +270,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         tag_ids: Array.isArray(t.tagIds) ? t.tagIds : [],
         flexible: t.flexible ?? true,
         status: t.status ?? null,
+        due_date: t.dueDate ?? null,
       })),
       { onConflict: 'id' }
     ));
@@ -301,6 +307,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         date: e.date ?? '',
         recurring: e.recurring ?? false,
         recurrence_pattern: e.recurrencePattern ?? null,
+        recurrence_days: e.recurrenceDays ?? null,
+        recurrence_series_id: e.recurrenceSeriesId ?? null,
       })),
       { onConflict: 'id' }
     ));

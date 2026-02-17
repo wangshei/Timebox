@@ -50,7 +50,8 @@ create table if not exists categories (
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
   color text not null,
-  calendar_container_id uuid references calendar_containers (id) on delete cascade
+  calendar_container_id uuid references calendar_containers (id) on delete cascade,
+  calendar_container_ids uuid[]  -- when set, category is shared across these calendars; empty/null = all
 );
 
 create table if not exists tags (
@@ -70,7 +71,8 @@ create table if not exists tasks (
   category_id uuid not null references categories (id) on delete cascade,
   tag_ids uuid[] not null default '{}',
   flexible boolean not null default true,
-  status text
+  status text,
+  due_date text  -- optional YYYY-MM-DD
 );
 
 create table if not exists time_blocks (
@@ -98,7 +100,9 @@ create table if not exists events (
   "end" text not null,
   date text not null,
   recurring boolean not null default false,
-  recurrence_pattern text
+  recurrence_pattern text,  -- 'none'|'daily'|'every_other_day'|'weekly'|'monthly'|'custom'
+  recurrence_days integer[],  -- for custom: 0=Sun..6=Sat
+  recurrence_series_id uuid  -- for "all after" edits: id of first event in series
 );
 
 -- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
@@ -111,6 +115,25 @@ comment on column user_settings.timezone is 'IANA timezone e.g. America/Los_Ange
 ```
 
 > **Note:** The app generates IDs with `crypto.randomUUID()`, which is compatible with `uuid` columns.
+
+---
+
+## 1b. Migrations (if you already have the base schema)
+
+Run these in the Supabase SQL Editor to add new columns without recreating tables:
+
+```sql
+-- Tasks: optional due date (YYYY-MM-DD)
+alter table tasks add column if not exists due_date text;
+
+-- Events: recurrence and "edit this / all / all after"
+alter table events add column if not exists recurrence_pattern text;
+alter table events add column if not exists recurrence_days integer[];
+alter table events add column if not exists recurrence_series_id uuid;
+
+-- Categories: shared across multiple calendars
+alter table categories add column if not exists calendar_container_ids uuid[];
+```
 
 ---
 

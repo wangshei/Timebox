@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, StopIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
 
 interface RightSidebarProps {
@@ -27,6 +27,10 @@ interface RightSidebarProps {
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   /** When a block is dropped from the calendar, unschedule it (remove from calendar). */
   onDropBlock?: (blockId: string) => void;
+  /** Break a task into smaller tasks (e.g. 30min, 1h chunks) and add to backlog. */
+  onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
+  /** Split task into two: one with chunkMinutes, original reduced by that amount. */
+  onSplitTask?: (taskId: string, chunkMinutes: number) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
@@ -35,7 +39,7 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
@@ -115,55 +119,50 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Mode Toggle + Overview range */}
+      {/* Overview toggle (button) + Today / Week / Month range — always visible */}
       <div className={`border-b border-neutral-200 ${isBottomSheet ? 'px-4 py-3' : 'px-6 py-3'}`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <span>Overview</span>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setViewMode(viewMode === 'overview' ? 'plan' : 'overview')}
+            className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+              viewMode === 'overview'
+                ? 'bg-neutral-100 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200/80'
+                : 'bg-white text-neutral-800 shadow-sm border border-neutral-100'
+            }`}
+            title={viewMode === 'overview' ? 'Show as planning blocks' : 'Show as list'}
+          >
+            Overview
+          </button>
+          <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-100">
             <button
               type="button"
-              onClick={() => setViewMode(viewMode === 'overview' ? 'plan' : 'overview')}
-              className={`inline-flex items-center justify-center w-6 h-6 rounded border transition-all ${
-                viewMode === 'plan'
-                  ? 'bg-blue-50 border-blue-500 text-blue-700'
-                  : 'bg-neutral-50 border-neutral-200 text-neutral-400'
+              onClick={() => setOverviewRange('today')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                overviewRange === 'today' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
               }`}
-              title="Toggle planning blocks"
             >
-              <StopIcon className="h-3.5 w-3.5" />
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setOverviewRange('week')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                overviewRange === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
+              }`}
+            >
+              Week
+            </button>
+            <button
+              type="button"
+              onClick={() => setOverviewRange('month')}
+              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
+                overviewRange === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
+              }`}
+            >
+              Month
             </button>
           </div>
-          {viewMode === 'plan' && (
-            <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-100">
-              <button
-                type="button"
-                onClick={() => setOverviewRange('today')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  overviewRange === 'today' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverviewRange('week')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  overviewRange === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
-              >
-                Week
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverviewRange('month')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  overviewRange === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
-              >
-                Month
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -171,6 +170,16 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Unscheduled Tasks */}
         <div>
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>
+          {onOpenAddModal && (
+            <button
+              type="button"
+              onClick={() => onOpenAddModal('task')}
+              className="w-full py-2.5 px-3 mb-3 rounded-lg border border-dashed border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100 hover:border-neutral-400 text-sm font-medium text-neutral-600 hover:text-neutral-800 transition-colors flex items-center justify-center gap-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add task
+            </button>
+          )}
           <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
             {unscheduledTasks.length === 0 ? (
               <div className="text-sm text-neutral-400 text-center py-4">No unscheduled tasks</div>
@@ -179,10 +188,13 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
+                  viewMode={viewMode}
+                  popoverSide="left"
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onBreakIntoChunks={onBreakIntoChunks}
+                  onSplitTask={onSplitTask}
                 />
               ))
             )}
@@ -194,14 +206,17 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {filteredPartially.map(task => (
+              {              filteredPartially.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
+                  viewMode={viewMode}
+                  popoverSide="left"
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onBreakIntoChunks={onBreakIntoChunks}
+                  onSplitTask={onSplitTask}
                 />
               ))}
             </div>
@@ -213,14 +228,17 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Fixed / Missed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {filteredFixed.map(task => (
+              {              filteredFixed.map(task => (
                 <TaskCard
                   key={task.id}
                   task={task}
-                  viewMode={viewMode === 'overview' ? 'plan' : 'overview'}
+                  viewMode={viewMode}
+                  popoverSide="left"
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onBreakIntoChunks={onBreakIntoChunks}
+                  onSplitTask={onSplitTask}
                 />
               ))}
             </div>

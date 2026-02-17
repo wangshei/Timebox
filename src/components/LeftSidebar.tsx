@@ -34,6 +34,8 @@ interface LeftSidebarProps {
   onAddTag: (t: Omit<Tag, 'id'>) => void;
   onDeleteTag: (id: string) => void;
   onFocusCalendar?: (id: string) => void;
+  /** When set, the calendar with this id is shown as selected (e.g. light gray background). */
+  focusedCalendarId?: string | null;
   onFocusCategory?: (id: string) => void;
   endDayLabel?: string;
   onEndDay?: () => void;
@@ -64,6 +66,7 @@ export function LeftSidebar({
   onAddTag,
   onDeleteTag,
   onFocusCalendar,
+  focusedCalendarId = null,
   onFocusCategory,
   endDayLabel,
   onEndDay,
@@ -300,7 +303,10 @@ export function LeftSidebar({
         )}
 
         {calendarContainers.map((calendar) => (
-          <div key={calendar.id} className="rounded-lg bg-neutral-50/60 pb-1">
+          <div
+            key={calendar.id}
+            className={`rounded-lg pb-1 ${focusedCalendarId === calendar.id ? 'bg-neutral-200/80' : 'bg-neutral-50/60'}`}
+          >
             {editingId === calendar.id && editingType === 'calendar' ? (
               <InlineEditForm
                 name={editName}
@@ -312,7 +318,7 @@ export function LeftSidebar({
                 onCancel={cancelEdit}
               />
             ) : (
-              <div className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-neutral-50 transition-colors">
+              <div className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${focusedCalendarId === calendar.id ? 'bg-neutral-300/50 hover:bg-neutral-300/70' : 'hover:bg-neutral-50'}`}>
                 <button
                   type="button"
                   onClick={() => toggleExpandCalendar(calendar.id)}

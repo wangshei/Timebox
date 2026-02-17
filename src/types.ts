@@ -15,6 +15,8 @@ export interface Category {
   color: string;
   /** When set, category appears under this calendar in the left panel. */
   calendarContainerId?: string | null;
+  /** When set, this category is available for these calendars (shared). Empty/null = all calendars. */
+  calendarContainerIds?: string[] | null;
 }
 
 export interface Tag {
@@ -34,6 +36,8 @@ export interface Task {
   tagIds: string[];
   flexible: boolean; // NEW: default true
   status?: 'inbox' | 'partially_planned' | 'fully_planned' | 'partially_done' | 'done' | 'archived';
+  /** Optional due date (YYYY-MM-DD). Shown on card when set. */
+  dueDate?: string | null;
   
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;
@@ -55,6 +59,15 @@ export interface TimeBlock {
   source: 'manual' | 'autoAssumed'; // NEW: tracks how it was created
 }
 
+/** Recurrence pattern for events. */
+export type RecurrencePattern =
+  | 'none'
+  | 'daily'
+  | 'every_other_day'
+  | 'weekly'
+  | 'monthly'
+  | 'custom'; // custom = specific days of week, stored in recurrenceDays
+
 export interface Event {
   id: string;
   title: string;
@@ -64,7 +77,11 @@ export interface Event {
   end: string;
   date: string;
   recurring: boolean;
-  recurrencePattern?: string; // e.g. 'daily', 'weekly', 'weekdays'
+  recurrencePattern?: RecurrencePattern;
+  /** For custom: e.g. [0,1,2,3,4] = Mon–Fri (0=Sun, 6=Sat). */
+  recurrenceDays?: number[];
+  /** For "all after" edits: id of the first event in the series. */
+  recurrenceSeriesId?: string | null;
 }
 
 export interface User {

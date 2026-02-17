@@ -25,9 +25,11 @@ interface DraggableBottomSheetProps {
   onDeleteTask?: (taskId: string) => void;
   onOpenAddModal: (mode: 'task' | 'event') => void;
   onDropBlock?: (blockId: string) => void;
+  onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
+  onSplitTask?: (taskId: string, chunkMinutes: number) => void;
 }
 
-export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate, timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock }: DraggableBottomSheetProps) {
+export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate, timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
   const minHeight = 80;
@@ -132,7 +134,7 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-hidden">
-        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} selectedDate={selectedDate} timeBlocks={timeBlocks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} onDropBlock={onDropBlock} isMobile isBottomSheet />
+        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} selectedDate={selectedDate} timeBlocks={timeBlocks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onOpenAddModal={onOpenAddModal} onDropBlock={onDropBlock} onBreakIntoChunks={onBreakIntoChunks} onSplitTask={onSplitTask} isMobile isBottomSheet />
       </div>
     </div>
   );

@@ -301,7 +301,7 @@ export function selectPlanVsActualByTag(
   );
 }
 
-/** Display shape for backlog (TaskCard expects estimatedHours, recordedHours, category, tags, calendar). */
+/** Display shape for backlog (TaskCard expects estimatedHours, recordedHours, category, tags, calendar, dueDate). */
 export interface DisplayTask {
   id: string;
   title: string;
@@ -310,6 +310,7 @@ export interface DisplayTask {
   category: Category;
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
+  dueDate?: string | null;
 }
 
 const containerIdToCalendar = (id: string): 'personal' | 'work' | 'school' =>
@@ -339,6 +340,7 @@ export function selectDisplayTasksForBacklog(
       category,
       tags: taskTags,
       calendar,
+      dueDate: task.dueDate ?? null,
     };
   });
 }

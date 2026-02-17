@@ -3,7 +3,7 @@ import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/sol
 import { Category, Tag } from '../App';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
-import type { CalendarContainer, Task, TimeBlock, Mode } from '../types';
+import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
 
 type AddMode = 'task' | 'event';
 
@@ -22,15 +22,19 @@ interface AddModalProps {
   editingTask?: Task | null;
   /** When set, modal edits an existing time block (event). */
   editingTimeBlock?: TimeBlock | null;
+  /** When set, modal edits an existing event (from events table). */
+  editingEvent?: Event | null;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
     category: Category;
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
+    dueDate?: string | null;
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
+  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after' }) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -39,6 +43,9 @@ interface AddModalProps {
     category: Category;
     tags: Tag[];
     calendar: string;
+    recurring?: boolean;
+    recurrencePattern?: RecurrencePattern;
+    recurrenceDays?: number[];
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -62,9 +69,11 @@ export function AddModal({
   onViewModeChange,
   editingTask = null,
   editingTimeBlock = null,
+  editingEvent = null,
   onAddTask,
   onUpdateTask,
   onUpdateTimeBlock,
+  onUpdateEvent,
   onAddEvent,
   onRequireCalendar,
   onAddCategory,
@@ -89,6 +98,10 @@ export function AddModal({
   ];
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
+  const [dueDate, setDueDate] = useState<string>('');
+  const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
+  const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
 
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -100,6 +113,15 @@ export function AddModal({
       const x = Math.max(16, window.innerWidth - PANEL_WIDTH - 24);
       const y = Math.max(16, window.innerHeight - maxH - 24);
       setPanelPos({ x, y });
+    }
+  }, [isOpen]);
+
+  // Reset recurrence when modal closes so a new event doesn't keep previous recurrence
+  useEffect(() => {
+    if (!isOpen) {
+      setRecurrencePattern('none');
+      setRecurrenceDays([]);
+      setRecurrenceEditScope('this');
     }
   }, [isOpen]);
 
@@ -131,6 +153,7 @@ export function AddModal({
       setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? (categories[0] || null));
       setSelectedTags(tags.filter(t => editingTask.tagIds.includes(t.id)));
       setSelectedCalendar(editingTask.calendarContainerId);
+      setDueDate(editingTask.dueDate ?? '');
     }
   }, [isOpen, editingTask?.id, categories, tags]);
 
@@ -147,32 +170,58 @@ export function AddModal({
     }
   }, [isOpen, editingTimeBlock?.id, categories, tags]);
 
+  useEffect(() => {
+    if (isOpen && editingEvent) {
+      setMode('event');
+      setTitle(editingEvent.title ?? '');
+      setDate(editingEvent.date);
+      setStartTime(editingEvent.start);
+      setEndTime(editingEvent.end);
+      setSelectedCategory(categories.find((c) => c.id === editingEvent.categoryId) ?? (categories[0] || null));
+      setSelectedTags([]);
+      setSelectedCalendar(editingEvent.calendarContainerId);
+      setRecurrencePattern(editingEvent.recurrencePattern ?? 'none');
+      setRecurrenceDays(editingEvent.recurrenceDays ?? []);
+    }
+  }, [isOpen, editingEvent?.id, categories]);
+
   // Reset when modal opens with new mode (and not editing). When recording, force event-only.
   useEffect(() => {
-    if (isOpen && !editingTask && !editingTimeBlock) {
+    if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(isRecording ? 'event' : initialMode);
     }
-  }, [isOpen, initialMode, isRecording, editingTask, editingTimeBlock]);
+  }, [isOpen, initialMode, isRecording, editingTask, editingTimeBlock, editingEvent]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     const fallbackCalendar =
-      selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? '');
+      selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? editingEvent?.calendarContainerId ?? '');
     if (!fallbackCalendar) {
       if (!calendars.length && onRequireCalendar) onRequireCalendar();
       return;
     }
 
-    // Resolve category: use selected, or create from typed name if we have onAddCategory
-    let categoryToUse = selectedCategory ?? categories.find((c) => c.calendarContainerId === fallbackCalendar) ?? null;
-    if (!categoryToUse && categoryInput.trim() && onAddCategory) {
-      categoryToUse = onAddCategory({
-        name: categoryInput.trim(),
+    // Resolve category: when user typed a name, use it (find existing or create); otherwise use selected or first for calendar
+    const typedCategoryName = categoryInput.trim();
+    let categoryToUse: Category | null = null;
+    if (typedCategoryName) {
+      const matchCalendar = (c: Category) =>
+        c.calendarContainerId === fallbackCalendar ||
+        (c.calendarContainerIds && c.calendarContainerIds.length > 0 && c.calendarContainerIds.includes(fallbackCalendar));
+      const existing = categories.find(
+        (c) => c.name.toLowerCase() === typedCategoryName.toLowerCase() && matchCalendar(c)
+      );
+      categoryToUse = existing ?? (onAddCategory ? onAddCategory({
+        name: typedCategoryName,
         color: DEFAULT_PALETTE_COLOR,
         calendarContainerId: fallbackCalendar,
-      });
+        calendarContainerIds: [fallbackCalendar],
+      }) : null);
+    }
+    if (!categoryToUse) {
+      categoryToUse = selectedCategory ?? categories.find((c) => c.calendarContainerId === fallbackCalendar) ?? categories.find((c) => c.calendarContainerIds?.includes(fallbackCalendar)) ?? null;
     }
     if (!categoryToUse) return;
 
@@ -187,7 +236,29 @@ export function AddModal({
       }
     }
 
-    if (editingTimeBlock && onUpdateTimeBlock) {
+    if (editingTask && onUpdateTask) {
+      onUpdateTask(editingTask.id, {
+        title,
+        estimatedMinutes: estimatedHours * 60,
+        categoryId: categoryToUse.id,
+        tagIds: tagsToUse.map((t) => t.id),
+        calendarContainerId: fallbackCalendar,
+        dueDate: dueDate.trim() || null,
+      });
+    } else if (editingEvent && onUpdateEvent) {
+      onUpdateEvent(editingEvent.id, {
+        title,
+        start: startTime,
+        end: endTime,
+        date,
+        calendarContainerId: fallbackCalendar,
+        categoryId: categoryToUse.id,
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
+        recurrenceEditScope: (editingEvent.recurring || recurrencePattern !== 'none') ? recurrenceEditScope : undefined,
+      });
+    } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
         title,
         start: startTime,
@@ -204,6 +275,7 @@ export function AddModal({
         category: categoryToUse,
         tags: tagsToUse,
         calendar: fallbackCalendar,
+        dueDate: dueDate.trim() || null,
       });
     } else {
       onAddEvent({
@@ -214,11 +286,15 @@ export function AddModal({
         category: categoryToUse,
         tags: tagsToUse,
         calendar: fallbackCalendar,
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
       });
     }
 
     setTitle('');
     setEstimatedHours(1);
+    setDueDate('');
     setDate(getLocalDateString());
     setStartTime('09:00');
     setEndTime('10:00');
@@ -271,7 +347,7 @@ export function AddModal({
           <h2 className="text-sm font-medium text-neutral-900 flex-1 min-w-0 truncate">
             {editingTask
               ? 'Edit Task'
-              : editingTimeBlock
+              : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : isRecording
                   ? 'Record Event'
@@ -279,7 +355,7 @@ export function AddModal({
                     ? 'Add Task'
                     : 'Add Planned'}
           </h2>
-          {!editingTask && !editingTimeBlock && onViewModeChange && (
+          {!editingTask && !editingTimeBlock && !editingEvent && onViewModeChange && (
             <button
               type="button"
               onClick={() => onViewModeChange(viewMode === 'planning' ? 'recording' : 'planning')}
@@ -294,7 +370,7 @@ export function AddModal({
         </div>
 
         {/* Task/Event Toggle — only in planning mode; recording is event-only (things that happened) */}
-        {!editingTimeBlock && !isRecording && (
+        {!editingTimeBlock && !editingEvent && !isRecording && (
           <div className="px-4 pt-3">
             <div className="bg-neutral-100 rounded-md p-0.5 flex">
               <button type="button" onClick={() => setMode('task')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'task' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
@@ -319,13 +395,24 @@ export function AddModal({
           </div>
 
           {mode === 'task' && (
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1">Estimated Hours</label>
-              <div className="flex gap-2 items-center">
-                <input type="range" min="0.5" max="8" step="0.5" value={estimatedHours} onChange={(e) => setEstimatedHours(parseFloat(e.target.value))} className="flex-1 h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, #0044A8 0%, #0044A8 ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb 100%)` }} />
-                <span className="text-sm font-medium text-neutral-900 w-8">{estimatedHours}h</span>
+            <>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Estimated Hours</label>
+                <div className="flex gap-2 items-center">
+                  <input type="range" min="0.5" max="8" step="0.5" value={estimatedHours} onChange={(e) => setEstimatedHours(parseFloat(e.target.value))} className="flex-1 h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, #0044A8 0%, #0044A8 ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb 100%)` }} />
+                  <span className="text-sm font-medium text-neutral-900 w-8">{estimatedHours}h</span>
+                </div>
               </div>
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Due date (optional)</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </>
           )}
 
           {mode === 'event' && (
@@ -358,6 +445,62 @@ export function AddModal({
                     className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1">Repeat</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setRecurrencePattern(p)}
+                      className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                        recurrencePattern === p
+                          ? 'bg-blue-50 border-blue-500 text-blue-700'
+                          : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                {recurrencePattern === 'custom' && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)))}
+                        className={`px-2 py-1 text-xs font-medium rounded border ${
+                          recurrenceDays.includes(i) ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium text-neutral-600 mb-1">Edit</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['this', 'all', 'all_after'] as const).map((scope) => (
+                        <button
+                          key={scope}
+                          type="button"
+                          onClick={() => setRecurrenceEditScope(scope)}
+                          className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                            recurrenceEditScope === scope
+                              ? 'bg-blue-50 border-blue-500 text-blue-700'
+                              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All events after'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -426,11 +569,12 @@ export function AddModal({
             />
             <div className="grid grid-cols-2 gap-1.5">
               {categories
-                .filter((category) =>
-                  selectedCalendar && category.calendarContainerId
-                    ? category.calendarContainerId === selectedCalendar
-                    : true
-                )
+                .filter((category) => {
+                  if (!selectedCalendar) return true;
+                  const ids = category.calendarContainerIds;
+                  if (ids && ids.length > 0) return ids.includes(selectedCalendar);
+                  return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
+                })
                 .map((category) => (
                   <button
                     key={category.id}
@@ -479,25 +623,26 @@ export function AddModal({
               className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
             />
             <div className="flex flex-wrap gap-1.5">
-              {selectedTags.map((tag) => (
-                <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-neutral-800 text-white">
-                  <TagIcon className="h-3 w-3" />
-                  {tag.name}
-                </span>
-              ))}
               {tags
-                .filter((t) => t.categoryId === selectedCategory?.id && !selectedTags.some((s) => s.id === t.id))
-                .map((tag) => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className="px-2 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-neutral-200 flex items-center gap-1"
-                  >
-                    <TagIcon className="h-3 w-3" />
-                    {tag.name}
-                  </button>
-                ))}
+                .filter((t) => t.categoryId === selectedCategory?.id)
+                .map((tag) => {
+                  const isSelected = selectedTags.some((s) => s.id === tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
+                        isSelected
+                          ? 'bg-blue-50 border border-blue-500 text-blue-700'
+                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-transparent'
+                      }`}
+                    >
+                      <TagIcon className="h-3 w-3" />
+                      {tag.name}
+                    </button>
+                  );
+                })}
             </div>
           </div>
           </div>
@@ -512,7 +657,7 @@ export function AddModal({
               className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save' : isRecording ? 'Record Event' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
+              {mode === 'task' && editingTask ? 'Save' : editingEvent || editingTimeBlock ? 'Save' : isRecording ? 'Record Event' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
             </button>
           </div>
         </form>

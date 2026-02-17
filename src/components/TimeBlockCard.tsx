@@ -26,6 +26,7 @@ interface TimeBlockCardProps {
   onDeselect: () => void;
   onDoneAsPlanned?: (blockId: string) => void;
   onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onEditBlock?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks that day. */
@@ -71,6 +72,7 @@ export function TimeBlockCard({
   onDeselect,
   onDoneAsPlanned,
   onDidSomethingElse,
+  onEditBlock,
   onDeleteBlock,
   onDeleteTask,
   compareMatchedTaskIds,
@@ -246,6 +248,16 @@ export function TimeBlockCard({
                   <div className="border-t border-neutral-200 my-1" />
                 </>
               )}
+              {onEditBlock && (
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={() => { onEditBlock(block.id); setShowPopover(false); onDeselect(); }}
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Edit block
+                </button>
+              )}
               {onDeleteBlock && (
                 <button
                   type="button"
@@ -342,7 +354,7 @@ export function TimeBlockCard({
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                   onClick={() => { onDoneAsPlanned?.(block.id); setShowPopover(false); onDeselect(); }}
                 >
-                  <Check className="w-4 h-4" />
+                  <CheckIcon className="w-4 h-4" />
                   Done as planned
                 </button>
                 <button
@@ -350,11 +362,21 @@ export function TimeBlockCard({
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
                   onClick={() => { onDidSomethingElse?.(block.id, buildRecordedPayload()); setShowPopover(false); onDeselect(); }}
                 >
-                  <Edit3 className="w-4 h-4" />
+                  <PencilIcon className="w-4 h-4" />
                   Done differently
                 </button>
                 <div className="border-t border-neutral-200 my-1" />
               </>
+            )}
+            {onEditBlock && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                onClick={() => { onEditBlock(block.id); setShowPopover(false); onDeselect(); }}
+              >
+                <PencilIcon className="h-4 w-4" />
+                Edit block
+              </button>
             )}
             {onDeleteBlock && (
               <button
@@ -362,7 +384,7 @@ export function TimeBlockCard({
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
                 onClick={() => { onDeleteBlock(block.id); setShowPopover(false); onDeselect(); }}
               >
-                <X className="w-4 h-4" />
+                <XMarkIcon className="h-4 w-4" />
                 Delete block
               </button>
             )}
@@ -372,7 +394,7 @@ export function TimeBlockCard({
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-700 hover:bg-red-50 rounded-md transition-colors"
                 onClick={() => { onDeleteTask(block.taskId!); setShowPopover(false); onDeselect(); }}
               >
-                <X className="w-4 h-4" />
+                <XMarkIcon className="w-4 h-4" />
                 Delete task
               </button>
             )}

@@ -41,6 +41,7 @@ export interface Task {
   category: Category;
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
+  dueDate?: string | null;
 }
 export interface TimeBlock {
   id: string;
@@ -59,6 +60,7 @@ export default function App() {
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
@@ -215,6 +217,7 @@ export default function App() {
     category: Category;
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
+    dueDate?: string | null;
   }) => {
     addTask({
       title: taskData.title,
@@ -223,6 +226,7 @@ export default function App() {
       categoryId: taskData.category.id,
       tagIds: taskData.tags.map((t) => t.id),
       flexible: true,
+      dueDate: taskData.dueDate ?? undefined,
     });
   };
 
@@ -234,6 +238,9 @@ export default function App() {
     category: Category;
     tags: Tag[];
     calendar: string;
+    recurring?: boolean;
+    recurrencePattern?: import('./types').RecurrencePattern;
+    recurrenceDays?: number[];
   }) => {
     const eventPayload = {
       title: eventData.title,
@@ -242,7 +249,9 @@ export default function App() {
       start: eventData.startTime,
       end: eventData.endTime,
       date: eventData.date,
-      recurring: false,
+      recurring: eventData.recurring ?? false,
+      recurrencePattern: eventData.recurrencePattern,
+      recurrenceDays: eventData.recurrenceDays,
     };
     // If we were editing a draft timeBlock (from drag-to-create),
     // atomically convert it to an event in a single state change.
@@ -255,9 +264,48 @@ export default function App() {
     }
   };
 
+  const handleBreakIntoChunks = (taskId: string, chunkMinutes: number) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || chunkMinutes <= 0) return;
+    const total = task.estimatedMinutes;
+    const n = Math.ceil(total / chunkMinutes);
+    for (let i = 0; i < n; i++) {
+      const mins = i === n - 1 ? total - (n - 1) * chunkMinutes : chunkMinutes;
+      if (mins <= 0) continue;
+      addTask({
+        title: task.title,
+        estimatedMinutes: mins,
+        calendarContainerId: task.calendarContainerId,
+        categoryId: task.categoryId,
+        tagIds: task.tagIds ?? [],
+        flexible: task.flexible,
+        dueDate: task.dueDate ?? undefined,
+      });
+    }
+  };
+
+  /** Split task into two: one with chunkMinutes, original reduced by that amount. */
+  const handleSplitTask = (taskId: string, chunkMinutes: number) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || chunkMinutes <= 0) return;
+    const remainder = task.estimatedMinutes - chunkMinutes;
+    if (remainder <= 0) return; // not enough to split
+    addTask({
+      title: task.title,
+      estimatedMinutes: chunkMinutes,
+      calendarContainerId: task.calendarContainerId,
+      categoryId: task.categoryId,
+      tagIds: task.tagIds ?? [],
+      flexible: task.flexible,
+      dueDate: task.dueDate ?? undefined,
+    });
+    updateTask(taskId, { estimatedMinutes: remainder });
+  };
+
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
     setEditingTaskId(null);
     setEditingTimeBlockId(null);
+    setEditingEventId(null);
     setIsDraftTimeBlock(false);
     setAddModalMode(modalMode);
     setIsAddModalOpen(true);
@@ -266,13 +314,33 @@ export default function App() {
   const handleEditTask = (id: string) => {
     setEditingTaskId(id);
     setEditingTimeBlockId(null);
+    setEditingEventId(null);
     setIsDraftTimeBlock(false);
     setAddModalMode('task');
     setIsAddModalOpen(true);
   };
 
+  const handleEditEvent = (id: string) => {
+    setEditingTaskId(null);
+    setEditingTimeBlockId(null);
+    setEditingEventId(id);
+    setIsDraftTimeBlock(false);
+    setAddModalMode('event');
+    setIsAddModalOpen(true);
+  };
+
+  const handleEditBlock = (blockId: string) => {
+    setEditingTaskId(null);
+    setEditingTimeBlockId(blockId);
+    setEditingEventId(null);
+    setIsDraftTimeBlock(false);
+    setAddModalMode('event');
+    setIsAddModalOpen(true);
+  };
+
   const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
   const editingTimeBlock = editingTimeBlockId ? timeBlocks.find((b) => b.id === editingTimeBlockId) ?? null : null;
+  const editingEvent = editingEventId ? events.find((e) => e.id === editingEventId) ?? null : null;
   const schedulingTask = schedulingTaskId ? tasks.find((t) => t.id === schedulingTaskId) ?? null : null;
 
   const handleOpenScheduleTask = (taskId: string) => {
@@ -288,7 +356,7 @@ export default function App() {
 
   const handleDropTask = (
     taskId: string,
-    params: { date: string; startTime: string; blockMinutes: number; splitCount?: number }
+    params: { date: string; startTime: string; blockMinutes: number }
   ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -305,49 +373,23 @@ export default function App() {
     const remaining = Math.max(0, task.estimatedMinutes - planned - recorded);
     if (remaining <= 0) return;
 
-    // Schedule the full remaining time by default; only split if user requested.
-    const total = Math.max(15, Math.round(remaining / 15) * 15);
-    const count = Math.max(1, Math.min(12, params.splitCount ?? 1));
+    const duration = Math.max(15, Math.min(remaining, Math.round(params.blockMinutes / 15) * 15));
     const startMins = parseTimeToMinsLocal(params.startTime);
     const minsToTimeString = (mins: number) =>
       `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
-    if (count === 1) {
-      addTimeBlock({
-        taskId,
-        title: task.title,
-        calendarContainerId: task.calendarContainerId,
-        categoryId: task.categoryId,
-        tagIds: task.tagIds,
-        start: minsToTimeString(startMins),
-        end: minsToTimeString(startMins + total),
-        date: params.date,
-        mode: 'planned',
-        source: 'manual',
-      });
-      return;
-    }
-
-    const chunk = Math.max(15, Math.round((total / count) / 15) * 15);
-    let cur = startMins;
-    let remainingToPlace = total;
-    for (let i = 0; i < count; i++) {
-      const dur = i === count - 1 ? remainingToPlace : Math.min(chunk, remainingToPlace - 15 * (count - i - 1));
-      addTimeBlock({
-        taskId,
-        title: task.title,
-        calendarContainerId: task.calendarContainerId,
-        categoryId: task.categoryId,
-        tagIds: task.tagIds,
-        start: minsToTimeString(cur),
-        end: minsToTimeString(cur + dur),
-        date: params.date,
-        mode: 'planned',
-        source: 'manual',
-      });
-      cur += dur;
-      remainingToPlace -= dur;
-    }
+    addTimeBlock({
+      taskId,
+      title: task.title,
+      calendarContainerId: task.calendarContainerId,
+      categoryId: task.categoryId,
+      tagIds: task.tagIds ?? [],
+      start: minsToTimeString(startMins),
+      end: minsToTimeString(startMins + duration),
+      date: params.date,
+      mode: 'planned',
+      source: 'manual',
+    });
   };
 
   const checkRecordingOverlap = useCallback((date: string, startTime: string, endTime: string, excludeBlockId?: string) => {
@@ -719,6 +761,7 @@ export default function App() {
                 onAddTag={addTag}
                 onDeleteTag={deleteTag}
                 onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
+                focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                 endDayLabel={`End day (${selectedDate})`}
                 onEndDay={() => endDay(selectedDate)}
@@ -894,6 +937,8 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          onEditEvent={handleEditEvent}
+          onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
         />
@@ -959,7 +1004,9 @@ export default function App() {
                 onEditTask={handleEditTask}
                 onDeleteTask={deleteTask}
                 onOpenAddModal={handleOpenAddModal}
-                onDropBlock={deleteTimeBlock}
+                onDropBlock={mode === 'planning' ? deleteTimeBlock : undefined}
+                onBreakIntoChunks={handleBreakIntoChunks}
+                onSplitTask={handleSplitTask}
                 events={events}
                 onDeleteEvent={deleteEvent}
               />
@@ -991,6 +1038,8 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          onEditEvent={handleEditEvent}
+          onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
         />
@@ -1008,7 +1057,9 @@ export default function App() {
           onEditTask={handleEditTask}
           onDeleteTask={deleteTask}
           onOpenAddModal={handleOpenAddModal}
-          onDropBlock={deleteTimeBlock}
+          onDropBlock={mode === 'planning' ? deleteTimeBlock : undefined}
+          onBreakIntoChunks={handleBreakIntoChunks}
+          onSplitTask={handleSplitTask}
         />
       </div>
 
@@ -1037,6 +1088,7 @@ export default function App() {
             }
           }
           setEditingTimeBlockId(null);
+          setEditingEventId(null);
           setIsDraftTimeBlock(false);
         }}
         categories={categories}
@@ -1047,8 +1099,14 @@ export default function App() {
         onViewModeChange={setViewMode}
         editingTask={editingTask}
         editingTimeBlock={editingTimeBlock}
+        editingEvent={editingEvent}
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
+        onUpdateEvent={(id, updates) => {
+          const { recurrenceEditScope: _scope, ...rest } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
+          updateEvent(id, rest);
+          // TODO: handle _scope 'all' / 'all_after' to update series when store supports it
+        }}
         onUpdateTimeBlock={(id, updates) => {
           // If this is a draft block being finalized in event mode,
           // convert it to a proper Event and remove the draft timeBlock

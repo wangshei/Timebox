@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { TrashIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
 
 interface EventCardProps {
+  key?: React.Key;
   event: ResolvedEvent;
   style: React.CSSProperties;
   isSelected: boolean;
   onSelect: () => void;
   onDeselect: () => void;
   onDeleteEvent?: (eventId: string) => void;
+  onEditEvent?: (eventId: string) => void;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -42,12 +44,14 @@ export function EventCard({
   onSelect,
   onDeselect,
   onDeleteEvent,
+  onEditEvent,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
 
-  const baseColor = event.category?.color ?? '#6b7280';
-  const bgColor = lighten(baseColor, 0.82);
-  const borderColor = baseColor;
+  // Category color = background; calendar color = left border (like time blocks)
+  const categoryColor = event.category?.color ?? '#6b7280';
+  const bgColor = categoryColor;
+  const calendarColor = event.calendarContainer?.color ?? '#6b7280';
 
   const heightPx =
     typeof style.height === 'number'
@@ -78,33 +82,32 @@ export function EventCard({
       }}
     >
       <div
-        className={`h-full rounded-lg px-3 py-2 border-2 border-dashed transition-all ${
+        className={`h-full rounded-lg px-3 py-2 border-l-4 transition-all ${
           isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''
         }`}
         style={{
           backgroundColor: bgColor,
-          borderColor,
+          borderLeftColor: calendarColor,
         }}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full text-white">
           <div className="flex items-start justify-between gap-2">
-            <span className="font-medium text-sm leading-snug truncate" style={{ color: borderColor }}>
+            <span className="font-medium text-sm leading-snug truncate">
               {event.title || 'Untitled Event'}
             </span>
-            <span className="text-xs whitespace-nowrap opacity-70" style={{ color: borderColor }}>
+            <span className="text-xs whitespace-nowrap opacity-90">
               {getDuration()}
             </span>
           </div>
           {heightPx >= 48 && (
-            <div className="mt-0.5 text-xs opacity-60" style={{ color: borderColor }}>
+            <div className="mt-0.5 text-xs opacity-80">
               {event.start} – {event.end}
             </div>
           )}
           {heightPx >= 64 && event.category && (
             <div className="mt-auto flex items-center gap-1">
               <span
-                className="text-xs px-2 py-0.5 rounded-full truncate max-w-[120px]"
-                style={{ backgroundColor: `${borderColor}20`, color: borderColor }}
+                className="text-xs px-2 py-0.5 rounded-full truncate max-w-[120px] bg-white/20 backdrop-blur-sm"
               >
                 {event.category.name}
               </span>
@@ -164,10 +167,25 @@ export function EventCard({
               </div>
             )}
 
-            {/* Divider + Delete */}
-            {onDeleteEvent && (
-              <>
-                <div className="border-t border-neutral-200 my-1" />
+            {/* Divider + Edit + Delete */}
+            <div className="border-t border-neutral-200 my-1" />
+            <div className="flex flex-col gap-0.5">
+              {onEditEvent && (
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditEvent(event.id);
+                    setShowPopover(false);
+                    onDeselect();
+                  }}
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Edit event
+                </button>
+              )}
+              {onDeleteEvent && (
                 <button
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
@@ -181,8 +199,8 @@ export function EventCard({
                   <TrashIcon className="h-4 w-4" />
                   Delete event
                 </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </>
       )}

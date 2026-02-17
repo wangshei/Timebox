@@ -14,7 +14,6 @@ export interface DropTaskParams {
   date: string;
   startTime: string;
   blockMinutes: number;
-  splitCount?: number;
 }
 
 export interface CreateBlockParams {
@@ -42,6 +41,8 @@ interface DayViewProps {
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
   /** Move an existing block to new time/date; may split rest into a new block. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  onEditEvent?: (eventId: string) => void;
+  onEditBlock?: (blockId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
   compareMatchedTaskIds?: string[];
 }
@@ -61,7 +62,7 @@ function minutesToTimeString(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -143,9 +144,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     }
     if (taskId && onDropTask) {
       const blockMinutes = Math.max(MIN_CREATE_MINUTES, endMins - startMins);
-      const splitStr = e.dataTransfer.getData('application/x-timebox-task-split-count');
-      const splitCount = splitStr ? parseInt(splitStr, 10) : undefined;
-      onDropTask(taskId, { date: selectedDate, startTime, blockMinutes, splitCount });
+      onDropTask(taskId, { date: selectedDate, startTime, blockMinutes });
     }
   };
 
@@ -319,6 +318,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDidSomethingElse={onDidSomethingElse}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
+                onEditBlock={onEditBlock}
                 compareMatchedTaskIds={compareMatchedTaskIds}
               />
             );
@@ -348,6 +348,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onSelect={() => onSelectBlock(`event-${event.id}`)}
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
+                onEditEvent={onEditEvent}
               />
             );
           })}

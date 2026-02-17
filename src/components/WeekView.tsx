@@ -20,17 +20,19 @@ interface WeekViewProps {
   onDeleteTask?: (taskId: string) => void;
   onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  onEditEvent?: (eventId: string) => void;
+  onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
-  // Generate hours from 6 AM to 10 PM
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6);
+  // 24-hour grid (12–12) like Day view for consistent scroll and behavior
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   // Get start of week (Sunday)
   const startOfWeek = new Date(currentDate);
@@ -52,11 +54,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     const startMinutes = parseTime(block.start);
     const endMinutes = parseTime(block.end);
     const duration = endMinutes - startMinutes;
-    
-    // Calculate position relative to 6 AM (360 minutes)
-    const top = ((startMinutes - 360) / 60) * 64; // 64px per hour for week view
-    const height = (duration / 60) * 64;
-    
+    const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
+    const height = (duration / 60) * PX_PER_HOUR;
     return { top, height };
   };
 
@@ -71,9 +70,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   }, []);
 
   const PX_PER_HOUR = 64;
-  const START_HOUR = 6;
-  const gridTopOffset = 16;
-  const GRID_HEIGHT = 17 * PX_PER_HOUR;
+  const START_HOUR = 0;
+  const gridTopOffset = 0;
+  const GRID_HEIGHT = 24 * PX_PER_HOUR;
 
   const snapToGrid = (totalMinutes: number) => Math.round(totalMinutes / 15) * 15;
   const offsetYToMinutes = (offsetY: number) => {
@@ -93,13 +92,11 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   React.useEffect(() => {
     if (!creatingBlock) return;
-    const colEls = document.querySelectorAll<HTMLDivElement>('[data-week-day-col]');
-    let activeCol: HTMLDivElement | null = null;
-    colEls.forEach((el) => { if (el.dataset.weekDayCol === creatingBlock.date) activeCol = el; });
-    if (!activeCol) return;
-    const rect = (activeCol as HTMLDivElement).getBoundingClientRect();
+    const gridEl = document.querySelector<HTMLDivElement>(`[data-week-day-col="${creatingBlock.date}"] [data-week-grid]`);
+    if (!gridEl) return;
     const onMove = (e: MouseEvent) => {
-      const offsetY = e.clientY - rect.top - gridTopOffset;
+      const rect = gridEl.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
       const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
       setCreatingBlock((prev) => {
         if (!prev) return null;
@@ -127,7 +124,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   const currentTimeTopRaw =
-    currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= (START_HOUR + 16) * 60
+    currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes < 24 * 60
       ? ((currentTimeMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR
       : null;
   const currentTimeTop =
@@ -143,9 +140,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
         <div className="w-12 md:w-16 flex-shrink-0 border-r border-neutral-200 px-1 md:px-2 py-4 md:py-6 sticky left-0 bg-white z-10">
           <div className="h-10 md:h-12" /> {/* Spacer for day headers */}
           {hours.map((hour) => (
-            <div key={hour} className="relative" style={{ height: '64px' }}>
+            <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
               <div className="absolute left-0 top-0 w-full text-xs text-neutral-400 text-right pr-1 md:pr-2">
-                {hour === 12 ? '12PM' : hour > 12 ? `${hour - 12}PM` : `${hour}AM`}
+                {hour === 0 ? '12AM' : hour === 12 ? '12PM' : hour > 12 ? `${hour - 12}PM` : `${hour}AM`}
               </div>
             </div>
           ))}
@@ -175,7 +172,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 {/* Day grid: single relative container height GRID_HEIGHT; all layers share this coordinate system */}
                 <div
                   data-week-day-col={dateStr}
-                  className="px-1 md:px-2 py-4 md:py-6"
+                  className="px-1 md:px-2"
                   onDragOver={(e) => {
                     const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
                     const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
@@ -184,8 +181,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     if (hasBlock && !onMoveBlock) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
-                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                    const offsetY = e.clientY - rect.top - gridTopOffset;
+                    const gridEl = (e.currentTarget as HTMLDivElement).querySelector<HTMLDivElement>('[data-week-grid]');
+                    const rect = gridEl?.getBoundingClientRect();
+                    if (!rect) return;
+                    const offsetY = e.clientY - rect.top;
                     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                     const startMins = offsetYToMinutes(offsetY);
                     const durationStr = hasBlock
@@ -200,8 +199,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
                     if (!taskId && !blockId) return;
                     e.preventDefault();
-                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                    const offsetY = e.clientY - rect.top - gridTopOffset;
+                    const gridEl = (e.currentTarget as HTMLDivElement).querySelector<HTMLDivElement>('[data-week-grid]');
+                    const rect = gridEl?.getBoundingClientRect();
+                    if (!rect) return;
+                    const offsetY = e.clientY - rect.top;
                     const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
 
                     if (blockId && onMoveBlock) {
@@ -211,14 +212,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     } else if (taskId && onDropTask) {
                       const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
                       const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
-                      const splitStr = e.dataTransfer.getData('application/x-timebox-task-split-count');
-                      const splitCount = splitStr ? parseInt(splitStr, 10) : undefined;
-                      onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur, splitCount });
+                      onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
                     }
                     setDragPreview(null);
                   }}
                 >
                   <div
+                    data-week-grid
                     className={`relative ${onCreateBlock ? 'cursor-crosshair' : ''}`}
                     style={{ height: GRID_HEIGHT }}
                     onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
@@ -231,9 +231,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     } : undefined}
                   >
                     {/* Grid lines - pointer-events-none */}
-                    {hours.map((hour, i) => (
+                    {hours.map((_, i) => (
                       <div
-                        key={hour}
+                        key={i}
                         className="absolute left-0 right-0 border-t border-neutral-100 pointer-events-none"
                         style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
                       />
@@ -272,6 +272,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                   focusedCalendarId={focusedCalendarId}
                                   onDoneAsPlanned={onDoneAsPlanned}
                                   onDidSomethingElse={onDidSomethingElse}
+                                  onEditBlock={onEditBlock}
                                   onDeleteBlock={onDeleteBlock}
                                   onDeleteTask={onDeleteTask}
                                   compact
@@ -301,6 +302,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                   onSelect={() => handleSelect(`event-${event.id}`)}
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
+                                  onEditEvent={onEditEvent}
                                 />
                               );
                             })}

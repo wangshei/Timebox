@@ -33,6 +33,8 @@ interface CalendarViewProps {
   onCreateBlock?: (params: import('./DayView').CreateBlockParams) => string | undefined;
   /** Move a block to new time/date; may split rest into a new block. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  onEditEvent?: (eventId: string) => void;
+  onEditBlock?: (blockId: string) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
 }
@@ -61,6 +63,8 @@ export function CalendarView({
   onDropTask,
   onCreateBlock,
   onMoveBlock,
+  onEditEvent,
+  onEditBlock,
   events: eventsProp = [],
   onDeleteEvent,
 }: CalendarViewProps) {
@@ -263,7 +267,7 @@ export function CalendarView({
       {/* Calendar Content */}
       {view === 'day' && mode === 'compare' ? (
         <div className="flex-1 flex overflow-hidden border-t border-neutral-100 min-h-0 min-w-0">
-          <div className="flex-1 min-w-0 border-r border-neutral-100 flex flex-col min-h-0">
+          <div className="flex-1 min-w-0 border-r border-neutral-100 flex flex-col min-h-0 bg-white">
             <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Plan</div>
             <DayView
               mode="planning"
@@ -280,10 +284,12 @@ export function CalendarView({
               onDropTask={onDropTask}
               onCreateBlock={onCreateBlock}
               onMoveBlock={onMoveBlock}
+              onEditEvent={onEditEvent}
+              onEditBlock={onEditBlock}
             />
           </div>
-          <div className="flex-1 min-w-0 flex flex-col min-h-0">
-            <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Record</div>
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-neutral-100">
+            <div className="px-3 py-1.5 bg-neutral-100 border-b border-neutral-200 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Record</div>
             <DayView
               mode="recording"
               timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
@@ -298,16 +304,15 @@ export function CalendarView({
               onDeleteBlock={onDeleteBlock}
               onDeleteTask={onDeleteTask}
               onDeleteEvent={onDeleteEvent}
-              onDropTask={onDropTask}
-              onCreateBlock={onCreateBlock}
-              onMoveBlock={onMoveBlock}
+              onEditEvent={onEditEvent}
+              onEditBlock={onEditBlock}
             />
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
-          {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} />}
+        <div className={`flex-1 overflow-y-auto ${mode === 'recording' ? 'bg-neutral-100' : ''}`}>
+          {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={mode === 'planning' ? onDropTask : undefined} onCreateBlock={onCreateBlock} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
+          {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={mode === 'planning' ? onDropTask : undefined} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
           {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} events={eventsProp} />}
         </div>
       )}
