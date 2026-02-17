@@ -3,6 +3,7 @@ import {
   Cog6ToothIcon,
   CheckIcon,
   PencilIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/solid';
 import { CalendarView } from './components/CalendarView';
 import { DraggableBottomSheet } from './components/DraggableBottomSheet';
@@ -547,48 +548,84 @@ export default function App() {
     }
   };
 
+  // Auth gate: if Supabase is configured and user is not signed in, show full-page login
+  if (supabase && !session) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
+        <div className="w-full max-w-[380px] mx-auto px-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 flex flex-col overflow-hidden">
+            {/* Header — matches AddModal header style */}
+            <div className="px-6 pt-6 pb-4 border-b border-neutral-100">
+              <div className="flex items-center gap-2.5 mb-1">
+                <CalendarIcon className="h-5 w-5 text-blue-600" />
+                <h1 className="text-base font-semibold text-neutral-900">Timebox</h1>
+              </div>
+              <p className="text-sm text-neutral-500">Sign in to sync your tasks and calendar</p>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              {authErrorFromUrl && (
+                <div className="mb-4 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                  {authErrorFromUrl}
+                </div>
+              )}
+
+              <form onSubmit={handleSendMagicLink} className="space-y-4">
+                <div>
+                  <label htmlFor="auth-email" className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    Email address
+                  </label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-2 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
+                >
+                  Send magic link
+                </button>
+                {authMessage && (
+                  <p className="text-xs text-neutral-500 text-center pt-1">{authMessage}</p>
+                )}
+              </form>
+            </div>
+
+            {/* Footer hint */}
+            <div className="px-6 pb-5">
+              <p className="text-xs text-neutral-400 text-center">
+                We'll email you a sign-in link — no password needed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`h-screen w-full flex flex-col overflow-hidden ${mode === 'recording' ? 'bg-neutral-100' : 'bg-neutral-50'}`}>
       {/* Supabase auth bar */}
-      {supabase && (
+      {session && (
         <div className="w-full border-b border-neutral-200 bg-white px-4 py-1.5 flex items-center justify-end gap-3 text-xs">
-          {session ? (
-            <>
-              <span className="text-neutral-500">
-                Signed in as <span className="font-medium text-neutral-800">{session.user.email}</span>
-                <span className="ml-1.5 text-neutral-400">· changes sync to Supabase</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => supabase?.auth.signOut()}
-                className="px-2 py-1 rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <form onSubmit={handleSendMagicLink} className="flex items-center gap-2 flex-wrap">
-              {authErrorFromUrl && (
-                <span className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 w-full sm:w-auto">
-                  {authErrorFromUrl}
-                </span>
-              )}
-              <input
-                type="email"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="Email for login"
-                className="px-2 py-1 text-xs border border-neutral-200 rounded bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                className="px-2 py-1 rounded border border-blue-500 text-blue-700 text-xs font-medium hover:bg-blue-50"
-              >
-                Send link
-              </button>
-              {authMessage && <span className="text-[10px] text-neutral-500">{authMessage}</span>}
-            </form>
-          )}
+          <span className="text-neutral-500">
+            Signed in as <span className="font-medium text-neutral-800">{session.user.email}</span>
+            <span className="ml-1.5 text-neutral-400">· changes sync to Supabase</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => supabase?.auth.signOut()}
+            className="px-2 py-1 rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+          >
+            Sign out
+          </button>
         </div>
       )}
 

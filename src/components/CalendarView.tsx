@@ -261,60 +261,60 @@ export function CalendarView({
       </div>
 
       {/* Calendar Content */}
-      <div className="flex-1 overflow-y-auto">
-        {view === 'day' && mode === 'compare' ? (
-          <div className="flex h-full border-t border-neutral-100">
-            <div className="w-1/2 border-r border-neutral-100">
-              <DayView
-                mode={mode}
-                timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
-                events={resolvedEvents}
-                selectedDate={selectedDate}
-                selectedBlock={selectedBlock}
-                onSelectBlock={setSelectedBlock}
-                focusedCategoryId={focusedCategoryId}
-                focusedCalendarId={focusedCalendarId}
-                onDoneAsPlanned={onDoneAsPlanned}
-                onDidSomethingElse={onDidSomethingElse}
-                onDeleteBlock={onDeleteBlock}
-                onDeleteTask={onDeleteTask}
-                onDeleteEvent={onDeleteEvent}
-                onDropTask={onDropTask}
-                onCreateBlock={onCreateBlock}
-                onMoveBlock={onMoveBlock}
-                compareMatchedTaskIds={compareMatchedTaskIds}
-              />
-            </div>
-            <div className="w-1/2">
-              <DayView
-                mode={mode}
-                timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
-                events={resolvedEvents}
-                selectedDate={selectedDate}
-                selectedBlock={selectedBlock}
-                onSelectBlock={setSelectedBlock}
-                focusedCategoryId={focusedCategoryId}
-                focusedCalendarId={focusedCalendarId}
-                onDoneAsPlanned={onDoneAsPlanned}
-                onDidSomethingElse={onDidSomethingElse}
-                onDeleteBlock={onDeleteBlock}
-                onDeleteTask={onDeleteTask}
-                onDeleteEvent={onDeleteEvent}
-                onDropTask={onDropTask}
-                onCreateBlock={onCreateBlock}
-                onMoveBlock={onMoveBlock}
-                compareMatchedTaskIds={compareMatchedTaskIds}
-              />
-            </div>
+      {view === 'day' && mode === 'compare' ? (
+        <div className="flex-1 flex overflow-hidden border-t border-neutral-100 min-h-0">
+          <div className="w-1/2 border-r border-neutral-100 flex flex-col min-h-0">
+            <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Plan</div>
+            <DayView
+              mode={mode}
+              timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
+              events={resolvedEvents}
+              selectedDate={selectedDate}
+              selectedBlock={selectedBlock}
+              onSelectBlock={setSelectedBlock}
+              focusedCategoryId={focusedCategoryId}
+              focusedCalendarId={focusedCalendarId}
+              onDoneAsPlanned={onDoneAsPlanned}
+              onDidSomethingElse={onDidSomethingElse}
+              onDeleteBlock={onDeleteBlock}
+              onDeleteTask={onDeleteTask}
+              onDeleteEvent={onDeleteEvent}
+              onDropTask={onDropTask}
+              onCreateBlock={onCreateBlock}
+              onMoveBlock={onMoveBlock}
+              compareMatchedTaskIds={compareMatchedTaskIds}
+            />
           </div>
-        ) : (
-        <>
-        {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
-        {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} />}
-        {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} events={eventsProp} />}
-        </>
-        )}
-      </div>
+          <div className="w-1/2 flex flex-col min-h-0">
+            <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Record</div>
+            <DayView
+              mode={mode}
+              timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
+              events={resolvedEvents}
+              selectedDate={selectedDate}
+              selectedBlock={selectedBlock}
+              onSelectBlock={setSelectedBlock}
+              focusedCategoryId={focusedCategoryId}
+              focusedCalendarId={focusedCalendarId}
+              onDoneAsPlanned={onDoneAsPlanned}
+              onDidSomethingElse={onDidSomethingElse}
+              onDeleteBlock={onDeleteBlock}
+              onDeleteTask={onDeleteTask}
+              onDeleteEvent={onDeleteEvent}
+              onDropTask={onDropTask}
+              onCreateBlock={onCreateBlock}
+              onMoveBlock={onMoveBlock}
+              compareMatchedTaskIds={compareMatchedTaskIds}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} />}
+          {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} />}
+          {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} events={eventsProp} />}
+        </div>
+      )}
 
       {/* Floating Add Button — visible in day/week/month, draggable add popup opens */}
       {onOpenAddModal && (

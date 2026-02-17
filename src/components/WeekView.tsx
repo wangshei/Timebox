@@ -239,8 +239,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       />
                     ))}
 
-                    {/* Time blocks + events - direct children */}
-                    <div className="absolute left-0 right-0 top-0" style={{ minHeight: GRID_HEIGHT }}>
+                    {/* Time blocks + events - pointer-events-none so clicks pass to grid for drag-to-create */}
+                    <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                       {(() => {
                         const allItems = [
                           ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
