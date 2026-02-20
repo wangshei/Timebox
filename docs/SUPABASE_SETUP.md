@@ -72,7 +72,9 @@ create table if not exists tasks (
   tag_ids uuid[] not null default '{}',
   flexible boolean not null default true,
   status text,
-  due_date text  -- optional YYYY-MM-DD
+  due_date text,  -- optional YYYY-MM-DD
+  link text,      -- optional URL
+  description text  -- optional notes
 );
 
 create table if not exists time_blocks (
@@ -87,7 +89,9 @@ create table if not exists time_blocks (
   "end" text not null,
   date text not null,
   mode text not null,   -- 'planned' | 'recorded'
-  source text not null  -- 'manual' | 'autoAssumed'
+  source text not null,  -- 'manual' | 'autoAssumed'
+  link text,
+  description text
 );
 
 create table if not exists events (
@@ -102,7 +106,9 @@ create table if not exists events (
   recurring boolean not null default false,
   recurrence_pattern text,  -- 'none'|'daily'|'every_other_day'|'weekly'|'monthly'|'custom'
   recurrence_days integer[],  -- for custom: 0=Sun..6=Sat
-  recurrence_series_id uuid  -- for "all after" edits: id of first event in series
+  recurrence_series_id uuid,  -- for "all after" edits: id of first event in series
+  link text,
+  description text
 );
 
 -- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
@@ -133,7 +139,26 @@ alter table events add column if not exists recurrence_series_id uuid;
 
 -- Categories: shared across multiple calendars
 alter table categories add column if not exists calendar_container_ids uuid[];
+
+-- Tasks & events: optional link and description
+alter table tasks add column if not exists link text;
+alter table tasks add column if not exists description text;
+alter table time_blocks add column if not exists link text;
+alter table time_blocks add column if not exists description text;
+alter table events add column if not exists link text;
+alter table events add column if not exists description text;
 ```
+
+**Categories on multiple calendars:** To let a category appear on more than one calendar, ensure the `categories` table has the column `calendar_container_ids`. Run this in the Supabase SQL Editor if you haven’t already:
+
+```sql
+alter table categories add column if not exists calendar_container_ids uuid[];
+```
+
+- `calendar_container_id` (singular) = primary/default calendar for the category (optional).
+- `calendar_container_ids` (array) = when non-empty, the category is shown only on these calendars; when null/empty, behavior falls back to `calendar_container_id` or “all calendars” depending on the app.
+
+No RLS or policy changes are required for this column.
 
 ---
 

@@ -38,7 +38,11 @@ export interface Task {
   status?: 'inbox' | 'partially_planned' | 'fully_planned' | 'partially_done' | 'done' | 'archived';
   /** Optional due date (YYYY-MM-DD). Shown on card when set. */
   dueDate?: string | null;
-  
+  /** Optional URL. Shown on card when set. */
+  link?: string | null;
+  /** Optional description. Shown in detail when set. */
+  description?: string | null;
+
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;
   // recordedMinutes: number;
@@ -57,6 +61,8 @@ export interface TimeBlock {
   date: string; // YYYY-MM-DD format for day/week/month views
   mode: 'planned' | 'recorded'; // Changed from 'type'
   source: 'manual' | 'autoAssumed'; // NEW: tracks how it was created
+  link?: string | null;
+  description?: string | null;
 }
 
 /** Recurrence pattern for events. */
@@ -82,6 +88,8 @@ export interface Event {
   recurrenceDays?: number[];
   /** For "all after" edits: id of the first event in the series. */
   recurrenceSeriesId?: string | null;
+  link?: string | null;
+  description?: string | null;
 }
 
 export interface User {

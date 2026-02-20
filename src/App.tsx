@@ -42,6 +42,8 @@ export interface Task {
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
   dueDate?: string | null;
+  link?: string | null;
+  description?: string | null;
 }
 export interface TimeBlock {
   id: string;
@@ -78,6 +80,7 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authErrorFromUrl, setAuthErrorFromUrl] = useState<string | null>(null);
   const [visitMode, setVisitMode] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
 
   const {
     viewMode: mode,
@@ -218,6 +221,8 @@ export default function App() {
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
     dueDate?: string | null;
+    link?: string | null;
+    description?: string | null;
   }) => {
     addTask({
       title: taskData.title,
@@ -227,6 +232,8 @@ export default function App() {
       tagIds: taskData.tags.map((t) => t.id),
       flexible: true,
       dueDate: taskData.dueDate ?? undefined,
+      link: taskData.link ?? undefined,
+      description: taskData.description ?? undefined,
     });
   };
 
@@ -241,6 +248,8 @@ export default function App() {
     recurring?: boolean;
     recurrencePattern?: import('./types').RecurrencePattern;
     recurrenceDays?: number[];
+    link?: string | null;
+    description?: string | null;
   }) => {
     const eventPayload = {
       title: eventData.title,
@@ -252,6 +261,8 @@ export default function App() {
       recurring: eventData.recurring ?? false,
       recurrencePattern: eventData.recurrencePattern,
       recurrenceDays: eventData.recurrenceDays,
+      link: eventData.link ?? undefined,
+      description: eventData.description ?? undefined,
     };
     // If we were editing a draft timeBlock (from drag-to-create),
     // atomically convert it to an event in a single state change.
@@ -282,6 +293,7 @@ export default function App() {
         dueDate: task.dueDate ?? undefined,
       });
     }
+    deleteTask(taskId);
   };
 
   /** Split task into two: one with chunkMinutes, original reduced by that amount. */
@@ -373,7 +385,11 @@ export default function App() {
     const remaining = Math.max(0, task.estimatedMinutes - planned - recorded);
     if (remaining <= 0) return;
 
-    const duration = Math.max(15, Math.min(remaining, Math.round(params.blockMinutes / 15) * 15));
+    const requested =
+      params.blockMinutes > 0 && Number.isFinite(params.blockMinutes)
+        ? params.blockMinutes
+        : task.estimatedMinutes;
+    const duration = Math.max(15, Math.min(remaining, Math.round(requested / 15) * 15));
     const startMins = parseTimeToMinsLocal(params.startTime);
     const minsToTimeString = (mins: number) =>
       `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
@@ -478,43 +494,28 @@ export default function App() {
       checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId);
     }
     updateTimeBlock(blockId, { start: params.startTime, end: params.endTime, date: params.date });
-    if (origStart < newStart) {
-      addTimeBlock({
-        calendarContainerId: block.calendarContainerId,
-        categoryId: block.categoryId,
-        tagIds: block.tagIds ?? [],
-        taskId: block.taskId ?? undefined,
-        title: block.title,
-        start: minsToTime(origStart),
-        end: minsToTime(newStart),
-        date: block.date,
-        mode: block.mode,
-        source: block.source,
-      });
+  };
+
+  const handleResizeBlock = (blockId: string, params: { date: string; endTime: string }) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block) return;
+    if (block.mode === 'recorded') {
+      checkRecordingOverlap(block.date, block.start, params.endTime, blockId);
     }
-    if (newEnd < origEnd) {
-      addTimeBlock({
-        calendarContainerId: block.calendarContainerId,
-        categoryId: block.categoryId,
-        tagIds: block.tagIds ?? [],
-        taskId: block.taskId ?? undefined,
-        title: block.title,
-        start: minsToTime(newEnd),
-        end: minsToTime(origEnd),
-        date: block.date,
-        mode: block.mode,
-        source: block.source,
-      });
-    }
+    updateTimeBlock(blockId, { date: params.date, end: params.endTime });
   };
 
   // Supabase auth session + persistence
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setDataReady(true);
+      return;
+    }
     let unsubscribePersistence: (() => void) | undefined;
 
     const setupForSession = async (next: Session | null) => {
       setSession(next);
+      setDataReady(false);
       if (unsubscribePersistence) {
         unsubscribePersistence();
         unsubscribePersistence = undefined;
@@ -524,8 +525,15 @@ export default function App() {
         // changes made by loadSupabaseState (e.g. default Personal calendar)
         // are captured and saved to Supabase.
         unsubscribePersistence = startSupabasePersistence();
-        await loadSupabaseState();
+        try {
+          await loadSupabaseState();
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('[App] loadSupabaseState failed', e);
+          // Still allow app to render even if load failed (user can fix DB schema)
+        }
       }
+      setDataReady(true);
     };
 
     supabase.auth.getSession().then(({ data }) => {
@@ -597,6 +605,14 @@ export default function App() {
 
   // Auth gate — in production, always require sign-in; in dev, allow local-only mode when Supabase isn't configured
   const requireAuth = import.meta.env.PROD || !!supabase;
+
+  if (requireAuth && session && !dataReady) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
+        <div className="text-sm text-neutral-500">Loading your data...</div>
+      </div>
+    );
+  }
 
   if (requireAuth && !session && !visitMode) {
     return (
@@ -710,7 +726,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="hidden lg:flex flex-1 overflow-hidden">
+      <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
           <div className="flex-shrink-0 bg-white flex flex-col overflow-hidden" style={{ width: '260px' }}>
@@ -937,6 +953,7 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          onResizeBlock={handleResizeBlock}
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
@@ -985,11 +1002,11 @@ export default function App() {
         </div>
         {/* Right panel */}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden bg-white">
-            <div className="flex items-center px-3 py-2 border-b border-neutral-100">
+          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden bg-white">
+            <div className="flex items-center px-3 py-2 border-b border-neutral-100 shrink-0">
               <span className="text-xs font-medium text-neutral-500">Tasks</span>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
                 tasks={displayTasks}
                 unscheduledTasks={unscheduledDisplay}
@@ -1038,6 +1055,7 @@ export default function App() {
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
+          onResizeBlock={handleResizeBlock}
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
@@ -1123,6 +1141,8 @@ export default function App() {
                 end: updates.end ?? block.end,
                 date: updates.date ?? block.date,
                 recurring: false,
+                link: updates.link ?? block.link ?? undefined,
+                description: updates.description ?? block.description ?? undefined,
               });
               setEditingTimeBlockId(null);
               setIsDraftTimeBlock(false);

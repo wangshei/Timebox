@@ -165,6 +165,8 @@ export async function loadSupabaseState() {
         flexible: t.flexible,
         status: t.status ?? undefined,
         dueDate: t.due_date ?? null,
+        link: t.link ?? null,
+        description: t.description ?? null,
       })
     ),
     timeBlocks: blocks.map(
@@ -180,6 +182,8 @@ export async function loadSupabaseState() {
         date: b.date,
         mode: b.mode,
         source: b.source,
+        link: b.link ?? null,
+        description: b.description ?? null,
       })
     ),
     events: events.map(
@@ -195,6 +199,8 @@ export async function loadSupabaseState() {
         recurrencePattern: e.recurrence_pattern ?? undefined,
         recurrenceDays: e.recurrence_days ?? undefined,
         recurrenceSeriesId: e.recurrence_series_id ?? null,
+        link: e.link ?? null,
+        description: e.description ?? null,
       })
     ),
     };
@@ -202,6 +208,26 @@ export async function loadSupabaseState() {
 
   // Mark as loaded so the persistence subscription can start saving.
   supabaseLoaded = true;
+
+  // Trigger one immediate save so the loaded state is persisted (helps ensure save path works).
+  // userId is already declared above, so reuse it.
+  if (userId) {
+    const state = useStore.getState();
+    const slice: PersistableState = {
+      tasks: state.tasks,
+      timeBlocks: state.timeBlocks,
+      calendarContainers: state.calendarContainers,
+      categories: state.categories,
+      tags: state.tags,
+      events: state.events,
+    };
+    try {
+      await saveSupabaseStateForUser(userId, slice);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[supabasePersistence] Post-load save failed', e);
+    }
+  }
 }
 
 // --- Persist from Zustand store into Supabase ---
@@ -271,6 +297,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         flexible: t.flexible ?? true,
         status: t.status ?? null,
         due_date: t.dueDate ?? null,
+        link: t.link ?? null,
+        description: t.description ?? null,
       })),
       { onConflict: 'id' }
     ));
@@ -290,6 +318,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         date: b.date ?? '',
         mode: b.mode ?? 'planned',
         source: b.source ?? 'manual',
+        link: b.link ?? null,
+        description: b.description ?? null,
       })),
       { onConflict: 'id' }
     ));
@@ -309,6 +339,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         recurrence_pattern: e.recurrencePattern ?? null,
         recurrence_days: e.recurrenceDays ?? null,
         recurrence_series_id: e.recurrenceSeriesId ?? null,
+        link: e.link ?? null,
+        description: e.description ?? null,
       })),
       { onConflict: 'id' }
     ));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 import { Category, Tag } from '../App';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
@@ -31,6 +31,8 @@ interface AddModalProps {
     tags: Tag[];
     calendar: 'personal' | 'work' | 'school';
     dueDate?: string | null;
+    link?: string | null;
+    description?: string | null;
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
@@ -46,6 +48,8 @@ interface AddModalProps {
     recurring?: boolean;
     recurrencePattern?: RecurrencePattern;
     recurrenceDays?: number[];
+    link?: string | null;
+    description?: string | null;
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -99,6 +103,9 @@ export function AddModal({
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
   const [dueDate, setDueDate] = useState<string>('');
+  const [link, setLink] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [moreOpen, setMoreOpen] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
@@ -106,6 +113,14 @@ export function AddModal({
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
+
+  // Show newly added category immediately (before parent re-render) so user can continue without refresh
+  const categoriesToShow = React.useMemo(() => {
+    if (!selectedCategory) return categories;
+    const inList = categories.some((c) => c.id === selectedCategory.id);
+    if (inList) return categories;
+    return [...categories, selectedCategory];
+  }, [categories, selectedCategory]);
 
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
@@ -154,6 +169,8 @@ export function AddModal({
       setSelectedTags(tags.filter(t => editingTask.tagIds.includes(t.id)));
       setSelectedCalendar(editingTask.calendarContainerId);
       setDueDate(editingTask.dueDate ?? '');
+      setLink(editingTask.link ?? '');
+      setDescription(editingTask.description ?? '');
     }
   }, [isOpen, editingTask?.id, categories, tags]);
 
@@ -167,6 +184,8 @@ export function AddModal({
       setSelectedCategory(categories.find((c) => c.id === editingTimeBlock.categoryId) ?? (categories[0] || null));
       setSelectedTags(tags.filter((t) => editingTimeBlock.tagIds.includes(t.id)));
       setSelectedCalendar(editingTimeBlock.calendarContainerId);
+      setLink(editingTimeBlock.link ?? '');
+      setDescription(editingTimeBlock.description ?? '');
     }
   }, [isOpen, editingTimeBlock?.id, categories, tags]);
 
@@ -182,6 +201,8 @@ export function AddModal({
       setSelectedCalendar(editingEvent.calendarContainerId);
       setRecurrencePattern(editingEvent.recurrencePattern ?? 'none');
       setRecurrenceDays(editingEvent.recurrenceDays ?? []);
+      setLink(editingEvent.link ?? '');
+      setDescription(editingEvent.description ?? '');
     }
   }, [isOpen, editingEvent?.id, categories]);
 
@@ -244,6 +265,8 @@ export function AddModal({
         tagIds: tagsToUse.map((t) => t.id),
         calendarContainerId: fallbackCalendar,
         dueDate: dueDate.trim() || null,
+        link: link.trim() || null,
+        description: description.trim() || null,
       });
     } else if (editingEvent && onUpdateEvent) {
       onUpdateEvent(editingEvent.id, {
@@ -257,6 +280,8 @@ export function AddModal({
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
         recurrenceEditScope: (editingEvent.recurring || recurrencePattern !== 'none') ? recurrenceEditScope : undefined,
+        link: link.trim() || null,
+        description: description.trim() || null,
       });
     } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
@@ -267,6 +292,8 @@ export function AddModal({
         calendarContainerId: fallbackCalendar,
         categoryId: categoryToUse.id,
         tagIds: tagsToUse.map((t) => t.id),
+        link: link.trim() || null,
+        description: description.trim() || null,
       });
     } else if (mode === 'task') {
       onAddTask({
@@ -276,6 +303,8 @@ export function AddModal({
         tags: tagsToUse,
         calendar: fallbackCalendar,
         dueDate: dueDate.trim() || null,
+        link: link.trim() || null,
+        description: description.trim() || null,
       });
     } else {
       onAddEvent({
@@ -289,12 +318,16 @@ export function AddModal({
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
+        link: link.trim() || null,
+        description: description.trim() || null,
       });
     }
 
     setTitle('');
     setEstimatedHours(1);
     setDueDate('');
+    setLink('');
+    setDescription('');
     setDate(getLocalDateString());
     setStartTime('09:00');
     setEndTime('10:00');
@@ -323,12 +356,14 @@ export function AddModal({
       {/* Light backdrop — click to close, calendar stays visible */}
       <div className="absolute inset-0 bg-black/15 pointer-events-auto" onClick={onClose} aria-hidden />
 
-      {/* Draggable small panel — doesn't block calendar */}
+      {/* Draggable panel — fixed width so Add Task and Add Event (from + button) match */}
       <div
-        className="absolute pointer-events-auto bg-white w-[380px] max-w-[calc(100vw-32px)] shadow-xl rounded-2xl border border-neutral-200 flex flex-col overflow-hidden"
+        className="absolute pointer-events-auto bg-white shadow-xl rounded-2xl border border-neutral-200 flex flex-col overflow-hidden"
         style={{
           left: panelPos.x,
           top: panelPos.y,
+          width: `${PANEL_WIDTH}px`,
+          maxWidth: 'calc(100vw - 32px)',
           maxHeight: maxH,
         }}
       >
@@ -446,69 +481,13 @@ export function AddModal({
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Repeat</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setRecurrencePattern(p)}
-                      className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
-                        recurrencePattern === p
-                          ? 'bg-blue-50 border-blue-500 text-blue-700'
-                          : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                    >
-                      {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                {recurrencePattern === 'custom' && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)))}
-                        className={`px-2 py-1 text-xs font-medium rounded border ${
-                          recurrenceDays.includes(i) ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
-                  <div className="mt-2">
-                    <label className="block text-xs font-medium text-neutral-600 mb-1">Edit</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(['this', 'all', 'all_after'] as const).map((scope) => (
-                        <button
-                          key={scope}
-                          type="button"
-                          onClick={() => setRecurrenceEditScope(scope)}
-                          className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
-                            recurrenceEditScope === scope
-                              ? 'bg-blue-50 border-blue-500 text-blue-700'
-                              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                          }`}
-                        >
-                          {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All events after'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </>
           )}
 
-          {/* Calendar before category so category choices can depend on calendar */}
+          {/* Calendar — horizontal pill select */}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">
-              Calendar (e.g. Work, School — left border on block)
+              Calendar (left border on block)
             </label>
             {calendars.length === 0 ? (
               <button
@@ -526,7 +505,7 @@ export function AddModal({
                     key={cal.id}
                     type="button"
                     onClick={() => setSelectedCalendar(cal.id)}
-                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all capitalize ${
+                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all capitalize flex items-center justify-center ${
                       selectedCalendar === cal.id
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
@@ -539,10 +518,38 @@ export function AddModal({
             )}
           </div>
 
+          {/* Category — same horizontal pill select, with colored dot */}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1">
-              Category (type of activity — color on block)
+              Category (color on block)
             </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {categoriesToShow
+                .filter((category) => {
+                  if (!selectedCalendar) return true;
+                  const ids = category.calendarContainerIds;
+                  if (ids && ids.length > 0) return ids.includes(selectedCalendar);
+                  return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
+                })
+                .map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
+                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                      selectedCategory?.id === category.id
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                    }`}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name}
+                  </button>
+                ))}
+            </div>
             <input
               type="text"
               value={categoryInput}
@@ -564,44 +571,36 @@ export function AddModal({
                   }
                 }
               }}
-              placeholder="Type category name and press Enter to add or select"
-              className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+              placeholder="Type and Enter to add"
+              className="mt-1.5 w-full px-2 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="grid grid-cols-2 gap-1.5">
-              {categories
-                .filter((category) => {
-                  if (!selectedCalendar) return true;
-                  const ids = category.calendarContainerIds;
-                  if (ids && ids.length > 0) return ids.includes(selectedCalendar);
-                  return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
-                })
-                .map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
-                    className={`px-2 py-2 rounded-md border transition-all flex items-center gap-1.5 text-xs font-medium ${
-                      selectedCategory?.id === category.id
-                        ? 'border-current shadow-sm'
-                        : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
-                    style={{
-                      color: selectedCategory?.id === category.id ? category.color : '#737373',
-                      backgroundColor: selectedCategory?.id === category.id ? `${category.color}15` : 'transparent',
-                    }}
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {category.name}
-                  </button>
-                ))}
-            </div>
           </div>
 
+          {/* Tags — same horizontal pill select, with tag icon; multi-select */}
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Tags (optional — type and press Enter to add)</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">Tags (optional)</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {tags
+                .filter((t) => t.categoryId === selectedCategory?.id)
+                .map((tag) => {
+                  const isSelected = selectedTags.some((s) => s.id === tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`min-w-[60px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                      }`}
+                    >
+                      <TagIcon className="h-3 w-3 shrink-0" />
+                      {tag.name}
+                    </button>
+                  );
+                })}
+            </div>
             <input
               type="text"
               value={tagInput}
@@ -619,31 +618,91 @@ export function AddModal({
                   setTagInput('');
                 }
               }}
-              placeholder="Type tag name, press Enter to add"
-              className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+              placeholder="Type and Enter to add"
+              className="mt-1.5 w-full px-2 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex flex-wrap gap-1.5">
-              {tags
-                .filter((t) => t.categoryId === selectedCategory?.id)
-                .map((tag) => {
-                  const isSelected = selectedTags.some((s) => s.id === tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
-                        isSelected
-                          ? 'bg-blue-50 border border-blue-500 text-blue-700'
-                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-transparent'
-                      }`}
-                    >
-                      <TagIcon className="h-3 w-3" />
-                      {tag.name}
-                    </button>
-                  );
-                })}
-            </div>
+          </div>
+
+          {/* More — Link, Description, Repeat (collapsible) */}
+          <div className="border border-neutral-200 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-neutral-700 bg-neutral-50 hover:bg-neutral-100 ${moreOpen ? 'border-b border-neutral-200' : ''}`}
+            >
+              <span>More (link, description{mode === 'event' ? ', repeat' : ''})</span>
+              {moreOpen ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+            </button>
+            {moreOpen && (
+              <div className="p-3 space-y-3 bg-white">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1">Link (optional)</label>
+                  <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1">Description (optional)</label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Notes or details..." rows={2} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
+                </div>
+                {mode === 'event' && (
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 mb-1">Repeat</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setRecurrencePattern(p)}
+                          className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                            recurrencePattern === p
+                              ? 'bg-blue-50 border-blue-500 text-blue-700'
+                              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    {recurrencePattern === 'custom' && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => { setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)); }}
+                            className={`px-2 py-1 text-xs font-medium rounded border ${
+                              recurrenceDays.includes(i) ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-neutral-600 mb-1">Edit</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['this', 'all', 'all_after'] as const).map((scope) => (
+                            <button
+                              key={scope}
+                              type="button"
+                              onClick={() => setRecurrenceEditScope(scope)}
+                              className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                                recurrenceEditScope === scope
+                                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                  : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                              }`}
+                            >
+                              {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All events after'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           </div>
 

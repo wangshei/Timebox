@@ -29,6 +29,8 @@ interface TimeBlockCardProps {
   onEditBlock?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
+  /** Called when user mousedowns on the bottom-edge resize handle; parent should start resize drag. */
+  onResizeStart?: (e: React.MouseEvent) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks that day. */
   compareMatchedTaskIds?: string[];
   focusedCategoryId?: string | null;
@@ -46,6 +48,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     g: parseInt(m[2], 16),
     b: parseInt(m[3], 16),
   };
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -75,6 +83,7 @@ export function TimeBlockCard({
   onEditBlock,
   onDeleteBlock,
   onDeleteTask,
+  onResizeStart,
   compareMatchedTaskIds,
   focusedCategoryId,
   focusedCalendarId,
@@ -123,11 +132,20 @@ export function TimeBlockCard({
     return base;
   };
 
+  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#6b7280';
+
   const getBackgroundColor = () => {
-    const base = block.category?.color ?? '#6b7280';
-    // Planned blocks: lighter variant; recorded blocks: primary color.
+    const base = getBlockColor();
+    // Planned blocks: transparent fill + colored border. Recorded: solid color.
     if (isRecorded) return base;
-    return lighten(base, 0.25);
+    return hexToRgba(base, 0.2);
+  };
+
+  const getBorderStyle = () => {
+    const color = getBlockColor();
+    if (isRecorded && !isPlanningMode) return { borderLeft: `4px solid ${color}` as const };
+    // Planned: full border in block color
+    return { border: `2px solid ${color}`, borderLeft: `4px solid ${color}` };
   };
 
   const buildRecordedPayload = (overrides: Partial<RecordedBlockPayload> = {}): RecordedBlockPayload => ({
@@ -174,10 +192,14 @@ export function TimeBlockCard({
     e.dataTransfer.effectAllowed = 'move';
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
-      ghost.className = 'bg-white/95 border border-neutral-200 rounded-lg shadow-xl px-3 py-2 text-sm font-medium text-neutral-800 backdrop-blur-sm';
+      const color = getBlockColor();
+      ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
       ghost.textContent = block.title || 'Block';
       ghost.style.position = 'absolute';
       ghost.style.top = '-9999px';
+      ghost.style.backgroundColor = hexToRgba(color, 0.2);
+      ghost.style.border = `2px solid ${color}`;
+      ghost.style.color = '#1f2937';
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 8, 8);
       requestAnimationFrame(() => document.body.removeChild(ghost));
@@ -199,18 +221,14 @@ export function TimeBlockCard({
         onDragStart={handleBlockDragStart}
       >
         <div
-          className={`h-full rounded px-1.5 py-1 border transition-all ${
-            isRecorded && !isPlanningMode
-              ? 'border-neutral-300'
-              : 'border-transparent'
-          } ${isSelected ? 'ring-1 ring-blue-400' : ''}`}
+          className={`h-full rounded px-1.5 py-1 transition-all ${isSelected ? 'ring-1 ring-blue-400' : ''}`}
           style={{
             backgroundColor: getBackgroundColor(),
             opacity: getOpacity(),
-            borderLeft: `4px solid ${block.calendarContainer?.color ?? '#6b7280'}`,
+            ...getBorderStyle(),
           }}
         >
-          <div className="text-white text-xs truncate font-medium">
+          <div className={`text-xs truncate font-medium ${isPlanned ? 'text-neutral-800' : 'text-white'}`}>
             {block.title || 'Untitled'}
           </div>
         </div>
@@ -306,10 +324,10 @@ export function TimeBlockCard({
         style={{
           backgroundColor: getBackgroundColor(),
           opacity: getOpacity(),
-          borderLeft: `4px solid ${block.calendarContainer?.color ?? '#6b7280'}`,
+          ...getBorderStyle(),
         }}
       >
-        <div className="flex flex-col h-full text-white">
+        <div className={`flex flex-col h-full ${isPlanned ? 'text-neutral-800' : 'text-white'}`}>
           <div className="flex items-start justify-between gap-2">
             <span className="font-medium text-sm leading-snug">{block.title || 'Untitled'}</span>
             <span className="text-xs opacity-90 whitespace-nowrap">{getDuration()}</span>
@@ -329,10 +347,15 @@ export function TimeBlockCard({
           )}
         </div>
 
-        {/* Resize handle */}
-        <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
-        </div>
+        {/* Resize handle — only when onResizeStart provided (planning mode) */}
+        {onResizeStart && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(e); }}
+          >
+            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
+          </div>
+        )}
       </div>
 
       {/* Popover */}

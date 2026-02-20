@@ -94,11 +94,20 @@ export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', o
     e.dataTransfer.effectAllowed = 'copy';
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
-      ghost.className = 'bg-white/95 border border-neutral-200 rounded-lg shadow-xl px-3 py-2 text-sm font-medium text-neutral-800 backdrop-blur-sm';
+      const color = (task as { category?: { color?: string } }).category?.color ?? '#2563eb';
+      ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
       ghost.textContent = task.title;
       ghost.style.position = 'absolute';
       ghost.style.top = '-9999px';
-      ghost.style.transition = 'opacity 0.15s ease';
+      ghost.style.color = '#1f2937';
+      if (color.startsWith('#')) {
+        const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+        ghost.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
+        ghost.style.border = `2px solid ${color}`;
+      } else {
+        ghost.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+        ghost.style.border = '2px solid rgb(59, 130, 246)';
+      }
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 8, 8);
       requestAnimationFrame(() => document.body.removeChild(ghost));
@@ -248,6 +257,17 @@ export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', o
                     ))}
                   </div>
                 </div>
+
+                {'description' in task && task.description && (
+                  <div className="text-xs text-neutral-600 whitespace-pre-wrap">{task.description}</div>
+                )}
+                {'link' in task && task.link && (
+                  <div>
+                    <a href={task.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
+                      {task.link}
+                    </a>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="pt-2 border-t border-neutral-200 space-y-1">
@@ -479,6 +499,19 @@ export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', o
                   ))}
                 </div>
               </div>
+
+              {/* Description */}
+              {'description' in task && task.description && (
+                <div className="text-xs text-neutral-600 whitespace-pre-wrap">{task.description}</div>
+              )}
+              {/* Link */}
+              {'link' in task && task.link && (
+                <div>
+                  <a href={task.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
+                    {task.link}
+                  </a>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="pt-2 border-t border-neutral-200 space-y-1">

@@ -11,6 +11,8 @@ interface EventCardProps {
   onDeselect: () => void;
   onDeleteEvent?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
+  /** When true, use same transparent + border style as planned time blocks */
+  plannedStyle?: boolean;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -28,13 +30,10 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-function lighten(hex: string, ratio: number): string {
+function hexToRgba(hex: string, alpha: number): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
-  const r = Math.round(rgb.r + (255 - rgb.r) * ratio);
-  const g = Math.round(rgb.g + (255 - rgb.g) * ratio);
-  const b = Math.round(rgb.b + (255 - rgb.b) * ratio);
-  return rgbToHex(r, g, b);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
 export function EventCard({
@@ -45,13 +44,16 @@ export function EventCard({
   onDeselect,
   onDeleteEvent,
   onEditEvent,
+  plannedStyle = false,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
 
-  // Category color = background; calendar color = left border (like time blocks)
   const categoryColor = event.category?.color ?? '#6b7280';
-  const bgColor = categoryColor;
   const calendarColor = event.calendarContainer?.color ?? '#6b7280';
+  const bgColor = plannedStyle ? hexToRgba(categoryColor, 0.2) : categoryColor;
+  const borderStyle = plannedStyle
+    ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
+    : { borderLeft: `4px solid ${calendarColor}` };
 
   const heightPx =
     typeof style.height === 'number'
@@ -82,15 +84,15 @@ export function EventCard({
       }}
     >
       <div
-        className={`h-full rounded-lg px-3 py-2 border-l-4 transition-all ${
+        className={`h-full rounded-lg px-3 py-2 transition-all ${plannedStyle ? '' : 'border-l-4'} ${
           isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''
         }`}
         style={{
           backgroundColor: bgColor,
-          borderLeftColor: calendarColor,
+          ...borderStyle,
         }}
       >
-        <div className="flex flex-col h-full text-white">
+        <div className={`flex flex-col h-full ${plannedStyle ? 'text-neutral-800' : 'text-white'}`}>
           <div className="flex items-start justify-between gap-2">
             <span className="font-medium text-sm leading-snug truncate">
               {event.title || 'Untitled Event'}
@@ -164,6 +166,19 @@ export function EventCard({
                   style={{ backgroundColor: event.calendarContainer.color, borderColor: event.calendarContainer.color }}
                 />
                 <span>{event.calendarContainer.name}</span>
+              </div>
+            )}
+
+            {/* Description */}
+            {event.description && (
+              <div className="text-xs text-neutral-600 whitespace-pre-wrap mb-2">{event.description}</div>
+            )}
+            {/* Link */}
+            {event.link && (
+              <div className="mb-2">
+                <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
+                  {event.link}
+                </a>
               </div>
             )}
 

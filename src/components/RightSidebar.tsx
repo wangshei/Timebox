@@ -112,7 +112,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
   return (
     <div
-      className={`bg-white flex flex-col overflow-hidden ${
+      className={`bg-white flex flex-col overflow-hidden min-h-0 ${
         isBottomSheet ? 'h-full' : isMobile ? 'w-full border-l border-neutral-200' : 'w-80'
       } ${isDragOverBlock ? 'ring-2 ring-inset ring-blue-300 bg-blue-50/50' : ''}`}
       onDragOver={handleDragOver}
@@ -166,7 +166,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         </div>
       </div>
 
-      <div className={`flex-1 overflow-y-auto space-y-6 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'p-6 pb-8'}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto space-y-6 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'p-6 pb-8'}`}>
         {/* Unscheduled Tasks */}
         <div>
           <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>

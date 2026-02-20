@@ -81,6 +81,8 @@ export interface ResolvedEvent {
   date: string;
   recurring: boolean;
   recurrencePattern?: string;
+  link?: string | null;
+  description?: string | null;
 }
 
 export function resolveEvent(

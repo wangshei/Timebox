@@ -46,13 +46,20 @@ export function SettingsPanel({
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(DEFAULT_PALETTE_COLOR);
+  const [editCalendarIds, setEditCalendarIds] = useState<string[]>([]);
 
   if (!isOpen) return null;
 
-  const handleStartEdit = (id: string, name: string, color?: string) => {
+  const handleStartEdit = (id: string, name: string, color?: string, category?: Category) => {
     setEditingId(id);
     setEditName(name);
     setEditColor(color || DEFAULT_PALETTE_COLOR);
+    if (activeTab === 'categories' && category) {
+      const ids = (category.calendarContainerIds && category.calendarContainerIds.length > 0)
+        ? category.calendarContainerIds
+        : (category.calendarContainerId ? [category.calendarContainerId] : []);
+      setEditCalendarIds(ids);
+    }
     setIsAdding(false);
   };
 
@@ -62,7 +69,7 @@ export function SettingsPanel({
     if (activeTab === 'calendars' && onUpdateCalendar) {
       onUpdateCalendar(editingId, { name: editName, color: editColor });
     } else if (activeTab === 'categories' && onUpdateCategory) {
-      onUpdateCategory(editingId, { name: editName, color: editColor });
+      onUpdateCategory(editingId, { name: editName, color: editColor, calendarContainerIds: editCalendarIds.length > 0 ? editCalendarIds : null });
     } else if (activeTab === 'tags' && onUpdateTag) {
       onUpdateTag(editingId, { name: editName });
     }
@@ -74,6 +81,7 @@ export function SettingsPanel({
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditName('');
+    setEditCalendarIds([]);
     setIsAdding(false);
     setNewName('');
   };
@@ -92,7 +100,13 @@ export function SettingsPanel({
     if (activeTab === 'calendars' && onAddCalendar) {
       onAddCalendar({ name: newName.trim(), color });
     } else if (activeTab === 'categories' && onAddCategory) {
-      onAddCategory({ name: newName.trim(), color });
+      const firstCalId = calendarContainers[0]?.id;
+      onAddCategory({
+        name: newName.trim(),
+        color,
+        calendarContainerId: firstCalId ?? undefined,
+        calendarContainerIds: firstCalId ? [firstCalId] : undefined,
+      });
     } else if (activeTab === 'tags' && onAddTag) {
       onAddTag({ name: newName.trim() });
     }
@@ -245,6 +259,33 @@ export function SettingsPanel({
                         onChange={setEditColor}
                         swatchSize="sm"
                       />
+                      <div>
+                        <span className="block text-xs font-medium text-neutral-600 mb-2">Show on calendars</span>
+                        <div className="flex flex-wrap gap-2">
+                          {calendarContainers.map((cal) => {
+                            const checked = editCalendarIds.includes(cal.id);
+                            return (
+                              <label key={cal.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white cursor-pointer hover:bg-neutral-50">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setEditCalendarIds((prev) =>
+                                      prev.includes(cal.id) ? prev.filter((id) => id !== cal.id) : [...prev, cal.id]
+                                    );
+                                  }}
+                                  className="rounded border-neutral-300"
+                                />
+                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cal.color }} />
+                                <span className="text-sm text-neutral-700">{cal.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {calendarContainers.length === 0 && (
+                          <p className="text-xs text-neutral-500">Add a calendar first.</p>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -269,7 +310,7 @@ export function SettingsPanel({
                       <span className="flex-1 text-sm text-neutral-700">{category.name}</span>
                       <button
                         type="button"
-                        onClick={() => handleStartEdit(category.id, category.name, category.color)}
+                        onClick={() => handleStartEdit(category.id, category.name, category.color, category)}
                         className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <PencilIcon className="h-4 w-4 text-neutral-500" />

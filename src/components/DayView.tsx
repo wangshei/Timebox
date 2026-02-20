@@ -39,8 +39,10 @@ interface DayViewProps {
   onDropTask?: (taskId: string, params: DropTaskParams) => void;
   /** Create a time block by drag on empty grid. */
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
-  /** Move an existing block to new time/date; may split rest into a new block. */
+  /** Move an existing block to new time/date. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  /** Resize a block by dragging its bottom edge (end time only). */
+  onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
   onEditBlock?: (blockId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
@@ -62,13 +64,14 @@ function minutesToTimeString(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
   const dragPreviewRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
   const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number } | null>(null);
   const creatingBlockRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
+  const [resizingBlock, setResizingBlock] = React.useState<{ block: ResolvedTimeBlock; startClientY: number; endMins: number } | null>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
   const outerRef = React.useRef<HTMLDivElement>(null);
   // Normalize: use same format for both sides; trim selectedDate in case of whitespace
@@ -143,7 +146,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       return;
     }
     if (taskId && onDropTask) {
-      const blockMinutes = Math.max(MIN_CREATE_MINUTES, endMins - startMins);
+      const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
+      const droppedMins = durStr && !Number.isNaN(parseInt(durStr, 10)) ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10)) : endMins - startMins;
+      const blockMinutes = Math.max(MIN_CREATE_MINUTES, droppedMins);
       onDropTask(taskId, { date: selectedDate, startTime, blockMinutes });
     }
   };
@@ -195,6 +200,33 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       window.removeEventListener('mouseup', onUp);
     };
   }, [creatingBlock, selectedDate, onCreateBlock]);
+
+  React.useEffect(() => {
+    if (!resizingBlock || !onResizeBlock) return;
+    const { block, startClientY } = resizingBlock;
+    const startMins = parseTime(block.start);
+    const minEndMins = startMins + SNAP_MINUTES;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTime(block.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeBlock(block.id, { date: block.date, endTime: minutesToTimeString(newEndMins) });
+    };
+    const onUp = () => setResizingBlock(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingBlock, onResizeBlock]);
+
+  const handleResizeStart = React.useCallback((block: ResolvedTimeBlock, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingBlock({ block, startClientY: e.clientY });
+  }, []);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -319,6 +351,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
                 onEditBlock={onEditBlock}
+                onResizeStart={onResizeBlock ? (e) => handleResizeStart(block, e) : undefined}
                 compareMatchedTaskIds={compareMatchedTaskIds}
               />
             );
@@ -349,6 +382,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
                 onEditEvent={onEditEvent}
+                plannedStyle={mode === 'planning'}
               />
             );
           })}
@@ -379,10 +413,12 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Drag preview (task/block drop) */}
         {(onDropTask || onMoveBlock) && dragPreview && (
           <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-lg border-2 border-dashed border-blue-400 bg-blue-100/50"
+            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-lg border-2 border-dashed"
             style={{
               top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              borderColor: 'rgb(59, 130, 246)',
             }}
           >
             <span className="absolute bottom-1 left-2 text-xs font-medium text-blue-700">

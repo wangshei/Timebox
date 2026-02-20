@@ -209,13 +209,30 @@ export function LeftSidebar({
     const list = [...ids].map((id) => categories.find((c) => c.id === id)).filter(Boolean) as Category[];
     if (list.length) categoriesByCalendar.set(cal.id, list);
   });
+  // Show tags that (1) appear in time blocks for this calendar:category, OR (2) belong to this category by categoryId (so newly added tags appear immediately)
   const tagsByCalendarCategory = new Map<string, Tag[]>();
   categoriesByCalendar.forEach((cats, calId) => {
     cats.forEach((cat) => {
       const key = `${calId}:${cat.id}`;
-      const ids = tagIdsByCalendarCategory.get(key);
-      if (!ids?.size) return;
-      const list = [...ids].map((id) => tags.find((t) => t.id === id)).filter(Boolean) as Tag[];
+      const idsFromBlocks = tagIdsByCalendarCategory.get(key);
+      const tagsFromBlocks = idsFromBlocks?.size
+        ? [...idsFromBlocks].map((id) => tags.find((t) => t.id === id)).filter(Boolean) as Tag[]
+        : [];
+      const tagsByCategoryId = tags.filter((t) => t.categoryId === cat.id);
+      const seen = new Set<string>();
+      const list: Tag[] = [];
+      for (const t of tagsFromBlocks) {
+        if (!seen.has(t.id)) {
+          seen.add(t.id);
+          list.push(t);
+        }
+      }
+      for (const t of tagsByCategoryId) {
+        if (!seen.has(t.id)) {
+          seen.add(t.id);
+          list.push(t);
+        }
+      }
       if (list.length) tagsByCalendarCategory.set(key, list);
     });
   });

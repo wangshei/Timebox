@@ -31,8 +31,10 @@ interface CalendarViewProps {
   onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
   /** Create a time block from drag on empty grid (day view). */
   onCreateBlock?: (params: import('./DayView').CreateBlockParams) => string | undefined;
-  /** Move a block to new time/date; may split rest into a new block. */
+  /** Move a block to new time/date. */
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  /** Resize a block by dragging its bottom edge (end time only). */
+  onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
   onEditBlock?: (blockId: string) => void;
   events?: Event[];
@@ -63,6 +65,7 @@ export function CalendarView({
   onDropTask,
   onCreateBlock,
   onMoveBlock,
+  onResizeBlock,
   onEditEvent,
   onEditBlock,
   events: eventsProp = [],
@@ -311,8 +314,8 @@ export function CalendarView({
         </div>
       ) : (
         <div className={`flex-1 overflow-y-auto ${mode === 'recording' ? 'bg-neutral-100' : ''}`}>
-          {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={mode === 'planning' ? onDropTask : undefined} onCreateBlock={onCreateBlock} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
-          {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={mode === 'planning' ? onDropTask : undefined} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
+          {view === 'day' && <DayView mode={mode} timeBlocks={visibleBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={mode === 'planning' ? onDropTask : undefined} onCreateBlock={onCreateBlock} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} onResizeBlock={mode === 'planning' ? onResizeBlock : undefined} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
+          {view === 'week' && <WeekView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onDoneAsPlanned={onDoneAsPlanned} onDidSomethingElse={onDidSomethingElse} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={mode === 'planning' ? onDropTask : undefined} onMoveBlock={mode === 'planning' ? onMoveBlock : undefined} onResizeBlock={mode === 'planning' ? onResizeBlock : undefined} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />}
           {view === 'month' && <MonthView mode={mode} timeBlocks={visibleBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('day'); }} events={eventsProp} />}
         </div>
       )}

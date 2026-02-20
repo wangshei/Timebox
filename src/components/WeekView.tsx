@@ -169,58 +169,57 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   </div>
                 </div>
 
-                {/* Day grid: single relative container height GRID_HEIGHT; all layers share this coordinate system */}
-                <div
-                  data-week-day-col={dateStr}
-                  className="px-1 md:px-2"
-                  onDragOver={(e) => {
-                    const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
-                    const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-                    if (!hasTask && !hasBlock) return;
-                    if (hasTask && !onDropTask) return;
-                    if (hasBlock && !onMoveBlock) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    const gridEl = (e.currentTarget as HTMLDivElement).querySelector<HTMLDivElement>('[data-week-grid]');
-                    const rect = gridEl?.getBoundingClientRect();
-                    if (!rect) return;
-                    const offsetY = e.clientY - rect.top;
-                    if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
-                    const startMins = offsetYToMinutes(offsetY);
-                    const durationStr = hasBlock
-                      ? e.dataTransfer.getData('application/x-timebox-block-duration')
-                      : e.dataTransfer.getData('application/x-timebox-task-duration');
-                    const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 60;
-                    setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
-                  }}
-                  onDragLeave={() => setDragPreview(null)}
-                  onDrop={(e) => {
-                    const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
-                    const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-                    if (!taskId && !blockId) return;
-                    e.preventDefault();
-                    const gridEl = (e.currentTarget as HTMLDivElement).querySelector<HTMLDivElement>('[data-week-grid]');
-                    const rect = gridEl?.getBoundingClientRect();
-                    if (!rect) return;
-                    const offsetY = e.clientY - rect.top;
-                    const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
-
-                    if (blockId && onMoveBlock) {
-                      const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-                      const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
-                      onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
-                    } else if (taskId && onDropTask) {
-                      const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-                      const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
-                      onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
-                    }
-                    setDragPreview(null);
-                  }}
-                >
+                {/* Day grid: drop target on the grid itself so drag-from-sidebar lands correctly */}
+                <div data-week-day-col={dateStr} className="px-1 md:px-2">
                   <div
                     data-week-grid
-                    className={`relative ${onCreateBlock ? 'cursor-crosshair' : ''}`}
+                    className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
                     style={{ height: GRID_HEIGHT }}
+                    onDragOver={(e) => {
+                      const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
+                      const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
+                      if (!hasTask && !hasBlock) return;
+                      if (hasTask && !onDropTask) return;
+                      if (hasBlock && !onMoveBlock) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = 'move';
+                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                      const offsetY = e.clientY - rect.top;
+                      if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                      const startMins = offsetYToMinutes(offsetY);
+                      const durationStr = hasBlock
+                        ? e.dataTransfer.getData('application/x-timebox-block-duration')
+                        : e.dataTransfer.getData('application/x-timebox-task-duration');
+                      const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 60;
+                      setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
+                    }}
+                    onDragLeave={(e) => {
+                      const grid = e.currentTarget as HTMLDivElement;
+                      const related = e.relatedTarget as Node | null;
+                      if (!related || !grid.contains(related)) setDragPreview(null);
+                    }}
+                    onDrop={(e) => {
+                      const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
+                      const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
+                      if (!taskId && !blockId) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                      const offsetY = e.clientY - rect.top;
+                      const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+
+                      if (blockId && onMoveBlock) {
+                        const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
+                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                        onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                      } else if (taskId && onDropTask) {
+                        const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
+                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                        onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
+                      }
+                      setDragPreview(null);
+                    }}
                     onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
                       if (creatingBlock) return;
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -303,6 +302,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
                                   onEditEvent={onEditEvent}
+                                  plannedStyle={mode === 'planning'}
                                 />
                               );
                             })}
@@ -336,10 +336,12 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     {/* Drag preview (drop), z-30 */}
                     {dragPreview && dragPreview.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded border-2 border-dashed border-blue-400 bg-blue-100/50"
+                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded border-2 border-dashed"
                         style={{
                           top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                           height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                          borderColor: 'rgb(59, 130, 246)',
                         }}
                       />
                     )}
