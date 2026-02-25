@@ -4,7 +4,7 @@
   --font-size: 16px;
 
   /* === Parchment Palette Design System === */
-  --background: #F2EFDC;           /* Warm parchment canvas */
+  --background: rgba(219, 228, 215, 0.05); /* 5% sage tint — near-white, cool canvas */
   --foreground: #1C1C1E;           /* iOS-style near-black */
   --card: #FFFFFF;                 /* Pure white cards — crisp contrast */
   --card-foreground: #1C1C1E;
@@ -37,8 +37,8 @@
 
   --radius: 0.5rem;
 
-  /* Sidebar — slightly different from canvas (intentional panel distinction) */
-  --sidebar: #E7E5BC;
+  /* Sidebar — warm parchment panels (distinct from near-white canvas) */
+  --sidebar: #F2EFDC;
   --sidebar-foreground: #1C1C1E;
   --sidebar-primary: #8DA286;
   --sidebar-primary-foreground: #1C1C1E;

@@ -673,7 +673,7 @@ export default function App() {
 
   if (requireAuth && session && !dataReady) {
     return (
-      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#F2EFDC' }}>
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
         <div className="text-sm" style={{ color: '#636366' }}>Loading your data...</div>
       </div>
     );
@@ -681,7 +681,7 @@ export default function App() {
 
   if (requireAuth && !session && !visitMode) {
     return (
-      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#F2EFDC' }}>
+      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
         <div className="w-full max-w-xs rounded-lg">
           <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
             <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
@@ -765,7 +765,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#F2EFDC' }}>
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -784,7 +784,7 @@ export default function App() {
 
       {/* Supabase auth bar */}
       {session && (
-        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#E7E5BC' }}>
+        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#F2EFDC' }}>
           <span style={{ color: '#8E8E93' }}>
             Signed in as <span className="font-medium" style={{ color: '#1C1C1E' }}>{session.user.email}</span>
             <span className="ml-1.5" style={{ color: '#8E8E93' }}>· synced</span>
@@ -803,7 +803,7 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#E7E5BC' }}>
+          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#F2EFDC' }}>
             {/* Header: Organization heading + settings + edit */}
             <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <h2 className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
@@ -1064,7 +1064,7 @@ export default function App() {
         </div>
         {/* Right panel */}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#E7E5BC' }}>
+          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#F2EFDC' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>Tasks</span>
             </div>

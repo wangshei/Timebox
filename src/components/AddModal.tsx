@@ -513,10 +513,10 @@ export function AddModal({
                       onClick={() => setSelectedCalendar(cal.id)}
                       className="min-w-[70px] px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all capitalize flex items-center justify-center gap-1.5"
                       style={isSel
-                        ? { backgroundColor: cal.color, color: '#fff', border: `1.5px solid ${cal.color}` }
+                        ? { backgroundColor: `${cal.color}20`, color: cal.color, border: `1.5px solid ${cal.color}` }
                         : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSel ? 'rgba(255,255,255,0.7)' : cal.color }} />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cal.color }} />
                       {cal.name}
                     </button>
                   );

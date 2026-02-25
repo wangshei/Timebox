@@ -44,7 +44,7 @@ interface ThreeDayViewProps {
 const PRIMARY = '#8DA286';
 const GRID_HOUR = 'rgba(0,0,0,0.07)';
 const GRID_HALF = 'rgba(0,0,0,0.035)';
-const BG_CANVAS = '#F2EFDC';
+const BG_CANVAS = 'rgba(219,228,215,0.05)';
 const BG_TODAY = 'rgba(141,162,134,0.05)';
 
 export function ThreeDayView({

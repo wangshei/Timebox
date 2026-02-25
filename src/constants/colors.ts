@@ -31,8 +31,8 @@ export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Blue
  */
 export const THEME = {
   // Background palette
-  background: '#F2EFDC',         // Warm parchment canvas
-  sidebar: '#E7E5BC',            // Warmer panel bg
+  background: 'rgba(219,228,215,0.05)', // 5% sage tint — near-white canvas
+  sidebar: '#F2EFDC',            // Warm parchment panel bg
   secondaryBg: '#DBE4D7',        // Input bg, subtle sections
   card: '#FFFFFF',               // Pure white cards / modals
   muted: '#F2F2F0',              // Muted surfaces

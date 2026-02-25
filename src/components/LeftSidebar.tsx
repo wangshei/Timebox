@@ -238,7 +238,7 @@ export function LeftSidebar({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#E7E5BC' }}>
+    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#F2EFDC' }}>
       {/* Add calendar */}
       <div className="px-4 pt-3 pb-1 flex-shrink-0">
         <button
@@ -273,9 +273,9 @@ export function LeftSidebar({
               key={calendar.id}
               className="rounded-xl overflow-hidden"
               style={{
-                backgroundColor: isFocused ? `${calendar.color}14` : 'transparent',
-                border: isFocused ? `1.5px solid ${calendar.color}40` : '1px solid transparent',
-                boxShadow: isFocused ? `0 0 0 1px ${calendar.color}20` : 'none',
+                backgroundColor: 'transparent',
+                border: '1px solid transparent',
+                boxShadow: 'none',
               }}
             >
               {editingId === calendar.id && editingType === 'calendar' ? (
@@ -310,7 +310,7 @@ export function LeftSidebar({
                     <span
                       className="text-xs font-bold truncate"
                       style={{
-                        color: isFocused ? calendar.color : '#3A3028',
+                        color: '#1C1C1E',
                         opacity: isVisible ? 1 : 0.45,
                         letterSpacing: '0.01em',
                       }}

@@ -10,7 +10,7 @@ import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 
 const PRIMARY = '#8DA286';
-const BG = '#F2EFDC';
+const BG = 'rgba(219,228,215,0.05)';
 const BORDER = 'rgba(0,0,0,0.08)';
 const TEXT_PRIMARY = '#1C1C1E';
 const TEXT_MUTED = '#8E8E93';

@@ -154,14 +154,14 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex-1 overflow-auto" style={{ backgroundColor: '#F2EFDC' }}>
+    <div className="flex-1 overflow-auto" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
       <div className="flex min-w-max">
         {/* Time column */}
         <div
           className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10"
           style={{
             borderRight: '1px solid rgba(0,0,0,0.07)',
-            backgroundColor: '#F2EFDC',
+            backgroundColor: 'rgba(219,228,215,0.05)',
           }}
         >
           <div className="h-9 md:h-10" /> {/* Spacer for day headers */}
@@ -197,7 +197,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   className="h-9 md:h-10 px-1.5 md:px-2 py-1.5 sticky top-0 z-10 flex flex-col justify-center"
                   style={{
                     borderBottom: '1px solid rgba(0,0,0,0.07)',
-                    backgroundColor: today ? 'rgba(141,162,134,0.05)' : '#F2EFDC',
+                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'rgba(219,228,215,0.05)',
                   }}
                 >
                   <div

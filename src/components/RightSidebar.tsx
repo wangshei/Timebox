@@ -10,7 +10,7 @@ const PRIMARY = '#8DA286';
 const MUTED = '#8E8E93';
 const TEXT = '#1C1C1E';
 const BORDER = 'rgba(0,0,0,0.08)';
-const BG_PANEL = '#E7E5BC';
+const BG_PANEL = '#F2EFDC';
 
 interface RightSidebarProps {
   tasks: Task[];
