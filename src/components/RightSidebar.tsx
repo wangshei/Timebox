@@ -6,11 +6,11 @@ import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } fro
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 
-const PRIMARY = '#4A80F0';
+const PRIMARY = '#8DA286';
 const MUTED = '#8E8E93';
 const TEXT = '#1C1C1E';
 const BORDER = 'rgba(0,0,0,0.08)';
-const BG_PANEL = '#EFEFE9';
+const BG_PANEL = '#E7E5BC';
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -142,8 +142,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         isBottomSheet ? 'h-full' : isMobile ? 'w-full' : 'w-80'
       }`}
       style={{
-        backgroundColor: isDragOverBlock ? 'rgba(74,128,240,0.04)' : BG_PANEL,
-        outline: isDragOverBlock ? '2px solid rgba(74,128,240,0.3)' : 'none',
+        backgroundColor: isDragOverBlock ? 'rgba(141,162,134,0.05)' : BG_PANEL,
+        outline: isDragOverBlock ? '2px solid rgba(141,162,134,0.35)' : 'none',
         outlineOffset: '-2px',
         borderLeft: isMobile ? `1px solid ${BORDER}` : 'none',
       }}
@@ -192,8 +192,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                e.currentTarget.style.borderColor = 'rgba(74,128,240,0.45)';
-                e.currentTarget.style.color = '#4A80F0';
+                e.currentTarget.style.borderColor = 'rgba(141,162,134,0.50)';
+                e.currentTarget.style.color = '#8DA286';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -333,7 +333,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   style={{
                     backgroundColor: 'rgba(0,0,0,0.04)',
                     border: '1px solid rgba(0,0,0,0.06)',
-                    borderLeft: '3px solid #4A80F0',
+                    borderLeft: '3px solid #8DA286',
                   }}
                 >
                   <div className="flex-1 min-w-0">

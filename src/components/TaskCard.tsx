@@ -69,7 +69,7 @@ export function TaskCard({
   const recordedMins = Math.round((task.recordedHours ?? 0) * 60);
   const remainingMins = Math.max(0, estimatedMins - recordedMins);
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
-  const catColor = task.category?.color ?? '#4A80F0';
+  const catColor = task.category?.color ?? '#8DA286';
 
   // Position overview popover with fixed coords
   useLayoutEffect(() => {
@@ -182,7 +182,7 @@ export function TaskCard({
       {'link' in task && task.link && (
         <a href={task.link} target="_blank" rel="noopener noreferrer"
           className="text-xs truncate block max-w-full hover:underline"
-          style={{ color: '#4A80F0' }}>
+          style={{ color: '#8DA286' }}>
           {task.link}
         </a>
       )}

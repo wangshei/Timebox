@@ -13,6 +13,7 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   compact?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function SegmentedControl<T extends string>({
@@ -21,6 +22,7 @@ export function SegmentedControl<T extends string>({
   onChange,
   compact = false,
   className = '',
+  style: outerStyle,
 }: SegmentedControlProps<T>) {
   return (
     <div
@@ -32,6 +34,7 @@ export function SegmentedControl<T extends string>({
         borderRadius: 8,
         padding: 2,
         gap: 1,
+        ...outerStyle,
       }}
     >
       {options.map((option) => {
@@ -43,6 +46,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(option.value)}
             className="touch-manipulation"
             style={{
+              flex: outerStyle?.flex ? 1 : undefined,
               padding: compact ? '4px 10px' : '5px 12px',
               fontSize: 12,
               fontWeight: isActive ? 500 : 400,

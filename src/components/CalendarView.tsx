@@ -9,8 +9,8 @@ import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 
-const PRIMARY = '#4A80F0';
-const BG = '#F8F8F6';
+const PRIMARY = '#8DA286';
+const BG = '#F2EFDC';
 const BORDER = 'rgba(0,0,0,0.08)';
 const TEXT_PRIMARY = '#1C1C1E';
 const TEXT_MUTED = '#8E8E93';
@@ -183,11 +183,11 @@ export function CalendarView({
               <button
                 type="button"
                 onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
-                className="py-1 px-2.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
                 style={{
-                  backgroundColor: mode === 'compare' ? 'rgba(74,128,240,0.1)' : 'rgba(0,0,0,0.05)',
+                  backgroundColor: mode === 'compare' ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
                   color: mode === 'compare' ? PRIMARY : TEXT_SECONDARY,
-                  border: mode === 'compare' ? `1px solid rgba(74,128,240,0.25)` : `1px solid ${BORDER}`,
+                  border: mode === 'compare' ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
                 }}
               >
                 Compare
@@ -200,7 +200,7 @@ export function CalendarView({
             {!isMobile && (
               <button
                 onClick={navigateToday}
-                className="px-2.5 py-1 text-xs rounded-lg transition-colors flex items-center gap-1 font-medium"
+                className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1 font-medium"
                 style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
@@ -264,7 +264,7 @@ export function CalendarView({
           style={{
             width: 52, height: 52, borderRadius: '50%',
             backgroundColor: PRIMARY,
-            boxShadow: '0 4px 16px rgba(74,128,240,0.4)',
+            boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A6EDE')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}

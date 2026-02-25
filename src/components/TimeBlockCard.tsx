@@ -158,7 +158,7 @@ function TimeBlockCardInner({
     return base;
   };
 
-  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#4A80F0';
+  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#8DA286';
   const blockColor = getBlockColor();
 
   /**
@@ -253,9 +253,26 @@ function TimeBlockCardInner({
       : typeof style.height === 'string'
         ? parseFloat(style.height)
         : 0;
-  const showMeta = heightPx >= 56;
-  const showTags = heightPx >= 80;
-  const showNotes = heightPx >= 100 && !!(block as any).notes;
+
+  // ─── Adaptive size tiers ─────────────────────────────────────────────────
+  // Compact (week view) tiers
+  const compactTier =
+    heightPx < 18 ? 'micro' :
+    heightPx < 32 ? 'tiny'  :
+    heightPx < 50 ? 'small' : 'medium';
+
+  // Full (day / 3-day view) tiers
+  const sizeTier =
+    heightPx < 22  ? 'micro'  :
+    heightPx < 36  ? 'tiny'   :
+    heightPx < 52  ? 'small'  :
+    heightPx < 72  ? 'medium' :
+    heightPx < 100 ? 'full'   : 'rich';
+
+  const showMeta = sizeTier === 'medium' || sizeTier === 'full' || sizeTier === 'rich';
+  const showCategory = sizeTier === 'full' || sizeTier === 'rich';
+  const showTags = sizeTier === 'rich' && block.tags.length > 0;
+  const showNotes = sizeTier === 'rich' && !!(block as any).notes;
 
   const getDurationMinutes = () => {
     const [startHour, startMin] = block.start.split(':').map(Number);
@@ -299,7 +316,7 @@ function TimeBlockCardInner({
               color: blockColor,
             }}
           >
-            {isEvent ? '📌 Event' : '✏️ Task'}
+            {isEvent ? 'Event' : 'Task'}
           </span>
           <span className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{block.title || 'Untitled'}</span>
         </div>
@@ -330,11 +347,10 @@ function TimeBlockCardInner({
           {block.tags.slice(0, 6).map((tag) => (
             <span
               key={tag.id}
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+              className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-[2px] rounded-full"
               style={{
                 backgroundColor: hexToRgba(blockColor, 0.12),
                 color: blockColor,
-                border: `1px solid ${hexToRgba(blockColor, 0.25)}`,
               }}
             >
               {tag.name}
@@ -381,7 +397,7 @@ function TimeBlockCardInner({
     const blockStyle = getBlockInlineStyle();
     const containerClass = isEvent
       ? 'h-full overflow-hidden min-w-0 rounded-r-lg'
-      : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm';
+      : 'h-full overflow-hidden min-w-0 rounded-xl';
 
     return (
       <div
@@ -394,51 +410,50 @@ function TimeBlockCardInner({
       >
         <div
           data-slot="block-container"
-          className={cn(
-            containerClass,
-            isSelected && (isEvent ? 'ring-2 ring-offset-1' : 'ring-2 ring-offset-1'),
-          )}
+          className={containerClass}
           style={{
             ...blockStyle,
-            ...(isSelected ? { '--tw-ring-color': blockColor } as any : {}),
             boxShadow: isSelected ? `0 0 0 2px ${blockColor}` : undefined,
           }}
         >
-          <div className="flex items-start h-full px-1.5 py-1 min-w-0 gap-1">
-            {/* Completion circle for tasks */}
-            {isTask && (
-              <button
-                type="button"
-                onClick={handleCircleClick}
-                className="flex-shrink-0 mt-0.5 w-3.5 h-3.5 min-w-[14px] rounded-full border-2 flex items-center justify-center transition-colors"
-                style={
-                  confirmed
-                    ? { backgroundColor: blockColor, borderColor: blockColor }
-                    : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.7)' }
-                }
-                title={confirmed ? 'Mark not done' : 'Mark done'}
-              >
-                {confirmed && <CheckIcon className="h-2 w-2 text-white" />}
-              </button>
-            )}
-            {/* Lock icon for events */}
-            {isEvent && (
-              <LockClosedIcon
-                className="flex-shrink-0 mt-0.5 h-2.5 w-2.5 opacity-50"
-                style={{ color: blockColor }}
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <div className={cn('text-[10px] font-semibold truncate leading-snug', titleTextClass)}>
-                {block.title || 'Untitled'}
-              </div>
-              {showMeta && (
-                <div className="text-[9px] opacity-70 truncate mt-0.5" style={{ color: isEvent ? '#636366' : 'inherit' }}>
-                  {block.start.slice(0, 5)}
-                </div>
+          {/* micro: just colored fill, no content */}
+          {compactTier === 'micro' ? null : (
+            <div
+              className="flex items-center h-full min-w-0"
+              style={{ padding: compactTier === 'tiny' ? '1px 4px' : '2px 6px', gap: 3 }}
+            >
+              {/* Icon: only in small+ */}
+              {compactTier !== 'tiny' && isTask && (
+                <button
+                  type="button"
+                  onClick={handleCircleClick}
+                  className="flex-shrink-0 w-3 h-3 min-w-[12px] rounded-full border flex items-center justify-center transition-colors"
+                  style={
+                    confirmed
+                      ? { backgroundColor: blockColor, borderColor: blockColor }
+                      : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.7)' }
+                  }
+                  title={confirmed ? 'Mark not done' : 'Mark done'}
+                >
+                  {confirmed && <CheckIcon className="h-1.5 w-1.5 text-white" />}
+                </button>
               )}
+              {compactTier !== 'tiny' && isEvent && (
+                <LockClosedIcon className="flex-shrink-0 h-2 w-2 opacity-50" style={{ color: blockColor }} />
+              )}
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <div className={cn('font-semibold truncate leading-none', titleTextClass)}
+                  style={{ fontSize: compactTier === 'tiny' ? 9 : 10 }}>
+                  {block.title || 'Untitled'}
+                </div>
+                {compactTier === 'medium' && (
+                  <div className="text-[9px] opacity-65 truncate mt-0.5" style={{ color: isEvent ? '#636366' : 'inherit' }}>
+                    {block.start.slice(0, 5)}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Compact popover */}
@@ -462,11 +477,21 @@ function TimeBlockCardInner({
     );
   }
 
-  // ─── Full mode (day view) ────────────────────────────────────────────────
+  // ─── Full mode (day / 3-day view) ───────────────────────────────────────
   const blockStyle = getBlockInlineStyle();
   const containerClass = isEvent
-    ? 'h-full overflow-hidden min-w-0 rounded-r-lg'   // events: stripe + rounded right
-    : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm'; // tasks: fully rounded, warm
+    ? 'h-full overflow-hidden min-w-0 rounded-r-lg'
+    : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm';
+
+  // Padding scales with size
+  const fullPadding =
+    sizeTier === 'micro' ? '1px 6px' :
+    sizeTier === 'tiny'  ? '2px 8px' :
+    sizeTier === 'small' ? '4px 8px 4px 10px' :
+    isEvent ? '6px 8px 6px 10px' : '7px 10px';
+
+  // Whether to show the icon (circle/lock)
+  const showIcon = sizeTier !== 'micro' && sizeTier !== 'tiny';
 
   return (
     <div
@@ -486,109 +511,121 @@ function TimeBlockCardInner({
           boxShadow: isSelected ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
         }}
       >
-        <div className="flex flex-col h-full min-w-0" style={{ padding: isEvent ? '6px 8px 6px 10px' : '8px 10px' }}>
-          {/* Header row */}
-          <div className="flex items-start gap-1.5 min-w-0 flex-shrink-0">
-            {/* Task: completion circle */}
-            {isTask && (
-              <button
-                type="button"
-                onClick={handleCircleClick}
-                className="flex-shrink-0 mt-0.5 w-4 h-4 min-w-[16px] rounded-full border-2 flex items-center justify-center transition-all"
-                style={
-                  confirmed
-                    ? { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.9)' }
-                    : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.65)' }
-                }
-                title={confirmed ? 'Mark not done' : 'Mark done'}
-                aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-              >
-                {confirmed && <CheckIcon className="h-2.5 w-2.5" style={{ color: blockColor }} />}
-              </button>
-            )}
-            {/* Event: lock icon */}
-            {isEvent && (
-              <LockClosedIcon
-                className="flex-shrink-0 mt-0.5 h-3 w-3 opacity-40"
-                style={{ color: blockColor }}
-              />
-            )}
-
-            <span
-              className={cn(
-                'font-semibold text-xs leading-snug flex-1 min-w-0',
-                titleTextClass,
-                isTask && confirmed && 'line-through decoration-current/40',
-                heightPx < 36 && 'truncate',
-              )}
-              style={{ textDecorationSkipInk: 'none' }}
-            >
-              {block.title || 'Untitled'}
-            </span>
-
-            {/* Type indicator pill (tiny, top-right) */}
-            <span
-              className="flex-shrink-0 text-[8px] font-bold opacity-60 tracking-widest uppercase mt-0.5 leading-none"
-              style={{ color: isEvent ? blockColor : 'rgba(255,255,255,0.85)' }}
-            >
-              {isEvent ? 'EVT' : 'TSK'}
-            </span>
-          </div>
-
-          {/* Meta row */}
-          {showMeta && (
-            <div className={cn(
-              'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 min-w-0 text-[10px]',
-              isEvent ? 'text-[#636366]' : 'text-white/75',
-            )}>
-              <span className="whitespace-nowrap opacity-90">{getTimeRange()}</span>
-              {block.category && heightPx >= 64 && (
-                <span
-                  className="px-1.5 py-0.5 rounded-full font-medium"
-                  style={
-                    isEvent
-                      ? { backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }
-                      : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)' }
-                  }
-                >
-                  {block.category.name}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Tags row */}
-          {showTags && block.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {block.tags.slice(0, 4).map((tag) => (
-                <span
-                  key={tag.id}
-                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
-                  style={
-                    isEvent
-                      ? { backgroundColor: hexToRgba(blockColor, 0.12), color: blockColor }
-                      : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.88)' }
-                  }
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Notes preview */}
-          {showNotes && (
+        {sizeTier === 'micro' ? (
+          /* micro: just a colored pill with no text — used for very short blocks (<22px) */
+          <div className="h-full w-full" style={{ padding: '1px 6px' }} />
+        ) : (
+          <div className="flex flex-col h-full min-w-0" style={{ padding: fullPadding }}>
+            {/* Header row */}
             <div
-              className="mt-1 text-[10px] italic line-clamp-2 opacity-70"
-              style={{ color: isEvent ? '#636366' : 'rgba(255,255,255,0.85)' }}
+              className="flex min-w-0 flex-shrink-0"
+              style={{ alignItems: sizeTier === 'tiny' ? 'center' : 'flex-start', gap: 5 }}
             >
-              {(block as any).notes}
-            </div>
-          )}
-        </div>
+              {/* Task: completion circle (small+) */}
+              {showIcon && isTask && (
+                <button
+                  type="button"
+                  onClick={handleCircleClick}
+                  className="flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all"
+                  style={{
+                    marginTop: sizeTier === 'small' ? 1 : 2,
+                    width: 13, height: 13, minWidth: 13,
+                    ...(confirmed
+                      ? { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.9)' }
+                      : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.65)' }),
+                  }}
+                  title={confirmed ? 'Mark not done' : 'Mark done'}
+                  aria-label={confirmed ? 'Mark not done' : 'Mark done'}
+                >
+                  {confirmed && <CheckIcon className="h-[7px] w-[7px]" style={{ color: blockColor }} />}
+                </button>
+              )}
+              {/* Event: lock icon (small+) */}
+              {showIcon && isEvent && (
+                <LockClosedIcon
+                  className="flex-shrink-0 opacity-40"
+                  style={{ marginTop: sizeTier === 'small' ? 1 : 2, width: 9, height: 9, color: blockColor }}
+                />
+              )}
 
-        {/* Resize handle (tasks only) */}
-        {onResizeStart && isTask && (
+              <span
+                className={cn(
+                  'font-semibold leading-snug flex-1 min-w-0 truncate',
+                  titleTextClass,
+                  isTask && confirmed && 'line-through decoration-current/40',
+                )}
+                style={{
+                  fontSize: sizeTier === 'tiny' ? 10 : 11,
+                  textDecorationSkipInk: 'none',
+                  whiteSpace: sizeTier === 'tiny' ? 'nowrap' : 'normal',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: sizeTier === 'tiny' ? 'block' : undefined,
+                }}
+              >
+                {block.title || 'Untitled'}
+              </span>
+            </div>
+
+            {/* Time row — medium+ */}
+            {showMeta && (
+              <div
+                className={cn(
+                  'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 min-w-0',
+                  isEvent ? 'text-[#636366]' : 'text-white/75',
+                )}
+                style={{ fontSize: 10 }}
+              >
+                <span className="whitespace-nowrap opacity-85">{getTimeRange()}</span>
+                {block.category && showCategory && (
+                  <span
+                    className="px-1.5 py-[1px] rounded-full font-medium"
+                    style={
+                      isEvent
+                        ? { backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }
+                        : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)' }
+                    }
+                  >
+                    {block.category.name}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Tags row — rich only */}
+            {showTags && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {block.tags.slice(0, 4).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="font-medium px-1.5 py-[2px] rounded-full"
+                    style={{
+                      fontSize: 9,
+                      ...(isEvent
+                        ? { backgroundColor: hexToRgba(blockColor, 0.12), color: blockColor }
+                        : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.88)' }),
+                    }}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Notes — rich only */}
+            {showNotes && (
+              <div
+                className="mt-1 italic line-clamp-2 opacity-70"
+                style={{ fontSize: 10, color: isEvent ? '#636366' : 'rgba(255,255,255,0.85)' }}
+              >
+                {(block as any).notes}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Resize handle (tasks only, full+) */}
+        {onResizeStart && isTask && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}

@@ -167,7 +167,7 @@ export function EventCard({
         style={{
           backgroundColor: bgColor,
           opacity,
-          ...(isSelected ? { '--tw-ring-color': '#4A80F0' } as React.CSSProperties : {}),
+          ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
         }}
       >
@@ -275,7 +275,7 @@ export function EventCard({
               )}
               {event.link && (
                 <div className="mb-2">
-                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#4A80F0' }}>
+                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
                     {event.link}
                   </a>
                 </div>

@@ -30,6 +30,7 @@ import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence } from './supabasePersistence';
+import { SegmentedControl } from './components/ui/SegmentedControl';
 
 // Re-export for components that still import from App
 export type Mode = StoreMode;
@@ -672,7 +673,7 @@ export default function App() {
 
   if (requireAuth && session && !dataReady) {
     return (
-      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#F8F8F6' }}>
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#F2EFDC' }}>
         <div className="text-sm" style={{ color: '#636366' }}>Loading your data...</div>
       </div>
     );
@@ -680,12 +681,12 @@ export default function App() {
 
   if (requireAuth && !session && !visitMode) {
     return (
-      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#F8F8F6' }}>
+      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#F2EFDC' }}>
         <div className="w-full max-w-xs rounded-lg">
           <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
             <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
               <div className="flex items-center gap-2 mb-0.5">
-                <CalendarIcon className="h-5 w-5" style={{ color: '#4A80F0' }} />
+                <CalendarIcon className="h-5 w-5" style={{ color: '#8DA286' }} />
                 <h1 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Timebox</h1>
               </div>
               <p className="text-xs" style={{ color: '#8E8E93' }}>Sign in to sync your tasks and calendar</p>
@@ -729,8 +730,8 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={!supabase}
-                  className="w-full py-1.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#4A80F0' }}
+                  className="w-full py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
                 >
                   Send magic link
                 </button>
@@ -741,7 +742,7 @@ export default function App() {
 
               <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center"><div className="w-full" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }} /></div>
-                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FFFFFF', color: '#B0A090' }}>or</span></div>
+                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FFFFFF', color: '#8E8E93' }}>or</span></div>
               </div>
 
               <button
@@ -754,7 +755,7 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-xs text-center leading-relaxed" style={{ color: '#B0A090' }}>
+            <p className="text-xs text-center leading-relaxed" style={{ color: '#8E8E93' }}>
               Sign in to save across sessions. Visit mode resets on refresh.
             </p>
           </div>
@@ -764,7 +765,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#F8F8F6' }}>
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#F2EFDC' }}>
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -783,10 +784,10 @@ export default function App() {
 
       {/* Supabase auth bar */}
       {session && (
-        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#EFEFE9' }}>
+        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#E7E5BC' }}>
           <span style={{ color: '#8E8E93' }}>
             Signed in as <span className="font-medium" style={{ color: '#1C1C1E' }}>{session.user.email}</span>
-            <span className="ml-1.5" style={{ color: '#B0A090' }}>· synced</span>
+            <span className="ml-1.5" style={{ color: '#8E8E93' }}>· synced</span>
           </span>
           <button
             type="button"
@@ -802,7 +803,7 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#EFEFE9' }}>
+          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#E7E5BC' }}>
             {/* Header: Organization heading + settings + edit */}
             <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <h2 className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
@@ -826,8 +827,8 @@ export default function App() {
                   onClick={() => setIsEditMode(!isEditMode)}
                   className="p-1.5 rounded-lg transition-colors"
                   style={{
-                    color: isEditMode ? '#4A80F0' : '#8E8E93',
-                    backgroundColor: isEditMode ? 'rgba(74,128,240,0.08)' : 'transparent',
+                    color: isEditMode ? '#8DA286' : '#8E8E93',
+                    backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
                   }}
                   onMouseEnter={(e) => {
                     if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
@@ -872,26 +873,22 @@ export default function App() {
                           ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                           : selectedDate}
                     </p>
-                    <div className="mb-3 flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.07)' }}>
-                      {(['category', 'container', 'tag'] as const).map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setPlanVsActualView(v)}
-                          className="flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-all capitalize"
-                          style={{
-                            backgroundColor: planVsActualView === v ? '#FFFFFF' : 'transparent',
-                            color: planVsActualView === v ? '#1C1C1E' : '#636366',
-                            boxShadow: planVsActualView === v ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                          }}
-                        >
-                          {v === 'container' ? 'Calendar' : v.charAt(0).toUpperCase() + v.slice(1)}
-                        </button>
-                      ))}
+                    <div className="mb-3" style={{ display: 'flex' }}>
+                      <SegmentedControl
+                        options={[
+                          { value: 'category' as PlanVsActualView, label: 'Category' },
+                          { value: 'container' as PlanVsActualView, label: 'Calendar' },
+                          { value: 'tag' as PlanVsActualView, label: 'Tag' },
+                        ]}
+                        value={planVsActualView}
+                        onChange={setPlanVsActualView}
+                        compact
+                        style={{ flex: 1 }}
+                      />
                     </div>
                     {planVsActual.length > 0 ? (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-x-2 text-[9px] font-semibold uppercase tracking-widest mb-1 px-0.5" style={{ color: '#B0A090' }}>
+                        <div className="grid grid-cols-2 gap-x-2 text-[9px] font-semibold uppercase tracking-widest mb-1 px-0.5" style={{ color: '#8E8E93' }}>
                           <span>Planned</span>
                           <span className="text-right">Recorded</span>
                         </div>
@@ -905,12 +902,12 @@ export default function App() {
                             <div key={row.id} className="space-y-1.5">
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }} />
-                                <span className="text-xs truncate font-medium" style={{ color: '#3C3430' }}>{row.name}</span>
+                                <span className="text-xs truncate font-medium" style={{ color: '#1C1C1E' }}>{row.name}</span>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-0.5">
                                   <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.08)' }}>
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(74,128,240,0.35)' }} />
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(141,162,134,0.40)' }} />
                                   </div>
                                   <span className="text-[10px]" style={{ color: '#8E8E93' }}>{row.plannedHours.toFixed(1)}h</span>
                                 </div>
@@ -924,13 +921,13 @@ export default function App() {
                             </div>
                           );
                         })}
-                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(0,0,0,0.09)', color: '#3C3430' }}>
+                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}>
                           {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned ·{' '}
                           {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h done
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-center py-8" style={{ color: '#B0A090' }}>
+                      <div className="text-sm text-center py-8" style={{ color: '#8E8E93' }}>
                         No time planned or recorded
                       </div>
                     )}
@@ -980,11 +977,11 @@ export default function App() {
         >
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
           <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
           <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
           <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
@@ -1057,17 +1054,17 @@ export default function App() {
         >
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
           <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
           <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
           <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
         {/* Right panel */}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#EFEFE9' }}>
+          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#E7E5BC' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>Tasks</span>
             </div>
@@ -1245,9 +1242,9 @@ export default function App() {
             <button
               type="button"
               className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-              style={{ backgroundColor: '#4A80F0', color: 'white' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4E8A9C')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#4A80F0')}
+              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
               onClick={() => setRecordingOverlapWarning(null)}
             >
               Got it

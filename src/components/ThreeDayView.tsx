@@ -41,11 +41,11 @@ interface ThreeDayViewProps {
   categories?: import('../types').Category[];
 }
 
-const PRIMARY = '#4A80F0';
+const PRIMARY = '#8DA286';
 const GRID_HOUR = 'rgba(0,0,0,0.07)';
 const GRID_HALF = 'rgba(0,0,0,0.035)';
-const BG_CANVAS = '#F8F8F6';
-const BG_TODAY = 'rgba(74,128,240,0.04)';
+const BG_CANVAS = '#F2EFDC';
+const BG_TODAY = 'rgba(141,162,134,0.05)';
 
 export function ThreeDayView({
   mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
@@ -67,7 +67,7 @@ export function ThreeDayView({
     [tasks]
   );
   const getCategoryColor = (categoryId: string) =>
-    categories.find(c => c.id === categoryId)?.color ?? '#4A80F0';
+    categories.find(c => c.id === categoryId)?.color ?? '#8DA286';
 
   // Three days: anchor date + next 2
   const threeDays = React.useMemo(() => {
@@ -495,8 +495,8 @@ export function ThreeDayView({
                         style={{
                           top: `${(dragPreview.startMins / 60) * PX_PER_HOUR}px`,
                           height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(74,128,240,0.12)',
-                          border: '2px dashed rgba(74,128,240,0.5)',
+                          backgroundColor: 'rgba(141,162,134,0.14)',
+                          border: '2px dashed rgba(141,162,134,0.55)',
                         }}
                       />
                     )}
@@ -508,8 +508,8 @@ export function ThreeDayView({
                         style={{
                           top: `${(creatingBlock.startMins / 60) * PX_PER_HOUR}px`,
                           height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(74,128,240,0.10)',
-                          border: '2px dashed rgba(74,128,240,0.45)',
+                          backgroundColor: 'rgba(141,162,134,0.12)',
+                          border: '2px dashed rgba(141,162,134,0.50)',
                         }}
                       >
                         <span

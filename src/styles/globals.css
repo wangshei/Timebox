@@ -3,33 +3,33 @@
 :root {
   --font-size: 16px;
 
-  /* === Clean Cream-White + Cheerful Blue Design System === */
-  --background: #F8F8F6;           /* Barely-warm off-white canvas */
+  /* === Parchment Palette Design System === */
+  --background: #F2EFDC;           /* Warm parchment canvas */
   --foreground: #1C1C1E;           /* iOS-style near-black */
   --card: #FFFFFF;                 /* Pure white cards — crisp contrast */
   --card-foreground: #1C1C1E;
   --popover: #FFFFFF;
   --popover-foreground: #1C1C1E;
-  --primary: #4A80F0;              /* Cheerful cornflower blue */
-  --primary-foreground: #ffffff;
-  --secondary: #F0F0EE;            /* Neutral surface */
+  --primary: #8DA286;              /* Earthy sage green */
+  --primary-foreground: #1C1C1E;   /* Dark text — sage bg fails AA with white */
+  --secondary: #DBE4D7;            /* Pale sage surface */
   --secondary-foreground: #1C1C1E;
-  --muted: #F2F2F0;                /* Subtle muted background */
+  --muted: #DBE4D7;                /* Subtle muted background */
   --muted-foreground: #8E8E93;     /* iOS gray */
-  --accent: #EBF1FF;               /* Light blue tint for accents */
-  --accent-foreground: #2550B0;
+  --accent: #D9D781;               /* Warm yellow-green highlight */
+  --accent-foreground: #3A3A3C;    /* Dark text on yellow accent */
   --destructive: #FF3B30;          /* iOS red */
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.08);   /* Clean neutral border */
   --input: transparent;
-  --input-background: #F2F2F0;     /* Neutral input background */
+  --input-background: #DBE4D7;     /* Pale sage input background */
   --switch-background: #C7C7CC;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #4A80F0;                 /* Blue focus ring */
+  --ring: #8DA286;                 /* Blue focus ring */
 
   /* Chart colors — clear, distinct, cheerful */
-  --chart-1: #4A80F0;   /* Blue */
+  --chart-1: #8DA286;   /* Blue */
   --chart-2: #34C759;   /* Green */
   --chart-3: #AF52DE;   /* Purple */
   --chart-4: #FF9500;   /* Orange */
@@ -38,17 +38,17 @@
   --radius: 0.5rem;
 
   /* Sidebar — slightly different from canvas (intentional panel distinction) */
-  --sidebar: #EFEFE9;
+  --sidebar: #E7E5BC;
   --sidebar-foreground: #1C1C1E;
-  --sidebar-primary: #4A80F0;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #E8E8E4;
+  --sidebar-primary: #8DA286;
+  --sidebar-primary-foreground: #1C1C1E;
+  --sidebar-accent: #DBE4D7;
   --sidebar-accent-foreground: #3A3A3C;
   --sidebar-border: rgba(0, 0, 0, 0.08);
-  --sidebar-ring: #4A80F0;
+  --sidebar-ring: #8DA286;
 
   /* === Calendar color palette (vibrant, distinct) === */
-  --color-blue: #4A80F0;
+  --color-blue: #5E8AE0;
   --color-green: #34C759;
   --color-purple: #AF52DE;
   --color-orange: #FF9500;
@@ -182,7 +182,7 @@ html {
 
 /* Events: structured, locked, clean left-stripe look */
 .block-event {
-  border-left: 3px solid var(--block-color, #4A80F0);
+  border-left: 3px solid var(--block-color, #8DA286);
   border-radius: 0 8px 8px 0;
   background: var(--block-bg, #EBF1FF);
 }

@@ -124,8 +124,8 @@ export function EditTagModal({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              style={{ backgroundColor: '#4A80F0' }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
             >
               <CheckIcon className="h-4 w-4" />
               Save

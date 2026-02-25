@@ -1,9 +1,9 @@
 /**
  * Single source of truth for category/calendar color selection.
- * Vibrant, clear, cheerful palette — easy to distinguish at a glance.
+ * Vibrant, clear, distinct palette — easy to tell apart at a glance.
  */
 export const PALETTE_COLORS = [
-  { name: 'Blue', value: '#4A80F0' },           // Primary cornflower blue
+  { name: 'Blue', value: '#5E8AE0' },           // Cornflower blue
   { name: 'Green', value: '#34C759' },           // Fresh emerald green
   { name: 'Purple', value: '#AF52DE' },          // Bright violet
   { name: 'Orange', value: '#FF9500' },          // Warm amber orange
@@ -14,6 +14,7 @@ export const PALETTE_COLORS = [
   { name: 'Yellow', value: '#FFCC00' },          // Bright yellow
   { name: 'Mint', value: '#00C7BE' },            // Mint green
   { name: 'Brown', value: '#A2845E' },           // Warm brown
+  { name: 'Sage', value: '#8DA286' },            // Earthy sage green
 ] as const;
 
 /** Flat list of hex values for components that only need the color. */
@@ -26,12 +27,14 @@ export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Blue
 
 /**
  * Semantic color tokens for the design system.
+ * Parchment palette: warm earthy tones, sage green primary.
  */
 export const THEME = {
   // Background palette
-  background: '#F8F8F6',         // Barely-warm off-white canvas
-  sidebar: '#EFEFE9',            // Slightly warmer panel bg
-  card: '#FFFFFF',               // Pure white cards
+  background: '#F2EFDC',         // Warm parchment canvas
+  sidebar: '#E7E5BC',            // Warmer panel bg
+  secondaryBg: '#DBE4D7',        // Input bg, subtle sections
+  card: '#FFFFFF',               // Pure white cards / modals
   muted: '#F2F2F0',              // Muted surfaces
 
   // Text colors
@@ -45,10 +48,13 @@ export const THEME = {
   borderMedium: 'rgba(0,0,0,0.10)',
   borderStrong: 'rgba(0,0,0,0.16)',
 
-  // Primary blue
-  primary: '#4A80F0',
-  primaryHover: '#3A6EDE',
-  primaryPale: '#EBF1FF',
+  // Primary sage green — use DARK text on this bg (#1C1C1E, not white)
+  primary: '#8DA286',
+  primaryHover: '#7A9278',       // 10% darker sage
+  primaryPale: '#DBE4D7',        // Pale sage for tints
+
+  // Accent — warm yellow-green for highlights
+  accent: '#D9D781',
 
   // Grid lines
   gridHour: 'rgba(0,0,0,0.07)',

@@ -202,7 +202,7 @@ export function LeftSidebar({
     color: string; setColor: (v: string) => void;
     showColor: boolean; onSave: () => void; onCancel: () => void;
   }) => (
-    <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
+    <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}>
       <input
         type="text"
         value={name}
@@ -217,7 +217,7 @@ export function LeftSidebar({
       />
       {showColor && <ColorPicker value={color} onChange={setColor} swatchSize="sm" />}
       <div className="flex gap-2">
-        <button type="button" onClick={onSave} className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors" style={{ backgroundColor: '#4A80F0' }}>
+        <button type="button" onClick={onSave} className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors" style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>
           Save
         </button>
         <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>
@@ -238,7 +238,7 @@ export function LeftSidebar({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#EFEFE9' }}>
+    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#E7E5BC' }}>
       {/* Add calendar */}
       <div className="px-4 pt-3 pb-1 flex-shrink-0">
         <button
@@ -246,7 +246,7 @@ export function LeftSidebar({
           onClick={() => startAdd('calendar')}
           className="text-xs font-semibold flex items-center gap-1.5 py-1.5 px-0 transition-colors"
           style={{ color: '#8E8E93'}}
-          onMouseEnter={e => (e.currentTarget.style.color = '#4A80F0')}
+          onMouseEnter={e => (e.currentTarget.style.color = '#8DA286')}
           onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
         >
           <PlusIcon className="h-3.5 w-3.5" />
@@ -273,8 +273,8 @@ export function LeftSidebar({
               key={calendar.id}
               className="rounded-xl overflow-hidden"
               style={{
-                backgroundColor: isFocused ? `${calendar.color}14` : 'rgba(255,255,255,0.55)',
-                border: isFocused ? `1.5px solid ${calendar.color}40` : '1px solid rgba(0,0,0,0.08)',
+                backgroundColor: isFocused ? `${calendar.color}14` : 'transparent',
+                border: isFocused ? `1.5px solid ${calendar.color}40` : '1px solid transparent',
                 boxShadow: isFocused ? `0 0 0 1px ${calendar.color}20` : 'none',
               }}
             >
@@ -322,7 +322,7 @@ export function LeftSidebar({
                   {/* Edit mode actions */}
                   {isEditMode && (
                     <div className="flex gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3 w-3" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                      {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3 w-3" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                       {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3 w-3" />, '#B85050', 'rgba(255,59,48,0.08)')}
                     </div>
                   )}
@@ -390,7 +390,7 @@ export function LeftSidebar({
 
                             {isEditMode && (
                               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-2.5 w-2.5" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-2.5 w-2.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                                 {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                               </div>
                             )}
@@ -404,7 +404,7 @@ export function LeftSidebar({
                               {categoryTags.map((tag) =>
                                 editingId === tag.id && editingType === 'tag' ? (
                                   <div key={tag.id} className="w-full">
-                                    <div className="rounded-xl p-2 space-y-2" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
+                                    <div className="rounded-xl p-2 space-y-2" style={{ backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}>
                                       <input
                                         type="text"
                                         value={editName}
@@ -414,7 +414,7 @@ export function LeftSidebar({
                                         autoFocus
                                       />
                                       <div className="flex gap-1.5">
-                                        <button type="button" onClick={saveEdit} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#4A80F0' }}>Save</button>
+                                        <button type="button" onClick={saveEdit} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg" style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>Save</button>
                                         <button type="button" onClick={cancelEdit} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                       </div>
                                     </div>
@@ -434,7 +434,7 @@ export function LeftSidebar({
                                     </span>
                                     {isEditMode && (
                                       <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                                        {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2.5 w-2.5" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                                        {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2.5 w-2.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                                         {iconBtn(() => handleDelete('tag', tag.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                                       </div>
                                     )}
@@ -454,7 +454,7 @@ export function LeftSidebar({
                             </button>
                             {isAdding && addingType === 'tag' && addingParentId === category.id && (
                               <div className="w-full mt-1">
-                                <div className="rounded-xl p-2 space-y-1.5" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
+                                <div className="rounded-xl p-2 space-y-1.5" style={{ backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}>
                                   <input
                                     type="text"
                                     value={addName}
@@ -469,7 +469,7 @@ export function LeftSidebar({
                                     autoFocus
                                   />
                                   <div className="flex gap-1.5">
-                                    <button type="button" onClick={saveAdd} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#4A80F0' }}>Add</button>
+                                    <button type="button" onClick={saveAdd} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg" style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>Add</button>
                                     <button type="button" onClick={cancelAdd} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                   </div>
                                 </div>
@@ -494,7 +494,7 @@ export function LeftSidebar({
                       <PlusIcon className="h-2.5 w-2.5" /> category
                     </button>
                     {isAdding && addingType === 'category' && addingParentId === calendar.id && (
-                      <div className="mt-2 rounded-xl p-3 space-y-3" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
+                      <div className="mt-2 rounded-xl p-3 space-y-3" style={{ backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}>
                         <p className="text-[10px] font-semibold" style={{ color: '#636366' }}>Attach or create category</p>
                         <div className="flex flex-wrap gap-1">
                           {categories.map((cat) => (

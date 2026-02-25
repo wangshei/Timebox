@@ -491,13 +491,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               style={{
                 top: currentTimeTop,
                 height: 0,
-                borderTop: '2px solid #4A80F0',
+                borderTop: '2px solid #8DA286',
               }}
               aria-hidden
             />
             <div
               className="absolute left-0 z-40 text-xs font-semibold tabular-nums pointer-events-none"
-              style={{ top: currentTimeTop - 8, color: '#4A80F0', fontSize: '10px' }}
+              style={{ top: currentTimeTop - 8, color: '#8DA286', fontSize: '10px' }}
             >
               {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
@@ -511,11 +511,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{
               top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(74,128,240,0.10)',
-              border: '2px dashed rgba(74,128,240,0.45)',
+              backgroundColor: 'rgba(141,162,134,0.12)',
+              border: '2px dashed rgba(141,162,134,0.50)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#4A80F0' }}>
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#8DA286' }}>
               {minutesToTimeString(dragPreview.startMins)}–{minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
             </span>
           </div>
@@ -528,11 +528,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{
               top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(74,128,240,0.08)',
-              border: '2px dashed rgba(74,128,240,0.40)',
+              backgroundColor: 'rgba(141,162,134,0.09)',
+              border: '2px dashed rgba(141,162,134,0.45)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#4A80F0' }}>
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#8DA286' }}>
               {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
             </span>
           </div>
@@ -544,8 +544,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg"
             style={{
               height: GRID_HEIGHT,
-              backgroundColor: 'rgba(74,128,240,0.03)',
-              boxShadow: 'inset 0 0 0 2px rgba(74,128,240,0.20)',
+              backgroundColor: 'rgba(141,162,134,0.04)',
+              boxShadow: 'inset 0 0 0 2px rgba(141,162,134,0.23)',
             }}
           />
         )}

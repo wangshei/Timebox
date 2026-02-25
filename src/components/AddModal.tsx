@@ -4,6 +4,7 @@ import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
+import { SegmentedControl } from './ui/SegmentedControl';
 
 type AddMode = 'task' | 'event';
 
@@ -388,8 +389,8 @@ export function AddModal({
               : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : mode === 'task'
-                  ? '✏️ New Task'
-                  : '📌 New Event'}
+                  ? 'New Task'
+                  : 'New Event'}
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)')}
@@ -400,31 +401,20 @@ export function AddModal({
         </div>
 
         {/* Task/Event Toggle — when adding (not editing) */}
-        {!editingTimeBlock && !editingEvent && (
-          <div className="px-4 pt-3">
-            <div className="flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
-              <button
-                type="button"
-                onClick={() => setMode('task')}
-                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
-                style={mode === 'task'
-                  ? { backgroundColor: '#FFFFFF', color: '#1C1C1E', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-                  : { backgroundColor: 'transparent', color: '#8E8E93' }}
-              >
-                ✏️ Task
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('event')}
-                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
-                style={mode === 'event'
-                  ? { backgroundColor: '#FFFFFF', color: '#1C1C1E', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
-                  : { backgroundColor: 'transparent', color: '#8E8E93' }}
-              >
-                📌 Event
-              </button>
+        {!editingTimeBlock && !editingEvent && !editingTask && (
+          <div className="px-4 pt-3" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex' }}>
+              <SegmentedControl
+                options={[
+                  { value: 'task' as AddMode, label: 'Task' },
+                  { value: 'event' as AddMode, label: 'Event' },
+                ]}
+                value={mode}
+                onChange={setMode}
+                style={{ flex: 1 }}
+              />
             </div>
-            <p className="text-[10px] mt-1.5 px-1" style={{ color: '#8E8E93' }}>
+            <p className="text-[10px] px-1" style={{ color: '#8E8E93' }}>
               {mode === 'task'
                 ? 'Tasks are flexible — schedule them anytime'
                 : 'Events are fixed — they happen at a set time'}
@@ -452,9 +442,9 @@ export function AddModal({
                     type="range" min="0.5" max="8" step="0.5" value={estimatedHours}
                     onChange={(e) => setEstimatedHours(parseFloat(e.target.value))}
                     className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
-                    style={{ background: `linear-gradient(to right, #4A80F0 0%, #4A80F0 ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) 100%)` }}
+                    style={{ background: `linear-gradient(to right, #8DA286 0%, #8DA286 ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) 100%)` }}
                   />
-                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#4A80F0' }}>{estimatedHours}h</span>
+                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#8DA286' }}>{estimatedHours}h</span>
                 </div>
               </div>
               <div>
@@ -507,7 +497,7 @@ export function AddModal({
                 type="button"
                 onClick={onRequireCalendar}
                 className="w-full px-3 py-2 text-xs font-medium flex items-center justify-center gap-1.5 rounded-lg"
-                style={{ color: '#4A80F0', backgroundColor: 'rgba(74,128,240,0.07)', border: '1.5px dashed rgba(74,128,240,0.4)' }}
+                style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1.5px dashed rgba(141,162,134,0.45)' }}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add a calendar first
@@ -599,7 +589,7 @@ export function AddModal({
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
                   const isSelected = selectedTags.some((s) => s.id === tag.id);
-                  const catColor = selectedCategory?.color ?? '#4A80F0';
+                  const catColor = selectedCategory?.color ?? '#8DA286';
                   return (
                     <button
                       key={tag.id}
@@ -669,7 +659,7 @@ export function AddModal({
               {moreOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
             </button>
             {moreOpen && (
-              <div className="p-3 space-y-3" style={{ backgroundColor: '#F8F8F6' }}>
+              <div className="p-3 space-y-3" style={{ backgroundColor: '#F2EFDC' }}>
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Link <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
                   <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} />
@@ -689,7 +679,7 @@ export function AddModal({
                           onClick={() => setRecurrencePattern(p)}
                           className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
                           style={recurrencePattern === p
-                            ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                            ? { backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1.5px solid #8DA286' }
                             : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                         >
                           {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -705,7 +695,7 @@ export function AddModal({
                             onClick={() => { setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)); }}
                             className="px-2 py-1 text-xs font-medium rounded-full"
                             style={recurrenceDays.includes(i)
-                              ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                              ? { backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1.5px solid #8DA286' }
                               : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                           >
                             {day}
@@ -724,7 +714,7 @@ export function AddModal({
                               onClick={() => setRecurrenceEditScope(scope)}
                               className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
                               style={recurrenceEditScope === scope
-                                ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                                ? { backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1.5px solid #8DA286' }
                                 : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                             >
                               {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
@@ -754,7 +744,7 @@ export function AddModal({
               type="submit"
               disabled={!title.trim() || (!selectedCategory && !categoryInput.trim())}
               className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-              style={{ backgroundColor: '#4A80F0', color: '#fff' }}
+              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
             >
               <PlusIcon className="h-4 w-4" />
               {mode === 'task' && editingTask ? 'Save Task' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}

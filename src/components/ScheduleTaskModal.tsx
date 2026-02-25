@@ -129,10 +129,10 @@ export function ScheduleTaskModal({
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 text-white rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: '#4A80F0' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A8A9C'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#4A80F0'; }}
+              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
+              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
             >
               Schedule
             </button>
