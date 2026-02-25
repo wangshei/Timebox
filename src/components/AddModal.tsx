@@ -101,6 +101,7 @@ export function AddModal({
   const [dueDate, setDueDate] = useState<string>('');
   const [link, setLink] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
   const [moreOpen, setMoreOpen] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
@@ -182,6 +183,7 @@ export function AddModal({
       setSelectedCalendar(editingTimeBlock.calendarContainerId);
       setLink(editingTimeBlock.link ?? '');
       setDescription(editingTimeBlock.description ?? '');
+      setNotes((editingTimeBlock as any).notes ?? '');
     }
   }, [isOpen, editingTimeBlock?.id, categories, tags]);
 
@@ -290,7 +292,8 @@ export function AddModal({
         tagIds: tagsToUse.map((t) => t.id),
         link: link.trim() || null,
         description: description.trim() || null,
-      });
+        notes: notes.trim() || null,
+      } as any);
     } else if (mode === 'task') {
       onAddTask({
         title,
@@ -324,6 +327,7 @@ export function AddModal({
     setDueDate('');
     setLink('');
     setDescription('');
+    setNotes('');
     setDate(getLocalDateString());
     setStartTime('09:00');
     setEndTime('10:00');
@@ -352,51 +356,79 @@ export function AddModal({
       {/* Light backdrop — click to close, calendar stays visible */}
       <div className="absolute inset-0 bg-black/15 pointer-events-auto" onClick={onClose} aria-hidden />
 
-      {/* Draggable panel — fixed width so Add Task and Add Event (from + button) match */}
+      {/* Draggable panel — Monet warm canvas theme */}
       <div
-        className="absolute pointer-events-auto bg-white shadow-xl rounded-2xl border border-neutral-200 flex flex-col overflow-hidden"
+        className="absolute pointer-events-auto flex flex-col overflow-hidden"
         style={{
           left: panelPos.x,
           top: panelPos.y,
           width: `${PANEL_WIDTH}px`,
           maxWidth: 'calc(100vw - 32px)',
           maxHeight: maxH,
+          backgroundColor: '#FDFBF8',
+          borderRadius: '16px',
+          border: '1px solid rgba(160, 140, 120, 0.2)',
+          boxShadow: '0 8px 32px rgba(44,40,32,0.12), 0 2px 8px rgba(44,40,32,0.06)',
         }}
       >
+        {/* Drag header */}
         <div
-          className="flex items-center gap-2 px-3 py-2 border-b border-neutral-200 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-2 px-4 py-2.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}
           onMouseDown={(e) => {
             if ((e.target as HTMLElement).closest('button')) return;
             setIsDragging(true);
             dragStart.current = { x: e.clientX, y: e.clientY, left: panelPos.x, top: panelPos.y };
           }}
         >
-          <Bars3Icon className="h-4 w-4 text-neutral-400 shrink-0" />
-          <h2 className="text-sm font-medium text-neutral-900 flex-1 min-w-0 truncate">
+          <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#9E968C' }} />
+          <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#2C2820' }}>
             {editingTask
               ? 'Edit Task'
               : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : mode === 'task'
-                  ? 'Add Task'
-                  : 'Add Event'}
+                  ? '✏️ New Task'
+                  : '📌 New Event'}
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-md transition-colors shrink-0">
-            <XMarkIcon className="h-4 w-4 text-neutral-500" />
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#9E968C' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.12)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
 
         {/* Task/Event Toggle — when adding (not editing) */}
         {!editingTimeBlock && !editingEvent && (
           <div className="px-4 pt-3">
-            <div className="bg-neutral-100 rounded-md p-0.5 flex">
-              <button type="button" onClick={() => setMode('task')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'task' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
-                Task
+            <div className="flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.1)' }}>
+              <button
+                type="button"
+                onClick={() => setMode('task')}
+                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
+                style={mode === 'task'
+                  ? { backgroundColor: '#FDFBF8', color: '#2C2820', boxShadow: '0 1px 4px rgba(44,40,32,0.1)' }
+                  : { backgroundColor: 'transparent', color: '#9E968C' }}
+              >
+                ✏️ Task
               </button>
-              <button type="button" onClick={() => setMode('event')} className={`flex-1 py-1.5 px-3 rounded text-xs font-medium transition-all ${mode === 'event' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`}>
-                Event
+              <button
+                type="button"
+                onClick={() => setMode('event')}
+                className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
+                style={mode === 'event'
+                  ? { backgroundColor: '#FDFBF8', color: '#2C2820', boxShadow: '0 1px 4px rgba(44,40,32,0.1)' }
+                  : { backgroundColor: 'transparent', color: '#9E968C' }}
+              >
+                📌 Event
               </button>
             </div>
+            <p className="text-[10px] mt-1.5 px-1" style={{ color: '#9E968C' }}>
+              {mode === 'task'
+                ? 'Tasks are flexible — schedule them anytime'
+                : 'Events are fixed — they happen at a set time'}
+            </p>
           </div>
         )}
 
@@ -407,26 +439,30 @@ export function AddModal({
         >
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal' : 'e.g., Team meeting'} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" autoFocus />
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} autoFocus />
           </div>
 
           {mode === 'task' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Estimated Hours</label>
-                <div className="flex gap-2 items-center">
-                  <input type="range" min="0.5" max="8" step="0.5" value={estimatedHours} onChange={(e) => setEstimatedHours(parseFloat(e.target.value))} className="flex-1 h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, #0044A8 0%, #0044A8 ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb ${((estimatedHours - 0.5) / 7.5) * 100}%, #e5e7eb 100%)` }} />
-                  <span className="text-sm font-medium text-neutral-900 w-8">{estimatedHours}h</span>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Estimated Time</label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="range" min="0.5" max="8" step="0.5" value={estimatedHours}
+                    onChange={(e) => setEstimatedHours(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
+                    style={{ background: `linear-gradient(to right, #5B9BAD 0%, #5B9BAD ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(160,140,120,0.2) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(160,140,120,0.2) 100%)` }}
+                  />
+                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#5B9BAD' }}>{estimatedHours}h</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Due date (optional)</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Due date <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
                 <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                  style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
                 />
               </div>
             </>
@@ -435,31 +471,28 @@ export function AddModal({
           {mode === 'event' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1">Date</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Date</label>
                 <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                  style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">Start</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Start</label>
                   <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">End</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>End</label>
                   <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
                   />
                 </div>
               </div>
@@ -468,43 +501,43 @@ export function AddModal({
 
           {/* Calendar — horizontal pill select */}
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">
-              Calendar (left border on block)
-            </label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Calendar</label>
             {calendars.length === 0 ? (
               <button
                 type="button"
                 onClick={onRequireCalendar}
-                className="w-full px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-dashed border-blue-300 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1.5"
+                className="w-full px-3 py-2 text-xs font-medium flex items-center justify-center gap-1.5 rounded-lg"
+                style={{ color: '#5B9BAD', backgroundColor: 'rgba(91,155,173,0.08)', border: '1.5px dashed rgba(91,155,173,0.4)' }}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
-                Add a calendar to schedule events
+                Add a calendar first
               </button>
             ) : (
               <div className="flex gap-1.5 flex-wrap">
-                {calendars.map((cal) => (
-                  <button
-                    key={cal.id}
-                    type="button"
-                    onClick={() => setSelectedCalendar(cal.id)}
-                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all capitalize flex items-center justify-center ${
-                      selectedCalendar === cal.id
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                    }`}
-                  >
-                    {cal.name}
-                  </button>
-                ))}
+                {calendars.map((cal) => {
+                  const isSel = selectedCalendar === cal.id;
+                  return (
+                    <button
+                      key={cal.id}
+                      type="button"
+                      onClick={() => setSelectedCalendar(cal.id)}
+                      className="min-w-[70px] px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all capitalize flex items-center justify-center gap-1.5"
+                      style={isSel
+                        ? { backgroundColor: cal.color, color: '#fff', border: `1.5px solid ${cal.color}` }
+                        : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSel ? 'rgba(255,255,255,0.7)' : cal.color }} />
+                      {cal.name}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Category — same horizontal pill select, with colored dot */}
+          {/* Category — pill select, with colored dot */}
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">
-              Category (color on block)
-            </label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Category</label>
             <div className="flex gap-1.5 flex-wrap">
               {categoriesToShow
                 .filter((category) => {
@@ -513,24 +546,23 @@ export function AddModal({
                   if (ids && ids.length > 0) return ids.includes(selectedCalendar);
                   return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
                 })
-                .map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
-                    className={`min-w-[70px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                      selectedCategory?.id === category.id
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                    }`}
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {category.name}
-                  </button>
-                ))}
+                .map((category) => {
+                  const isSel = selectedCategory?.id === category.id;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
+                      className="px-2.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                      style={isSel
+                        ? { backgroundColor: `${category.color}22`, color: category.color, border: `1.5px solid ${category.color}` }
+                        : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                    >
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: category.color }} />
+                      {category.name}
+                    </button>
+                  );
+                })}
             </div>
             <input
               type="text"
@@ -553,31 +585,31 @@ export function AddModal({
                   }
                 }
               }}
-              placeholder="Type and Enter to add"
-              className="mt-1.5 w-full px-2 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Or type to create new…"
+              className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
+              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
             />
           </div>
 
-          {/* Tags — same horizontal pill select, with tag icon; multi-select */}
+          {/* Tags — multi-select pills */}
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1">Tags (optional)</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Tags <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
             <div className="flex gap-1.5 flex-wrap">
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
                   const isSelected = selectedTags.some((s) => s.id === tag.id);
+                  const catColor = selectedCategory?.color ?? '#5B9BAD';
                   return (
                     <button
                       key={tag.id}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`min-w-[60px] px-2 py-1.5 rounded-md border text-xs font-medium transition-all flex items-center justify-center gap-1 ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                      }`}
+                      className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                      style={isSelected
+                        ? { backgroundColor: `${catColor}18`, color: catColor, border: `1.5px solid ${catColor}` }
+                        : { backgroundColor: 'transparent', color: '#9E968C', border: '1.5px solid rgba(160,140,120,0.2)' }}
                     >
-                      <TagIcon className="h-3 w-3 shrink-0" />
                       {tag.name}
                     </button>
                   );
@@ -600,45 +632,65 @@ export function AddModal({
                   setTagInput('');
                 }
               }}
-              placeholder="Type and Enter to add"
-              className="mt-1.5 w-full px-2 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Type and Enter to add…"
+              className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
+              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+            />
+          </div>
+
+          {/* Quick Notes — shown inline on the block */}
+          <div>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>
+              Quick Notes <span style={{ color: '#9E968C', fontWeight: 400 }}>(shown on block)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Quick reminder, context, or link to notes…"
+              rows={2}
+              className="w-full px-3 py-2 text-xs rounded-lg focus:outline-none resize-none italic"
+              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#6B6058', fontStyle: 'italic' }}
             />
           </div>
 
           {/* More — Link, Description, Repeat (collapsible) */}
-          <div className="border border-neutral-200 rounded-lg overflow-hidden">
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(160,140,120,0.18)' }}>
             <button
               type="button"
               onClick={() => setMoreOpen((o) => !o)}
-              className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-neutral-700 bg-neutral-50 hover:bg-neutral-100 ${moreOpen ? 'border-b border-neutral-200' : ''}`}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors"
+              style={{
+                color: '#6B6058',
+                backgroundColor: moreOpen ? 'rgba(160,140,120,0.08)' : 'transparent',
+                borderBottom: moreOpen ? '1px solid rgba(160,140,120,0.15)' : 'none',
+              }}
             >
-              <span>More (link, description{mode === 'event' ? ', repeat' : ''})</span>
-              {moreOpen ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+              <span>More options {mode === 'event' ? '(link, description, repeat)' : '(link, description)'}</span>
+              {moreOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
             </button>
             {moreOpen && (
-              <div className="p-3 space-y-3 bg-white">
+              <div className="p-3 space-y-3" style={{ backgroundColor: '#FAF8F4' }}>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">Link (optional)</label>
-                  <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Link <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
+                  <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1">Description (optional)</label>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Notes or details..." rows={2} className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Description <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Longer description or context…" rows={2} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none resize-y" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} />
                 </div>
                 {mode === 'event' && (
                   <div>
-                    <label className="block text-xs font-medium text-neutral-600 mb-1">Repeat</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Repeat</label>
                     <div className="flex flex-wrap gap-1.5">
                       {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
                         <button
                           key={p}
                           type="button"
                           onClick={() => setRecurrencePattern(p)}
-                          className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
-                            recurrencePattern === p
-                              ? 'bg-blue-50 border-blue-500 text-blue-700'
-                              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                          }`}
+                          className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
+                          style={recurrencePattern === p
+                            ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
+                            : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
                         >
                           {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
                         </button>
@@ -651,9 +703,10 @@ export function AddModal({
                             key={day}
                             type="button"
                             onClick={() => { setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)); }}
-                            className={`px-2 py-1 text-xs font-medium rounded border ${
-                              recurrenceDays.includes(i) ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-neutral-200 text-neutral-600'
-                            }`}
+                            className="px-2 py-1 text-xs font-medium rounded-full"
+                            style={recurrenceDays.includes(i)
+                              ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
+                              : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
                           >
                             {day}
                           </button>
@@ -662,20 +715,19 @@ export function AddModal({
                     )}
                     {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
                       <div className="mt-2">
-                        <label className="block text-xs font-medium text-neutral-600 mb-1">Edit</label>
+                        <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Edit scope</label>
                         <div className="flex flex-wrap gap-1.5">
                           {(['this', 'all', 'all_after'] as const).map((scope) => (
                             <button
                               key={scope}
                               type="button"
                               onClick={() => setRecurrenceEditScope(scope)}
-                              className={`px-2 py-1.5 text-xs font-medium rounded-md border transition-all ${
-                                recurrenceEditScope === scope
-                                  ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                  : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                              }`}
+                              className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
+                              style={recurrenceEditScope === scope
+                                ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
+                                : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
                             >
-                              {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All events after'}
+                              {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
                             </button>
                           ))}
                         </div>
@@ -688,17 +740,24 @@ export function AddModal({
           </div>
           </div>
 
-          <div className="px-4 py-3 border-t border-neutral-200 flex gap-2 shrink-0 bg-white">
-            <button type="button" onClick={onClose} className="flex-1 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200">
+          {/* Submit row */}
+          <div className="px-4 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(160,140,120,0.15)', backgroundColor: '#FDFBF8' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-3 py-2 text-sm font-medium rounded-xl transition-colors"
+              style={{ backgroundColor: 'rgba(160,140,120,0.1)', color: '#6B6058' }}
+            >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!title.trim() || (!selectedCategory && !categoryInput.trim())}
-              className="flex-1 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              style={{ backgroundColor: '#5B9BAD', color: '#fff' }}
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
+              {mode === 'task' && editingTask ? 'Save Task' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
             </button>
           </div>
         </form>

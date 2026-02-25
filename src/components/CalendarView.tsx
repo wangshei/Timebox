@@ -165,49 +165,56 @@ export function CalendarView({
   };
 
   return (
-    <div className="flex-1 bg-white flex flex-col relative min-w-0">
+    <div className="flex-1 flex flex-col relative min-w-0" style={{ backgroundColor: '#FAF8F4' }}>
       {/* Header */}
-      <div className={`border-b border-neutral-200 ${isMobile ? 'px-4 py-3' : 'px-6 py-3'}`}>
+      <div className={isMobile ? 'px-4 py-2.5' : 'px-5 py-2.5'} style={{ borderBottom: '1px solid rgba(160,140,120,0.18)', backgroundColor: '#FAF8F4' }}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="flex items-center gap-0.5 md:gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={navigatePrevious}
-                className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
+                className="p-1.5 rounded-lg transition-colors touch-manipulation"
+                style={{ color: '#A08C78' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.12)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <ChevronLeftIcon className="h-4 w-4 md:h-5 md:w-5" />
+                <ChevronLeftIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={navigateNext}
-                className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600 transition-colors touch-manipulation"
+                className="p-1.5 rounded-lg transition-colors touch-manipulation"
+                style={{ color: '#A08C78' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.12)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <ChevronRightIcon className="h-4 w-4 md:h-5 md:w-5" />
+                <ChevronRightIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="min-w-0">
               {!isMobile && view === 'day' ? (
-                <h1 className="text-base md:text-lg font-medium text-neutral-900 truncate">
+                <h1 className="text-base md:text-lg font-semibold truncate" style={{ color: '#2C2820' }}>
                   <span>{(getHeaderTitle() as any).dayName}</span>
-                  <span className="font-normal text-neutral-500"> ({(getHeaderTitle() as any).dateStr})</span>
+                  <span className="font-normal ml-1.5" style={{ color: '#8A7A6E' }}>({(getHeaderTitle() as any).dateStr})</span>
                 </h1>
               ) : (
-                <h1 className={`font-medium text-neutral-900 truncate ${isMobile ? 'text-sm' : 'text-base md:text-lg'}`}>
+                <h1 className={`font-semibold truncate ${isMobile ? 'text-sm' : 'text-base md:text-lg'}`} style={{ color: '#2C2820' }}>
                   {isMobile && view === 'day'
                     ? currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : getHeaderTitle()}
                 </h1>
               )}
             </div>
-            {/* Compare toggle — click to show planned vs recorded side by side; click off for main calendar */}
+            {/* Compare toggle */}
             {onModeChange && (
               <button
                 type="button"
                 onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
-                className={`py-1 px-2 rounded text-xs font-medium transition-all border shrink-0 ${
-                  mode === 'compare'
-                    ? 'bg-white text-neutral-800 shadow-sm border-neutral-200'
-                    : 'bg-neutral-50 border-neutral-100 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
+                className="py-1 px-2.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                style={{
+                  backgroundColor: mode === 'compare' ? 'rgba(91,155,173,0.12)' : 'rgba(160,140,120,0.1)',
+                  color: mode === 'compare' ? '#5B9BAD' : '#8A7A6E',
+                  border: mode === 'compare' ? '1px solid rgba(91,155,173,0.3)' : '1px solid rgba(160,140,120,0.2)',
+                }}
                 title={mode === 'compare' ? 'Back to calendar' : 'Compare planned vs recorded'}
               >
                 Compare
@@ -219,39 +226,51 @@ export function CalendarView({
             {!isMobile && (
               <button
                 onClick={navigateToday}
-                className="px-2 py-1 text-xs text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded-md transition-colors flex items-center gap-1 border border-neutral-100"
+                className="px-2.5 py-1 text-xs rounded-lg transition-colors flex items-center gap-1"
+                style={{ color: '#8A7A6E', backgroundColor: 'rgba(160,140,120,0.1)', border: '1px solid rgba(160,140,120,0.18)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.18)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)')}
               >
-                <CalendarIcon className="h-3.5 w-3.5 text-neutral-500" />
+                <CalendarIcon className="h-3.5 w-3.5" />
                 Today
               </button>
             )}
 
-            {/* View Selector — D / W / M */}
-            <div className="bg-neutral-50 rounded-md p-0.5 flex border border-neutral-100">
+            {/* View Selector — Day / Week / Month */}
+            <div className="rounded-lg p-0.5 flex" style={{ backgroundColor: 'rgba(160,140,120,0.1)', border: '1px solid rgba(160,140,120,0.18)' }}>
               <button
                 type="button"
                 onClick={() => onViewChange('day')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  view === 'day' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
+                className="px-2.5 py-1 text-xs font-medium rounded-md transition-all touch-manipulation"
+                style={{
+                  backgroundColor: view === 'day' ? '#FDFBF8' : 'transparent',
+                  color: view === 'day' ? '#2C2820' : '#8A7A6E',
+                  boxShadow: view === 'day' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
               >
                 {isMobile ? 'D' : 'Day'}
               </button>
               <button
                 type="button"
                 onClick={() => onViewChange('week')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  view === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
+                className="px-2.5 py-1 text-xs font-medium rounded-md transition-all touch-manipulation"
+                style={{
+                  backgroundColor: view === 'week' ? '#FDFBF8' : 'transparent',
+                  color: view === 'week' ? '#2C2820' : '#8A7A6E',
+                  boxShadow: view === 'week' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
               >
                 {isMobile ? 'W' : 'Week'}
               </button>
               <button
                 type="button"
                 onClick={() => onViewChange('month')}
-                className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                  view === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-                }`}
+                className="px-2.5 py-1 text-xs font-medium rounded-md transition-all touch-manipulation"
+                style={{
+                  backgroundColor: view === 'month' ? '#FDFBF8' : 'transparent',
+                  color: view === 'month' ? '#2C2820' : '#8A7A6E',
+                  boxShadow: view === 'month' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
               >
                 {isMobile ? 'M' : 'Month'}
               </button>
@@ -262,9 +281,9 @@ export function CalendarView({
 
       {/* Calendar Content */}
       {view === 'day' && mode === 'compare' ? (
-        <div className="flex-1 flex overflow-hidden border-t border-neutral-100 min-h-0 min-w-0">
-          <div className="flex-1 min-w-0 border-r border-neutral-100 flex flex-col min-h-0 bg-white">
-            <div className="px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Plan</div>
+        <div className="flex-1 flex overflow-hidden min-h-0 min-w-0" style={{ borderTop: '1px solid rgba(160,140,120,0.18)' }}>
+          <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ borderRight: '1px solid rgba(160,140,120,0.18)', backgroundColor: '#FDFBF8' }}>
+            <div className="px-3 py-1.5 shrink-0 text-[10px] font-semibold uppercase tracking-widest" style={{ backgroundColor: 'rgba(160,140,120,0.07)', borderBottom: '1px solid rgba(160,140,120,0.15)', color: '#A08C78' }}>Plan</div>
             <DayView
               mode="overall"
               timeBlocks={visibleBlocks.filter((b) => b.mode === 'planned')}
@@ -288,8 +307,8 @@ export function CalendarView({
               onEditBlock={onEditBlock}
             />
           </div>
-          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-neutral-100">
-            <div className="px-3 py-1.5 bg-neutral-100 border-b border-neutral-200 text-xs font-medium text-neutral-500 uppercase tracking-wide shrink-0">Recorded</div>
+          <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ backgroundColor: '#F5F1EB' }}>
+            <div className="px-3 py-1.5 shrink-0 text-[10px] font-semibold uppercase tracking-widest" style={{ backgroundColor: 'rgba(160,140,120,0.12)', borderBottom: '1px solid rgba(160,140,120,0.18)', color: '#A08C78' }}>Recorded</div>
             <DayView
               mode="compare"
               timeBlocks={visibleBlocks.filter((b) => b.mode === 'recorded')}
@@ -319,15 +338,23 @@ export function CalendarView({
         </div>
       )}
 
-      {/* Floating Add Button — visible in day/week/month, draggable add popup opens */}
+      {/* Floating Add Button */}
       {onOpenAddModal && (
         <button
           type="button"
           onClick={() => onOpenAddModal('event')}
-          className="absolute bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow transition-all flex items-center justify-center"
+          className="absolute bottom-6 right-6 z-20 w-13 h-13 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{
+            width: 52, height: 52,
+            backgroundColor: '#5B9BAD',
+            border: '1.5px solid rgba(91,155,173,0.5)',
+            boxShadow: '0 4px 16px rgba(91,155,173,0.35)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4E8A9C')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#5B9BAD')}
           aria-label="Add task or event"
         >
-          <PlusIcon className="h-6 w-6 text-neutral-600" />
+          <PlusIcon className="h-6 w-6 text-white" />
         </button>
       )}
     </div>

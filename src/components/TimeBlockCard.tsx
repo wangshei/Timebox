@@ -1,10 +1,9 @@
 import React, { useState, useRef, useLayoutEffect, memo } from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
-import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
 
@@ -21,80 +20,29 @@ export type RecordedBlockPayload = {
 };
 
 interface TimeBlockCardProps {
-  /** React key (not used by component, but included to satisfy some typecheckers). */
   key?: string;
   block: ResolvedTimeBlock;
   mode: Mode;
   style: React.CSSProperties;
   isSelected: boolean;
-  /** Preferred: stable callback; card calls onSelectBlock(block.id) / onSelectBlock(null). */
   onSelectBlock?: (id: string | null) => void;
-  /** Legacy: use when onSelectBlock not provided. */
   onSelect?: () => void;
   onDeselect?: () => void;
-  /** Today's date string (YYYY-MM-DD) — from parent to avoid new Date() per block. */
   todayStr?: string;
-  /** Current time in minutes since midnight — from parent to avoid new Date() per block. */
   nowMins?: number;
-  /** Toggle confirmed: call when circle is clicked and block is unconfirmed (mark as confirmed). */
   onConfirm?: (blockId: string) => void;
-  /** Toggle confirmed: call when circle is clicked and block is confirmed (undo confirm). */
   onUnconfirm?: (blockId: string) => void;
   onEditBlock?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
-  /** Called when user mousedowns on the bottom-edge resize handle. Card calls with (block.id, e) for stable callback. */
   onResizeStart?: (blockId: string, e: React.MouseEvent) => void;
-  /** For compare mode: taskIds that have both planned and recorded blocks that day. */
   compareMatchedTaskIds?: string[];
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   compact?: boolean;
 }
 
-const FOCUS_MUTED_OPACITY = 0.35;
-
-const completionCircleVariants = cva(
-  'shrink-0 rounded-full flex items-center justify-center border-2 transition-colors w-5 h-5 min-w-[20px] min-h-[20px]',
-  {
-    variants: {
-      state: {
-        unconfirmed: 'bg-transparent border-neutral-400 hover:border-[var(--circle-color)]',
-        confirmed: 'border-transparent',
-      },
-    },
-    defaultVariants: { state: 'unconfirmed' },
-  }
-);
-
-const blockContainerVariants = cva(
-  'h-full transition-all relative overflow-hidden min-w-0',
-  {
-    variants: {
-      type: {
-        event: 'rounded-lg border',
-        task: 'rounded-xl shadow-md font-[family-name:var(--font-handwriting)]',
-      },
-      timeState: {
-        future: '',
-        pastUnconfirmed: '',
-        pastConfirmed: '',
-        ghost: '',
-      },
-    },
-    compoundVariants: [
-      { type: 'event', timeState: 'future', className: 'border-neutral-200/80 shadow-sm' },
-      { type: 'event', timeState: 'pastUnconfirmed', className: 'border-neutral-200/60 shadow-sm' },
-      { type: 'event', timeState: 'pastConfirmed', className: 'border-0 border-l-2 border-[var(--block-color)] shadow-none' },
-      { type: 'event', timeState: 'ghost', className: 'border-neutral-200/50' },
-      { type: 'task', timeState: 'future', className: 'shadow-md' },
-      { type: 'task', timeState: 'pastUnconfirmed', className: 'shadow-sm' },
-      { type: 'task', timeState: 'pastConfirmed', className: 'shadow-sm' },
-      { type: 'task', timeState: 'ghost', className: 'shadow-sm' },
-    ],
-    defaultVariants: { type: 'event', timeState: 'future' },
-  }
-);
+const FOCUS_MUTED_OPACITY = 0.3;
 
 function TimeBlockCardInner({
   block,
@@ -123,7 +71,7 @@ function TimeBlockCardInner({
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const POPOVER_MAX_H = 420;
+  const POPOVER_MAX_H = 440;
   const GAP = 8;
 
   useLayoutEffect(() => {
@@ -172,7 +120,6 @@ function TimeBlockCardInner({
       : 'pastUnconfirmed'
     : 'future';
 
-  // Compare mode: ghost (planned column) or pastConfirmed (recorded column)
   const blockVisualState = isCompareMode
     ? confirmed
       ? 'pastConfirmed'
@@ -189,22 +136,19 @@ function TimeBlockCardInner({
   };
 
   const getBaseOpacity = () => {
-    if (blockVisualState === 'ghost') return 0.25;
+    if (blockVisualState === 'ghost') return 0.22;
     if (blockVisualState === 'future') return 1;
-    if (blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed') return isTask ? 0.82 : 0.78;
+    if (blockVisualState === 'pastUnconfirmed') return 0.75;
+    if (blockVisualState === 'pastConfirmed') return isTask ? 0.82 : 0.78;
     return 1;
   };
 
-  // When a category or calendar is focused, exaggerate matching blocks and mute others
   const getOpacity = () => {
     let base = getBaseOpacity();
-
-    // In compare mode, dim matched tasks and highlight mismatches.
     if (isCompareMode && matchedSet) {
       const isMatched = block.taskId && matchedSet.has(block.taskId);
       base = isMatched ? base * 0.4 : Math.min(1, base + 0.25);
     }
-
     if (focusedCategoryId != null) {
       return (block.category?.id ?? block.categoryId) === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
     }
@@ -214,42 +158,70 @@ function TimeBlockCardInner({
     return base;
   };
 
-  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#6b7280';
+  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#5B9BAD';
   const blockColor = getBlockColor();
-  const foldColor = lighten(blockColor, 0.1);
 
-  /** Inline style: only backgroundColor and CSS variables for borders/fold. */
+  /**
+   * Visual language:
+   * - Events: Clean white/light background with a strong left color stripe. Structured, "locked in" feel.
+   * - Tasks: Warm, slightly tinted background in the category color. Organic rounded corners. "Flexible" feel.
+   */
   const getBlockInlineStyle = (): React.CSSProperties => {
-    const base = blockColor;
     const opacity = getOpacity();
     const vars: Record<string, string> = {
-      '--block-color': base,
-      '--block-fold-color': foldColor,
-      '--circle-color': base,
+      '--block-color': blockColor,
+      '--circle-color': blockColor,
     };
+
     if (blockVisualState === 'ghost') {
-      return { backgroundColor: hexToRgba(base, 0.2), opacity, ...vars };
+      if (isEvent) {
+        return {
+          borderLeft: `3px solid ${hexToRgba(blockColor, 0.4)}`,
+          backgroundColor: hexToRgba(blockColor, 0.06),
+          opacity,
+          ...vars,
+        };
+      }
+      return {
+        backgroundColor: hexToRgba(blockColor, 0.12),
+        opacity,
+        ...vars,
+      };
     }
+
     if (isEvent) {
-      const softened = hexToRgba(base, 0.92);
-      if (blockVisualState === 'future') return { backgroundColor: softened, opacity, ...vars };
-      if (blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed') return { backgroundColor: desaturate(softened, 0.2), opacity, ...vars };
-      return { backgroundColor: hexToRgba(base, 0.2), opacity, ...vars };
+      // Events: prominent left stripe on light background
+      const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.07 : 0.1;
+      const stripeAlpha = blockVisualState === 'pastConfirmed' ? 0.5 : 1;
+      return {
+        borderLeft: `4px solid ${hexToRgba(blockColor, stripeAlpha)}`,
+        backgroundColor: hexToRgba(blockColor, bgAlpha),
+        opacity,
+        ...vars,
+      };
     }
-    const softened = hexToRgba(base, 0.95);
-    if (blockVisualState === 'future') return { backgroundColor: softened, opacity, ...vars };
-    if (blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed') return { backgroundColor: desaturate(softened, 0.15), opacity, ...vars };
-    return { backgroundColor: hexToRgba(base, 0.25), opacity, ...vars };
+
+    // Tasks: warm tinted background, no left stripe
+    const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.65 : blockVisualState === 'pastUnconfirmed' ? 0.75 : 0.88;
+    return {
+      backgroundColor: hexToRgba(blockColor, bgAlpha),
+      opacity,
+      ...vars,
+    };
   };
 
-  const titleBgHex =
-    blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed'
-      ? isEvent
-        ? lighten(desaturate(blockColor, 0.2), 0.6)
-        : lighten(desaturate(blockColor, 0.15), 0.55)
-      : blockColor;
-  const titleTextClass = getTextClassForBackground(titleBgHex);
-  const checkIconClass = getTextClassForBackground(blockColor);
+  const getTitleColor = (): string => {
+    if (isEvent) {
+      // Event titles in dark warm text, with subtle color tint
+      if (blockVisualState === 'ghost') return 'text-[#B0A090]';
+      return 'text-[#2C2820]';
+    }
+    // Task titles: get contrast vs the saturated bg
+    const bgForContrast = blockColor;
+    return getTextClassForBackground(bgForContrast);
+  };
+
+  const titleTextClass = getTitleColor();
 
   const getTimeRange = () => {
     const fmt = (t: string) => {
@@ -281,7 +253,9 @@ function TimeBlockCardInner({
       : typeof style.height === 'string'
         ? parseFloat(style.height)
         : 0;
-  const showTags = heightPx >= 72;
+  const showMeta = heightPx >= 56;
+  const showTags = heightPx >= 80;
+  const showNotes = heightPx >= 100 && !!(block as any).notes;
 
   const getDurationMinutes = () => {
     const [startHour, startMin] = block.start.split(':').map(Number);
@@ -297,123 +271,190 @@ function TimeBlockCardInner({
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
       const color = getBlockColor();
-      ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
+      ghost.style.cssText = `position:absolute;top:-9999px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;`;
       ghost.textContent = block.title || 'Block';
-      ghost.style.position = 'absolute';
-      ghost.style.top = '-9999px';
-      ghost.style.backgroundColor = hexToRgba(color, 0.2);
+      ghost.style.color = '#2C2820';
+      ghost.style.backgroundColor = hexToRgba(color, 0.15);
       ghost.style.border = `2px solid ${color}`;
-      ghost.style.color = '#1f2937';
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 8, 8);
       requestAnimationFrame(() => document.body.removeChild(ghost));
     }
   };
 
-  // Compact mode for week view
+  // Shared popover content
+  const PopoverContent = () => (
+    <div className="space-y-1">
+      <div
+        className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl mb-2"
+        style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}
+        onMouseDown={handlePopoverDragStart}
+      >
+        <div className="flex items-start gap-2">
+          {/* Type badge */}
+          <span
+            className="mt-0.5 flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full tracking-wide uppercase"
+            style={{
+              backgroundColor: isEvent ? hexToRgba(blockColor, 0.12) : hexToRgba(blockColor, 0.18),
+              color: blockColor,
+            }}
+          >
+            {isEvent ? '📌 Event' : '✏️ Task'}
+          </span>
+          <span className="font-semibold text-sm leading-snug" style={{ color: '#2C2820' }}>{block.title || 'Untitled'}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#8A7A6E' }}>
+        <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
+        <span>{getTimeRange()} · {getDuration()}</span>
+      </div>
+      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#8A7A6E' }}>
+        <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
+        <span>{block.date}</span>
+      </div>
+      {block.category && (
+        <div className="flex items-center gap-2 py-0.5">
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
+          <span className="text-xs" style={{ color: '#6B6058' }}>{block.category.name}</span>
+        </div>
+      )}
+      {block.calendarContainer && (
+        <div className="flex items-center gap-2 py-0.5">
+          <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: hexToRgba(block.calendarContainer.color, 0.3), border: `2px solid ${block.calendarContainer.color}` }} />
+          <span className="text-xs" style={{ color: '#6B6058' }}>{block.calendarContainer.name}</span>
+        </div>
+      )}
+      {block.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {block.tags.slice(0, 6).map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: hexToRgba(blockColor, 0.12),
+                color: blockColor,
+                border: `1px solid ${hexToRgba(blockColor, 0.25)}`,
+              }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+      {(block as any).notes && (
+        <div className="mt-1 pt-1 text-xs italic" style={{ borderTop: '1px solid rgba(160,140,120,0.1)', color: '#8A7A6E' }}>
+          {(block as any).notes}
+        </div>
+      )}
+      <div className="flex gap-1 pt-2" style={{ borderTop: '1px solid rgba(160,140,120,0.15)', marginTop: 6 }}>
+        {onEditBlock && (
+          <button
+            type="button"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+            style={{ color: '#6B6058' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
+          >
+            <PencilIcon className="h-3.5 w-3.5" /> Edit
+          </button>
+        )}
+        {onDeleteBlock && (
+          <button
+            type="button"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+            style={{ color: '#B85050' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
+          >
+            <TrashIcon className="h-3.5 w-3.5" /> Delete
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // ─── Compact mode (week view) ───────────────────────────────────────────
   if (compact) {
+    const blockStyle = getBlockInlineStyle();
+    const containerClass = isEvent
+      ? 'h-full overflow-hidden min-w-0 rounded-r-lg'
+      : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm';
+
     return (
       <div
         className="absolute cursor-grab active:cursor-grabbing pointer-events-auto"
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => {
-          doSelect();
-          setShowPopover(true);
-        }}
+        onClick={() => { doSelect(); setShowPopover(true); }}
         draggable
         onDragStart={handleBlockDragStart}
       >
         <div
           data-slot="block-container"
           className={cn(
-            blockContainerVariants({ type: isTask ? 'task' : 'event', timeState: blockVisualState }),
-            isTask && 'after:content-[""] after:absolute after:top-0 after:right-0 after:w-3 after:h-3 after:border-b after:border-l after:rounded-bl after:border-[var(--block-fold-color)]',
-            isSelected && 'ring-1 ring-blue-400'
+            containerClass,
+            isSelected && (isEvent ? 'ring-2 ring-offset-1' : 'ring-2 ring-offset-1'),
           )}
-          style={getBlockInlineStyle()}
+          style={{
+            ...blockStyle,
+            ...(isSelected ? { '--tw-ring-color': blockColor } as any : {}),
+            boxShadow: isSelected ? `0 0 0 2px ${blockColor}` : undefined,
+          }}
         >
-          <div className="flex items-start gap-2 h-full px-1.5 py-1 min-w-0">
-            <button
-              type="button"
-              onClick={handleCircleClick}
-              data-slot="completion-circle"
-              className={cn(completionCircleVariants({ state: confirmed ? 'confirmed' : 'unconfirmed' }), 'mt-0.5 -ml-0.5 p-0.5')}
-              style={
-                confirmed
-                  ? { backgroundColor: blockColor, ['--circle-color' as string]: blockColor }
-                  : { ['--circle-color' as string]: blockColor }
-              }
-              title={confirmed ? 'Mark not done' : 'Mark done'}
-              aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-            >
-              {confirmed && <CheckIcon className={cn('h-3 w-3', checkIconClass)} />}
-            </button>
-            <div className="min-w-0 flex-1">
-              <div
-                className={cn(
-                  'text-xs font-medium truncate',
-                  titleTextClass,
-                  isTask && confirmed && 'line-through decoration-neutral-400/70'
-                )}
+          <div className="flex items-start h-full px-1.5 py-1 min-w-0 gap-1">
+            {/* Completion circle for tasks */}
+            {isTask && (
+              <button
+                type="button"
+                onClick={handleCircleClick}
+                className="flex-shrink-0 mt-0.5 w-3.5 h-3.5 min-w-[14px] rounded-full border-2 flex items-center justify-center transition-colors"
+                style={
+                  confirmed
+                    ? { backgroundColor: blockColor, borderColor: blockColor }
+                    : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.7)' }
+                }
+                title={confirmed ? 'Mark not done' : 'Mark done'}
               >
+                {confirmed && <CheckIcon className="h-2 w-2 text-white" />}
+              </button>
+            )}
+            {/* Lock icon for events */}
+            {isEvent && (
+              <LockClosedIcon
+                className="flex-shrink-0 mt-0.5 h-2.5 w-2.5 opacity-50"
+                style={{ color: blockColor }}
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className={cn('text-[10px] font-semibold truncate leading-snug', titleTextClass)}>
                 {block.title || 'Untitled'}
               </div>
-              <div className="text-[10px] text-neutral-500 truncate mt-0.5">
-                {getTimeRange()}
-              </div>
+              {showMeta && (
+                <div className="text-[9px] opacity-70 truncate mt-0.5" style={{ color: isEvent ? '#6B6058' : 'inherit' }}>
+                  {block.start.slice(0, 5)}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Popover: details + Edit + Delete */}
+        {/* Compact popover */}
         {showPopover && isSelected && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => { setShowPopover(false); doDeselect(); }} aria-hidden />
-            <div className="absolute z-20 top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-neutral-200 p-3 min-w-56">
-              <div className="font-semibold text-sm text-neutral-800 mb-2 truncate">{block.title || 'Untitled'}</div>
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{getTimeRange()} ({getDuration()})</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{block.date}</span>
-              </div>
-              {block.category && (
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
-                  <span>{block.category.name}</span>
-                </div>
-              )}
-              {block.calendarContainer && (
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
-                  <div className="w-3 h-3 rounded flex-shrink-0 border" style={{ backgroundColor: block.calendarContainer.color, borderColor: block.calendarContainer.color }} />
-                  <span>{block.calendarContainer.name}</span>
-                </div>
-              )}
-              {block.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 p-1 mb-2">
-                  {block.tags.slice(0, 5).map((tag) => (
-                    <Chip key={tag.id} variant="outline" color={blockColor} className="max-w-[80px]">
-                      {tag.name}
-                    </Chip>
-                  ))}
-                </div>
-              )}
-              <div className="border-t border-neutral-200 my-1" />
-              <div className="flex gap-1">
-                {onEditBlock && (
-                  <button type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors" onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}>
-                    <PencilIcon className="h-4 w-4" /> Edit
-                  </button>
-                )}
-                {onDeleteBlock && (
-                  <button type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors" onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}>
-                    <TrashIcon className="h-4 w-4" /> Delete
-                  </button>
-                )}
-              </div>
+            <div
+              ref={popoverRef}
+              className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
+              style={{
+                top: '100%', left: 0, marginTop: 6,
+                backgroundColor: '#FDFBF8',
+                borderColor: 'rgba(160,140,120,0.2)',
+              }}
+            >
+              <PopoverContent />
             </div>
           </>
         )}
@@ -421,86 +462,143 @@ function TimeBlockCardInner({
     );
   }
 
+  // ─── Full mode (day view) ────────────────────────────────────────────────
+  const blockStyle = getBlockInlineStyle();
+  const containerClass = isEvent
+    ? 'h-full overflow-hidden min-w-0 rounded-r-lg'   // events: stripe + rounded right
+    : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm'; // tasks: fully rounded, warm
+
   return (
     <div
       ref={blockRef}
       className="absolute cursor-grab active:cursor-grabbing group pr-1 pointer-events-auto"
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => {
-        doSelect();
-        setShowPopover(true);
-      }}
+      onClick={() => { doSelect(); setShowPopover(true); }}
       draggable
       onDragStart={handleBlockDragStart}
     >
       <div
         data-slot="block-container"
-        className={cn(
-          blockContainerVariants({ type: isTask ? 'task' : 'event', timeState: blockVisualState }),
-          isTask && 'after:content-[""] after:absolute after:top-0 after:right-0 after:w-5 after:h-5 after:border-b after:border-l after:rounded-bl-lg after:border-[var(--block-fold-color)]',
-          isSelected && 'ring-2 ring-blue-400 ring-offset-1'
-        )}
-        style={getBlockInlineStyle()}
+        className={cn(containerClass)}
+        style={{
+          ...blockStyle,
+          boxShadow: isSelected ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
+        }}
       >
-          <div className="flex flex-col h-full p-3 min-w-0">
-          <div className="flex items-start gap-2 min-w-0 flex-shrink-0">
-            <button
-              type="button"
-              onClick={handleCircleClick}
-              data-slot="completion-circle"
-              className={cn(completionCircleVariants({ state: confirmed ? 'confirmed' : 'unconfirmed' }), 'mt-0.5 -ml-0.5 p-0.5')}
-              style={
-                confirmed
-                  ? { backgroundColor: blockColor, ['--circle-color' as string]: blockColor }
-                  : { ['--circle-color' as string]: blockColor }
-              }
-              title={confirmed ? 'Mark not done' : 'Mark done'}
-              aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-            >
-              {confirmed && <CheckIcon className={cn('h-3 w-3', checkIconClass)} />}
-            </button>
+        <div className="flex flex-col h-full min-w-0" style={{ padding: isEvent ? '6px 8px 6px 10px' : '8px 10px' }}>
+          {/* Header row */}
+          <div className="flex items-start gap-1.5 min-w-0 flex-shrink-0">
+            {/* Task: completion circle */}
+            {isTask && (
+              <button
+                type="button"
+                onClick={handleCircleClick}
+                className="flex-shrink-0 mt-0.5 w-4 h-4 min-w-[16px] rounded-full border-2 flex items-center justify-center transition-all"
+                style={
+                  confirmed
+                    ? { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.9)' }
+                    : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.65)' }
+                }
+                title={confirmed ? 'Mark not done' : 'Mark done'}
+                aria-label={confirmed ? 'Mark not done' : 'Mark done'}
+              >
+                {confirmed && <CheckIcon className="h-2.5 w-2.5" style={{ color: blockColor }} />}
+              </button>
+            )}
+            {/* Event: lock icon */}
+            {isEvent && (
+              <LockClosedIcon
+                className="flex-shrink-0 mt-0.5 h-3 w-3 opacity-40"
+                style={{ color: blockColor }}
+              />
+            )}
+
             <span
               className={cn(
-                'font-medium text-sm leading-snug truncate flex-1 min-w-0',
+                'font-semibold text-xs leading-snug flex-1 min-w-0',
                 titleTextClass,
-                isTask && confirmed && 'line-through decoration-neutral-400/70'
+                isTask && confirmed && 'line-through decoration-current/40',
+                heightPx < 36 && 'truncate',
               )}
               style={{ textDecorationSkipInk: 'none' }}
             >
               {block.title || 'Untitled'}
             </span>
+
+            {/* Type indicator pill (tiny, top-right) */}
+            <span
+              className="flex-shrink-0 text-[8px] font-bold opacity-60 tracking-widest uppercase mt-0.5 leading-none"
+              style={{ color: isEvent ? blockColor : 'rgba(255,255,255,0.85)' }}
+            >
+              {isEvent ? 'EVT' : 'TSK'}
+            </span>
           </div>
-          <div className={cn('flex flex-wrap items-center gap-1.5 mt-1.5 min-w-0 text-xs', titleTextClass)}>
-            <span className="whitespace-nowrap opacity-90">{getTimeRange()}</span>
-            {block.category && (
-              <Chip variant="subtle" color={blockColor} contrastBackgroundHex={titleBgHex} className="max-w-[100px] text-[10px]">
-                {block.category.name}
-              </Chip>
-            )}
-            {showTags && block.tags.length > 0 && (
-              <span className="flex flex-wrap gap-1 p-1 items-center">
-                {block.tags.map((tag) => (
-                  <Chip key={tag.id} variant="outline" color={blockColor} contrastBackgroundHex={titleBgHex} className="max-w-[80px] text-[10px] shrink-0">
-                    {tag.name}
-                  </Chip>
-                ))}
-              </span>
-            )}
-          </div>
+
+          {/* Meta row */}
+          {showMeta && (
+            <div className={cn(
+              'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 min-w-0 text-[10px]',
+              isEvent ? 'text-[#8A7A6E]' : 'text-white/75',
+            )}>
+              <span className="whitespace-nowrap opacity-90">{getTimeRange()}</span>
+              {block.category && heightPx >= 64 && (
+                <span
+                  className="px-1.5 py-0.5 rounded-full font-medium"
+                  style={
+                    isEvent
+                      ? { backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }
+                      : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)' }
+                  }
+                >
+                  {block.category.name}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Tags row */}
+          {showTags && block.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {block.tags.slice(0, 4).map((tag) => (
+                <span
+                  key={tag.id}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                  style={
+                    isEvent
+                      ? { backgroundColor: hexToRgba(blockColor, 0.12), color: blockColor }
+                      : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.88)' }
+                  }
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Notes preview */}
+          {showNotes && (
+            <div
+              className="mt-1 text-[10px] italic line-clamp-2 opacity-70"
+              style={{ color: isEvent ? '#6B6058' : 'rgba(255,255,255,0.85)' }}
+            >
+              {(block as any).notes}
+            </div>
+          )}
         </div>
 
-        {onResizeStart && (
+        {/* Resize handle (tasks only) */}
+        {onResizeStart && isTask && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
-            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white/50 rounded-full" />
           </div>
         )}
       </div>
 
-      {/* Popover: position top-right if would overflow bottom; draggable */}
+      {/* Full popover */}
       {showPopover && isSelected && (
         <>
           <div
@@ -514,64 +612,17 @@ function TimeBlockCardInner({
           />
           <div
             ref={popoverRef}
-            className="absolute z-20 bg-white rounded-lg shadow-lg border border-neutral-200 p-3 min-w-56"
+            className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
             style={{
               ...(popoverPosition === 'bottom-left'
                 ? { top: '100%', left: 0, marginTop: 8 }
                 : { bottom: '100%', right: 0, marginBottom: 8 }),
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
+              backgroundColor: '#FDFBF8',
+              borderColor: 'rgba(160,140,120,0.2)',
             }}
           >
-            <div
-              className="cursor-grab active:cursor-grabbing border-b border-neutral-100 pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-lg"
-              onMouseDown={handlePopoverDragStart}
-            >
-              <div className="font-semibold text-sm text-neutral-800 truncate">{block.title || 'Untitled'}</div>
-            </div>
-            <div className="pt-2">
-            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-              <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{getTimeRange()} ({getDuration()})</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{block.date}</span>
-            </div>
-            {block.category && (
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
-                <span>{block.category.name}</span>
-              </div>
-            )}
-            {block.calendarContainer && (
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
-                <div className="w-3 h-3 rounded flex-shrink-0 border" style={{ backgroundColor: block.calendarContainer.color, borderColor: block.calendarContainer.color }} />
-                <span>{block.calendarContainer.name}</span>
-              </div>
-            )}
-            {block.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 p-1 mb-2">
-                {block.tags.slice(0, 5).map((tag) => (
-                  <Chip key={tag.id} variant="outline" color={blockColor} className="max-w-[80px]">
-                    {tag.name}
-                  </Chip>
-                ))}
-              </div>
-            )}
-            <div className="border-t border-neutral-200 my-1" />
-            <div className="flex gap-1">
-              {onEditBlock && (
-                <button type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors" onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}>
-                  <PencilIcon className="h-4 w-4" /> Edit
-                </button>
-              )}
-              {onDeleteBlock && (
-                <button type="button" className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors" onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}>
-                  <XMarkIcon className="h-4 w-4" /> Delete
-                </button>
-              )}
-            </div>
-            </div>
+            <PopoverContent />
           </div>
         </>
       )}

@@ -2,92 +2,92 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+
+  /* === Monet-inspired warm canvas theme === */
+  --background: #FAF8F4;           /* Warm canvas white */
+  --foreground: #2C2820;           /* Warm dark text */
+  --card: #FDFBF8;                 /* Slightly off-white card */
+  --card-foreground: #2C2820;
+  --popover: #FDFBF8;
+  --popover-foreground: #2C2820;
+  --primary: #5B9BAD;              /* Waterlily Blue as primary */
+  --primary-foreground: #ffffff;
+  --secondary: #F0EBE3;            /* Warm secondary surface */
+  --secondary-foreground: #2C2820;
+  --muted: #EDE8E0;                /* Muted warm background */
+  --muted-foreground: #9E968C;     /* Warm muted text */
+  --accent: #EAF3F6;               /* Light waterlily tint for accents */
+  --accent-foreground: #2C6070;
+  --destructive: #B85050;          /* Warmer red */
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(160, 140, 120, 0.18);  /* Warm border */
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: #F0EBE3;     /* Warm input background */
+  --switch-background: #C8C0B0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --ring: #5B9BAD;                 /* Waterlily Blue focus ring */
 
-  /* Color Palette */
-  /* Red */
-  --color-red-primary: #D4044B;
-  --color-red-light: #FF6464;
-  --color-red-lighter: #FF8474;
-  
-  /* Orange */
-  --color-orange-light: #FF8474;
-  --color-orange: #FFC996;
-  --color-orange-dark: #EC8309;
-  
-  /* Yellow */
-  --color-yellow-light: #FFC996;
-  --color-yellow: #F9EEDC;
-  --color-yellow-bright: #FFEEAC;
-  --color-yellow-pale: #FFF1CE;
-  --color-yellow-red: #D92D28;
-  
-  /* Green */
-  --color-green: #13B49F;
-  --color-green-light: #91C4B3;
-  --color-green-lighter: #8DC8C8;
-  
-  /* Blue */
-  --color-blue-teal: #13948F;
-  --color-blue-cyan: #00A8A8;
-  --color-blue: #0044A8;
-  --color-blue-dark: #00004E;
-  --color-blue-light: #86C0F4;
-  
-  /* Brown */
-  --color-brown-light: #F5EEDC;
-  --color-brown: #EC8309;
-  --color-brown-red: #D92D28;
-  --color-brown-pink: #B5244A;
-  --color-brown-dark: #824A4A;
-  
-  /* Gray */
-  --color-gray: #E2E4E6;
-  --color-gray-light: #EEEEEE;
-  
-  /* Pink */
-  --color-pink: #FF6F74;
-  --color-pink-light: #FFC0CB;
-  
-  /* Purple */
-  --color-purple: #5B3D72;
-  --color-purple-light: #9F5FB0;
+  /* Chart colors — Monet's garden palette */
+  --chart-1: #5B9BAD;   /* Waterlily Blue */
+  --chart-2: #7A9E7A;   /* Garden Sage */
+  --chart-3: #8B78B8;   /* Iris Purple */
+  --chart-4: #C49A50;   /* Warm Ochre */
+  --chart-5: #C8787C;   /* Rose Pink */
+
+  --radius: 0.625rem;
+
+  /* Sidebar uses a slightly warmer tone */
+  --sidebar: #F5F1EB;
+  --sidebar-foreground: #2C2820;
+  --sidebar-primary: #5B9BAD;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #EDE8E0;
+  --sidebar-accent-foreground: #4A3C30;
+  --sidebar-border: #E0D8CC;
+  --sidebar-ring: #5B9BAD;
+
+  /* === Monet-inspired Color Palette (nature-based) === */
+  /* Waterlily Blues — pond & sky */
+  --color-waterlily: #5B9BAD;
+  --color-waterlily-light: #A8CDD8;
+  --color-waterlily-pale: #EAF3F6;
+
+  /* Garden Greens */
+  --color-garden-sage: #7A9E7A;
+  --color-garden-moss: #6A8C5A;
+  --color-garden-light: #EBF3EB;
+
+  /* Iris & Lavender */
+  --color-iris: #8B78B8;
+  --color-lavender: #A090C0;
+  --color-lavender-pale: #F0EBF8;
+
+  /* Roses & Warm Pinks */
+  --color-rose: #C8787C;
+  --color-dusty-rose: #B88090;
+  --color-rose-pale: #F8EDED;
+
+  /* Golden Fields */
+  --color-ochre: #C49A50;
+  --color-wheat: #B89840;
+  --color-ochre-pale: #FDF5E8;
+
+  /* River & Teal */
+  --color-river-teal: #4E9A94;
+  --color-teal-pale: #EBF5F4;
+
+  /* Sunset / Coral */
+  --color-sunset: #C87868;
+  --color-sunset-pale: #F8EDE9;
+
+  /* Warm Neutrals */
+  --color-warm-dark: #2C2820;
+  --color-warm-medium: #6B6058;
+  --color-warm-muted: #9E968C;
+  --color-warm-border: #E0D8CC;
+  --color-warm-surface: #F5F1EB;
+  --color-warm-canvas: #FAF8F4;
 }
 
 .dark {
@@ -171,12 +171,19 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter stylistic features */
+    letter-spacing: -0.006em;
   }
 
   body {
     @apply bg-background text-foreground;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -231,4 +238,102 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* === Monet theme global polish === */
+
+/* Warm scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-warm-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-warm-muted);
+}
+
+/* === Block type visual language === */
+
+/* Events: structured, locked, clean left-stripe look */
+.block-event {
+  border-left: 3px solid var(--block-color, #5B9BAD);
+  border-radius: 0 8px 8px 0;
+  background: var(--block-bg, #EAF3F6);
+}
+
+/* Tasks: organic, flexible, warm paper feel */
+.block-task {
+  border-radius: 10px;
+  position: relative;
+}
+
+/* Tag chips in sidebar */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+}
+
+/* Calendar badge in sidebar */
+.calendar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+/* Category pill in sidebar */
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(0,0,0,0.06);
+}
+
+/* Flexible indicator for task blocks */
+.flex-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.5rem;
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Locked indicator for event blocks */
+.locked-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.5rem;
+  opacity: 0.65;
+  letter-spacing: 0.04em;
+}
+
+/* Notes area in blocks */
+.block-notes {
+  font-size: 0.6875rem;
+  color: inherit;
+  opacity: 0.75;
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.4;
 }

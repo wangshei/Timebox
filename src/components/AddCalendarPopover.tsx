@@ -43,25 +43,44 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
   return (
     <div
       ref={popoverRef}
-      className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg"
-      style={{ marginLeft: 0 }}
+      className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl p-3"
+      style={{
+        backgroundColor: '#FDFBF8',
+        border: '1px solid rgba(160,140,120,0.2)',
+        boxShadow: '0 8px 24px rgba(44,40,32,0.12)',
+        marginLeft: 0,
+      }}
     >
-      <p className="text-xs font-medium text-neutral-500 mb-2">Add calendar</p>
-      <form onSubmit={handleSubmit} className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: '#A08C78' }}>Add calendar</p>
+      <form onSubmit={handleSubmit} className="space-y-2.5">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Calendar name"
-          className="w-full px-2.5 py-1.5 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-300"
+          className="w-full px-2.5 py-1.5 text-sm rounded-lg focus:outline-none transition-colors"
+          style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.22)', color: '#2C2820' }}
           autoFocus
         />
         <ColorPicker value={color} onChange={setColor} label="Color (left border)" />
         <div className="flex justify-end gap-1.5 pt-1">
-          <button type="button" onClick={onClose} className="px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100 rounded">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-2.5 py-1 text-xs rounded-lg transition-colors"
+            style={{ color: '#6B6058' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          >
             Cancel
           </button>
-          <button type="submit" className="px-2 py-1 text-xs font-medium text-neutral-800 bg-neutral-100 hover:bg-neutral-200 rounded">
+          <button
+            type="submit"
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors"
+            style={{ backgroundColor: 'rgba(91,155,173,0.12)', color: '#2C6070', border: '1px solid rgba(91,155,173,0.25)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.12)'; }}
+          >
             Add
           </button>
         </div>

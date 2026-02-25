@@ -671,37 +671,37 @@ export default function App() {
 
   if (requireAuth && session && !dataReady) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-neutral-50">
-        <div className="text-sm text-neutral-500">Loading your data...</div>
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#FAF8F4' }}>
+        <div className="text-sm" style={{ color: '#8A7A6E' }}>Loading your data...</div>
       </div>
     );
   }
 
   if (requireAuth && !session && !visitMode) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-neutral-50 px-4 py-8">
+      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#FAF8F4' }}>
         <div className="w-full max-w-xs rounded-lg">
-          <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 flex flex-col px-5 py-4 h-fit">
-            <div className="pt-5 pb-3 border-b border-neutral-100 px-4">
+          <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)' }}>
+            <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}>
               <div className="flex items-center gap-2 mb-0.5">
-                <CalendarIcon className="h-5 w-5 text-blue-600" />
-                <h1 className="text-base font-semibold text-neutral-900">Timebox</h1>
+                <CalendarIcon className="h-5 w-5" style={{ color: '#5B9BAD' }} />
+                <h1 className="text-base font-semibold" style={{ color: '#2C2820' }}>Timebox</h1>
               </div>
-              <p className="text-xs text-neutral-500">Sign in to sync your tasks and calendar</p>
+              <p className="text-xs" style={{ color: '#A08C78' }}>Sign in to sync your tasks and calendar</p>
             </div>
 
             <div className="py-4 px-4">
               {!supabase && (
-                <div className="mb-3 text-xs text-red-700 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200">
+                <div className="mb-3 text-xs px-2.5 py-1.5 rounded-lg" style={{ color: '#B85050', backgroundColor: 'rgba(184,80,80,0.08)', border: '1px solid rgba(184,80,80,0.2)' }}>
                   Backend not configured. Set <code className="font-mono">VITE_SUPABASE_URL</code> and <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
                 </div>
               )}
 
               {authErrorFromUrl && (
-                <div className="mb-3 text-xs text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
+                <div className="mb-3 text-xs px-2.5 py-1.5 rounded-lg" style={{ color: '#7A5C30', backgroundColor: 'rgba(196,154,80,0.1)', border: '1px solid rgba(196,154,80,0.25)' }}>
                   {authErrorFromUrl}
                   {typeof window !== 'undefined' && (
-                    <p className="mt-2 text-neutral-600">
+                    <p className="mt-2" style={{ color: '#6B6058' }}>
                       In Supabase: Auth → URL Configuration set <strong>Site URL</strong> to your app (e.g. <code className="font-mono break-all">{window.location.origin}</code>) and add it to <strong>Redirect URLs</strong>.
                     </p>
                   )}
@@ -710,7 +710,7 @@ export default function App() {
 
               <form onSubmit={handleSendMagicLink} className="space-y-3">
                 <div>
-                  <label htmlFor="auth-email" className="block text-xs font-medium text-neutral-700 mb-1">
+                  <label htmlFor="auth-email" className="block text-xs font-medium mb-1" style={{ color: '#6B6058' }}>
                     Email address
                   </label>
                   <input
@@ -720,37 +720,40 @@ export default function App() {
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="you@example.com"
                     disabled={!supabase}
-                    className="w-full px-3 py-1.5 text-sm text-neutral-800 border border-neutral-200 rounded-lg bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-1.5 text-sm rounded-lg focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ color: '#2C2820', backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.25)' }}
                     autoFocus
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={!supabase}
-                  className="w-full py-1.5 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-1.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: '#5B9BAD' }}
                 >
                   Send magic link
                 </button>
                 {authMessage && (
-                  <p className="text-xs text-neutral-500 text-center pt-0.5">{authMessage}</p>
+                  <p className="text-xs text-center pt-0.5" style={{ color: '#A08C78' }}>{authMessage}</p>
                 )}
               </form>
 
               <div className="relative my-3">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-200" /></div>
-                <div className="relative flex justify-center py-3"><span className="bg-white px-2 text-xs text-neutral-400 uppercase tracking-wide">or</span></div>
+                <div className="absolute inset-0 flex items-center"><div className="w-full" style={{ borderTop: '1px solid rgba(160,140,120,0.2)' }} /></div>
+                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FDFBF8', color: '#B0A090' }}>or</span></div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setVisitMode(true)}
-                className="w-full py-1.5 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:ring-offset-2"
+                className="w-full py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{ border: '1px solid rgba(160,140,120,0.25)', color: '#6B6058', backgroundColor: 'transparent' }}
               >
                 Try without signing in
               </button>
             </div>
 
-            <p className="text-xs text-neutral-400 text-center leading-relaxed">
+            <p className="text-xs text-center leading-relaxed" style={{ color: '#B0A090' }}>
               Sign in to save across sessions. Visit mode resets on refresh.
             </p>
           </div>
@@ -760,7 +763,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-neutral-50">
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#FAF8F4' }}>
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -779,15 +782,16 @@ export default function App() {
 
       {/* Supabase auth bar */}
       {session && (
-        <div className="w-full border-b border-neutral-200 bg-white px-4 py-1.5 flex items-center justify-end gap-3 text-xs">
-          <span className="text-neutral-500">
-            Signed in as <span className="font-medium text-neutral-800">{session.user.email}</span>
-            <span className="ml-1.5 text-neutral-400">· changes sync to Supabase</span>
+        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)', backgroundColor: '#F5F1EB' }}>
+          <span style={{ color: '#A08C78' }}>
+            Signed in as <span className="font-medium" style={{ color: '#2C2820' }}>{session.user.email}</span>
+            <span className="ml-1.5" style={{ color: '#B0A090' }}>· synced</span>
           </span>
           <button
             type="button"
             onClick={() => supabase?.auth.signOut()}
-            className="px-2 py-1 rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+            className="px-2 py-1 rounded-lg transition-colors"
+            style={{ border: '1px solid rgba(160,140,120,0.2)', color: '#6B6058' }}
           >
             Sign out
           </button>
@@ -797,33 +801,42 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 bg-white flex flex-col overflow-hidden" style={{ width: '260px' }}>
+          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#F5F1EB' }}>
             {/* Header: Organization heading + settings + edit */}
-            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-100 flex-shrink-0">
-              <h2 className="text-[8px] font-medium text-neutral-500 tracking-wide">
-                Organization
+            <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)' }}>
+              <h2 className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#A08C78', letterSpacing: '0.12em' }}>
+                My Calendars
               </h2>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: '#A08C78' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   title="Settings"
                   aria-label="Open settings"
                 >
-                  <Cog6ToothIcon className="h-4 w-4" />
+                  <Cog6ToothIcon className="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditMode(!isEditMode)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isEditMode
-                      ? 'bg-blue-50 text-[#0044A8]'
-                      : 'hover:bg-neutral-100 text-neutral-500'
-                  }`}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{
+                    color: isEditMode ? '#5B9BAD' : '#A08C78',
+                    backgroundColor: isEditMode ? 'rgba(91,155,173,0.1)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                   title={isEditMode ? 'Done editing' : 'Edit organization'}
                 >
-                  {isEditMode ? <CheckIcon className="h-4 w-4" /> : <PencilIcon className="h-4 w-4" />}
+                  {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
@@ -851,51 +864,33 @@ export default function App() {
                 onEndDay={() => endDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (
                   <div className="px-4 pb-6 pt-3">
-                    <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">
+                    <p className="text-[10px] mb-2.5 pl-0.5 font-medium" style={{ color: '#A08C78' }}>
                       {view === 'week'
                         ? `Week of ${selectedDate}`
                         : view === 'month'
                           ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                           : selectedDate}
                     </p>
-                    <div className="mb-3 flex rounded-lg bg-neutral-100 p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setPlanVsActualView('category')}
-                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                          planVsActualView === 'category'
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-600 hover:text-neutral-900'
-                        }`}
-                      >
-                        Category
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPlanVsActualView('container')}
-                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                          planVsActualView === 'container'
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-600 hover:text-neutral-900'
-                        }`}
-                      >
-                        Calendar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPlanVsActualView('tag')}
-                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                          planVsActualView === 'tag'
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-600 hover:text-neutral-900'
-                        }`}
-                      >
-                        Tag
-                      </button>
+                    <div className="mb-3 flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.12)' }}>
+                      {(['category', 'container', 'tag'] as const).map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setPlanVsActualView(v)}
+                          className="flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-all capitalize"
+                          style={{
+                            backgroundColor: planVsActualView === v ? '#FDFBF8' : 'transparent',
+                            color: planVsActualView === v ? '#2C2820' : '#8A7A6E',
+                            boxShadow: planVsActualView === v ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                          }}
+                        >
+                          {v === 'container' ? 'Calendar' : v.charAt(0).toUpperCase() + v.slice(1)}
+                        </button>
+                      ))}
                     </div>
                     {planVsActual.length > 0 ? (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-x-2 text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1 px-0.5">
+                        <div className="grid grid-cols-2 gap-x-2 text-[9px] font-semibold uppercase tracking-widest mb-1 px-0.5" style={{ color: '#B0A090' }}>
                           <span>Planned</span>
                           <span className="text-right">Recorded</span>
                         </div>
@@ -907,44 +902,35 @@ export default function App() {
                           const pctR = (row.recordedHours / maxH) * 100;
                           return (
                             <div key={row.id} className="space-y-1.5">
-                              <div className="flex items-center justify-start gap-2 min-w-0">
-                                <div
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: row.color }}
-                                />
-                                <span className="text-sm text-neutral-700 truncate">{row.name}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }} />
+                                <span className="text-xs truncate font-medium" style={{ color: '#3C3430' }}>{row.name}</span>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-0.5">
-                                  <div className="bg-neutral-100 rounded-full h-2 overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full bg-neutral-300 transition-all"
-                                      style={{ width: `${Math.min(100, pctP)}%` }}
-                                    />
+                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(160,140,120,0.15)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(160,140,120,0.45)' }} />
                                   </div>
-                                  <span className="text-[10px] text-neutral-500">{row.plannedHours.toFixed(1)}h</span>
+                                  <span className="text-[10px]" style={{ color: '#A08C78' }}>{row.plannedHours.toFixed(1)}h</span>
                                 </div>
                                 <div className="space-y-0.5 text-right">
-                                  <div className="bg-neutral-100 rounded-full h-2 overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full transition-all"
-                                      style={{ width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.9 }}
-                                    />
+                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(160,140,120,0.15)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.9 }} />
                                   </div>
-                                  <span className="text-[10px] text-neutral-500">{row.recordedHours.toFixed(1)}h</span>
+                                  <span className="text-[10px]" style={{ color: '#A08C78' }}>{row.recordedHours.toFixed(1)}h</span>
                                 </div>
                               </div>
                             </div>
                           );
                         })}
-                        <div className="pt-3 mt-3 border-t border-neutral-200 text-sm font-semibold text-neutral-900">
+                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(160,140,120,0.2)', color: '#3C3430' }}>
                           {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned ·{' '}
-                          {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h completed
+                          {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h done
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-neutral-400 text-center py-8">
-                        No time planned or recorded for this day
+                      <div className="text-sm text-center py-8" style={{ color: '#B0A090' }}>
+                        No time planned or recorded
                       </div>
                     )}
                   </div>
@@ -957,7 +943,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {/* Left bar — 8px, gray center line; click toggles, drag left closes / drag right opens */}
+        {/* Left bar — 8px, warm center line; click toggles, drag left closes / drag right opens */}
         <div
           className="flex-shrink-0 flex cursor-col-resize group"
           style={{ width: 8, cursor: 'col-resize' }}
@@ -991,11 +977,15 @@ export default function App() {
             window.addEventListener('mouseup', cleanup);
           }}
         >
-          <div className="w-px bg-neutral-200" />
-          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
-          <div className="w-0.5 bg-neutral-300" />
-          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
-          <div className="w-px bg-neutral-200" />
+          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
+          <div className="w-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.3)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
         </div>
 
         <CalendarView
@@ -1030,7 +1020,7 @@ export default function App() {
           onDeleteEvent={deleteEvent}
         />
 
-        {/* Right bar — 8px, gray center line; click toggles, drag right closes / drag left opens */}
+        {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
         <div
           className="flex-shrink-0 flex cursor-col-resize group"
           style={{ width: 8, cursor: 'col-resize' }}
@@ -1064,17 +1054,21 @@ export default function App() {
             window.addEventListener('mouseup', cleanup);
           }}
         >
-          <div className="w-px bg-neutral-200" />
-          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
-          <div className="w-0.5 bg-neutral-300" />
-          <div className="flex-1 min-w-0 bg-neutral-100 group-hover:bg-blue-200 transition-colors" />
-          <div className="w-px bg-neutral-200" />
+          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
+          <div className="w-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.3)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
         </div>
         {/* Right panel */}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden bg-white">
-            <div className="flex items-center px-3 py-2 border-b border-neutral-100 shrink-0">
-              <span className="text-xs font-medium text-neutral-500">Tasks</span>
+          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#F5F1EB' }}>
+            <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)' }}>
+              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#A08C78', letterSpacing: '0.12em' }}>Tasks</span>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -1233,20 +1227,24 @@ export default function App() {
 
       {/* Recording overlap warning dialog */}
       {recordingOverlapWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-xl shadow-xl border border-neutral-200 p-6 max-w-sm mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(44,40,32,0.4)' }}>
+          <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)' }}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: 'rgba(200,120,104,0.12)' }}>
+                <svg className="w-5 h-5" style={{ color: '#C87868' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
-              <h3 className="text-sm font-semibold text-neutral-800">Overlapping Recording</h3>
+              <h3 className="text-sm font-semibold" style={{ color: '#2C2820' }}>Overlapping Recording</h3>
             </div>
-            <p className="text-sm text-neutral-600 mb-4">{recordingOverlapWarning}</p>
+            <p className="text-sm mb-4 leading-relaxed" style={{ color: '#6B6058' }}>{recordingOverlapWarning}</p>
             <button
               type="button"
-              className="w-full py-2 px-4 bg-neutral-800 text-white text-sm font-medium rounded-lg hover:bg-neutral-700 transition-colors"
+              className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
+              style={{ backgroundColor: '#5B9BAD', color: 'white' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4E8A9C')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#5B9BAD')}
               onClick={() => setRecordingOverlapWarning(null)}
             >
               Got it

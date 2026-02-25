@@ -117,7 +117,8 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
   return (
     <div
       ref={sheetRef}
-      className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 rounded-t-2xl shadow-2xl transition-shadow lg:hidden flex flex-col"
+      className="fixed bottom-0 left-0 right-0 rounded-t-2xl shadow-2xl transition-shadow lg:hidden flex flex-col"
+      style={{ backgroundColor: '#F5F1EB', borderTop: '1px solid rgba(160,140,120,0.2)' }}
       style={{
         height: `${height}px`,
         touchAction: 'none',
@@ -131,7 +132,7 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
       >
-        <div className="w-12 h-1.5 bg-neutral-300 rounded-full" />
+        <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(160,140,120,0.4)' }} />
       </div>
 
       {/* Content - scrollable */}

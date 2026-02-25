@@ -154,15 +154,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-auto" style={{ backgroundColor: '#FAF8F4' }}>
       <div className="flex min-w-max">
         {/* Time column */}
-        <div className="w-12 md:w-16 flex-shrink-0 border-r border-neutral-200 px-1 md:px-2 py-4 md:py-6 sticky left-0 bg-white z-10">
-          <div className="h-10 md:h-12" /> {/* Spacer for day headers */}
+        <div
+          className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10"
+          style={{
+            borderRight: '1px solid rgba(160,140,120,0.18)',
+            backgroundColor: '#FAF8F4',
+          }}
+        >
+          <div className="h-9 md:h-10" /> {/* Spacer for day headers */}
           {hours.map((hour) => (
             <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-              <div className="absolute left-0 top-0 w-full text-xs text-neutral-400 text-right pr-1 md:pr-2">
-                {hour === 0 ? '12AM' : hour === 12 ? '12PM' : hour > 12 ? `${hour - 12}PM` : `${hour}AM`}
+              <div
+                className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium"
+                style={{ color: '#B0A090', fontSize: '10px' }}
+              >
+                {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
               </div>
             </div>
           ))}
@@ -178,13 +187,32 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
             const showCurrentTimeLine = today && currentTimeTop != null;
 
             return (
-              <div key={dayIndex} className="flex-1 min-w-[100px] md:min-w-0 border-r border-neutral-200 last:border-r-0 relative">
+              <div
+                key={dayIndex}
+                className="flex-1 min-w-[90px] md:min-w-0 relative"
+                style={{ borderRight: dayIndex < 6 ? '1px solid rgba(160,140,120,0.15)' : 'none' }}
+              >
                 {/* Day header */}
-                <div className={`h-10 md:h-12 border-b border-neutral-200 px-2 md:px-3 py-2 sticky top-0 bg-white z-10 ${today ? 'bg-neutral-50' : ''}`}>
-                  <div className="text-xs text-neutral-500 uppercase">
+                <div
+                  className="h-9 md:h-10 px-1.5 md:px-2 py-1.5 sticky top-0 z-10 flex flex-col justify-center"
+                  style={{
+                    borderBottom: '1px solid rgba(160,140,120,0.18)',
+                    backgroundColor: today ? 'rgba(91,155,173,0.06)' : '#FAF8F4',
+                  }}
+                >
+                  <div
+                    className="font-semibold uppercase"
+                    style={{ color: today ? '#5B9BAD' : '#B0A090', fontSize: '9px', letterSpacing: '0.07em' }}
+                  >
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
-                  <div className={`text-sm font-medium ${today ? 'text-neutral-700' : 'text-neutral-900'}`}>
+                  <div
+                    className="font-semibold leading-none"
+                    style={{
+                      color: today ? '#5B9BAD' : '#3C3430',
+                      fontSize: '14px',
+                    }}
+                  >
                     {day.getDate()}
                   </div>
                 </div>
@@ -265,8 +293,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         className="absolute left-0 right-0 pointer-events-none"
                         style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
                       >
-                        <div className="absolute left-0 right-0 top-0 border-t border-neutral-200 h-px" />
-                        <div className="absolute left-0 right-0 border-t border-neutral-100 h-px" style={{ top: PX_PER_HOUR / 2 }} />
+                        <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: '1px solid rgba(160,140,120,0.18)' }} />
+                        <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: '1px solid rgba(160,140,120,0.09)' }} />
                       </div>
                     ))}
 
@@ -363,13 +391,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             top: currentTimeTop,
                             height: 0,
                             width: '100%',
-                            borderTop: '3px solid rgb(239 68 68)',
+                            borderTop: '2px solid #5B9BAD',
                           }}
                           aria-hidden
                         />
                         <div
-                          className="absolute left-2 z-40 text-red-500 text-xs font-medium tabular-nums pointer-events-none"
-                          style={{ top: currentTimeTop, transform: 'translateY(-50%)' }}
+                          className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none"
+                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: '#5B9BAD', fontSize: '9px' }}
                         >
                           {currentTimeLabel}
                         </div>
@@ -379,12 +407,12 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     {/* Drag preview (drop), z-30 */}
                     {dragPreview && dragPreview.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded border-2 border-dashed"
+                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
                         style={{
                           top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                           height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                          borderColor: 'rgb(59, 130, 246)',
+                          backgroundColor: 'rgba(91,155,173,0.15)',
+                          border: '2px dashed rgba(91,155,173,0.6)',
                         }}
                       />
                     )}
@@ -392,13 +420,18 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     {/* Create-block preview, z-30 */}
                     {creatingBlock && creatingBlock.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded border-2 border-dashed border-blue-500 bg-blue-200/40"
+                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
                         style={{
                           top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                           height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+                          backgroundColor: 'rgba(91,155,173,0.12)',
+                          border: '2px dashed rgba(91,155,173,0.5)',
                         }}
                       >
-                        <span className="absolute bottom-0.5 left-1 text-xs font-medium text-blue-800 truncate">
+                        <span
+                          className="absolute bottom-0.5 left-1 font-medium truncate"
+                          style={{ color: '#2C6070', fontSize: '10px' }}
+                        >
                           {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
                         </span>
                       </div>

@@ -63,6 +63,8 @@ export interface TimeBlock {
   source: 'manual' | 'autoAssumed'; // NEW: tracks how it was created
   link?: string | null;
   description?: string | null;
+  /** Quick inline notes — shown inside the block and in the popover. */
+  notes?: string | null;
 }
 
 /** Recurrence pattern for events. */

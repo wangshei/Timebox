@@ -54,7 +54,7 @@
       outDir: 'dist',
     },
     server: {
-      port: 3000,
+      port: 3005,
       open: true,
     },
   });

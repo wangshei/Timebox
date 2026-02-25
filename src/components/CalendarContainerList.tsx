@@ -18,32 +18,42 @@ export function CalendarContainerList({
   onToggleVisibility,
   focusedCalendarId = null,
   onFocusCalendar,
-  compact = false,
 }: CalendarContainerListProps) {
   return (
     <div className="space-y-0.5">
-      {containers.map((container) => (
-        <div key={container.id} className="flex items-center gap-1.5 min-w-0">
-          <input
-            id={`cal-${container.id}`}
-            type="checkbox"
-            checked={visibility[container.id] ?? true}
-            onChange={() => onToggleVisibility(container.id)}
-            className="w-3.5 h-3.5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
-          />
-          <button
-            type="button"
-            onClick={() => onFocusCalendar?.(container.id)}
-            className={`flex-1 flex items-left gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left text-sm transition-colors min-w-0 border-l-[3px] ${
-              focusedCalendarId === container.id ? 'text-neutral-900 font-medium' : 'text-neutral-700 hover:opacity-90'
-            }`}
-            style={{ borderLeftColor: container.color, backgroundColor: `${container.color}12` }}
-          >
-            <CalendarIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-            <span className="flex-1 truncate">{container.name}</span>
-          </button>
-        </div>
-      ))}
+      {containers.map((container) => {
+        const isFocused = focusedCalendarId === container.id;
+        return (
+          <div key={container.id} className="flex items-center gap-1.5 min-w-0">
+            <input
+              id={`cal-${container.id}`}
+              type="checkbox"
+              checked={visibility[container.id] ?? true}
+              onChange={() => onToggleVisibility(container.id)}
+              className="w-3.5 h-3.5 rounded flex-shrink-0 cursor-pointer"
+              style={{
+                accentColor: container.color,
+                border: `1.5px solid rgba(160,140,120,0.35)`,
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => onFocusCalendar?.(container.id)}
+              className="flex-1 flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-r text-left transition-all min-w-0 border-l-[3px]"
+              style={{
+                borderLeftColor: container.color,
+                backgroundColor: isFocused ? `${container.color}22` : `${container.color}10`,
+                color: isFocused ? '#2C2820' : '#6B6058',
+                fontWeight: isFocused ? 600 : 400,
+                fontSize: '12px',
+              }}
+            >
+              <CalendarIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: container.color, opacity: 0.75 }} />
+              <span className="flex-1 truncate">{container.name}</span>
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

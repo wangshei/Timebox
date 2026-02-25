@@ -354,9 +354,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   return (
     <div
       ref={outerRef}
-      className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-4 py-4 md:py-6' : 'px-4 md:px-8 py-4 md:py-6'} ${
-        mode === 'compare' && selectedIsPast ? 'bg-neutral-50' : ''
-      }`}
+      className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
+      style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(160,140,120,0.04)' } : undefined}
     >
       {/* Main grid container: ALL mouse/drag handlers live here.
           Clicks on empty space (not caught by cards) bubble up to this element. */}
@@ -369,35 +368,49 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         onDragLeave={onDropTask || onMoveBlock || onMoveEvent ? handleDragLeave : undefined}
         onDrop={onDropTask || onMoveBlock || onMoveEvent ? handleDrop : undefined}
       >
-        {/* Grid: hour rows with clear lines; past slots slightly darker in planning mode */}
+        {/* Grid: hour rows with warm lines; past slots slightly warmer */}
         {hours.map((hour) => {
           const slotEndMins = (hour + 1) * 60;
           const isPastSlot =
             mode === 'overall' &&
             (selectedDate < todayStr || (selectedDate === todayStr && slotEndMins <= nowMins));
+          const isHalfHour = false; // placeholder, used below
+          void isHalfHour;
           return (
             <div
               key={hour}
               className="absolute left-0 right-0 pointer-events-none"
               style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
             >
-              <div className="absolute left-0 top-0 w-12 md:w-16 text-xs text-neutral-400 leading-none">
+              {/* Time label */}
+              <div
+                className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
+                style={{ color: '#B0A090', fontSize: '10px' }}
+              >
                 {hour === 0
-                  ? '12:00 AM'
+                  ? '12am'
                   : hour === 12
-                    ? '12:00 PM'
+                    ? '12pm'
                     : hour > 12
-                      ? `${hour - 12}:00 PM`
-                      : `${hour}:00 AM`}
+                      ? `${hour - 12}pm`
+                      : `${hour}am`}
               </div>
-              {/* Hour line (strong) and half-hour line (subtle) for grid look */}
+              {/* Hour line + optional past-slot fill */}
               <div
-                className={`absolute left-14 md:left-20 right-0 top-0 border-t border-neutral-200 ${isPastSlot ? 'bg-neutral-50' : ''}`}
-                style={{ height: PX_PER_HOUR }}
+                className="absolute left-14 md:left-20 right-0 top-0"
+                style={{
+                  height: PX_PER_HOUR,
+                  borderTop: '1px solid rgba(160,140,120,0.18)',
+                  backgroundColor: isPastSlot ? 'rgba(160,140,120,0.04)' : 'transparent',
+                }}
               />
+              {/* Half-hour line */}
               <div
-                className="absolute left-14 md:left-20 right-0 border-t border-neutral-100"
-                style={{ top: `${PX_PER_HOUR / 2}px` }}
+                className="absolute left-14 md:left-20 right-0"
+                style={{
+                  top: `${PX_PER_HOUR / 2}px`,
+                  borderTop: '1px solid rgba(160,140,120,0.09)',
+                }}
               />
             </div>
           );
@@ -470,7 +483,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           })}
         </div>
 
-        {/* Current-time indicator */}
+        {/* Current-time indicator — warm waterlily blue */}
         {isViewingToday && currentTimeTop != null && (
           <>
             <div
@@ -478,14 +491,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               style={{
                 top: currentTimeTop,
                 height: 0,
-                width: '100%',
-                borderTop: '3px solid rgb(239 68 68)',
+                borderTop: '2px solid #5B9BAD',
               }}
               aria-hidden
             />
             <div
-              className="absolute left-2 z-40 text-red-500 text-xs font-medium tabular-nums pointer-events-none"
-              style={{ top: currentTimeTop - 8 }}
+              className="absolute left-0 z-40 text-xs font-semibold tabular-nums pointer-events-none"
+              style={{ top: currentTimeTop - 8, color: '#5B9BAD', fontSize: '10px' }}
             >
               {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
@@ -495,16 +507,16 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Drag preview (task/block drop) */}
         {(onDropTask || onMoveBlock || onMoveEvent) && dragPreview && (
           <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-lg border-2 border-dashed"
+            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-xl"
             style={{
               top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(91,155,173,0.15)',
+              border: '2px dashed rgba(91,155,173,0.55)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium text-blue-700">
-              {minutesToTimeString(dragPreview.startMins)} - {minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#5B9BAD' }}>
+              {minutesToTimeString(dragPreview.startMins)}–{minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
             </span>
           </div>
         )}
@@ -512,14 +524,16 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Create-block preview */}
         {creatingBlock && (
           <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-lg border-2 border-dashed border-blue-500 bg-blue-200/40"
+            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-xl"
             style={{
               top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+              backgroundColor: 'rgba(91,155,173,0.12)',
+              border: '2px dashed rgba(91,155,173,0.5)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium text-blue-800">
-              {minutesToTimeString(creatingBlock.startMins)} - {minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#5B9BAD' }}>
+              {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
             </span>
           </div>
         )}
@@ -527,8 +541,12 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Drag-over highlight */}
         {isDragOver && (
           <div
-            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg bg-blue-50/70 ring-2 ring-blue-200/80 ring-inset"
-            style={{ height: GRID_HEIGHT }}
+            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg"
+            style={{
+              height: GRID_HEIGHT,
+              backgroundColor: 'rgba(91,155,173,0.04)',
+              boxShadow: 'inset 0 0 0 2px rgba(91,155,173,0.25)',
+            }}
           />
         )}
       </div>
