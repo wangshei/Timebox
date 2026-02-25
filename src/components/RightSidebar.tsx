@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
 
 interface RightSidebarProps {
@@ -10,6 +10,8 @@ interface RightSidebarProps {
   unscheduledTasks: Task[];
   partiallyCompletedTasks: Task[];
   fixedMissedTasks?: Task[];
+  /** Tasks that have recorded time and no planned (fully done); shown in Done section. Same shape as other task lists (DisplayTask). */
+  doneTasks?: Task[];
   selectedDate?: string;
   timeBlocks?: TimeBlock[];
   categories: Category[];
@@ -24,6 +26,8 @@ interface RightSidebarProps {
   onOpenScheduleTask?: (taskId: string) => void;
   onEditTask?: (taskId: string) => void;
   onDeleteTask?: (taskId: string) => void;
+  /** Mark all planned blocks of this task as done (create recorded for each). */
+  onMarkTaskDone?: (taskId: string) => void;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   /** When a block is dropped from the calendar, unschedule it (remove from calendar). */
   onDropBlock?: (blockId: string) => void;
@@ -39,10 +43,11 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
+  const [doneSectionOpen, setDoneSectionOpen] = useState(true);
 
   const upcomingEvents = useMemo(() => {
     const today = getLocalDateString();
@@ -93,6 +98,18 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     if (viewMode !== 'overview' || !timeBlocks) return fixedMissedTasks;
     return fixedMissedTasks.filter((t) => taskIdsInRange.has(t.id));
   }, [fixedMissedTasks, taskIdsInRange, timeBlocks, viewMode]);
+
+  /** Done tasks sorted by earliest recorded block date (most recent first) */
+  const doneSorted = useMemo(() => {
+    if (!timeBlocks?.length) return doneTasks;
+    return [...doneTasks].sort((taskA, taskB) => {
+      const datesA = timeBlocks.filter((bl) => bl.taskId === taskA.id && bl.mode === 'recorded').map((bl) => bl.date);
+      const datesB = timeBlocks.filter((bl) => bl.taskId === taskB.id && bl.mode === 'recorded').map((bl) => bl.date);
+      const minA = datesA.length ? datesA.sort()[0] : '';
+      const minB = datesB.length ? datesB.sort()[0] : '';
+      return minB.localeCompare(minA);
+    });
+  }, [doneTasks, timeBlocks]);
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
@@ -184,7 +201,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {unscheduledTasks.length === 0 ? (
               <div className="text-sm text-neutral-400 text-center py-4">No unscheduled tasks</div>
             ) : (
-              unscheduledTasks.map(task => (
+              unscheduledTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -193,6 +210,11 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onMarkTaskDone={
+                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
+                      ? () => onMarkTaskDone(task.id)
+                      : undefined
+                  }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
                 />
@@ -206,7 +228,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {              filteredPartially.map(task => (
+              {              filteredPartially.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -215,6 +237,11 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onMarkTaskDone={
+                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
+                      ? () => onMarkTaskDone(task.id)
+                      : undefined
+                  }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
                 />
@@ -228,7 +255,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="text-sm font-medium text-neutral-500 mb-4">Fixed / Missed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {              filteredFixed.map(task => (
+              {              filteredFixed.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -237,11 +264,47 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onMarkTaskDone={
+                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
+                      ? () => onMarkTaskDone(task.id)
+                      : undefined
+                  }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Done — collapsible, sorted by date */}
+        {doneSorted.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setDoneSectionOpen(!doneSectionOpen)}
+              className="flex items-center gap-1.5 w-full text-left mb-2"
+            >
+              {doneSectionOpen ? (
+                <ChevronDownIcon className="h-3.5 w-3.5 text-neutral-500" />
+              ) : (
+                <ChevronRightIcon className="h-3.5 w-3.5 text-neutral-500" />
+              )}
+              <h2 className="text-sm font-medium text-neutral-500">Done</h2>
+            </button>
+            {doneSectionOpen && (
+              <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+                {doneSorted.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-100"
+                  >
+                    <span className="flex-1 min-w-0 text-sm text-neutral-600 line-through truncate">{task.title}</span>
+                    <span className="text-xs text-neutral-400">{task.recordedHours}h</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

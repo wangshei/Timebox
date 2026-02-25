@@ -3,10 +3,16 @@ import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
-import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
+import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
+import {
+  PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL, TASK_BLOCK_WIDTH_PERCENT,
+  minutesToTimeString,
+  offsetYToMinutes as offsetYToMinsUtil,
+  parseTimeToMins,
+} from '../utils/gridUtils';
 
-export const SNAP_MINUTES = 15;
+export { SNAP_MINUTES_UTIL as SNAP_MINUTES };
 const DEFAULT_DROP_MINUTES = 15;
 const MIN_CREATE_MINUTES = 15;
 
@@ -31,8 +37,8 @@ interface DayViewProps {
   onSelectBlock: (id: string | null) => void;
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
-  onDoneAsPlanned?: (blockId: string) => void;
-  onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onConfirm?: (blockId: string) => void;
+  onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   onDeleteEvent?: (eventId: string) => void;
@@ -43,28 +49,20 @@ interface DayViewProps {
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
   /** Resize a block by dragging its bottom edge (end time only). */
   onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
+  /** Move an event to new time/date. */
+  onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  /** Resize an event by dragging its bottom edge (end time only). */
+  onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
   onEditBlock?: (blockId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
   compareMatchedTaskIds?: string[];
 }
 
-const PX_PER_HOUR = 64;
 const START_HOUR = 0;
-
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-function snapToGrid(totalMinutes: number): number {
-  return Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-}
-
-function minutesToTimeString(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -72,6 +70,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number } | null>(null);
   const creatingBlockRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
   const [resizingBlock, setResizingBlock] = React.useState<{ block: ResolvedTimeBlock; startClientY: number; endMins: number } | null>(null);
+  const [resizingEvent, setResizingEvent] = React.useState<{ event: ResolvedEvent; startClientY: number; endMins: number } | null>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
   const outerRef = React.useRef<HTMLDivElement>(null);
   // Normalize: use same format for both sides; trim selectedDate in case of whitespace
@@ -88,26 +87,29 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     return () => clearInterval(t);
   }, []);
 
-  const offsetYToMinutes = (offsetY: number): number => {
-    const totalMinutes = START_HOUR * 60 + (offsetY / PX_PER_HOUR) * 60;
-    return snapToGrid(totalMinutes);
-  };
+  const offsetYToMinutes = (offsetY: number): number => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
   const handleDragOver = (e: React.DragEvent) => {
     const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
     const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-    if (!hasTask && !hasBlock) return;
+    const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
+    if (!hasTask && !hasBlock && !hasEvent) return;
     if (hasTask && !onDropTask) return;
     if (hasBlock && !onMoveBlock) return;
+    if (hasEvent && !onMoveEvent) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = hasBlock ? 'move' : 'copy';
+    e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
     setIsDragOver(true);
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
     const offsetY = e.clientY - rect.top;
     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
     const currentMins = offsetYToMinutes(offsetY);
-    if (hasBlock) {
+    if (hasEvent) {
+      const durationStr = e.dataTransfer.getData('application/x-timebox-event-duration');
+      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
+    } else if (hasBlock) {
       const durationStr = e.dataTransfer.getData('application/x-timebox-block-duration');
       const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
@@ -126,6 +128,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const handleDrop = (e: React.DragEvent) => {
     const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
     const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
+    const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
     const preview = dragPreviewRef.current ?? dragPreview;
     setIsDragOver(false);
     setDragPreview(null);
@@ -137,23 +140,37 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       ? offsetYToMinutes(Math.max(0, Math.min(e.clientY - rect.top, GRID_HEIGHT)))
       : 9 * 60;
     const startMins = preview?.startMins ?? fallbackMins;
-    const endMins = preview?.endMins ?? startMins + DEFAULT_DROP_MINUTES;
     const startTime = minutesToTimeString(startMins);
-    const endTime = minutesToTimeString(endMins);
 
     if (blockId && onMoveBlock) {
+      const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
+      const duration = durStr && !Number.isNaN(parseInt(durStr, 10))
+        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
+        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
+      const endTime = minutesToTimeString(startMins + duration);
       onMoveBlock(blockId, { date: selectedDate, startTime, endTime });
+      return;
+    }
+    if (eventId && onMoveEvent) {
+      const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
+      const duration = durStr && !Number.isNaN(parseInt(durStr, 10))
+        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
+        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
+      const endTime = minutesToTimeString(startMins + duration);
+      onMoveEvent(eventId, { date: selectedDate, startTime, endTime });
       return;
     }
     if (taskId && onDropTask) {
       const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-      const droppedMins = durStr && !Number.isNaN(parseInt(durStr, 10)) ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10)) : endMins - startMins;
+      const droppedMins = durStr && !Number.isNaN(parseInt(durStr, 10))
+        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
+        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
       const blockMinutes = Math.max(MIN_CREATE_MINUTES, droppedMins);
       onDropTask(taskId, { date: selectedDate, startTime, blockMinutes });
     }
   };
 
-  // Drag-to-create: mouseDown on the grid
+  // Drag-to-create: mouseDown on the grid (drag down or up to set range)
   const handleGridMouseDown = (e: React.MouseEvent) => {
     if (!onCreateBlock || creatingBlock) return;
     const rect = gridRef.current?.getBoundingClientRect();
@@ -177,9 +194,17 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
       setCreatingBlock((prev) => {
         if (!prev) return null;
-        const endMins = Math.max(currentMins, prev.startMins + MIN_CREATE_MINUTES);
-        creatingBlockRef.current = { startMins: prev.startMins, endMins };
-        return { startMins: prev.startMins, endMins };
+        const minDuration = MIN_CREATE_MINUTES;
+        let startMins = prev.startMins;
+        let endMins = prev.endMins;
+        if (currentMins >= prev.startMins) {
+          endMins = Math.max(currentMins, prev.startMins + minDuration);
+        } else {
+          startMins = currentMins;
+          endMins = Math.max(prev.endMins, currentMins + minDuration);
+        }
+        creatingBlockRef.current = { startMins, endMins };
+        return { startMins, endMins };
       });
     };
     const onUp = () => {
@@ -204,12 +229,12 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   React.useEffect(() => {
     if (!resizingBlock || !onResizeBlock) return;
     const { block, startClientY } = resizingBlock;
-    const startMins = parseTime(block.start);
-    const minEndMins = startMins + SNAP_MINUTES;
+    const startMins = parseTimeToMins(block.start);
+    const minEndMins = startMins + SNAP_MINUTES_UTIL;
     const onMove = (e: MouseEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndMins = parseTime(block.end) + deltaMins;
-      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      let newEndMins = parseTimeToMins(block.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
       newEndMins = Math.max(minEndMins, newEndMins);
       onResizeBlock(block.id, { date: block.date, endTime: minutesToTimeString(newEndMins) });
     };
@@ -222,22 +247,49 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     };
   }, [resizingBlock, onResizeBlock]);
 
+  React.useEffect(() => {
+    if (!resizingEvent || !onResizeEvent) return;
+    const { event, startClientY } = resizingEvent;
+    const startMins = parseTimeToMins(event.start);
+    const minEndMins = startMins + SNAP_MINUTES_UTIL;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTimeToMins(event.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeEvent(event.id, { date: event.date, endTime: minutesToTimeString(newEndMins) });
+    };
+    const onUp = () => setResizingEvent(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingEvent, onResizeEvent]);
+
   const handleResizeStart = React.useCallback((block: ResolvedTimeBlock, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setResizingBlock({ block, startClientY: e.clientY });
   }, []);
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const handleResizeStartByBlockId = React.useCallback((blockId: string, e: React.MouseEvent) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (block) handleResizeStart(block, e);
+  }, [timeBlocks, handleResizeStart]);
 
-  const parseTime = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
+  const handleEventResizeStart = React.useCallback((event: ResolvedEvent, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingEvent({ event, startClientY: e.clientY });
+  }, []);
+
+  const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
   const getBlockStyle = (block: ResolvedTimeBlock) => {
-    const startMinutes = parseTime(block.start);
-    const endMinutes = parseTime(block.end);
+    const startMinutes = parseTimeToMins(block.start);
+    const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
     const height = (duration / 60) * PX_PER_HOUR;
@@ -266,14 +318,38 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     mode === 'compare' &&
     selectedDate < todayStr;
 
-  // Overlap layout for all blocks and events
+  // Overlap layout only for events and event-type blocks (no taskId). Tasks get slimmer left-aligned width.
   const overlapMap = React.useMemo(() => {
-    const allItems = [
-      ...timeBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
+    const eventLikeItems = [
+      ...timeBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
       ...events.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
     ];
-    return computeOverlapLayout(allItems);
+    return computeOverlapLayout(eventLikeItems);
   }, [timeBlocks, events]);
+
+  const blockStylesMap = React.useMemo(() => {
+    const map = new Map<string, React.CSSProperties>();
+    timeBlocks.forEach((block) => {
+      const { top, height } = getBlockStyle(block);
+      const isTask = !!block.taskId;
+      const layout = overlapMap.get(block.id);
+      const widthPercent = isTask
+        ? TASK_BLOCK_WIDTH_PERCENT
+        : layout
+          ? 100 / layout.totalColumns
+          : 100;
+      const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+      map.set(block.id, {
+        top: `${top}px`,
+        height: `${height}px`,
+        width: `${widthPercent}%`,
+        left: `${leftPercent}%`,
+      });
+    });
+    return map;
+  }, [timeBlocks, overlapMap]);
+
+  const nowMins = now.getHours() * 60 + now.getMinutes();
 
   return (
     <div
@@ -289,33 +365,43 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         className={`relative ${onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
         onMouseDown={handleGridMouseDown}
-        onDragOver={onDropTask || onMoveBlock ? handleDragOver : undefined}
-        onDragLeave={onDropTask || onMoveBlock ? handleDragLeave : undefined}
-        onDrop={onDropTask || onMoveBlock ? handleDrop : undefined}
+        onDragOver={onDropTask || onMoveBlock || onMoveEvent ? handleDragOver : undefined}
+        onDragLeave={onDropTask || onMoveBlock || onMoveEvent ? handleDragLeave : undefined}
+        onDrop={onDropTask || onMoveBlock || onMoveEvent ? handleDrop : undefined}
       >
-        {/* Hour rows - pointer-events-none so they don't block grid interactions */}
-        {hours.map((hour) => (
-          <div
-            key={hour}
-            className="absolute left-0 right-0 pointer-events-none"
-            style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
-          >
-            <div className="absolute left-0 top-0 w-12 md:w-16 text-xs text-neutral-400 leading-none">
-              {hour === 0
-                ? '12:00 AM'
-                : hour === 12
-                  ? '12:00 PM'
-                  : hour > 12
-                    ? `${hour - 12}:00 PM`
-                    : `${hour}:00 AM`}
-            </div>
-            <div className="absolute left-14 md:left-20 right-0 top-0 border-t border-neutral-200" />
+        {/* Grid: hour rows with clear lines; past slots slightly darker in planning mode */}
+        {hours.map((hour) => {
+          const slotEndMins = (hour + 1) * 60;
+          const isPastSlot =
+            mode === 'overall' &&
+            (selectedDate < todayStr || (selectedDate === todayStr && slotEndMins <= nowMins));
+          return (
             <div
-              className="absolute left-14 md:left-20 right-0 border-t border-neutral-100"
-              style={{ top: `${PX_PER_HOUR / 2}px` }}
-            />
-          </div>
-        ))}
+              key={hour}
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
+            >
+              <div className="absolute left-0 top-0 w-12 md:w-16 text-xs text-neutral-400 leading-none">
+                {hour === 0
+                  ? '12:00 AM'
+                  : hour === 12
+                    ? '12:00 PM'
+                    : hour > 12
+                      ? `${hour - 12}:00 PM`
+                      : `${hour}:00 AM`}
+              </div>
+              {/* Hour line (strong) and half-hour line (subtle) for grid look */}
+              <div
+                className={`absolute left-14 md:left-20 right-0 top-0 border-t border-neutral-200 ${isPastSlot ? 'bg-neutral-50' : ''}`}
+                style={{ height: PX_PER_HOUR }}
+              />
+              <div
+                className="absolute left-14 md:left-20 right-0 border-t border-neutral-100"
+                style={{ top: `${PX_PER_HOUR / 2}px` }}
+              />
+            </div>
+          );
+        })}
 
         {/* Cards area: absolutely positioned to match the grid area, pointer-events-none
             so empty space clicks pass through to the main container. Individual cards
@@ -324,43 +410,37 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
           style={{ height: GRID_HEIGHT }}
         >
-          {/* Time blocks */}
+          {/* Time blocks: tasks = slimmer left-aligned; event-type blocks = fill slot with overlap */}
           {timeBlocks.map((block) => {
-            const { top, height } = getBlockStyle(block);
-            const layout = overlapMap.get(block.id);
-            const widthPercent = layout ? 100 / layout.totalColumns : 100;
-            const leftPercent = layout ? layout.columnIndex * widthPercent : 0;
+            const style = blockStylesMap.get(block.id);
+            if (!style) return null;
             return (
               <TimeBlockCard
                 key={block.id}
                 block={block}
                 mode={mode}
-                style={{
-                  top: `${top}px`,
-                  height: `${height}px`,
-                  width: `${widthPercent}%`,
-                  left: `${leftPercent}%`,
-                }}
+                style={style}
                 isSelected={selectedBlock === block.id}
-                onSelect={() => onSelectBlock(block.id)}
-                onDeselect={() => onSelectBlock(null)}
+                onSelectBlock={onSelectBlock}
+                todayStr={todayStr}
+                nowMins={nowMins}
                 focusedCategoryId={focusedCategoryId}
                 focusedCalendarId={focusedCalendarId}
-                onDoneAsPlanned={onDoneAsPlanned}
-                onDidSomethingElse={onDidSomethingElse}
+                onConfirm={onConfirm}
+                onUnconfirm={onUnconfirm}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}
                 onEditBlock={onEditBlock}
-                onResizeStart={onResizeBlock ? (e) => handleResizeStart(block, e) : undefined}
+                onResizeStart={onResizeBlock ? handleResizeStartByBlockId : undefined}
                 compareMatchedTaskIds={compareMatchedTaskIds}
               />
             );
           })}
 
-          {/* Events */}
+          {/* Events: fill slot, overlap when multiple; show description + tag */}
           {events.map((event) => {
-            const startMinutes = parseTime(event.start);
-            const endMinutes = parseTime(event.end);
+            const startMinutes = parseTimeToMins(event.start);
+            const endMinutes = parseTimeToMins(event.end);
             const duration = endMinutes - startMinutes;
             const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
             const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
@@ -382,7 +462,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
                 onEditEvent={onEditEvent}
-                plannedStyle={mode === 'planning'}
+                plannedStyle={false}
+                draggable={!!onMoveEvent}
+                onResizeStart={onResizeEvent ? (e) => handleEventResizeStart(event, e) : undefined}
               />
             );
           })}
@@ -411,7 +493,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         )}
 
         {/* Drag preview (task/block drop) */}
-        {(onDropTask || onMoveBlock) && dragPreview && (
+        {(onDropTask || onMoveBlock || onMoveEvent) && dragPreview && (
           <div
             className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-lg border-2 border-dashed"
             style={{

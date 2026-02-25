@@ -3,8 +3,13 @@ import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
-import { TimeBlockCard, RecordedBlockPayload } from './TimeBlockCard';
+import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
+import {
+  PX_PER_HOUR, SNAP_MINUTES, TASK_BLOCK_WIDTH_PERCENT,
+  snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
+  offsetYToMinutes as offsetYToMinsUtil,
+} from '../utils/gridUtils';
 
 interface WeekViewProps {
   mode: Mode;
@@ -14,12 +19,15 @@ interface WeekViewProps {
   onSelectBlock?: (id: string | null) => void;
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
-  onDoneAsPlanned?: (blockId: string) => void;
-  onDidSomethingElse?: (plannedBlockId: string, recorded: RecordedBlockPayload) => void;
+  onConfirm?: (blockId: string) => void;
+  onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
+  onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
@@ -27,32 +35,25 @@ interface WeekViewProps {
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onDoneAsPlanned, onDidSomethingElse, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
-  // 24-hour grid (12–12) like Day view for consistent scroll and behavior
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
-  // Get start of week (Sunday)
-  const startOfWeek = new Date(currentDate);
-  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-
-  // Generate days of the week
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(startOfWeek);
-    day.setDate(startOfWeek.getDate() + i);
-    return day;
-  });
-
-  const parseTime = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
+  const weekDays = React.useMemo(() => {
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      return day;
+    });
+  }, [currentDate]);
 
   const getBlockStyle = (block: ResolvedTimeBlock) => {
-    const startMinutes = parseTime(block.start);
-    const endMinutes = parseTime(block.end);
+    const startMinutes = parseTimeToMins(block.start);
+    const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
     const height = (duration / 60) * PX_PER_HOUR;
@@ -69,18 +70,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     return () => clearInterval(t);
   }, []);
 
-  const PX_PER_HOUR = 64;
+  const todayStr = getLocalDateString(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+
   const START_HOUR = 0;
-  const gridTopOffset = 0;
   const GRID_HEIGHT = 24 * PX_PER_HOUR;
 
-  const snapToGrid = (totalMinutes: number) => Math.round(totalMinutes / 15) * 15;
-  const offsetYToMinutes = (offsetY: number) => {
-    const totalMinutes = START_HOUR * 60 + (offsetY / PX_PER_HOUR) * 60;
-    return snapToGrid(totalMinutes);
-  };
-  const minsToTime = (mins: number) =>
-    `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  const offsetYToMinutes = (offsetY: number) => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
   const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
 
@@ -121,6 +117,30 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       window.removeEventListener('mouseup', onUp);
     };
   }, [creatingBlock, onCreateBlock]);
+
+  const [resizingBlock, setResizingBlock] = React.useState<{
+    block: ResolvedTimeBlock; startClientY: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!resizingBlock || !onResizeBlock) return;
+    const { block, startClientY } = resizingBlock;
+    const minEndMins = parseTimeToMins(block.start) + SNAP_MINUTES;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTimeToMins(block.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeBlock(block.id, { date: block.date, endTime: minsToTime(newEndMins) });
+    };
+    const onUp = () => setResizingBlock(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingBlock, onResizeBlock]);
 
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   const currentTimeTopRaw =
@@ -178,20 +198,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     onDragOver={(e) => {
                       const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
                       const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-                      if (!hasTask && !hasBlock) return;
+                      const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
+                      if (!hasTask && !hasBlock && !hasEvent) return;
                       if (hasTask && !onDropTask) return;
                       if (hasBlock && !onMoveBlock) return;
+                      if (hasEvent && !onMoveEvent) return;
                       e.preventDefault();
                       e.stopPropagation();
-                      e.dataTransfer.dropEffect = 'move';
+                      e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                       const offsetY = e.clientY - rect.top;
                       if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                       const startMins = offsetYToMinutes(offsetY);
-                      const durationStr = hasBlock
-                        ? e.dataTransfer.getData('application/x-timebox-block-duration')
-                        : e.dataTransfer.getData('application/x-timebox-task-duration');
-                      const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 60;
+                      const durationStr = hasEvent
+                        ? e.dataTransfer.getData('application/x-timebox-event-duration')
+                        : hasBlock
+                          ? e.dataTransfer.getData('application/x-timebox-block-duration')
+                          : e.dataTransfer.getData('application/x-timebox-task-duration');
+                      const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
                       setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
                     }}
                     onDragLeave={(e) => {
@@ -202,7 +226,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     onDrop={(e) => {
                       const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
                       const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-                      if (!taskId && !blockId) return;
+                      const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
+                      if (!taskId && !blockId && !eventId) return;
                       e.preventDefault();
                       e.stopPropagation();
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -211,11 +236,15 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
                       if (blockId && onMoveBlock) {
                         const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
                         onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                      } else if (eventId && onMoveEvent) {
+                        const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
+                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
+                        onMoveEvent(eventId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
                       } else if (taskId && onDropTask) {
                         const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 60;
+                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
                         onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
                       }
                       setDragPreview(null);
@@ -229,30 +258,38 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES });
                     } : undefined}
                   >
-                    {/* Grid lines - pointer-events-none */}
+                    {/* Grid lines: hour (strong), half-hour (subtle) */}
                     {hours.map((_, i) => (
                       <div
                         key={i}
-                        className="absolute left-0 right-0 border-t border-neutral-100 pointer-events-none"
+                        className="absolute left-0 right-0 pointer-events-none"
                         style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
-                      />
+                      >
+                        <div className="absolute left-0 right-0 top-0 border-t border-neutral-200 h-px" />
+                        <div className="absolute left-0 right-0 border-t border-neutral-100 h-px" style={{ top: PX_PER_HOUR / 2 }} />
+                      </div>
                     ))}
 
-                    {/* Time blocks + events - pointer-events-none so clicks pass to grid for drag-to-create */}
+                    {/* Time blocks (tasks = slimmer left-aligned; event-type = overlap) + events */}
                     <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                       {(() => {
-                        const allItems = [
-                          ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
+                        const eventLikeItems = [
+                          ...dayBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
                           ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
                         ];
-                        const dayOverlapMap = computeOverlapLayout(allItems);
+                        const dayOverlapMap = computeOverlapLayout(eventLikeItems);
                         return (
                           <>
                             {dayBlocks.map((block) => {
                               const { top, height } = getBlockStyle(block);
+                              const isTask = !!block.taskId;
                               const layout = dayOverlapMap.get(block.id);
-                              const widthPercent = layout ? 100 / layout.totalColumns : 100;
-                              const leftPercent = layout ? layout.columnIndex * widthPercent : 0;
+                              const widthPercent = isTask
+                                ? TASK_BLOCK_WIDTH_PERCENT
+                                : layout
+                                  ? 100 / layout.totalColumns
+                                  : 100;
+                              const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                               return (
                                 <TimeBlockCard
                                   key={block.id}
@@ -265,28 +302,33 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     left: `${leftPercent}%`,
                                   }}
                                   isSelected={currentSelected === block.id}
-                                  onSelect={() => handleSelect(block.id)}
-                                  onDeselect={() => handleSelect(null)}
+                                  onSelectBlock={handleSelect}
+                                  todayStr={todayStr}
+                                  nowMins={nowMins}
                                   focusedCategoryId={focusedCategoryId}
                                   focusedCalendarId={focusedCalendarId}
-                                  onDoneAsPlanned={onDoneAsPlanned}
-                                  onDidSomethingElse={onDidSomethingElse}
+                                  onConfirm={onConfirm}
+                                  onUnconfirm={onUnconfirm}
                                   onEditBlock={onEditBlock}
                                   onDeleteBlock={onDeleteBlock}
                                   onDeleteTask={onDeleteTask}
+                                  onResizeStart={onResizeBlock ? (blockId, e) => {
+                                    const found = dayBlocks.find(b => b.id === blockId);
+                                    if (found) setResizingBlock({ block: found, startClientY: e.clientY });
+                                  } : undefined}
                                   compact
                                 />
                               );
                             })}
                             {dayEvents.map((event) => {
-                              const startMinutes = parseTime(event.start);
-                              const endMinutes = parseTime(event.end);
+                              const startMinutes = parseTimeToMins(event.start);
+                              const endMinutes = parseTimeToMins(event.end);
                               const duration = endMinutes - startMinutes;
                               const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
                               const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
                               const layout = dayOverlapMap.get(`event-${event.id}`);
                               const widthPercent = layout ? 100 / layout.totalColumns : 100;
-                              const leftPercent = layout ? layout.columnIndex * widthPercent : 0;
+                              const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                               return (
                                 <EventCard
                                   key={event.id}
@@ -302,7 +344,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
                                   onEditEvent={onEditEvent}
-                                  plannedStyle={mode === 'planning'}
+                                  plannedStyle={false}
+                                  draggable={!!onMoveEvent}
                                 />
                               );
                             })}

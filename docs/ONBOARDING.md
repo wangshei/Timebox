@@ -74,8 +74,8 @@ No backend required for current local-only flow. When Supabase is wired, you’l
 
 - **Task** — Unit of work with estimated duration. Lives in backlog until scheduled/recorded.
 - **TimeBlock** — A slice of time on the calendar. Has `mode: 'planned' | 'recorded'`. Only **recorded** blocks drive task progress and analytics.
-- **Planning mode** — User arranges **planned** blocks (intention).
-- **Recording mode** — User marks what actually happened (**recorded** blocks). Planned blocks appear faded.
+- **Overall view** — Default combined calendar where planned and recorded blocks share one timeline. User arranges planned blocks (intention), confirms past blocks, and edits/moves blocks/events.
+- **Compare view** — Analysis view: Plan \| Recorded columns in Day view plus Plan vs Actual in the sidebar. Uses the same underlying planned/recorded data as Overall; only the visualization changes.
 - **Category** — *Type of thing to do per day* (e.g. Deep Work, Meetings, Exercise). Has a **color** that is the **block fill** on the calendar. Every task/block has one category.
 - **Calendar** — *Function or bucket* (e.g. Work, School, Personal). Has a color shown as the **left border** on blocks. One calendar has many categories. Every task/block has one calendar.
 - **Tag** — *Optional* label for things done often under a bucket (e.g. “dance” under Hobby). Not everything needs a tag.

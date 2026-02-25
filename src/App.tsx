@@ -22,8 +22,10 @@ import {
   selectUnscheduledTasks,
   selectPartiallyCompletedTasks,
   selectFixedTasks,
+  selectDoneTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
+import { getLocalDateString } from './utils/dateTime';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -81,6 +83,15 @@ export default function App() {
   const [authErrorFromUrl, setAuthErrorFromUrl] = useState<string | null>(null);
   const [visitMode, setVisitMode] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+
+  // Local dev: if not signed in, auto-enter visit mode so you don't have to log in every time.
+  // Sign in once when you want to test backend; session persists (Supabase persistSession).
+  useEffect(() => {
+    if (typeof import.meta.env.PROD !== 'boolean') return;
+    if (!import.meta.env.PROD && !session && !visitMode) {
+      setVisitMode(true);
+    }
+  }, [session, visitMode]);
 
   const {
     viewMode: mode,
@@ -196,12 +207,24 @@ export default function App() {
       ),
     [displayTasks, unscheduledTasks]
   );
+  const doneTasks = useMemo(
+    () => selectDoneTasks(tasks, timeBlocks),
+    [tasks, timeBlocks]
+  );
+  const doneDisplay = useMemo(
+    () =>
+      displayTasks.filter((t) => doneTasks.some((d) => d.id === t.id)),
+    [displayTasks, doneTasks]
+  );
+
   const partiallyCompletedDisplay = useMemo(
     () =>
-      displayTasks.filter((t) =>
-        partiallyCompletedTasks.some((p) => p.id === t.id)
+      displayTasks.filter(
+        (t) =>
+          partiallyCompletedTasks.some((p) => p.id === t.id) &&
+          !doneTasks.some((d) => d.id === t.id)
       ),
-    [displayTasks, partiallyCompletedTasks]
+    [displayTasks, partiallyCompletedTasks, doneTasks]
   );
 
   const fixedTasks = useMemo(
@@ -213,6 +236,13 @@ export default function App() {
       displayTasks.filter((t) => fixedTasks.some((f) => f.id === t.id)),
     [displayTasks, fixedTasks]
   );
+
+  const handleMarkTaskDone = (taskId: string) => {
+    const plannedBlocks = timeBlocks.filter(
+      (b) => b.taskId === taskId && b.mode === 'planned'
+    );
+    plannedBlocks.forEach((b) => markDoneAsPlanned(b.id));
+  };
 
   const handleAddTask = (taskData: {
     title: string;
@@ -361,7 +391,7 @@ export default function App() {
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
-      createPlannedBlocksFromTask(schedulingTaskId, params);
+      createPlannedBlocksFromTask(schedulingTaskId, { ...params, singleBlock: true });
       setSchedulingTaskId(null);
     }
   };
@@ -391,25 +421,33 @@ export default function App() {
         : task.estimatedMinutes;
     const duration = Math.max(15, Math.min(remaining, Math.round(requested / 15) * 15));
     const startMins = parseTimeToMinsLocal(params.startTime);
+    const endMins = startMins + duration;
     const minsToTimeString = (mins: number) =>
       `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-
+    const todayStr = getLocalDateString();
+    const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+    const isPastSlot = params.date < todayStr || (params.date === todayStr && endMins <= nowMins);
+    const blockMode = isPastSlot ? 'recorded' : 'planned';
+    const startStr = minsToTimeString(startMins);
+    const endStr = minsToTimeString(endMins);
+    if (blockMode === 'recorded' && checkRecordingOverlap(params.date, startStr, endStr)) {
+      return;
+    }
     addTimeBlock({
       taskId,
       title: task.title,
       calendarContainerId: task.calendarContainerId,
       categoryId: task.categoryId,
       tagIds: task.tagIds ?? [],
-      start: minsToTimeString(startMins),
-      end: minsToTimeString(startMins + duration),
+      start: startStr,
+      end: endStr,
       date: params.date,
-      mode: 'planned',
+      mode: blockMode,
       source: 'manual',
     });
   };
 
   const checkRecordingOverlap = useCallback((date: string, startTime: string, endTime: string, excludeBlockId?: string) => {
-    if (mode !== 'recording') return false;
     const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
     const newStart = parseT(startTime);
     const newEnd = parseT(endTime);
@@ -427,7 +465,7 @@ export default function App() {
       return true;
     }
     return false;
-  }, [mode, timeBlocks]);
+  }, [timeBlocks]);
 
   const handleCreateBlock = (params: { date: string; startTime: string; endTime: string }) => {
     let containerId = calendarContainers[0]?.id;
@@ -444,8 +482,15 @@ export default function App() {
       categoryId = newCat.id;
     }
     if (!categoryId) return undefined;
-    // Warn if recording and overlapping an existing recorded block.
-    checkRecordingOverlap(params.date, params.startTime, params.endTime);
+    const todayStr = getLocalDateString();
+    const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+    const [eh, em] = params.endTime.split(':').map(Number);
+    const endMins = (eh ?? 0) * 60 + (em ?? 0);
+    const isPastSlot = params.date < todayStr || (params.date === todayStr && endMins <= nowMins);
+    const blockMode = isPastSlot ? 'recorded' : 'planned';
+    if (blockMode === 'recorded' && checkRecordingOverlap(params.date, params.startTime, params.endTime)) {
+      return undefined;
+    }
     const id = addTimeBlock({
       title: '',
       calendarContainerId: containerId,
@@ -454,7 +499,7 @@ export default function App() {
       start: params.startTime,
       end: params.endTime,
       date: params.date,
-      mode: mode === 'planning' ? 'planned' : 'recorded',
+      mode: blockMode,
       source: 'manual',
     });
     // Immediately open the Add Event popup to fill in details; delete draft on cancel.
@@ -476,7 +521,6 @@ export default function App() {
   const handleMoveBlock = (blockId: string, params: { date: string; startTime: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
-    // Don't allow moving untitled events; prompt user to name it first.
     if (!(block.title ?? '').trim() && !block.taskId) {
       setEditingTaskId(null);
       setEditingTimeBlockId(blockId);
@@ -485,13 +529,8 @@ export default function App() {
       setIsAddModalOpen(true);
       return;
     }
-    const origStart = parseTimeToMins(block.start);
-    const origEnd = parseTimeToMins(block.end);
-    const newStart = parseTimeToMins(params.startTime);
-    const newEnd = parseTimeToMins(params.endTime);
-    // Warn if recording and the moved block overlaps an existing recorded block.
     if (block.mode === 'recorded') {
-      checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId);
+      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId)) return;
     }
     updateTimeBlock(blockId, { start: params.startTime, end: params.endTime, date: params.date });
   };
@@ -500,9 +539,19 @@ export default function App() {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
     if (block.mode === 'recorded') {
-      checkRecordingOverlap(block.date, block.start, params.endTime, blockId);
+      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
     }
     updateTimeBlock(blockId, { date: params.date, end: params.endTime });
+  };
+
+  const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
+    updateEvent(eventId, { date: params.date, start: params.startTime, end: params.endTime });
+  };
+
+  const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return;
+    updateEvent(eventId, { date: params.date, end: params.endTime });
   };
 
   // Supabase auth session + persistence
@@ -538,10 +587,33 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data }) => {
       void setupForSession(data.session);
+      // After Supabase has had a chance to use the URL, parse auth errors (from hash or query).
+      // PKCE uses query params; implicit uses hash. Only clear and show message on error.
+      if (typeof window === 'undefined') return;
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const params = new URLSearchParams(hash ? hash.slice(1) : search.slice(1));
+      const error = params.get('error');
+      if (!error) return;
+      const errorCode = params.get('error_code');
+      const description = (params.get('error_description') ?? '').replace(/\+/g, ' ');
+      if (error === 'access_denied' && (errorCode === 'otp_expired' || description.toLowerCase().includes('expired'))) {
+        setAuthErrorFromUrl('That sign-in link has expired or was already used. Request a new one below.');
+      } else if (description.toLowerCase().includes('redirect') || description.toLowerCase().includes('url')) {
+        const siteUrl = window.location.origin + window.location.pathname;
+        setAuthErrorFromUrl(`Redirect URL not allowed. In Supabase: Auth → URL Configuration → add "${siteUrl}" to Redirect URLs.`);
+      } else {
+        setAuthErrorFromUrl(description || 'Sign-in failed. Try again.');
+      }
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       void setupForSession(nextSession);
+      // Clear code/hash from URL after successful sign-in so tokens don't stay in the bar
+      if (nextSession && typeof window !== 'undefined' && (window.location.hash || window.location.search.includes('code='))) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     });
 
     return () => {
@@ -560,40 +632,31 @@ export default function App() {
       if (key === 'd') { setView('day'); e.preventDefault(); }
       else if (key === 'w') { setView('week'); e.preventDefault(); }
       else if (key === 'm') { setView('month'); e.preventDefault(); }
-      else if (key === 'p') { setViewMode('planning'); e.preventDefault(); }
-      else if (key === 'r') { setViewMode('recording'); e.preventDefault(); }
+      else if (key === 'c') { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
       else if (key === 'a') { setAllCalendarsVisible(); e.preventDefault(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setView, setViewMode, setAllCalendarsVisible]);
+  }, [mode, setView, setViewMode, setAllCalendarsVisible]);
 
-  // Show friendly message when returning from Supabase with an error (e.g. expired magic link)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.slice(1));
-    const error = params.get('error');
-    const description = params.get('error_description');
-    if (error === 'access_denied' && (params.get('error_code') === 'otp_expired' || description?.toLowerCase().includes('expired'))) {
-      setAuthErrorFromUrl('That sign-in link has expired. Request a new one below.');
-    } else if (error) {
-      setAuthErrorFromUrl(description?.replace(/\+/g, ' ') ?? 'Sign-in failed. Try again.');
+  const getRedirectUrl = () => {
+    const fromEnv = import.meta.env.VITE_SITE_URL as string | undefined;
+    if (fromEnv && typeof fromEnv === 'string' && fromEnv.startsWith('http')) {
+      return fromEnv.replace(/\/$/, '') + (window.location.pathname || '/');
     }
-    if (error && hash) {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-  }, []);
+    return window.location.origin + window.location.pathname;
+  };
 
   const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !authEmail.trim()) return;
     setAuthMessage(null);
     setAuthErrorFromUrl(null);
+    const redirectTo = getRedirectUrl();
     const { error } = await supabase.auth.signInWithOtp({
       email: authEmail.trim(),
       options: {
-        emailRedirectTo: window.location.origin + window.location.pathname,
+        emailRedirectTo: redirectTo,
       },
     });
     if (error) {
@@ -603,8 +666,8 @@ export default function App() {
     }
   };
 
-  // Auth gate — in production, always require sign-in; in dev, allow local-only mode when Supabase isn't configured
-  const requireAuth = import.meta.env.PROD || !!supabase;
+  // Auth gate: require sign-in only in production. In dev you get visit mode by default; sign in once to test backend (session persists).
+  const requireAuth = !!supabase && import.meta.env.PROD;
 
   if (requireAuth && session && !dataReady) {
     return (
@@ -637,6 +700,11 @@ export default function App() {
               {authErrorFromUrl && (
                 <div className="mb-3 text-xs text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
                   {authErrorFromUrl}
+                  {typeof window !== 'undefined' && (
+                    <p className="mt-2 text-neutral-600">
+                      In Supabase: Auth → URL Configuration set <strong>Site URL</strong> to your app (e.g. <code className="font-mono break-all">{window.location.origin}</code>) and add it to <strong>Redirect URLs</strong>.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -692,7 +760,7 @@ export default function App() {
   }
 
   return (
-    <div className={`h-screen w-full flex flex-col overflow-hidden ${mode === 'recording' ? 'bg-neutral-100' : 'bg-neutral-50'}`}>
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-neutral-50">
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -781,7 +849,7 @@ export default function App() {
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                 endDayLabel={`End day (${selectedDate})`}
                 onEndDay={() => endDay(selectedDate)}
-                planVsActualSection={
+                planVsActualSection={mode === 'compare' ? (
                   <div className="px-4 pb-6 pt-3">
                     <p className="text-[6px] text-neutral-400 mb-2 pl-0.5">
                       {view === 'week'
@@ -880,7 +948,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                }
+                ) : undefined}
                 canEditOrganization={true}
                 isShortcutsOpen={isShortcutsOpen}
                 onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
@@ -946,14 +1014,16 @@ export default function App() {
           focusedCategoryId={focusedCategoryId}
           focusedCalendarId={focusedCalendarId}
           onOpenAddModal={handleOpenAddModal}
-          onDoneAsPlanned={markDoneAsPlanned}
-          onDidSomethingElse={markDidSomethingElse}
+          onConfirm={markDoneAsPlanned}
+          onUnconfirm={(id) => updateTimeBlock(id, { mode: 'planned' })}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
           onResizeBlock={handleResizeBlock}
+          onMoveEvent={handleMoveEvent}
+          onResizeEvent={handleResizeEvent}
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
@@ -1012,6 +1082,7 @@ export default function App() {
                 unscheduledTasks={unscheduledDisplay}
                 partiallyCompletedTasks={partiallyCompletedDisplay}
                 fixedMissedTasks={fixedMissedDisplay}
+                doneTasks={doneDisplay}
                 selectedDate={selectedDate}
                 timeBlocks={timeBlocks}
                 categories={categories}
@@ -1020,8 +1091,9 @@ export default function App() {
                 onOpenScheduleTask={handleOpenScheduleTask}
                 onEditTask={handleEditTask}
                 onDeleteTask={deleteTask}
+                onMarkTaskDone={handleMarkTaskDone}
                 onOpenAddModal={handleOpenAddModal}
-                onDropBlock={mode === 'planning' ? deleteTimeBlock : undefined}
+                onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
                 events={events}
@@ -1048,14 +1120,16 @@ export default function App() {
           containerVisibility={containerVisibility}
           isMobile
           onOpenAddModal={handleOpenAddModal}
-          onDoneAsPlanned={markDoneAsPlanned}
-          onDidSomethingElse={markDidSomethingElse}
+          onConfirm={markDoneAsPlanned}
+          onUnconfirm={(id) => updateTimeBlock(id, { mode: 'planned' })}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
           onResizeBlock={handleResizeBlock}
+          onMoveEvent={handleMoveEvent}
+          onResizeEvent={handleResizeEvent}
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
@@ -1066,6 +1140,7 @@ export default function App() {
           unscheduledTasks={unscheduledDisplay}
           partiallyCompletedTasks={partiallyCompletedDisplay}
           fixedMissedTasks={fixedMissedDisplay}
+          doneTasks={doneDisplay}
           selectedDate={selectedDate}
           timeBlocks={timeBlocks}
           categories={categories}
@@ -1074,8 +1149,9 @@ export default function App() {
           onOpenScheduleTask={handleOpenScheduleTask}
           onEditTask={handleEditTask}
           onDeleteTask={deleteTask}
+          onMarkTaskDone={handleMarkTaskDone}
           onOpenAddModal={handleOpenAddModal}
-          onDropBlock={mode === 'planning' ? deleteTimeBlock : undefined}
+          onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
         />
@@ -1113,8 +1189,6 @@ export default function App() {
         tags={tags}
         calendarContainers={calendarContainers}
         initialMode={addModalMode}
-        viewMode={mode}
-        onViewModeChange={setViewMode}
         editingTask={editingTask}
         editingTimeBlock={editingTimeBlock}
         editingEvent={editingEvent}

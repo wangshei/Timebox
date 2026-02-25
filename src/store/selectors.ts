@@ -48,6 +48,18 @@ export function selectFixedTasks(tasks: Task[]): Task[] {
   return getFixedTasks(tasks);
 }
 
+/** Tasks that have recorded time and no planned time (fully confirmed / done). */
+export function selectDoneTasks(
+  tasks: Task[],
+  timeBlocks: TimeBlock[]
+): Task[] {
+  return tasks.filter((task) => {
+    const planned = getPlannedMinutes(task, timeBlocks);
+    const recorded = getRecordedMinutes(task, timeBlocks);
+    return planned === 0 && recorded > 0;
+  });
+}
+
 export function selectTimeBlocksForDate(
   timeBlocks: TimeBlock[],
   date: string,

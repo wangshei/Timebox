@@ -76,17 +76,17 @@ flowchart TB
   Store --> Supabase
 ```
 
-### 2.2 User flows (Planning vs Recording)
+### 2.2 User flows (Plan vs Record within Overall view)
 
 ```mermaid
 flowchart LR
-  subgraph Planning [Planning Mode]
+  subgraph Planning [Planning (Intention)]
     P1[Create Task] --> P2[Split into blocks]
     P2 --> P3[Place on calendar]
     P3 --> P4[Resize / move blocks]
   end
 
-  subgraph Recording [Recording Mode]
+  subgraph Recording [Recording (Reality)]
     R1[View faded planned blocks] --> R2[Click block]
     R2 --> R3{Done as planned?}
     R3 -->|Yes| R4[Create recorded block]
@@ -179,7 +179,7 @@ flowchart LR
   subgraph Inputs [User Inputs]
     CreateTask[Create Task]
     AddEvent[Add Event]
-    ToggleMode[Toggle Planning/Recording]
+    ToggleMode[Toggle Overall/Compare view]
     ToggleContainers[Toggle Calendar Visibility]
     ClickBlock[Click Time Block]
     EndDay[End Day]
@@ -229,7 +229,7 @@ flowchart LR
 | **Tasks** | List by backlog section | 🔲 | Needs store selectors |
 | **Tasks** | Edit / delete task | 🔲 | |
 | **TimeBlocks** | Create planned from task | 🔲 | Split by defaultBlockMinutes |
-| **TimeBlocks** | Create recorded (done-as-planned) | 🔲 | From Recording mode |
+| **TimeBlocks** | Create recorded (done-as-planned) | 🔲 | From past planned block in Overall view |
 | **TimeBlocks** | Create recorded (override) | 🔲 | Did something else |
 | **TimeBlocks** | Move / resize on grid | 🔲 | Phase 3 drag-drop |
 | **TimeBlocks** | Delete block | 🔲 | |
@@ -285,7 +285,7 @@ flowchart LR
 
 - **Task list (unfinished work):** [docs/TASK_LIST.md](./TASK_LIST.md) — actionable checklist; link and manage tasks here.
 - **Engineer docs:** [ONBOARDING](./ONBOARDING.md), [SYSTEM_INTEGRATION](./SYSTEM_INTEGRATION.md), [UIUX_STANDARDS](./UIUX_STANDARDS.md), [PROJECT_STANDARDS](./PROJECT_STANDARDS.md).
-- **Product spec:** See project root or `docs/` for consolidated v0 spec (planning vs recording, entities, backlog sections).
+- **Product spec:** See project root or `docs/` for consolidated v0 spec (plan vs record, entities, backlog sections).
 - **Roadmap plan:** `.cursor/plans/timebox-supabase-roadmap_*.plan.md`.
 
 ---

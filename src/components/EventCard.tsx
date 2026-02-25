@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
+import { cn } from './ui/utils';
+import { getTextClassForBackground, hexToRgba, desaturate, lighten } from '../utils/color';
+import { getLocalDateString } from '../utils/dateTime';
+import { Chip } from './ui/chip';
+
+const POPOVER_WIDTH = 224;
+const POPOVER_MAX_HEIGHT = 420;
+const GAP = 8;
 
 interface EventCardProps {
   key?: React.Key;
@@ -13,27 +21,10 @@ interface EventCardProps {
   onEditEvent?: (eventId: string) => void;
   /** When true, use same transparent + border style as planned time blocks */
   plannedStyle?: boolean;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!m) return null;
-  return {
-    r: parseInt(m[1], 16),
-    g: parseInt(m[2], 16),
-    b: parseInt(m[3], 16),
-  };
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toHex = (v: number) => v.toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+  /** When true and onMoveEvent is used, card is draggable */
+  draggable?: boolean;
+  /** Called when user mousedowns on the bottom-edge resize handle */
+  onResizeStart?: (e: React.MouseEvent) => void;
 }
 
 export function EventCard({
@@ -45,12 +36,39 @@ export function EventCard({
   onDeleteEvent,
   onEditEvent,
   plannedStyle = false,
+  draggable = false,
+  onResizeStart,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
+  const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
+  const [now, setNow] = useState(() => new Date());
+  const cardRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const todayStr = getLocalDateString(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const eventEndMins = (() => {
+    const [h, m] = event.end.split(':').map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  })();
+  const isPast = event.date < todayStr || (event.date === todayStr && eventEndMins <= nowMins);
 
   const categoryColor = event.category?.color ?? '#6b7280';
   const calendarColor = event.calendarContainer?.color ?? '#6b7280';
-  const bgColor = plannedStyle ? hexToRgba(categoryColor, 0.2) : categoryColor;
+  const baseBg = plannedStyle ? hexToRgba(categoryColor, 0.2) : categoryColor;
+  const bgColor = plannedStyle
+    ? baseBg
+    : isPast
+      ? lighten(desaturate(categoryColor, 0.35), 0.55)
+      : categoryColor;
+  const opacity = plannedStyle ? 1 : isPast ? 0.82 : 1;
+  const textClass = plannedStyle ? 'text-neutral-900' : getTextClassForBackground(isPast ? lighten(desaturate(categoryColor, 0.35), 0.55) : categoryColor);
   const borderStyle = plannedStyle
     ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
     : { borderLeft: `4px solid ${calendarColor}` };
@@ -73,52 +91,124 @@ export function EventCard({
     return `${mins}m`;
   };
 
+  const getDurationMinutes = () => {
+    const [startHour, startMin] = event.start.split(':').map(Number);
+    const [endHour, endMin] = event.end.split(':').map(Number);
+    return (endHour * 60 + endMin) - (startHour * 60 + startMin);
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!draggable) return;
+    e.dataTransfer.setData('application/x-timebox-event-id', event.id);
+    e.dataTransfer.setData('application/x-timebox-event-duration', String(getDurationMinutes()));
+    e.dataTransfer.setData('text/plain', event.title || 'Event');
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.dataTransfer.setDragImage && event.title) {
+      const ghost = document.createElement('div');
+      ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
+      ghost.textContent = event.title;
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      ghost.style.backgroundColor = hexToRgba(categoryColor, 0.95);
+      ghost.style.borderLeft = `4px solid ${calendarColor}`;
+      ghost.style.color = getTextClassForBackground(categoryColor) === 'text-white' ? '#fff' : '#1f2937';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 8, 8);
+      requestAnimationFrame(() => document.body.removeChild(ghost));
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (!showPopover || !isSelected || !cardRef.current || !popoverRef.current) return;
+    const cardRect = cardRef.current.getBoundingClientRect();
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const spaceBelow = viewportH - cardRect.bottom;
+    const preferTop = spaceBelow < POPOVER_MAX_HEIGHT + GAP;
+    setPopoverPosition(preferTop ? 'top-right' : 'bottom-left');
+  }, [showPopover, isSelected]);
+
+  const handlePopoverDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX - popoverDragOffset.x;
+    const startY = e.clientY - popoverDragOffset.y;
+    const onMove = (ev: MouseEvent) => {
+      setPopoverDragOffset({ x: ev.clientX - startX, y: ev.clientY - startY });
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   return (
     <div
-      className="absolute cursor-pointer group pr-1 pointer-events-auto"
+      ref={cardRef}
+      className={cn(
+        'absolute w-full min-w-0 pointer-events-auto group',
+        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+      )}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => {
         onSelect();
         setShowPopover(true);
       }}
+      draggable={draggable}
+      onDragStart={handleDragStart}
     >
       <div
-        className={`h-full rounded-lg px-3 py-2 transition-all ${plannedStyle ? '' : 'border-l-4'} ${
-          isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''
-        }`}
+        className={cn(
+          'h-full w-full rounded-lg px-3 py-2 transition-all flex flex-col min-h-0 shadow-sm',
+          plannedStyle ? '' : 'border-l-4',
+          isSelected && 'ring-2 ring-blue-400 ring-offset-1'
+        )}
         style={{
           backgroundColor: bgColor,
+          opacity,
           ...borderStyle,
         }}
       >
-        <div className={`flex flex-col h-full ${plannedStyle ? 'text-neutral-800' : 'text-white'}`}>
-          <div className="flex items-start justify-between gap-2">
+        <div className={cn('flex flex-col h-full min-w-0', textClass)}>
+          <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
             <span className="font-medium text-sm leading-snug truncate">
               {event.title || 'Untitled Event'}
             </span>
-            <span className="text-xs whitespace-nowrap opacity-90">
+            <span className="text-xs whitespace-nowrap opacity-90 shrink-0">
               {getDuration()}
             </span>
           </div>
           {heightPx >= 48 && (
-            <div className="mt-0.5 text-xs opacity-80">
+            <div className="mt-0.5 text-xs opacity-80 shrink-0">
               {event.start} – {event.end}
             </div>
           )}
-          {heightPx >= 64 && event.category && (
-            <div className="mt-auto flex items-center gap-1">
-              <span
-                className="text-xs px-2 py-0.5 rounded-full truncate max-w-[120px] bg-white/20 backdrop-blur-sm"
-              >
+          {heightPx >= 72 && event.description && (
+            <p className="mt-1 text-xs opacity-90 line-clamp-2 min-w-0 flex-shrink-0">
+              {event.description}
+            </p>
+          )}
+          {heightPx >= 56 && event.category && (
+            <div className="mt-auto flex flex-wrap items-center gap-1 pt-1 shrink-0">
+              <Chip variant="subtle" color={categoryColor} contrastBackgroundHex={plannedStyle ? undefined : categoryColor} className="max-w-[120px]">
                 {event.category.name}
-              </span>
+              </Chip>
             </div>
           )}
         </div>
       </div>
 
-      {/* Detail popover */}
+      {onResizeStart && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(e); }}
+        >
+          <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
+        </div>
+      )}
+
+      {/* Detail popover: position top-right if would overflow bottom, draggable */}
       {showPopover && isSelected && (
         <>
           <div
@@ -126,95 +216,98 @@ export function EventCard({
             onClick={(e) => {
               e.stopPropagation();
               setShowPopover(false);
+              setPopoverDragOffset({ x: 0, y: 0 });
               onDeselect();
             }}
           />
-          <div className="absolute z-20 top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-neutral-200 p-3 min-w-56">
-            {/* Event title */}
-            <div className="font-semibold text-sm text-neutral-800 mb-2">
-              {event.title || 'Untitled Event'}
+          <div
+            ref={popoverRef}
+            className="absolute z-20 bg-white rounded-lg shadow-lg border border-neutral-200 p-3 min-w-56"
+            style={{
+              ...(popoverPosition === 'bottom-left'
+                ? { top: '100%', left: 0, marginTop: 8 }
+                : { bottom: '100%', right: 0, marginBottom: 8 }),
+              transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
+            }}
+          >
+            <div
+              className="cursor-grab active:cursor-grabbing border-b border-neutral-100 pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-lg"
+              onMouseDown={handlePopoverDragStart}
+            >
+              <div className="font-semibold text-sm text-neutral-800 truncate">
+                {event.title || 'Untitled Event'}
+              </div>
             </div>
-
-            {/* Time */}
-            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-              <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{event.start} – {event.end} ({getDuration()})</span>
-            </div>
-
-            {/* Date */}
-            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{event.date}</span>
-            </div>
-
-            {/* Category */}
-            {event.category && (
+            <div className="pt-2">
               <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: event.category.color }}
-                />
-                <span>{event.category.name}</span>
+                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
-            )}
-
-            {/* Calendar */}
-            {event.calendarContainer && (
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
-                <div
-                  className="w-3 h-3 rounded flex-shrink-0 border"
-                  style={{ backgroundColor: event.calendarContainer.color, borderColor: event.calendarContainer.color }}
-                />
-                <span>{event.calendarContainer.name}</span>
+              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
+                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{event.date}</span>
               </div>
-            )}
-
-            {/* Description */}
-            {event.description && (
-              <div className="text-xs text-neutral-600 whitespace-pre-wrap mb-2">{event.description}</div>
-            )}
-            {/* Link */}
-            {event.link && (
-              <div className="mb-2">
-                <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
-                  {event.link}
-                </a>
-              </div>
-            )}
-
-            {/* Divider + Edit + Delete */}
-            <div className="border-t border-neutral-200 my-1" />
-            <div className="flex flex-col gap-0.5">
-              {onEditEvent && (
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditEvent(event.id);
-                    setShowPopover(false);
-                    onDeselect();
-                  }}
-                >
-                  <PencilIcon className="h-4 w-4" />
-                  Edit event
-                </button>
+              {event.category && (
+                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: event.category.color }}
+                  />
+                  <span>{event.category.name}</span>
+                </div>
               )}
-              {onDeleteEvent && (
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteEvent(event.id);
-                    setShowPopover(false);
-                    onDeselect();
-                  }}
-                >
-                  <TrashIcon className="h-4 w-4" />
-                  Delete event
-                </button>
+              {event.calendarContainer && (
+                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
+                  <div
+                    className="w-3 h-3 rounded flex-shrink-0 border"
+                    style={{ backgroundColor: event.calendarContainer.color, borderColor: event.calendarContainer.color }}
+                  />
+                  <span>{event.calendarContainer.name}</span>
+                </div>
               )}
+              {event.description && (
+                <div className="text-xs text-neutral-600 whitespace-pre-wrap mb-2">{event.description}</div>
+              )}
+              {event.link && (
+                <div className="mb-2">
+                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
+                    {event.link}
+                  </a>
+                </div>
+              )}
+              <div className="border-t border-neutral-200 my-1" />
+              <div className="flex gap-1">
+                {onEditEvent && (
+                  <button
+                    type="button"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditEvent(event.id);
+                      setShowPopover(false);
+                      onDeselect();
+                    }}
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                    Edit
+                  </button>
+                )}
+                {onDeleteEvent && (
+                  <button
+                    type="button"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteEvent(event.id);
+                      setShowPopover(false);
+                      onDeselect();
+                    }}
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </>

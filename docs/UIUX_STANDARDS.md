@@ -15,7 +15,7 @@ Principles for calendar interaction and UI so the app stays intuitive and consis
 ## 2. Calendar interaction principles
 
 - **Drag time, don't type dates first.** Placing a task on the calendar should be drag-from-backlog (or split then drag). Typing start/end time is secondary (e.g. in a modal for precision).
-- **Same interaction in Day, Week, Month.** Where a block is clickable (Day/Week/Month), the same actions apply: in Recording mode, click → "Done as planned" / "Done differently" / "Did something else." Don't make Week/Month "view only" if Day is interactive.
+- **Same interaction in Day, Week, Month.** Where a block is clickable (Day/Week/Month), the same actions apply: when a block is in a past slot, click → "Done as planned" / "Done differently" / "Did something else." Don't make Week/Month "view only" if Day is interactive.
 - **30-minute grid.** All blocks snap to 30-minute boundaries unless we explicitly add a "15-min" or "hour" option. Display and resize use the same grid.
 - **Visible feedback.** On drag: ghost or outline. On drop: block appears immediately. On "Done as planned": recorded block appears, planned block fades or is replaced. No silent state changes.
 - **Selected date drives context.** "Today" summary, backlog "for this day," and End Day action are for the **selected date** (or "today" if that's the selected date). Make the selected date obvious in the header.
@@ -24,7 +24,7 @@ Principles for calendar interaction and UI so the app stays intuitive and consis
 
 ## 3. Layout and hierarchy (Notion / GCal inspired)
 
-- **Left:** Mode (Planning / Recording), calendar visibility toggles (Personal, Work, School), Today/summary (planned + recorded, Plan vs Actual). Optional: tabs for Calendar / Category / Tag management (Notion-style side panel).
+- **Left:** Calendar visibility toggles (Personal, Work, School), Today/summary (planned + recorded, Plan vs Actual). Optional: tabs for Calendar / Category / Tag management (Notion-style side panel).
 - **Center:** Calendar (Day / Week / Month). Primary focus. Header: nav (prev/next/today), selected date, view switcher.
 - **Right:** Backlog. Sections: Unscheduled (flexible), Partially completed, Fixed/Missed, Events. Add Task/Event entry point.
 - **Modals:** Add Task, Add Event, Edit block (if needed). Keep primary flows on the main canvas; modals for structured forms.
@@ -35,7 +35,7 @@ Side panel for **Calendars / Categories / Tags** should be **editable** (add, re
 
 ## 4. Consistency and clarity
 
-- **Naming in UI:** Use the same terms as the code and docs: "Planning" / "Recording," "Planned" / "Recorded," "Calendar" (function/bucket), "Category" (type of activity), "Tag" (optional), "Task," "Time block," "End day."
+- **Naming in UI:** Use the same terms as the code and docs: "Planned" / "Recorded," "Calendar" (function/bucket), "Category" (type of activity), "Tag" (optional), "Task," "Time block," "End day."
 - **Category vs Calendar vs Tag:**
   - **Category** = type of thing to do per day (e.g. Deep Work, Exercise). Category has a **color** → that color is the **block fill** on the calendar. Required for every task/block.
   - **Calendar** = function or bucket (e.g. Work, School). Calendar has a **color** → that color is the **left border** on blocks to differentiate buckets. Required for every task/block. One calendar contains many categories.

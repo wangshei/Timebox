@@ -670,15 +670,9 @@ export function LeftSidebar({
                   </div>
                   <div className="flex justify-between gap-4">
                     <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
-                      p
+                      c
                     </kbd>
-                    <span>Plan mode</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">
-                      r
-                    </kbd>
-                    <span>Record mode</span>
+                    <span>Compare planned vs recorded</span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <kbd className="font-mono bg-neutral-100 px-1.5 py-0.5 rounded">

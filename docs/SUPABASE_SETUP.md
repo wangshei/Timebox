@@ -23,9 +23,13 @@ RLS is what makes each user see only their own data. The message “anonymous us
 
 **Magic link (email sign-in):**
 
-- The app sends `emailRedirectTo: window.location.origin + pathname` so the link returns to the same URL you’re on (e.g. `http://localhost:3001/`).
-- In [Supabase Dashboard](https://supabase.com/dashboard) → **Authentication** → **URL Configuration**, add your app URL(s) under **Redirect URLs** (e.g. `http://localhost:3000`, `http://localhost:3001`). If the redirect URL isn’t listed, the magic link will fail.
-- Magic links expire (default 1 hour). If you see “Email link is invalid or has expired”, request a new link from the app; the UI will show a short message and let you try again.
+- **Why does the link go to localhost?** Supabase uses **Site URL** (Auth → URL Configuration) as the default base for the link in the email. If Site URL is `http://localhost:5173`, the magic link will point there even when you open the app from production. Fix: set **Site URL** to your **production** URL (e.g. `https://timebox-fawn.vercel.app`).
+- **Redirect URL:** The app sends `emailRedirectTo` so the link returns to your app. In production we use `VITE_SITE_URL` when set (e.g. in Vercel: `VITE_SITE_URL=https://timebox-fawn.vercel.app`). In dev we use the current origin. Set this in your deployment (Vercel → Project → Settings → Environment Variables) so magic links always point to production.
+- **Required in Supabase:** [Authentication](https://supabase.com/dashboard) → **URL Configuration**:
+  - **Site URL** = your **production** app URL (e.g. `https://timebox-fawn.vercel.app`). This is what Supabase uses when building the link in the email.
+  - **Redirect URLs** = add both `https://timebox-fawn.vercel.app/**` and `http://localhost:5173/**` (or your dev URL) so both production and local work.
+- **Email template (optional):** If the link still goes to the wrong place, in Auth → Email Templates → Magic Link, ensure the link uses `{{ .ConfirmationURL }}` (it includes the redirect). Do not use only `{{ .SiteURL }}` for the href. See [Email Templates](https://supabase.com/docs/guides/auth/auth-email-templates).
+- Magic links expire (default 1 hour) and are one-time use.
 
 ---
 

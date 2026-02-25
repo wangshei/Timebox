@@ -106,3 +106,37 @@ export function resolveEvents(
 ): ResolvedEvent[] {
   return events.map(e => resolveEvent(e, categories, containers));
 }
+
+function parseTimeToMins(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+function blocksOverlap(
+  a: { date: string; taskId?: string | null; start: string; end: string },
+  b: { date: string; taskId?: string | null; start: string; end: string }
+): boolean {
+  if (a.date !== b.date) return false;
+  const aTask = a.taskId ?? '';
+  const bTask = b.taskId ?? '';
+  if (aTask !== bTask) return false;
+  const aStart = parseTimeToMins(a.start);
+  const aEnd = parseTimeToMins(a.end);
+  const bStart = parseTimeToMins(b.start);
+  const bEnd = parseTimeToMins(b.end);
+  return aStart < bEnd && bStart < aEnd;
+}
+
+/**
+ * Main view: recorded blocks replace planned blocks for the same slot (same date, same taskId or both standalone, overlapping time).
+ * Returns all recorded blocks plus planned blocks that have no overlapping recorded block.
+ */
+export function selectMainViewBlocks(blocks: ResolvedTimeBlock[]): ResolvedTimeBlock[] {
+  const recorded = blocks.filter((b) => b.mode === 'recorded');
+  const planned = blocks.filter((b) => b.mode === 'planned');
+  const plannedToShow = planned.filter((p) => {
+    const hasRecordedOverlap = recorded.some((r) => blocksOverlap(p, r));
+    return !hasRecordedOverlap;
+  });
+  return [...recorded, ...plannedToShow];
+}

@@ -70,7 +70,7 @@ function getInitialState(): AppState {
     categories,
     tags,
     events: [],
-    viewMode: 'planning',
+    viewMode: 'overall',
     view: 'day',
     selectedDate: getLocalDateString(),
     containerVisibility: visibility,
@@ -97,7 +97,7 @@ export interface AppActions {
 
   createPlannedBlocksFromTask: (
     taskId: string,
-    params: { date: string; startTime: string; blockMinutes?: number; splitTask?: boolean }
+    params: { date: string; startTime: string; blockMinutes?: number; splitTask?: boolean; singleBlock?: boolean }
   ) => void;
   markDoneAsPlanned: (plannedBlockId: string) => void;
   markDidSomethingElse: (plannedBlockId: string, recorded: Omit<TimeBlock, 'id' | 'mode' | 'source'>) => void;
@@ -187,7 +187,7 @@ export const useStore = create<AppState & AppActions>()(
       timeBlocks: s.timeBlocks.filter((b) => b.id !== id),
     })),
 
-  createPlannedBlocksFromTask: (taskId, { date, startTime, blockMinutes, splitTask }) => {
+  createPlannedBlocksFromTask: (taskId, { date, startTime, blockMinutes, splitTask, singleBlock }) => {
     const state = get();
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -227,6 +227,29 @@ export const useStore = create<AppState & AppActions>()(
             : t
         ),
       }));
+      return;
+    }
+
+    if (singleBlock) {
+      // Schedule modal: create exactly one block of chosen length (or remaining), no loop, no task reduction
+      const scheduledMins = Math.min(remaining, blockMins);
+      const endMins = startMins + scheduledMins;
+      const startStr = `${Math.floor(startMins / 60)}:${String(startMins % 60).padStart(2, '0')}`;
+      const endStr = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+      blocks.push({
+        id: generateId(),
+        taskId,
+        title: task.title,
+        calendarContainerId: task.calendarContainerId,
+        categoryId: task.categoryId,
+        tagIds: task.tagIds,
+        start: startStr,
+        end: endStr,
+        date,
+        mode: 'planned',
+        source: 'manual',
+      });
+      set((s) => ({ timeBlocks: [...s.timeBlocks, ...blocks] }));
       return;
     }
 
@@ -427,6 +450,10 @@ export function hydrateFromLocalStorage() {
       ...prev,
       ...parsed,
     }));
+    const stored = parsed.viewMode as string | undefined;
+    if (stored !== 'overall' && stored !== 'compare') {
+      useStore.setState({ viewMode: 'overall' });
+    }
   } catch {
     // Ignore corrupted cache; keep seed state.
   }

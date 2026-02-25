@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
-import { Bars3Icon, CalendarIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -13,6 +13,8 @@ interface TaskCardProps {
   onScheduleTask?: () => void;
   onEditTask?: () => void;
   onDeleteTask?: () => void;
+  /** Mark all planned blocks of this task as done (create recorded for each). */
+  onMarkTaskDone?: () => void;
   /** Break task into smaller tasks (e.g. 30min, 1h chunks) and add to backlog. */
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
@@ -21,7 +23,7 @@ interface TaskCardProps {
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const; // minutes: 30m, 1h, 1.5h, 2h
 
-export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', onScheduleTask, onEditTask, onDeleteTask, onBreakIntoChunks, onSplitTask }: TaskCardProps) {
+export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', onScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onBreakIntoChunks, onSplitTask }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
@@ -312,8 +314,18 @@ export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', o
                   onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
                 >
                   <CalendarIcon className="h-4 w-4" />
-                  Schedule task
+                  {task.recordedHours > 0 ? 'Schedule again' : 'Schedule task'}
                 </button>
+                {onMarkTaskDone && (
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors"
+                    onClick={() => { onMarkTaskDone(); setShowPopover(false); }}
+                  >
+                    <CheckIcon className="h-4 w-4" />
+                    Check as done
+                  </button>
+                )}
                 <button
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
@@ -556,8 +568,18 @@ export function TaskCard({ task, viewMode = 'overview', popoverSide = 'right', o
                   onClick={() => { onScheduleTask?.(); setShowPopover(false); }}
                 >
                   <CalendarIcon className="h-4 w-4" />
-                  Schedule task
+                  {task.recordedHours > 0 ? 'Schedule again' : 'Schedule task'}
                 </button>
+                {onMarkTaskDone && (
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors"
+                    onClick={() => { onMarkTaskDone(); setShowPopover(false); }}
+                  >
+                    <CheckIcon className="h-4 w-4" />
+                    Check as done
+                  </button>
+                )}
                 <button
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
