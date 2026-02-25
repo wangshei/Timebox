@@ -33,7 +33,7 @@ import { loadSupabaseState, startSupabasePersistence } from './supabasePersisten
 
 // Re-export for components that still import from App
 export type Mode = StoreMode;
-export type View = 'day' | 'week' | 'month';
+export type View = 'day' | '3day' | 'week' | 'month';
 export type { Category, Tag };
 export interface Task {
   id: string;
@@ -630,6 +630,7 @@ export default function App() {
       if (isInput) return;
       const key = e.key.toLowerCase();
       if (key === 'd') { setView('day'); e.preventDefault(); }
+      else if (key === '3') { setView('3day'); e.preventDefault(); }
       else if (key === 'w') { setView('week'); e.preventDefault(); }
       else if (key === 'm') { setView('month'); e.preventDefault(); }
       else if (key === 'c') { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
@@ -671,23 +672,23 @@ export default function App() {
 
   if (requireAuth && session && !dataReady) {
     return (
-      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#FAF8F4' }}>
-        <div className="text-sm" style={{ color: '#8A7A6E' }}>Loading your data...</div>
+      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#F8F8F6' }}>
+        <div className="text-sm" style={{ color: '#636366' }}>Loading your data...</div>
       </div>
     );
   }
 
   if (requireAuth && !session && !visitMode) {
     return (
-      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#FAF8F4' }}>
+      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#F8F8F6' }}>
         <div className="w-full max-w-xs rounded-lg">
-          <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)' }}>
-            <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}>
+          <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
+            <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
               <div className="flex items-center gap-2 mb-0.5">
-                <CalendarIcon className="h-5 w-5" style={{ color: '#5B9BAD' }} />
-                <h1 className="text-base font-semibold" style={{ color: '#2C2820' }}>Timebox</h1>
+                <CalendarIcon className="h-5 w-5" style={{ color: '#4A80F0' }} />
+                <h1 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Timebox</h1>
               </div>
-              <p className="text-xs" style={{ color: '#A08C78' }}>Sign in to sync your tasks and calendar</p>
+              <p className="text-xs" style={{ color: '#8E8E93' }}>Sign in to sync your tasks and calendar</p>
             </div>
 
             <div className="py-4 px-4">
@@ -701,7 +702,7 @@ export default function App() {
                 <div className="mb-3 text-xs px-2.5 py-1.5 rounded-lg" style={{ color: '#7A5C30', backgroundColor: 'rgba(196,154,80,0.1)', border: '1px solid rgba(196,154,80,0.25)' }}>
                   {authErrorFromUrl}
                   {typeof window !== 'undefined' && (
-                    <p className="mt-2" style={{ color: '#6B6058' }}>
+                    <p className="mt-2" style={{ color: '#636366' }}>
                       In Supabase: Auth → URL Configuration set <strong>Site URL</strong> to your app (e.g. <code className="font-mono break-all">{window.location.origin}</code>) and add it to <strong>Redirect URLs</strong>.
                     </p>
                   )}
@@ -710,7 +711,7 @@ export default function App() {
 
               <form onSubmit={handleSendMagicLink} className="space-y-3">
                 <div>
-                  <label htmlFor="auth-email" className="block text-xs font-medium mb-1" style={{ color: '#6B6058' }}>
+                  <label htmlFor="auth-email" className="block text-xs font-medium mb-1" style={{ color: '#636366' }}>
                     Email address
                   </label>
                   <input
@@ -721,7 +722,7 @@ export default function App() {
                     placeholder="you@example.com"
                     disabled={!supabase}
                     className="w-full px-3 py-1.5 text-sm rounded-lg focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: '#2C2820', backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.25)' }}
+                    style={{ color: '#1C1C1E', backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.12)' }}
                     autoFocus
                   />
                 </div>
@@ -729,25 +730,25 @@ export default function App() {
                   type="submit"
                   disabled={!supabase}
                   className="w-full py-1.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#5B9BAD' }}
+                  style={{ backgroundColor: '#4A80F0' }}
                 >
                   Send magic link
                 </button>
                 {authMessage && (
-                  <p className="text-xs text-center pt-0.5" style={{ color: '#A08C78' }}>{authMessage}</p>
+                  <p className="text-xs text-center pt-0.5" style={{ color: '#8E8E93' }}>{authMessage}</p>
                 )}
               </form>
 
               <div className="relative my-3">
-                <div className="absolute inset-0 flex items-center"><div className="w-full" style={{ borderTop: '1px solid rgba(160,140,120,0.2)' }} /></div>
-                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FDFBF8', color: '#B0A090' }}>or</span></div>
+                <div className="absolute inset-0 flex items-center"><div className="w-full" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }} /></div>
+                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FFFFFF', color: '#B0A090' }}>or</span></div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setVisitMode(true)}
                 className="w-full py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: '1px solid rgba(160,140,120,0.25)', color: '#6B6058', backgroundColor: 'transparent' }}
+                style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#636366', backgroundColor: 'transparent' }}
               >
                 Try without signing in
               </button>
@@ -763,7 +764,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#FAF8F4' }}>
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#F8F8F6' }}>
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -782,16 +783,16 @@ export default function App() {
 
       {/* Supabase auth bar */}
       {session && (
-        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)', backgroundColor: '#F5F1EB' }}>
-          <span style={{ color: '#A08C78' }}>
-            Signed in as <span className="font-medium" style={{ color: '#2C2820' }}>{session.user.email}</span>
+        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#EFEFE9' }}>
+          <span style={{ color: '#8E8E93' }}>
+            Signed in as <span className="font-medium" style={{ color: '#1C1C1E' }}>{session.user.email}</span>
             <span className="ml-1.5" style={{ color: '#B0A090' }}>· synced</span>
           </span>
           <button
             type="button"
             onClick={() => supabase?.auth.signOut()}
             className="px-2 py-1 rounded-lg transition-colors"
-            style={{ border: '1px solid rgba(160,140,120,0.2)', color: '#6B6058' }}
+            style={{ border: '1px solid rgba(0,0,0,0.09)', color: '#636366' }}
           >
             Sign out
           </button>
@@ -801,10 +802,10 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#F5F1EB' }}>
+          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#EFEFE9' }}>
             {/* Header: Organization heading + settings + edit */}
-            <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)' }}>
-              <h2 className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#A08C78', letterSpacing: '0.12em' }}>
+            <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+              <h2 className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
                 My Calendars
               </h2>
               <div className="flex items-center gap-1">
@@ -812,8 +813,8 @@ export default function App() {
                   type="button"
                   onClick={() => setIsSettingsOpen(true)}
                   className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: '#A08C78' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.15)')}
+                  style={{ color: '#8E8E93' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   title="Settings"
                   aria-label="Open settings"
@@ -825,11 +826,11 @@ export default function App() {
                   onClick={() => setIsEditMode(!isEditMode)}
                   className="p-1.5 rounded-lg transition-colors"
                   style={{
-                    color: isEditMode ? '#5B9BAD' : '#A08C78',
-                    backgroundColor: isEditMode ? 'rgba(91,155,173,0.1)' : 'transparent',
+                    color: isEditMode ? '#4A80F0' : '#8E8E93',
+                    backgroundColor: isEditMode ? 'rgba(74,128,240,0.08)' : 'transparent',
                   }}
                   onMouseEnter={(e) => {
-                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.15)';
+                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
                   }}
                   onMouseLeave={(e) => {
                     if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent';
@@ -864,14 +865,14 @@ export default function App() {
                 onEndDay={() => endDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (
                   <div className="px-4 pb-6 pt-3">
-                    <p className="text-[10px] mb-2.5 pl-0.5 font-medium" style={{ color: '#A08C78' }}>
+                    <p className="text-[10px] mb-2.5 pl-0.5 font-medium" style={{ color: '#8E8E93' }}>
                       {view === 'week'
                         ? `Week of ${selectedDate}`
                         : view === 'month'
                           ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                           : selectedDate}
                     </p>
-                    <div className="mb-3 flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.12)' }}>
+                    <div className="mb-3 flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.07)' }}>
                       {(['category', 'container', 'tag'] as const).map((v) => (
                         <button
                           key={v}
@@ -879,8 +880,8 @@ export default function App() {
                           onClick={() => setPlanVsActualView(v)}
                           className="flex-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-all capitalize"
                           style={{
-                            backgroundColor: planVsActualView === v ? '#FDFBF8' : 'transparent',
-                            color: planVsActualView === v ? '#2C2820' : '#8A7A6E',
+                            backgroundColor: planVsActualView === v ? '#FFFFFF' : 'transparent',
+                            color: planVsActualView === v ? '#1C1C1E' : '#636366',
                             boxShadow: planVsActualView === v ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                           }}
                         >
@@ -908,22 +909,22 @@ export default function App() {
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-0.5">
-                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(160,140,120,0.15)' }}>
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(160,140,120,0.45)' }} />
+                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.08)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(74,128,240,0.35)' }} />
                                   </div>
-                                  <span className="text-[10px]" style={{ color: '#A08C78' }}>{row.plannedHours.toFixed(1)}h</span>
+                                  <span className="text-[10px]" style={{ color: '#8E8E93' }}>{row.plannedHours.toFixed(1)}h</span>
                                 </div>
                                 <div className="space-y-0.5 text-right">
-                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(160,140,120,0.15)' }}>
+                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.08)' }}>
                                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.9 }} />
                                   </div>
-                                  <span className="text-[10px]" style={{ color: '#A08C78' }}>{row.recordedHours.toFixed(1)}h</span>
+                                  <span className="text-[10px]" style={{ color: '#8E8E93' }}>{row.recordedHours.toFixed(1)}h</span>
                                 </div>
                               </div>
                             </div>
                           );
                         })}
-                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(160,140,120,0.2)', color: '#3C3430' }}>
+                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(0,0,0,0.09)', color: '#3C3430' }}>
                           {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned ·{' '}
                           {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h done
                         </div>
@@ -977,15 +978,15 @@ export default function App() {
             window.addEventListener('mouseup', cleanup);
           }}
         >
-          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
-          <div className="w-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.3)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
-          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
 
         <CalendarView
@@ -1054,21 +1055,21 @@ export default function App() {
             window.addEventListener('mouseup', cleanup);
           }}
         >
-          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
-          <div className="w-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.3)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.06)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')} />
-          <div className="w-px" style={{ backgroundColor: 'rgba(160,140,120,0.2)' }} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
+          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(74,128,240,0.15)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
         {/* Right panel */}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#F5F1EB' }}>
-            <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(160,140,120,0.18)' }}>
-              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#A08C78', letterSpacing: '0.12em' }}>Tasks</span>
+          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#EFEFE9' }}>
+            <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>Tasks</span>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -1090,6 +1091,7 @@ export default function App() {
                 onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
+                onTogglePin={(taskId) => updateTask(taskId, { pinned: !tasks.find(t => t.id === taskId)?.pinned })}
                 events={events}
                 onDeleteEvent={deleteEvent}
               />
@@ -1148,6 +1150,7 @@ export default function App() {
           onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
+          onTogglePin={(taskId) => updateTask(taskId, { pinned: !tasks.find(t => t.id === taskId)?.pinned })}
         />
       </div>
 
@@ -1227,8 +1230,8 @@ export default function App() {
 
       {/* Recording overlap warning dialog */}
       {recordingOverlapWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(44,40,32,0.4)' }}>
-          <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: 'rgba(200,120,104,0.12)' }}>
@@ -1236,15 +1239,15 @@ export default function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
-              <h3 className="text-sm font-semibold" style={{ color: '#2C2820' }}>Overlapping Recording</h3>
+              <h3 className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Overlapping Recording</h3>
             </div>
-            <p className="text-sm mb-4 leading-relaxed" style={{ color: '#6B6058' }}>{recordingOverlapWarning}</p>
+            <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
             <button
               type="button"
               className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-              style={{ backgroundColor: '#5B9BAD', color: 'white' }}
+              style={{ backgroundColor: '#4A80F0', color: 'white' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4E8A9C')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#5B9BAD')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#4A80F0')}
               onClick={() => setRecordingOverlapWarning(null)}
             >
               Got it

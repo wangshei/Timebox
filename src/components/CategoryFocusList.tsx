@@ -29,7 +29,7 @@ export function CategoryFocusList({
             style={{
               borderLeftColor: cat.color,
               backgroundColor: isFocused ? `${cat.color}22` : `${cat.color}10`,
-              color: isFocused ? '#2C2820' : '#6B6058',
+              color: isFocused ? '#1C1C1E' : '#636366',
               fontWeight: isFocused ? 600 : 400,
               fontSize: '12px',
             }}

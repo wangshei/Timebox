@@ -202,7 +202,7 @@ export function LeftSidebar({
     color: string; setColor: (v: string) => void;
     showColor: boolean; onSave: () => void; onCancel: () => void;
   }) => (
-    <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(91,155,173,0.08)', border: '1px solid rgba(91,155,173,0.2)' }}>
+    <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
       <input
         type="text"
         value={name}
@@ -212,15 +212,15 @@ export function LeftSidebar({
           if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
         }}
         className="w-full px-2.5 py-1.5 text-sm rounded-lg focus:outline-none"
-        style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
         autoFocus
       />
       {showColor && <ColorPicker value={color} onChange={setColor} swatchSize="sm" />}
       <div className="flex gap-2">
-        <button type="button" onClick={onSave} className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors" style={{ backgroundColor: '#5B9BAD' }}>
+        <button type="button" onClick={onSave} className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors" style={{ backgroundColor: '#4A80F0' }}>
           Save
         </button>
-        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" style={{ backgroundColor: 'rgba(160,140,120,0.12)', color: '#6B6058' }}>
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>
           Cancel
         </button>
       </div>
@@ -238,16 +238,16 @@ export function LeftSidebar({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#F5F1EB' }}>
+    <div className="flex flex-col flex-1 min-h-0 pb-4" style={{ backgroundColor: '#EFEFE9' }}>
       {/* Add calendar */}
       <div className="px-4 pt-3 pb-1 flex-shrink-0">
         <button
           type="button"
           onClick={() => startAdd('calendar')}
           className="text-xs font-semibold flex items-center gap-1.5 py-1.5 px-0 transition-colors"
-          style={{ color: '#9E968C' }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#5B9BAD')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#9E968C')}
+          style={{ color: '#8E8E93'}}
+          onMouseEnter={e => (e.currentTarget.style.color = '#4A80F0')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
         >
           <PlusIcon className="h-3.5 w-3.5" />
           Add calendar
@@ -274,7 +274,7 @@ export function LeftSidebar({
               className="rounded-xl overflow-hidden"
               style={{
                 backgroundColor: isFocused ? `${calendar.color}14` : 'rgba(255,255,255,0.55)',
-                border: isFocused ? `1.5px solid ${calendar.color}40` : '1px solid rgba(160,140,120,0.12)',
+                border: isFocused ? `1.5px solid ${calendar.color}40` : '1px solid rgba(0,0,0,0.08)',
                 boxShadow: isFocused ? `0 0 0 1px ${calendar.color}20` : 'none',
               }}
             >
@@ -289,7 +289,7 @@ export function LeftSidebar({
                     type="button"
                     onClick={() => toggleExpandCalendar(calendar.id)}
                     className="p-0.5 rounded transition-colors flex-shrink-0"
-                    style={{ color: '#9E968C' }}
+                    style={{ color: '#8E8E93'}}
                   >
                     {isExpanded
                       ? <ChevronDownIcon className="h-3 w-3" />
@@ -322,8 +322,8 @@ export function LeftSidebar({
                   {/* Edit mode actions */}
                   {isEditMode && (
                     <div className="flex gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3 w-3" />, '#5B9BAD', 'rgba(91,155,173,0.12)')}
-                      {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3 w-3" />, '#B85050', 'rgba(184,80,80,0.1)')}
+                      {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3 w-3" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                      {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3 w-3" />, '#B85050', 'rgba(255,59,48,0.08)')}
                     </div>
                   )}
 
@@ -333,7 +333,7 @@ export function LeftSidebar({
                       type="button"
                       onClick={() => onToggleVisibility(calendar.id)}
                       className="flex-shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: isVisible ? calendar.color : '#9E968C' }}
+                      style={{ color: isVisible ? calendar.color : '#8E8E93' }}
                       title={isVisible ? 'Hide' : 'Show'}
                     >
                       {isVisible
@@ -357,15 +357,15 @@ export function LeftSidebar({
                           <InlineEditForm name={editName} setName={setEditName} color={editColor} setColor={setEditColor} showColor onSave={saveEdit} onCancel={cancelEdit} />
                         ) : (
                           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg group transition-colors"
-                            style={{ ':hover': { backgroundColor: 'rgba(160,140,120,0.06)' } } as any}
-                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.06)')}
+                            style={{ ':hover': { backgroundColor: 'rgba(0,0,0,0.03)' } } as any}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
                             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                           >
                             <button
                               type="button"
                               onClick={() => toggleExpandCategory(category.id)}
                               className="p-0.5 rounded flex-shrink-0"
-                              style={{ color: '#9E968C' }}
+                              style={{ color: '#8E8E93'}}
                             >
                               {catExpanded
                                 ? <ChevronDownIcon className="h-3 w-3" />
@@ -383,15 +383,15 @@ export function LeftSidebar({
                                 className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
                                 style={{ backgroundColor: category.color }}
                               />
-                              <span className="text-xs font-medium truncate" style={{ color: '#4A3C30' }}>
+                              <span className="text-xs font-medium truncate" style={{ color: '#3A3A3C' }}>
                                 {category.name}
                               </span>
                             </button>
 
                             {isEditMode && (
                               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-2.5 w-2.5" />, '#5B9BAD', 'rgba(91,155,173,0.12)')}
-                                {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(184,80,80,0.1)')}
+                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-2.5 w-2.5" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                                {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                               </div>
                             )}
                           </div>
@@ -404,18 +404,18 @@ export function LeftSidebar({
                               {categoryTags.map((tag) =>
                                 editingId === tag.id && editingType === 'tag' ? (
                                   <div key={tag.id} className="w-full">
-                                    <div className="rounded-xl p-2 space-y-2" style={{ backgroundColor: 'rgba(91,155,173,0.08)', border: '1px solid rgba(91,155,173,0.2)' }}>
+                                    <div className="rounded-xl p-2 space-y-2" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
                                       <input
                                         type="text"
                                         value={editName}
                                         onChange={(e) => setEditName(e.target.value)}
                                         className="w-full px-2 py-1 text-xs rounded-lg focus:outline-none"
-                                        style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                                        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                                         autoFocus
                                       />
                                       <div className="flex gap-1.5">
-                                        <button type="button" onClick={saveEdit} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#5B9BAD' }}>Save</button>
-                                        <button type="button" onClick={cancelEdit} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(160,140,120,0.12)', color: '#6B6058' }}>×</button>
+                                        <button type="button" onClick={saveEdit} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#4A80F0' }}>Save</button>
+                                        <button type="button" onClick={cancelEdit} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                       </div>
                                     </div>
                                   </div>
@@ -434,8 +434,8 @@ export function LeftSidebar({
                                     </span>
                                     {isEditMode && (
                                       <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                                        {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2.5 w-2.5" />, '#5B9BAD', 'rgba(91,155,173,0.12)')}
-                                        {iconBtn(() => handleDelete('tag', tag.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(184,80,80,0.1)')}
+                                        {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2.5 w-2.5" />, '#4A80F0', 'rgba(74,128,240,0.10)')}
+                                        {iconBtn(() => handleDelete('tag', tag.id), <TrashIcon className="h-2.5 w-2.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                                       </div>
                                     )}
                                   </div>
@@ -446,15 +446,15 @@ export function LeftSidebar({
                               type="button"
                               onClick={() => startAdd('tag', category.id)}
                               className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors"
-                              style={{ color: '#9E968C', border: '1px dashed rgba(160,140,120,0.3)' }}
+                              style={{ color: '#8E8E93', border: '1px dashed rgba(0,0,0,0.12)' }}
                               onMouseEnter={e => { (e.currentTarget.style.color = category.color); (e.currentTarget.style.borderColor = category.color); }}
-                              onMouseLeave={e => { (e.currentTarget.style.color = '#9E968C'); (e.currentTarget.style.borderColor = 'rgba(160,140,120,0.3)'); }}
+                              onMouseLeave={e => { (e.currentTarget.style.color = '#8E8E93'); (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'); }}
                             >
                               <PlusIcon className="h-2.5 w-2.5" /> tag
                             </button>
                             {isAdding && addingType === 'tag' && addingParentId === category.id && (
                               <div className="w-full mt-1">
-                                <div className="rounded-xl p-2 space-y-1.5" style={{ backgroundColor: 'rgba(91,155,173,0.08)', border: '1px solid rgba(91,155,173,0.2)' }}>
+                                <div className="rounded-xl p-2 space-y-1.5" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
                                   <input
                                     type="text"
                                     value={addName}
@@ -465,12 +465,12 @@ export function LeftSidebar({
                                     }}
                                     placeholder="Tag name"
                                     className="w-full px-2 py-1 text-xs rounded-lg focus:outline-none"
-                                    style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                                     autoFocus
                                   />
                                   <div className="flex gap-1.5">
-                                    <button type="button" onClick={saveAdd} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#5B9BAD' }}>Add</button>
-                                    <button type="button" onClick={cancelAdd} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(160,140,120,0.12)', color: '#6B6058' }}>×</button>
+                                    <button type="button" onClick={saveAdd} className="flex-1 px-2 py-1 text-xs font-semibold rounded-lg text-white" style={{ backgroundColor: '#4A80F0' }}>Add</button>
+                                    <button type="button" onClick={cancelAdd} className="px-2 py-1 text-xs rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                   </div>
                                 </div>
                               </div>
@@ -487,15 +487,15 @@ export function LeftSidebar({
                       type="button"
                       onClick={() => startAdd('category', calendar.id)}
                       className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
-                      style={{ color: '#9E968C', border: '1px dashed rgba(160,140,120,0.3)' }}
+                      style={{ color: '#8E8E93', border: '1px dashed rgba(0,0,0,0.12)' }}
                       onMouseEnter={e => { (e.currentTarget.style.color = calendar.color); (e.currentTarget.style.borderColor = calendar.color); }}
-                      onMouseLeave={e => { (e.currentTarget.style.color = '#9E968C'); (e.currentTarget.style.borderColor = 'rgba(160,140,120,0.3)'); }}
+                      onMouseLeave={e => { (e.currentTarget.style.color = '#8E8E93'); (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'); }}
                     >
                       <PlusIcon className="h-2.5 w-2.5" /> category
                     </button>
                     {isAdding && addingType === 'category' && addingParentId === calendar.id && (
-                      <div className="mt-2 rounded-xl p-3 space-y-3" style={{ backgroundColor: 'rgba(91,155,173,0.08)', border: '1px solid rgba(91,155,173,0.2)' }}>
-                        <p className="text-[10px] font-semibold" style={{ color: '#6B6058' }}>Attach or create category</p>
+                      <div className="mt-2 rounded-xl p-3 space-y-3" style={{ backgroundColor: 'rgba(74,128,240,0.07)', border: '1px solid rgba(74,128,240,0.18)' }}>
+                        <p className="text-[10px] font-semibold" style={{ color: '#636366' }}>Attach or create category</p>
                         <div className="flex flex-wrap gap-1">
                           {categories.map((cat) => (
                             <button
@@ -505,7 +505,7 @@ export function LeftSidebar({
                               className="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all"
                               style={addExistingCategoryId === cat.id
                                 ? { backgroundColor: `${cat.color}18`, color: cat.color, border: `1.5px solid ${cat.color}` }
-                                : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                                : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.10)' }}
                             >
                               {cat.name}
                             </button>
@@ -524,16 +524,16 @@ export function LeftSidebar({
 
       {/* Plan vs Actual section */}
       {planVsActualSection && (
-        <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(160,140,120,0.2)' }}>
+        <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }}>
           <div className="flex items-center justify-between gap-2 px-4 py-2.5">
-            <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: '#9E968C' }}>
+            <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: '#8E8E93'}}>
               Plan vs Actual
             </span>
             <button
               type="button"
               onClick={() => setIsPlanVsActualOpen(!isPlanVsActualOpen)}
               className="p-1.5 rounded-lg transition-colors"
-              style={{ color: '#9E968C' }}
+              style={{ color: '#8E8E93'}}
               title={isPlanVsActualOpen ? 'Hide' : 'Show'}
             >
               {isPlanVsActualOpen ? <EyeSlashIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
@@ -549,14 +549,14 @@ export function LeftSidebar({
 
       {/* End Day button */}
       {onEndDay && endDayLabel && (
-        <div className="flex-shrink-0 px-4 py-2" style={{ borderTop: '1px solid rgba(160,140,120,0.15)' }}>
+        <div className="flex-shrink-0 px-4 py-2" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }}>
           <button
             type="button"
             onClick={onEndDay}
             className="w-full text-left px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-            style={{ color: '#9E968C' }}
-            onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)'); (e.currentTarget.style.color = '#6B6058'); }}
-            onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#9E968C'); }}
+            style={{ color: '#8E8E93'}}
+            onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'); (e.currentTarget.style.color = '#636366'); }}
+            onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#8E8E93'); }}
           >
             {endDayLabel}
           </button>
@@ -566,28 +566,28 @@ export function LeftSidebar({
       {/* Keyboard shortcuts */}
       {onToggleShortcuts && (
         <>
-          <div className="flex-shrink-0 px-4 py-2" style={{ borderTop: '1px solid rgba(160,140,120,0.15)' }}>
+          <div className="flex-shrink-0 px-4 py-2" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }}>
             <button
               type="button"
               onClick={onToggleShortcuts}
               className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-medium rounded-lg transition-colors"
-              style={{ color: '#9E968C' }}
-              onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.08)'); (e.currentTarget.style.color = '#6B6058'); }}
-              onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#9E968C'); }}
+              style={{ color: '#8E8E93'}}
+              onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'); (e.currentTarget.style.color = '#636366'); }}
+              onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#8E8E93'); }}
             >
               <span>Keyboard shortcuts</span>
-              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] rounded-md font-bold" style={{ border: '1.5px solid rgba(160,140,120,0.3)', color: '#9E968C' }}>?</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] rounded-md font-bold" style={{ border: '1.5px solid rgba(0,0,0,0.12)', color: '#8E8E93'}}>?</span>
             </button>
           </div>
           {isShortcutsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={onToggleShortcuts} aria-hidden />
-              <div className="fixed bottom-16 left-4 z-50 w-56 rounded-xl py-2 px-3" style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)', boxShadow: '0 8px 24px rgba(44,40,32,0.12)' }}>
-                <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{ color: '#9E968C' }}>Shortcuts</p>
-                <div className="space-y-1.5 text-xs" style={{ color: '#6B6058' }}>
-                  {[['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
+              <div className="fixed bottom-16 left-4 z-50 w-56 rounded-xl py-2 px-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
+                <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{ color: '#8E8E93'}}>Shortcuts</p>
+                <div className="space-y-1.5 text-xs" style={{ color: '#636366' }}>
+                  {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                     <div key={key} className="flex justify-between gap-4">
-                      <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(160,140,120,0.12)', border: '1px solid rgba(160,140,120,0.2)', color: '#4A3C30' }}>{key}</kbd>
+                      <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: '#3A3A3C' }}>{key}</kbd>
                       <span>{label}</span>
                     </div>
                   ))}

@@ -365,24 +365,24 @@ export function AddModal({
           width: `${PANEL_WIDTH}px`,
           maxWidth: 'calc(100vw - 32px)',
           maxHeight: maxH,
-          backgroundColor: '#FDFBF8',
+          backgroundColor: '#FFFFFF',
           borderRadius: '16px',
           border: '1px solid rgba(160, 140, 120, 0.2)',
-          boxShadow: '0 8px 32px rgba(44,40,32,0.12), 0 2px 8px rgba(44,40,32,0.06)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05)',
         }}
       >
         {/* Drag header */}
         <div
           className="flex items-center gap-2 px-4 py-2.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
-          style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
             if ((e.target as HTMLElement).closest('button')) return;
             setIsDragging(true);
             dragStart.current = { x: e.clientX, y: e.clientY, left: panelPos.x, top: panelPos.y };
           }}
         >
-          <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#9E968C' }} />
-          <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#2C2820' }}>
+          <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#8E8E93' }} />
+          <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#1C1C1E' }}>
             {editingTask
               ? 'Edit Task'
               : editingTimeBlock || editingEvent
@@ -391,8 +391,8 @@ export function AddModal({
                   ? '✏️ New Task'
                   : '📌 New Event'}
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#9E968C' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.12)')}
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             <XMarkIcon className="h-4 w-4" />
@@ -402,14 +402,14 @@ export function AddModal({
         {/* Task/Event Toggle — when adding (not editing) */}
         {!editingTimeBlock && !editingEvent && (
           <div className="px-4 pt-3">
-            <div className="flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.1)' }}>
+            <div className="flex rounded-xl p-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
               <button
                 type="button"
                 onClick={() => setMode('task')}
                 className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
                 style={mode === 'task'
-                  ? { backgroundColor: '#FDFBF8', color: '#2C2820', boxShadow: '0 1px 4px rgba(44,40,32,0.1)' }
-                  : { backgroundColor: 'transparent', color: '#9E968C' }}
+                  ? { backgroundColor: '#FFFFFF', color: '#1C1C1E', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                  : { backgroundColor: 'transparent', color: '#8E8E93' }}
               >
                 ✏️ Task
               </button>
@@ -418,13 +418,13 @@ export function AddModal({
                 onClick={() => setMode('event')}
                 className="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all"
                 style={mode === 'event'
-                  ? { backgroundColor: '#FDFBF8', color: '#2C2820', boxShadow: '0 1px 4px rgba(44,40,32,0.1)' }
-                  : { backgroundColor: 'transparent', color: '#9E968C' }}
+                  ? { backgroundColor: '#FFFFFF', color: '#1C1C1E', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                  : { backgroundColor: 'transparent', color: '#8E8E93' }}
               >
                 📌 Event
               </button>
             </div>
-            <p className="text-[10px] mt-1.5 px-1" style={{ color: '#9E968C' }}>
+            <p className="text-[10px] mt-1.5 px-1" style={{ color: '#8E8E93' }}>
               {mode === 'task'
                 ? 'Tasks are flexible — schedule them anytime'
                 : 'Events are fixed — they happen at a set time'}
@@ -439,30 +439,30 @@ export function AddModal({
         >
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} autoFocus />
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} autoFocus />
           </div>
 
           {mode === 'task' && (
             <>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Estimated Time</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Estimated Time</label>
                 <div className="flex gap-3 items-center">
                   <input
                     type="range" min="0.5" max="8" step="0.5" value={estimatedHours}
                     onChange={(e) => setEstimatedHours(parseFloat(e.target.value))}
                     className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
-                    style={{ background: `linear-gradient(to right, #5B9BAD 0%, #5B9BAD ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(160,140,120,0.2) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(160,140,120,0.2) 100%)` }}
+                    style={{ background: `linear-gradient(to right, #4A80F0 0%, #4A80F0 ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) 100%)` }}
                   />
-                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#5B9BAD' }}>{estimatedHours}h</span>
+                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#4A80F0' }}>{estimatedHours}h</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Due date <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Due date <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
                 <input
                   type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                 />
               </div>
             </>
@@ -471,28 +471,28 @@ export function AddModal({
           {mode === 'event' && (
             <>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Date</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Date</label>
                 <input
                   type="date" value={date} onChange={(e) => setDate(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Start</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>End</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -501,13 +501,13 @@ export function AddModal({
 
           {/* Calendar — horizontal pill select */}
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Calendar</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Calendar</label>
             {calendars.length === 0 ? (
               <button
                 type="button"
                 onClick={onRequireCalendar}
                 className="w-full px-3 py-2 text-xs font-medium flex items-center justify-center gap-1.5 rounded-lg"
-                style={{ color: '#5B9BAD', backgroundColor: 'rgba(91,155,173,0.08)', border: '1.5px dashed rgba(91,155,173,0.4)' }}
+                style={{ color: '#4A80F0', backgroundColor: 'rgba(74,128,240,0.07)', border: '1.5px dashed rgba(74,128,240,0.4)' }}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add a calendar first
@@ -524,7 +524,7 @@ export function AddModal({
                       className="min-w-[70px] px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all capitalize flex items-center justify-center gap-1.5"
                       style={isSel
                         ? { backgroundColor: cal.color, color: '#fff', border: `1.5px solid ${cal.color}` }
-                        : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                        : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                     >
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSel ? 'rgba(255,255,255,0.7)' : cal.color }} />
                       {cal.name}
@@ -537,7 +537,7 @@ export function AddModal({
 
           {/* Category — pill select, with colored dot */}
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Category</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
             <div className="flex gap-1.5 flex-wrap">
               {categoriesToShow
                 .filter((category) => {
@@ -556,7 +556,7 @@ export function AddModal({
                       className="px-2.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                       style={isSel
                         ? { backgroundColor: `${category.color}22`, color: category.color, border: `1.5px solid ${category.color}` }
-                        : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                        : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                     >
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: category.color }} />
                       {category.name}
@@ -587,19 +587,19 @@ export function AddModal({
               }}
               placeholder="Or type to create new…"
               className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
             />
           </div>
 
           {/* Tags — multi-select pills */}
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Tags <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
             <div className="flex gap-1.5 flex-wrap">
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
                   const isSelected = selectedTags.some((s) => s.id === tag.id);
-                  const catColor = selectedCategory?.color ?? '#5B9BAD';
+                  const catColor = selectedCategory?.color ?? '#4A80F0';
                   return (
                     <button
                       key={tag.id}
@@ -608,7 +608,7 @@ export function AddModal({
                       className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
                       style={isSelected
                         ? { backgroundColor: `${catColor}18`, color: catColor, border: `1.5px solid ${catColor}` }
-                        : { backgroundColor: 'transparent', color: '#9E968C', border: '1.5px solid rgba(160,140,120,0.2)' }}
+                        : { backgroundColor: 'transparent', color: '#8E8E93', border: '1.5px solid rgba(0,0,0,0.09)' }}
                     >
                       {tag.name}
                     </button>
@@ -634,14 +634,14 @@ export function AddModal({
               }}
               placeholder="Type and Enter to add…"
               className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }}
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
             />
           </div>
 
           {/* Quick Notes — shown inline on the block */}
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>
-              Quick Notes <span style={{ color: '#9E968C', fontWeight: 400 }}>(shown on block)</span>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>
+              Quick Notes <span style={{ color: '#8E8E93', fontWeight: 400 }}>(shown on block)</span>
             </label>
             <textarea
               value={notes}
@@ -649,38 +649,38 @@ export function AddModal({
               placeholder="Quick reminder, context, or link to notes…"
               rows={2}
               className="w-full px-3 py-2 text-xs rounded-lg focus:outline-none resize-none italic"
-              style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#6B6058', fontStyle: 'italic' }}
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#636366', fontStyle: 'italic' }}
             />
           </div>
 
           {/* More — Link, Description, Repeat (collapsible) */}
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(160,140,120,0.18)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.09)' }}>
             <button
               type="button"
               onClick={() => setMoreOpen((o) => !o)}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors"
               style={{
-                color: '#6B6058',
-                backgroundColor: moreOpen ? 'rgba(160,140,120,0.08)' : 'transparent',
-                borderBottom: moreOpen ? '1px solid rgba(160,140,120,0.15)' : 'none',
+                color: '#636366',
+                backgroundColor: moreOpen ? 'rgba(0,0,0,0.04)' : 'transparent',
+                borderBottom: moreOpen ? '1px solid rgba(0,0,0,0.08)' : 'none',
               }}
             >
               <span>More options {mode === 'event' ? '(link, description, repeat)' : '(link, description)'}</span>
               {moreOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
             </button>
             {moreOpen && (
-              <div className="p-3 space-y-3" style={{ backgroundColor: '#FAF8F4' }}>
+              <div className="p-3 space-y-3" style={{ backgroundColor: '#F8F8F6' }}>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Link <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
-                  <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} />
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Link <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
+                  <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Description <span style={{ color: '#9E968C', fontWeight: 400 }}>(optional)</span></label>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Longer description or context…" rows={2} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none resize-y" style={{ backgroundColor: '#F5F1EB', border: '1px solid rgba(160,140,120,0.2)', color: '#2C2820' }} />
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Description <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Longer description or context…" rows={2} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none resize-y" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} />
                 </div>
                 {mode === 'event' && (
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Repeat</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Repeat</label>
                     <div className="flex flex-wrap gap-1.5">
                       {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
                         <button
@@ -689,8 +689,8 @@ export function AddModal({
                           onClick={() => setRecurrencePattern(p)}
                           className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
                           style={recurrencePattern === p
-                            ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
-                            : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                            ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                            : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                         >
                           {p === 'none' ? 'None' : p === 'every_other_day' ? 'Every other day' : p.charAt(0).toUpperCase() + p.slice(1)}
                         </button>
@@ -705,8 +705,8 @@ export function AddModal({
                             onClick={() => { setRecurrenceDays((prev) => prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort((a, b) => a - b)); }}
                             className="px-2 py-1 text-xs font-medium rounded-full"
                             style={recurrenceDays.includes(i)
-                              ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
-                              : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                              ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                              : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                           >
                             {day}
                           </button>
@@ -715,7 +715,7 @@ export function AddModal({
                     )}
                     {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
                       <div className="mt-2">
-                        <label className="block text-xs font-semibold mb-1" style={{ color: '#6B6058' }}>Edit scope</label>
+                        <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Edit scope</label>
                         <div className="flex flex-wrap gap-1.5">
                           {(['this', 'all', 'all_after'] as const).map((scope) => (
                             <button
@@ -724,8 +724,8 @@ export function AddModal({
                               onClick={() => setRecurrenceEditScope(scope)}
                               className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
                               style={recurrenceEditScope === scope
-                                ? { backgroundColor: 'rgba(91,155,173,0.15)', color: '#5B9BAD', border: '1.5px solid #5B9BAD' }
-                                : { backgroundColor: 'transparent', color: '#6B6058', border: '1.5px solid rgba(160,140,120,0.25)' }}
+                                ? { backgroundColor: 'rgba(74,128,240,0.12)', color: '#4A80F0', border: '1.5px solid #4A80F0' }
+                                : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
                             >
                               {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
                             </button>
@@ -741,12 +741,12 @@ export function AddModal({
           </div>
 
           {/* Submit row */}
-          <div className="px-4 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(160,140,120,0.15)', backgroundColor: '#FDFBF8' }}>
+          <div className="px-4 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
             <button
               type="button"
               onClick={onClose}
               className="flex-1 px-3 py-2 text-sm font-medium rounded-xl transition-colors"
-              style={{ backgroundColor: 'rgba(160,140,120,0.1)', color: '#6B6058' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366' }}
             >
               Cancel
             </button>
@@ -754,7 +754,7 @@ export function AddModal({
               type="submit"
               disabled={!title.trim() || (!selectedCategory && !categoryInput.trim())}
               className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-              style={{ backgroundColor: '#5B9BAD', color: '#fff' }}
+              style={{ backgroundColor: '#4A80F0', color: '#fff' }}
             >
               <PlusIcon className="h-4 w-4" />
               {mode === 'task' && editingTask ? 'Save Task' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}

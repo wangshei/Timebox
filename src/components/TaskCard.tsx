@@ -1,7 +1,8 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
-import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/solid';
+import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -19,6 +20,8 @@ interface TaskCardProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
+  /** Toggle pin status of this task. Pinned tasks appear prominently in the calendar. */
+  onTogglePin?: () => void;
 }
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const;
@@ -54,6 +57,7 @@ export function TaskCard({
   onMarkTaskDone,
   onBreakIntoChunks,
   onSplitTask,
+  onTogglePin,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
@@ -65,7 +69,7 @@ export function TaskCard({
   const recordedMins = Math.round((task.recordedHours ?? 0) * 60);
   const remainingMins = Math.max(0, estimatedMins - recordedMins);
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
-  const catColor = task.category?.color ?? '#5B9BAD';
+  const catColor = task.category?.color ?? '#4A80F0';
 
   // Position overview popover with fixed coords
   useLayoutEffect(() => {
@@ -122,8 +126,8 @@ export function TaskCard({
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h3 className="font-semibold text-sm leading-snug mb-1" style={{ color: '#2C2820' }}>{task.title}</h3>
-        <div className="flex flex-wrap gap-2 text-xs" style={{ color: '#8A7A6E' }}>
+        <h3 className="font-semibold text-sm leading-snug mb-1" style={{ color: '#1C1C1E' }}>{task.title}</h3>
+        <div className="flex flex-wrap gap-2 text-xs" style={{ color: '#636366' }}>
           <span className="flex items-center gap-1">
             <ClockIcon className="h-3.5 w-3.5" />
             {fmtMins(estimatedMins)} estimated
@@ -140,11 +144,11 @@ export function TaskCard({
       {/* Progress */}
       {recordedMins > 0 && (
         <div className="space-y-1.5">
-          <div className="text-xs font-medium" style={{ color: '#5C5046' }}>Progress</div>
+          <div className="text-xs font-medium" style={{ color: '#636366' }}>Progress</div>
           <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: hexRgba(catColor, 0.12) }}>
             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }} />
           </div>
-          <div className="text-xs" style={{ color: '#8A7A6E' }}>
+          <div className="text-xs" style={{ color: '#636366' }}>
             {fmtMins(recordedMins)} done · {fmtMins(remainingMins)} left
           </div>
         </div>
@@ -152,7 +156,7 @@ export function TaskCard({
 
       {/* Category & Tags */}
       <div className="space-y-1.5">
-        <div className="text-xs font-medium" style={{ color: '#5C5046' }}>Labels</div>
+        <div className="text-xs font-medium" style={{ color: '#636366' }}>Labels</div>
         <div className="flex flex-wrap gap-1.5">
           {task.category && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-full"
@@ -172,29 +176,29 @@ export function TaskCard({
 
       {/* Description */}
       {'description' in task && task.description && (
-        <div className="text-xs whitespace-pre-wrap leading-relaxed" style={{ color: '#6B6058' }}>{task.description}</div>
+        <div className="text-xs whitespace-pre-wrap leading-relaxed" style={{ color: '#636366' }}>{task.description}</div>
       )}
       {/* Link */}
       {'link' in task && task.link && (
         <a href={task.link} target="_blank" rel="noopener noreferrer"
           className="text-xs truncate block max-w-full hover:underline"
-          style={{ color: '#5B9BAD' }}>
+          style={{ color: '#4A80F0' }}>
           {task.link}
         </a>
       )}
 
       {/* Actions */}
-      <div className="space-y-0.5 pt-2" style={{ borderTop: '1px solid rgba(160,140,120,0.14)' }}>
+      <div className="space-y-0.5 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }}>
         {/* Break into blocks */}
         {onBreakIntoChunks && estimatedMins > 0 && (
           <div className="px-1 pb-2">
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#5C5046' }}>Break into blocks</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#636366' }}>Break into blocks</div>
             <div className="flex flex-wrap gap-1.5">
               {[30, 60, 90].map((mins) => (
                 <button key={mins} type="button"
                   onClick={() => { onBreakIntoChunks(task.id, mins); setShowPopover(false); }}
                   className="px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                  style={{ border: '1px solid rgba(160,140,120,0.3)', color: '#5C5046', backgroundColor: 'transparent' }}
+                  style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#636366', backgroundColor: 'transparent' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.06))}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
                   {mins < 60 ? `${mins}m` : `${mins / 60}h`}
@@ -207,16 +211,16 @@ export function TaskCard({
         {/* Get a block (split) */}
         {onSplitTask && estimatedMins > 0 && (
           <div className="px-1 pb-2">
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#5C5046' }}>Get a block</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#636366' }}>Get a block</div>
             <div className="flex flex-wrap items-center gap-1.5">
               {SPLIT_BLOCK_OPTIONS.map((mins) => (
                 <button key={mins} type="button"
                   onClick={() => setSplitBlockMinutes(mins)}
                   className="px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all"
                   style={{
-                    border: splitBlockMinutes === mins ? `1.5px solid ${catColor}` : '1px solid rgba(160,140,120,0.3)',
+                    border: splitBlockMinutes === mins ? `1.5px solid ${catColor}` : '1px solid rgba(0,0,0,0.12)',
                     backgroundColor: splitBlockMinutes === mins ? hexRgba(catColor, 0.1) : 'transparent',
-                    color: splitBlockMinutes === mins ? catColor : '#5C5046',
+                    color: splitBlockMinutes === mins ? catColor : '#636366',
                   }}>
                   {mins < 60 ? `${mins}m` : `${mins / 60}h`}
                 </button>
@@ -231,9 +235,21 @@ export function TaskCard({
           </div>
         )}
 
+        {onTogglePin && (
+          <button type="button"
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
+            style={{ color: (task as any).pinned ? '#F5A623' : '#636366' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = (task as any).pinned ? 'rgba(245,166,35,0.08)' : 'rgba(0,0,0,0.04)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onClick={() => { onTogglePin(); setShowPopover(false); }}>
+            {(task as any).pinned ? <StarIcon className="h-4 w-4" /> : <StarOutlineIcon className="h-4 w-4" />}
+            {(task as any).pinned ? 'Unpin task' : 'Pin as priority'}
+          </button>
+        )}
+
         <button type="button"
           className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
-          style={{ color: '#5C5046' }}
+          style={{ color: '#636366' }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onScheduleTask?.(); setShowPopover(false); }}>
@@ -255,8 +271,8 @@ export function TaskCard({
 
         <button type="button"
           className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
-          style={{ color: '#5C5046' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.08)')}
+          style={{ color: '#636366' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onEditTask?.(); setShowPopover(false); }}>
           <PencilIcon className="h-4 w-4" />
@@ -325,7 +341,7 @@ export function TaskCard({
             <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowPopover(false); }} />
             <div
               className={`absolute z-20 top-0 rounded-xl shadow-2xl p-4 min-w-72 ${popoverSide === 'left' ? 'right-full mr-2' : 'left-full ml-2'}`}
-              style={{ backgroundColor: '#FDFBF8', border: '1px solid rgba(160,140,120,0.2)', boxShadow: '0 12px 40px rgba(0,0,0,0.12)' }}>
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 12px 40px rgba(0,0,0,0.12)' }}>
               {renderPopoverContent()}
             </div>
           </>
@@ -341,10 +357,10 @@ export function TaskCard({
         ref={cardRef}
         className="group relative cursor-grab active:cursor-grabbing rounded-xl p-3 transition-all duration-150 ease-out active:scale-[0.99]"
         style={{
-          backgroundColor: '#FDFBF8',
-          borderTop: '1px solid rgba(160,140,120,0.18)',
-          borderRight: '1px solid rgba(160,140,120,0.18)',
-          borderBottom: '1px solid rgba(160,140,120,0.18)',
+          backgroundColor: '#FFFFFF',
+          borderTop: '1px solid rgba(0,0,0,0.09)',
+          borderRight: '1px solid rgba(0,0,0,0.09)',
+          borderBottom: '1px solid rgba(0,0,0,0.09)',
           borderLeft: `3px solid ${catColor}`,
           boxShadow: showPopover
             ? `0 0 0 2px ${hexRgba(catColor, 0.2)}, 0 4px 16px rgba(0,0,0,0.08)`
@@ -356,6 +372,24 @@ export function TaskCard({
         draggable
         onDragStart={handleDragStart}
       >
+        {/* Pin button — always visible when pinned, shows on card hover */}
+        {onTogglePin && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+            className={`absolute top-2.5 right-8 transition-all ${(task as any).pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`}
+            style={{ color: (task as any).pinned ? '#F5A623' : '#AEAEB2' }}
+            title={(task as any).pinned ? 'Unpin task' : 'Pin task'}
+            aria-label={(task as any).pinned ? 'Unpin task' : 'Pin task'}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#F5A623'; }}
+            onMouseLeave={e => { if (!(task as any).pinned) { e.currentTarget.style.opacity = '0'; e.currentTarget.style.color = '#AEAEB2'; } }}
+          >
+            {(task as any).pinned
+              ? <StarIcon className="h-3.5 w-3.5" />
+              : <StarOutlineIcon className="h-3.5 w-3.5" />
+            }
+          </button>
+        )}
         {/* Drag handle */}
         <div className="absolute top-3 right-2.5 opacity-0 group-hover:opacity-50 transition-opacity">
           <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
@@ -364,7 +398,10 @@ export function TaskCard({
         <div className="flex flex-col gap-2 pr-5">
           {/* Title + duration badge */}
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1" style={{ color: '#2C2820' }}>
+            <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1" style={{ color: '#1C1C1E' }}>
+              {(task as any).pinned && (
+                <StarIcon className="inline h-3 w-3 mr-1 mb-0.5 align-middle" style={{ color: '#F5A623' }} />
+              )}
               {task.title}
             </h3>
             <span
@@ -380,7 +417,7 @@ export function TaskCard({
               <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: hexRgba(catColor, 0.1) }}>
                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }} />
               </div>
-              <div className="text-xs" style={{ color: '#8A7A6E' }}>
+              <div className="text-xs" style={{ color: '#636366' }}>
                 {fmtMins(recordedMins)} done · {fmtMins(remainingMins)} left
               </div>
             </div>
@@ -401,13 +438,13 @@ export function TaskCard({
               </span>
             ))}
             {task.tags.length > 3 && (
-              <span className="text-xs" style={{ color: '#8A7A6E' }}>+{task.tags.length - 3}</span>
+              <span className="text-xs" style={{ color: '#636366' }}>+{task.tags.length - 3}</span>
             )}
           </div>
 
           {/* Due date */}
           {'dueDate' in task && task.dueDate && (
-            <div className="flex items-center gap-1 text-xs" style={{ color: '#8A7A6E' }}>
+            <div className="flex items-center gap-1 text-xs" style={{ color: '#636366' }}>
               <CalendarIcon className="h-3 w-3" />
               <span>Due {task.dueDate}</span>
             </div>
@@ -424,8 +461,8 @@ export function TaskCard({
             style={{
               top: popoverRect.top,
               left: popoverRect.left,
-              backgroundColor: '#FDFBF8',
-              border: '1px solid rgba(160,140,120,0.2)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.09)',
               boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
             }}>
             {renderPopoverContent()}

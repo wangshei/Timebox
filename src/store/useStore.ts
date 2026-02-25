@@ -71,7 +71,7 @@ function getInitialState(): AppState {
     tags,
     events: [],
     viewMode: 'overall',
-    view: 'day',
+    view: '3day',
     selectedDate: getLocalDateString(),
     containerVisibility: visibility,
     defaultBlockMinutes: 60,

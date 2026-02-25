@@ -1,61 +1,67 @@
 /**
  * Single source of truth for category/calendar color selection.
- * Palette inspired by Monet's impressionist paintings — soft, atmospheric,
- * nature-inspired colors from water lilies, gardens, and landscapes.
- * Use PALETTE_HEX for swatches; pair with a "Custom" native color input in the UI.
+ * Vibrant, clear, cheerful palette — easy to distinguish at a glance.
  */
 export const PALETTE_COLORS = [
-  { name: 'Waterlily Blue', value: '#5B9BAD' },   // Monet's pond blues
-  { name: 'Garden Sage', value: '#7A9E7A' },       // Soft garden greens
-  { name: 'Iris Purple', value: '#8B78B8' },       // Monet's purple irises
-  { name: 'Rose Pink', value: '#C8787C' },         // Garden roses, warm pink
-  { name: 'Warm Ochre', value: '#C49A50' },        // Warm fields, golden light
-  { name: 'River Teal', value: '#4E9A94' },        // Flowing water, teal depths
-  { name: 'Dawn Lavender', value: '#A090C0' },     // Atmospheric sky tones
-  { name: 'Sunset Coral', value: '#C87868' },      // Evening warmth
-  { name: 'Wheat Gold', value: '#B89840' },        // Harvested fields
-  { name: 'Moss Green', value: '#6A8C5A' },        // Deep garden moss
-  { name: 'Dusty Rose', value: '#B88090' },        // Faded roses, muted warmth
+  { name: 'Blue', value: '#4A80F0' },           // Primary cornflower blue
+  { name: 'Green', value: '#34C759' },           // Fresh emerald green
+  { name: 'Purple', value: '#AF52DE' },          // Bright violet
+  { name: 'Orange', value: '#FF9500' },          // Warm amber orange
+  { name: 'Red', value: '#FF3B30' },             // Clear red
+  { name: 'Teal', value: '#5AC8FA' },            // Sky teal
+  { name: 'Indigo', value: '#5856D6' },          // Deep indigo
+  { name: 'Pink', value: '#FF2D55' },            // Hot pink
+  { name: 'Yellow', value: '#FFCC00' },          // Bright yellow
+  { name: 'Mint', value: '#00C7BE' },            // Mint green
+  { name: 'Brown', value: '#A2845E' },           // Warm brown
 ] as const;
 
-/** Flat list of hex values for components that only need the color (e.g. swatch grids). */
+/** Flat list of hex values for components that only need the color. */
 export const PALETTE_HEX = PALETTE_COLORS.map((c) => c.value);
 
 export type PaletteColorName = (typeof PALETTE_COLORS)[number]['name'];
 
 /** Default color when creating a new calendar or category. */
-export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Waterlily Blue
+export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Blue
 
 /**
- * Semantic color tokens for the Monet-inspired theme.
- * Used in CSS custom properties and component-level styling.
+ * Semantic color tokens for the design system.
  */
-export const MONET_THEME = {
+export const THEME = {
   // Background palette
-  background: '#FAF8F4',         // Warm canvas white
-  backgroundAlt: '#F5F1EB',      // Slightly warmer for sidebars
-  backgroundAccent: '#EDE8E0',   // Subtle accent surfaces
+  background: '#F8F8F6',         // Barely-warm off-white canvas
+  sidebar: '#EFEFE9',            // Slightly warmer panel bg
+  card: '#FFFFFF',               // Pure white cards
+  muted: '#F2F2F0',              // Muted surfaces
 
   // Text colors
-  textPrimary: '#2C2820',        // Warm dark (not cold black)
-  textSecondary: '#6B6058',      // Warm medium gray
-  textMuted: '#9E968C',          // Light warm gray
+  textPrimary: '#1C1C1E',        // Near-black
+  textSecondary: '#636366',      // Medium gray
+  textMuted: '#8E8E93',          // Light gray
+  textPlaceholder: '#C7C7CC',    // Placeholder
 
   // Border colors
-  borderLight: '#E8E0D4',        // Very light warm border
-  borderMedium: '#D4C8B8',       // Medium warm border
-  borderStrong: '#B4A898',       // Stronger warm border
+  borderLight: 'rgba(0,0,0,0.06)',
+  borderMedium: 'rgba(0,0,0,0.10)',
+  borderStrong: 'rgba(0,0,0,0.16)',
 
-  // Accent: a muted warm blue for interactive elements
-  accent: '#5B9BAD',             // Waterlily Blue (primary action)
-  accentHover: '#4A8899',        // Darker on hover
-  accentLight: '#EAF3F6',        // Very light tint for focus/selected
+  // Primary blue
+  primary: '#4A80F0',
+  primaryHover: '#3A6EDE',
+  primaryPale: '#EBF1FF',
 
-  // Success/done states
-  successGreen: '#7A9E7A',
-  successLight: '#EBF3EB',
+  // Grid lines
+  gridHour: 'rgba(0,0,0,0.07)',
+  gridHalf: 'rgba(0,0,0,0.035)',
 
-  // Warning
-  warningOchre: '#C49A50',
-  warningLight: '#FDF5E8',
+  // States
+  successGreen: '#34C759',
+  successLight: '#E8FAF0',
+  warningOrange: '#FF9500',
+  warningLight: '#FFF4E6',
+  destructiveRed: '#FF3B30',
+  destructiveLight: '#FFF0EF',
 } as const;
+
+// Keep MONET_THEME as an alias so existing imports don't break
+export const MONET_THEME = THEME;

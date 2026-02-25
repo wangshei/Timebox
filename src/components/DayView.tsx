@@ -355,7 +355,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     <div
       ref={outerRef}
       className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
-      style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(160,140,120,0.04)' } : undefined}
+      style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(0,0,0,0.025)' } : undefined}
     >
       {/* Main grid container: ALL mouse/drag handlers live here.
           Clicks on empty space (not caught by cards) bubble up to this element. */}
@@ -385,7 +385,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               {/* Time label */}
               <div
                 className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
-                style={{ color: '#B0A090', fontSize: '10px' }}
+                style={{ color: '#AEAEB2', fontSize: '10px' }}
               >
                 {hour === 0
                   ? '12am'
@@ -400,8 +400,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 className="absolute left-14 md:left-20 right-0 top-0"
                 style={{
                   height: PX_PER_HOUR,
-                  borderTop: '1px solid rgba(160,140,120,0.18)',
-                  backgroundColor: isPastSlot ? 'rgba(160,140,120,0.04)' : 'transparent',
+                  borderTop: '1px solid rgba(0,0,0,0.07)',
+                  backgroundColor: isPastSlot ? 'rgba(0,0,0,0.025)' : 'transparent',
                 }}
               />
               {/* Half-hour line */}
@@ -409,7 +409,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 className="absolute left-14 md:left-20 right-0"
                 style={{
                   top: `${PX_PER_HOUR / 2}px`,
-                  borderTop: '1px solid rgba(160,140,120,0.09)',
+                  borderTop: '1px solid rgba(0,0,0,0.035)',
                 }}
               />
             </div>
@@ -491,13 +491,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               style={{
                 top: currentTimeTop,
                 height: 0,
-                borderTop: '2px solid #5B9BAD',
+                borderTop: '2px solid #4A80F0',
               }}
               aria-hidden
             />
             <div
               className="absolute left-0 z-40 text-xs font-semibold tabular-nums pointer-events-none"
-              style={{ top: currentTimeTop - 8, color: '#5B9BAD', fontSize: '10px' }}
+              style={{ top: currentTimeTop - 8, color: '#4A80F0', fontSize: '10px' }}
             >
               {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
@@ -511,11 +511,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{
               top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(91,155,173,0.15)',
-              border: '2px dashed rgba(91,155,173,0.55)',
+              backgroundColor: 'rgba(74,128,240,0.10)',
+              border: '2px dashed rgba(74,128,240,0.45)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#5B9BAD' }}>
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#4A80F0' }}>
               {minutesToTimeString(dragPreview.startMins)}–{minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
             </span>
           </div>
@@ -528,11 +528,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{
               top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(91,155,173,0.12)',
-              border: '2px dashed rgba(91,155,173,0.5)',
+              backgroundColor: 'rgba(74,128,240,0.08)',
+              border: '2px dashed rgba(74,128,240,0.40)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#5B9BAD' }}>
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#4A80F0' }}>
               {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
             </span>
           </div>
@@ -544,8 +544,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg"
             style={{
               height: GRID_HEIGHT,
-              backgroundColor: 'rgba(91,155,173,0.04)',
-              boxShadow: 'inset 0 0 0 2px rgba(91,155,173,0.25)',
+              backgroundColor: 'rgba(74,128,240,0.03)',
+              boxShadow: 'inset 0 0 0 2px rgba(74,128,240,0.20)',
             }}
           />
         )}

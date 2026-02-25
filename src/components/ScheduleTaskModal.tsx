@@ -19,9 +19,9 @@ interface ScheduleTaskModalProps {
 
 const inputClass = "w-full px-4 py-2 rounded-lg focus:outline-none transition-colors";
 const inputStyle: React.CSSProperties = {
-  backgroundColor: '#F5F1EB',
-  border: '1px solid rgba(160,140,120,0.25)',
-  color: '#2C2820',
+  backgroundColor: '#FFFFFF',
+  border: '1px solid rgba(0,0,0,0.12)',
+  color: '#1C1C1E',
 };
 
 export function ScheduleTaskModal({
@@ -58,21 +58,21 @@ export function ScheduleTaskModal({
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-full md:max-w-md md:rounded-2xl rounded-t-2xl"
-        style={{ backgroundColor: '#FDFBF8', boxShadow: '0 20px 60px rgba(44,40,32,0.18)' }}
+        style={{ backgroundColor: '#FFFFFF', boxShadow: '0 20px 60px rgba(0,0,0,0.14)' }}
       >
         <div
           className="flex items-center justify-between px-6 py-4"
-          style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         >
-          <h2 className="text-base font-semibold" style={{ color: '#2C2820' }}>
+          <h2 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
             Schedule{taskTitle ? `: ${taskTitle}` : ' task'}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg transition-colors"
-            style={{ color: '#A08C78' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.12)'; }}
+            style={{ color: '#8E8E93' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <XMarkIcon className="h-5 w-5" />
@@ -80,7 +80,7 @@ export function ScheduleTaskModal({
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B6058' }}>Date</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>Date</label>
             <input
               type="date"
               value={date}
@@ -91,7 +91,7 @@ export function ScheduleTaskModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B6058' }}>Start time</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>Start time</label>
             <input
               type="time"
               value={startTime}
@@ -102,7 +102,7 @@ export function ScheduleTaskModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B6058' }}>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>
               Block length (minutes)
             </label>
             <input
@@ -121,18 +121,18 @@ export function ScheduleTaskModal({
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: 'rgba(160,140,120,0.1)', color: '#6B6058', border: '1px solid rgba(160,140,120,0.2)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.18)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)'; }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366', border: '1px solid rgba(0,0,0,0.09)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.09)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2.5 text-white rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: '#5B9BAD' }}
+              style={{ backgroundColor: '#4A80F0' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A8A9C'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#5B9BAD'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#4A80F0'; }}
             >
               Schedule
             </button>

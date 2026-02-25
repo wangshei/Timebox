@@ -4,6 +4,13 @@ import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
+import { SegmentedControl } from './ui/SegmentedControl';
+
+const PRIMARY = '#4A80F0';
+const MUTED = '#8E8E93';
+const TEXT = '#1C1C1E';
+const BORDER = 'rgba(0,0,0,0.08)';
+const BG_PANEL = '#EFEFE9';
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -35,6 +42,8 @@ interface RightSidebarProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
+  /** Toggle pin status on a task. */
+  onTogglePin?: (taskId: string) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
@@ -43,7 +52,7 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, onTogglePin, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
@@ -133,74 +142,63 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         isBottomSheet ? 'h-full' : isMobile ? 'w-full' : 'w-80'
       }`}
       style={{
-        backgroundColor: isDragOverBlock ? 'rgba(91,155,173,0.06)' : '#F5F1EB',
-        outline: isDragOverBlock ? '2px solid rgba(91,155,173,0.4)' : 'none',
+        backgroundColor: isDragOverBlock ? 'rgba(74,128,240,0.04)' : BG_PANEL,
+        outline: isDragOverBlock ? '2px solid rgba(74,128,240,0.3)' : 'none',
         outlineOffset: '-2px',
-        borderLeft: isMobile ? '1px solid rgba(160,140,120,0.2)' : 'none',
+        borderLeft: isMobile ? `1px solid ${BORDER}` : 'none',
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Overview toggle + date range filter */}
-      <div className={isBottomSheet ? 'px-4 py-2.5' : 'px-4 py-2.5'} style={{ borderBottom: '1px solid rgba(160,140,120,0.18)' }}>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setViewMode(viewMode === 'overview' ? 'plan' : 'overview')}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg transition-all touch-manipulation"
-            style={{
-              backgroundColor: viewMode === 'plan' ? 'rgba(91,155,173,0.1)' : 'rgba(160,140,120,0.1)',
-              color: viewMode === 'plan' ? '#5B9BAD' : '#8A7A6E',
-              border: viewMode === 'plan' ? '1px solid rgba(91,155,173,0.25)' : '1px solid rgba(160,140,120,0.2)',
-            }}
-            title={viewMode === 'overview' ? 'Show as planning blocks' : 'Show as list'}
-          >
-            {viewMode === 'overview' ? 'Overview' : '← List'}
-          </button>
-          <div className="flex rounded-lg p-0.5" style={{ backgroundColor: 'rgba(160,140,120,0.1)', border: '1px solid rgba(160,140,120,0.18)' }}>
-            {(['today', 'week', 'month'] as const).map((range) => (
-              <button
-                key={range}
-                type="button"
-                onClick={() => setOverviewRange(range)}
-                className="px-2 py-1 text-xs font-medium rounded-md transition-all touch-manipulation capitalize"
-                style={{
-                  backgroundColor: overviewRange === range ? '#FDFBF8' : 'transparent',
-                  color: overviewRange === range ? '#2C2820' : '#8A7A6E',
-                  boxShadow: overviewRange === range ? '0 1px 3px rgba(0,0,0,0.07)' : 'none',
-                }}
-              >
-                {range.charAt(0).toUpperCase() + range.slice(1)}
-              </button>
-            ))}
-          </div>
+      <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-between gap-2">
+          <SegmentedControl
+            options={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'plan', label: 'Plan' },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as TaskViewMode)}
+            compact
+          />
+          <SegmentedControl
+            options={[
+              { value: 'today', label: 'Today' },
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+            ]}
+            value={overviewRange}
+            onChange={(v) => setOverviewRange(v as 'today' | 'week' | 'month')}
+            compact
+          />
         </div>
       </div>
 
       <div className={`flex-1 min-h-0 overflow-y-auto space-y-5 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'px-4 py-4 pb-8'}`}>
         {/* Unscheduled Tasks */}
         <div>
-          <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#A08C78', letterSpacing: '0.1em' }}>Unscheduled</h2>
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
           {onOpenAddModal && (
             <button
               type="button"
               onClick={() => onOpenAddModal('task')}
               className="w-full py-2 px-3 mb-3 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
               style={{
-                border: '1.5px dashed rgba(160,140,120,0.35)',
-                color: '#8A7A6E',
+                border: '1.5px dashed rgba(0,0,0,0.15)',
+                color: '#636366',
                 backgroundColor: 'transparent',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.08)';
-                e.currentTarget.style.borderColor = 'rgba(91,155,173,0.45)';
-                e.currentTarget.style.color = '#5B9BAD';
+                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                e.currentTarget.style.borderColor = 'rgba(74,128,240,0.45)';
+                e.currentTarget.style.color = '#4A80F0';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(160,140,120,0.35)';
-                e.currentTarget.style.color = '#8A7A6E';
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
+                e.currentTarget.style.color = '#636366';
               }}
             >
               <PlusIcon className="h-3.5 w-3.5" />
@@ -209,7 +207,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           )}
           <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
             {unscheduledTasks.length === 0 ? (
-              <div className="text-xs text-center py-4" style={{ color: '#B0A090' }}>No unscheduled tasks</div>
+              <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
             ) : (
               unscheduledTasks.map((task) => (
                 <TaskCard
@@ -227,6 +225,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))
             )}
@@ -236,7 +235,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Partially Completed */}
         {partiallyCompletedTasks.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#A08C78', letterSpacing: '0.1em' }}>In Progress</h2>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
               {              filteredPartially.map((task) => (
                 <TaskCard
@@ -254,6 +253,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -263,7 +263,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Fixed / Missed */}
         {fixedMissedTasks.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#A08C78', letterSpacing: '0.1em' }}>Fixed / Missed</h2>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
               {              filteredFixed.map((task) => (
                 <TaskCard
@@ -281,6 +281,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -296,11 +297,11 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               className="flex items-center gap-1.5 w-full text-left mb-2"
             >
               {doneSectionOpen ? (
-                <ChevronDownIcon className="h-3 w-3" style={{ color: '#A08C78' }} />
+                <ChevronDownIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
               ) : (
-                <ChevronRightIcon className="h-3 w-3" style={{ color: '#A08C78' }} />
+                <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
               )}
-              <h2 className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#A08C78', letterSpacing: '0.1em' }}>Done</h2>
+              <h2 className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
             </button>
             {doneSectionOpen && (
               <div className="space-y-1.5">
@@ -308,11 +309,11 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   <div
                     key={task.id}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                    style={{ backgroundColor: 'rgba(160,140,120,0.08)', border: '1px solid rgba(160,140,120,0.14)' }}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
                   >
-                    <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#6A8C5A' }} />
-                    <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#8A7A6E' }}>{task.title}</span>
-                    <span className="text-xs shrink-0" style={{ color: '#B0A090' }}>{task.recordedHours}h</span>
+                    <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#34C759' }} />
+                    <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#636366' }}>{task.title}</span>
+                    <span className="text-xs shrink-0" style={{ color: '#8E8E93' }}>{task.recordedHours}h</span>
                   </div>
                 ))}
               </div>
@@ -323,28 +324,28 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Events */}
         {upcomingEvents.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#A08C78', letterSpacing: '0.1em' }}>Upcoming Events</h2>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Upcoming Events</h2>
             <div className="space-y-2">
               {upcomingEvents.map((event) => (
                 <div
                   key={event.id}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl group"
                   style={{
-                    backgroundColor: 'rgba(160,140,120,0.07)',
-                    border: '1px solid rgba(160,140,120,0.14)',
-                    borderLeft: '3px solid #5B9BAD',
+                    backgroundColor: 'rgba(0,0,0,0.04)',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    borderLeft: '3px solid #4A80F0',
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold truncate" style={{ color: '#2C2820' }}>{event.title}</div>
-                    <div className="text-[10px] mt-0.5" style={{ color: '#A08C78' }}>{event.start} – {event.end} · {event.date}</div>
+                    <div className="text-xs font-semibold truncate" style={{ color: '#1C1C1E' }}>{event.title}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: '#8E8E93' }}>{event.start} – {event.end} · {event.date}</div>
                   </div>
                   {onDeleteEvent && (
                     <button
                       className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
-                      style={{ color: '#B0A090' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.15)'; e.currentTarget.style.color = '#6E5E50'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#B0A090'; }}
+                      style={{ color: '#AEAEB2' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
                       onClick={() => onDeleteEvent(event.id)}
                       title="Delete event"
                     >

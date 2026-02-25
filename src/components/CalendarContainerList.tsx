@@ -33,7 +33,7 @@ export function CalendarContainerList({
               className="w-3.5 h-3.5 rounded flex-shrink-0 cursor-pointer"
               style={{
                 accentColor: container.color,
-                border: `1.5px solid rgba(160,140,120,0.35)`,
+                border: `1.5px solid rgba(0,0,0,0.14)`,
               }}
             />
             <button
@@ -43,7 +43,7 @@ export function CalendarContainerList({
               style={{
                 borderLeftColor: container.color,
                 backgroundColor: isFocused ? `${container.color}22` : `${container.color}10`,
-                color: isFocused ? '#2C2820' : '#6B6058',
+                color: isFocused ? '#1C1C1E' : '#636366',
                 fontWeight: isFocused ? 600 : 400,
                 fontSize: '12px',
               }}

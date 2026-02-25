@@ -3,91 +3,62 @@
 :root {
   --font-size: 16px;
 
-  /* === Monet-inspired warm canvas theme === */
-  --background: #FAF8F4;           /* Warm canvas white */
-  --foreground: #2C2820;           /* Warm dark text */
-  --card: #FDFBF8;                 /* Slightly off-white card */
-  --card-foreground: #2C2820;
-  --popover: #FDFBF8;
-  --popover-foreground: #2C2820;
-  --primary: #5B9BAD;              /* Waterlily Blue as primary */
+  /* === Clean Cream-White + Cheerful Blue Design System === */
+  --background: #F8F8F6;           /* Barely-warm off-white canvas */
+  --foreground: #1C1C1E;           /* iOS-style near-black */
+  --card: #FFFFFF;                 /* Pure white cards — crisp contrast */
+  --card-foreground: #1C1C1E;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1E;
+  --primary: #4A80F0;              /* Cheerful cornflower blue */
   --primary-foreground: #ffffff;
-  --secondary: #F0EBE3;            /* Warm secondary surface */
-  --secondary-foreground: #2C2820;
-  --muted: #EDE8E0;                /* Muted warm background */
-  --muted-foreground: #9E968C;     /* Warm muted text */
-  --accent: #EAF3F6;               /* Light waterlily tint for accents */
-  --accent-foreground: #2C6070;
-  --destructive: #B85050;          /* Warmer red */
+  --secondary: #F0F0EE;            /* Neutral surface */
+  --secondary-foreground: #1C1C1E;
+  --muted: #F2F2F0;                /* Subtle muted background */
+  --muted-foreground: #8E8E93;     /* iOS gray */
+  --accent: #EBF1FF;               /* Light blue tint for accents */
+  --accent-foreground: #2550B0;
+  --destructive: #FF3B30;          /* iOS red */
   --destructive-foreground: #ffffff;
-  --border: rgba(160, 140, 120, 0.18);  /* Warm border */
+  --border: rgba(0, 0, 0, 0.08);   /* Clean neutral border */
   --input: transparent;
-  --input-background: #F0EBE3;     /* Warm input background */
-  --switch-background: #C8C0B0;
+  --input-background: #F2F2F0;     /* Neutral input background */
+  --switch-background: #C7C7CC;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #5B9BAD;                 /* Waterlily Blue focus ring */
+  --ring: #4A80F0;                 /* Blue focus ring */
 
-  /* Chart colors — Monet's garden palette */
-  --chart-1: #5B9BAD;   /* Waterlily Blue */
-  --chart-2: #7A9E7A;   /* Garden Sage */
-  --chart-3: #8B78B8;   /* Iris Purple */
-  --chart-4: #C49A50;   /* Warm Ochre */
-  --chart-5: #C8787C;   /* Rose Pink */
+  /* Chart colors — clear, distinct, cheerful */
+  --chart-1: #4A80F0;   /* Blue */
+  --chart-2: #34C759;   /* Green */
+  --chart-3: #AF52DE;   /* Purple */
+  --chart-4: #FF9500;   /* Orange */
+  --chart-5: #FF2D55;   /* Pink */
 
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* Sidebar uses a slightly warmer tone */
-  --sidebar: #F5F1EB;
-  --sidebar-foreground: #2C2820;
-  --sidebar-primary: #5B9BAD;
+  /* Sidebar — slightly different from canvas (intentional panel distinction) */
+  --sidebar: #EFEFE9;
+  --sidebar-foreground: #1C1C1E;
+  --sidebar-primary: #4A80F0;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #EDE8E0;
-  --sidebar-accent-foreground: #4A3C30;
-  --sidebar-border: #E0D8CC;
-  --sidebar-ring: #5B9BAD;
+  --sidebar-accent: #E8E8E4;
+  --sidebar-accent-foreground: #3A3A3C;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #4A80F0;
 
-  /* === Monet-inspired Color Palette (nature-based) === */
-  /* Waterlily Blues — pond & sky */
-  --color-waterlily: #5B9BAD;
-  --color-waterlily-light: #A8CDD8;
-  --color-waterlily-pale: #EAF3F6;
-
-  /* Garden Greens */
-  --color-garden-sage: #7A9E7A;
-  --color-garden-moss: #6A8C5A;
-  --color-garden-light: #EBF3EB;
-
-  /* Iris & Lavender */
-  --color-iris: #8B78B8;
-  --color-lavender: #A090C0;
-  --color-lavender-pale: #F0EBF8;
-
-  /* Roses & Warm Pinks */
-  --color-rose: #C8787C;
-  --color-dusty-rose: #B88090;
-  --color-rose-pale: #F8EDED;
-
-  /* Golden Fields */
-  --color-ochre: #C49A50;
-  --color-wheat: #B89840;
-  --color-ochre-pale: #FDF5E8;
-
-  /* River & Teal */
-  --color-river-teal: #4E9A94;
-  --color-teal-pale: #EBF5F4;
-
-  /* Sunset / Coral */
-  --color-sunset: #C87868;
-  --color-sunset-pale: #F8EDE9;
-
-  /* Warm Neutrals */
-  --color-warm-dark: #2C2820;
-  --color-warm-medium: #6B6058;
-  --color-warm-muted: #9E968C;
-  --color-warm-border: #E0D8CC;
-  --color-warm-surface: #F5F1EB;
-  --color-warm-canvas: #FAF8F4;
+  /* === Calendar color palette (vibrant, distinct) === */
+  --color-blue: #4A80F0;
+  --color-green: #34C759;
+  --color-purple: #AF52DE;
+  --color-orange: #FF9500;
+  --color-red: #FF3B30;
+  --color-teal: #5AC8FA;
+  --color-indigo: #5856D6;
+  --color-pink: #FF2D55;
+  --color-yellow: #FFCC00;
+  --color-mint: #00C7BE;
+  --color-brown: #A2845E;
 }
 
 .dark {
@@ -154,9 +125,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -178,8 +149,8 @@
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter stylistic features */
-    letter-spacing: -0.006em;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    letter-spacing: -0.008em;
   }
 
   body {
@@ -187,93 +158,42 @@
   }
 }
 
-/**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
- */
-@layer base {
-  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
-  }
-}
-
 html {
   font-size: var(--font-size);
 }
 
-/* === Monet theme global polish === */
-
-/* Warm scrollbars */
+/* === Slim, clean scrollbars === */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-warm-border);
+  background: rgba(0,0,0,0.15);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-warm-muted);
+  background: rgba(0,0,0,0.25);
 }
 
 /* === Block type visual language === */
 
 /* Events: structured, locked, clean left-stripe look */
 .block-event {
-  border-left: 3px solid var(--block-color, #5B9BAD);
+  border-left: 3px solid var(--block-color, #4A80F0);
   border-radius: 0 8px 8px 0;
-  background: var(--block-bg, #EAF3F6);
+  background: var(--block-bg, #EBF1FF);
 }
 
-/* Tasks: organic, flexible, warm paper feel */
+/* Tasks: organic, flexible */
 .block-task {
-  border-radius: 10px;
+  border-radius: 8px;
   position: relative;
 }
 
-/* Tag chips in sidebar */
+/* Tag chips */
 .tag-chip {
   display: inline-flex;
   align-items: center;
@@ -286,7 +206,7 @@ html {
   opacity: 0.85;
 }
 
-/* Calendar badge in sidebar */
+/* Calendar badge */
 .calendar-badge {
   display: inline-flex;
   align-items: center;
@@ -295,7 +215,7 @@ html {
   font-size: 0.8125rem;
 }
 
-/* Category pill in sidebar */
+/* Category pill */
 .category-pill {
   display: inline-flex;
   align-items: center;
@@ -304,10 +224,10 @@ html {
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
-  background: rgba(0,0,0,0.06);
+  background: rgba(0,0,0,0.05);
 }
 
-/* Flexible indicator for task blocks */
+/* Flex indicator */
 .flex-indicator {
   display: inline-flex;
   align-items: center;
@@ -318,7 +238,7 @@ html {
   text-transform: uppercase;
 }
 
-/* Locked indicator for event blocks */
+/* Locked indicator */
 .locked-indicator {
   display: inline-flex;
   align-items: center;
@@ -328,7 +248,7 @@ html {
   letter-spacing: 0.04em;
 }
 
-/* Notes area in blocks */
+/* Notes in blocks */
 .block-notes {
   font-size: 0.6875rem;
   color: inherit;
@@ -336,4 +256,42 @@ html {
   font-style: italic;
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* === Section label utility === */
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8E8E93;
+}
+
+/* === Segmented control base === */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.segmented-control-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #636366;
+  white-space: nowrap;
+}
+
+.segmented-control-item.active {
+  background: #FFFFFF;
+  color: #1C1C1E;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 0 0 0.5px rgba(0,0,0,0.04);
 }

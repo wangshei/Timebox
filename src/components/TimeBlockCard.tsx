@@ -158,7 +158,7 @@ function TimeBlockCardInner({
     return base;
   };
 
-  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#5B9BAD';
+  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#4A80F0';
   const blockColor = getBlockColor();
 
   /**
@@ -213,8 +213,8 @@ function TimeBlockCardInner({
   const getTitleColor = (): string => {
     if (isEvent) {
       // Event titles in dark warm text, with subtle color tint
-      if (blockVisualState === 'ghost') return 'text-[#B0A090]';
-      return 'text-[#2C2820]';
+      if (blockVisualState === 'ghost') return 'text-[#AEAEB2]';
+      return 'text-[#1C1C1E]';
     }
     // Task titles: get contrast vs the saturated bg
     const bgForContrast = blockColor;
@@ -273,7 +273,7 @@ function TimeBlockCardInner({
       const color = getBlockColor();
       ghost.style.cssText = `position:absolute;top:-9999px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;`;
       ghost.textContent = block.title || 'Block';
-      ghost.style.color = '#2C2820';
+      ghost.style.color = '#1C1C1E';
       ghost.style.backgroundColor = hexToRgba(color, 0.15);
       ghost.style.border = `2px solid ${color}`;
       document.body.appendChild(ghost);
@@ -287,7 +287,7 @@ function TimeBlockCardInner({
     <div className="space-y-1">
       <div
         className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl mb-2"
-        style={{ borderBottom: '1px solid rgba(160,140,120,0.15)' }}
+        style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         onMouseDown={handlePopoverDragStart}
       >
         <div className="flex items-start gap-2">
@@ -301,28 +301,28 @@ function TimeBlockCardInner({
           >
             {isEvent ? '📌 Event' : '✏️ Task'}
           </span>
-          <span className="font-semibold text-sm leading-snug" style={{ color: '#2C2820' }}>{block.title || 'Untitled'}</span>
+          <span className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{block.title || 'Untitled'}</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#8A7A6E' }}>
+      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
         <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
         <span>{getTimeRange()} · {getDuration()}</span>
       </div>
-      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#8A7A6E' }}>
+      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
         <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
         <span>{block.date}</span>
       </div>
       {block.category && (
         <div className="flex items-center gap-2 py-0.5">
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
-          <span className="text-xs" style={{ color: '#6B6058' }}>{block.category.name}</span>
+          <span className="text-xs" style={{ color: '#636366' }}>{block.category.name}</span>
         </div>
       )}
       {block.calendarContainer && (
         <div className="flex items-center gap-2 py-0.5">
           <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: hexToRgba(block.calendarContainer.color, 0.3), border: `2px solid ${block.calendarContainer.color}` }} />
-          <span className="text-xs" style={{ color: '#6B6058' }}>{block.calendarContainer.name}</span>
+          <span className="text-xs" style={{ color: '#636366' }}>{block.calendarContainer.name}</span>
         </div>
       )}
       {block.tags.length > 0 && (
@@ -343,17 +343,17 @@ function TimeBlockCardInner({
         </div>
       )}
       {(block as any).notes && (
-        <div className="mt-1 pt-1 text-xs italic" style={{ borderTop: '1px solid rgba(160,140,120,0.1)', color: '#8A7A6E' }}>
+        <div className="mt-1 pt-1 text-xs italic" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: '#636366' }}>
           {(block as any).notes}
         </div>
       )}
-      <div className="flex gap-1 pt-2" style={{ borderTop: '1px solid rgba(160,140,120,0.15)', marginTop: 6 }}>
+      <div className="flex gap-1 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginTop: 6 }}>
         {onEditBlock && (
           <button
             type="button"
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-            style={{ color: '#6B6058' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(160,140,120,0.1)'; }}
+            style={{ color: '#636366' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
           >
@@ -433,7 +433,7 @@ function TimeBlockCardInner({
                 {block.title || 'Untitled'}
               </div>
               {showMeta && (
-                <div className="text-[9px] opacity-70 truncate mt-0.5" style={{ color: isEvent ? '#6B6058' : 'inherit' }}>
+                <div className="text-[9px] opacity-70 truncate mt-0.5" style={{ color: isEvent ? '#636366' : 'inherit' }}>
                   {block.start.slice(0, 5)}
                 </div>
               )}
@@ -450,8 +450,8 @@ function TimeBlockCardInner({
               className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
               style={{
                 top: '100%', left: 0, marginTop: 6,
-                backgroundColor: '#FDFBF8',
-                borderColor: 'rgba(160,140,120,0.2)',
+                backgroundColor: '#FFFFFF',
+                borderColor: 'rgba(0,0,0,0.09)',
               }}
             >
               <PopoverContent />
@@ -539,7 +539,7 @@ function TimeBlockCardInner({
           {showMeta && (
             <div className={cn(
               'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 min-w-0 text-[10px]',
-              isEvent ? 'text-[#8A7A6E]' : 'text-white/75',
+              isEvent ? 'text-[#636366]' : 'text-white/75',
             )}>
               <span className="whitespace-nowrap opacity-90">{getTimeRange()}</span>
               {block.category && heightPx >= 64 && (
@@ -580,7 +580,7 @@ function TimeBlockCardInner({
           {showNotes && (
             <div
               className="mt-1 text-[10px] italic line-clamp-2 opacity-70"
-              style={{ color: isEvent ? '#6B6058' : 'rgba(255,255,255,0.85)' }}
+              style={{ color: isEvent ? '#636366' : 'rgba(255,255,255,0.85)' }}
             >
               {(block as any).notes}
             </div>
@@ -618,8 +618,8 @@ function TimeBlockCardInner({
                 ? { top: '100%', left: 0, marginTop: 8 }
                 : { bottom: '100%', right: 0, marginBottom: 8 }),
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
-              backgroundColor: '#FDFBF8',
-              borderColor: 'rgba(160,140,120,0.2)',
+              backgroundColor: '#FFFFFF',
+              borderColor: 'rgba(0,0,0,0.09)',
             }}
           >
             <PopoverContent />
