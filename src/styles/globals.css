@@ -2,92 +2,63 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+
+  /* === Parchment Palette Design System === */
+  --background: rgba(219, 228, 215, 0.05); /* 5% sage tint — near-white, cool canvas */
+  --foreground: #1C1C1E;           /* iOS-style near-black */
+  --card: #FFFFFF;                 /* Pure white cards — crisp contrast */
+  --card-foreground: #1C1C1E;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1E;
+  --primary: #8DA286;              /* Earthy sage green */
+  --primary-foreground: #1C1C1E;   /* Dark text — sage bg fails AA with white */
+  --secondary: #DBE4D7;            /* Pale sage surface */
+  --secondary-foreground: #1C1C1E;
+  --muted: #DBE4D7;                /* Subtle muted background */
+  --muted-foreground: #8E8E93;     /* iOS gray */
+  --accent: #D9D781;               /* Warm yellow-green highlight */
+  --accent-foreground: #3A3A3C;    /* Dark text on yellow accent */
+  --destructive: #FF3B30;          /* iOS red */
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(0, 0, 0, 0.08);   /* Clean neutral border */
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: #DBE4D7;     /* Pale sage input background */
+  --switch-background: #C7C7CC;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --ring: #8DA286;                 /* Blue focus ring */
 
-  /* Color Palette */
-  /* Red */
-  --color-red-primary: #D4044B;
-  --color-red-light: #FF6464;
-  --color-red-lighter: #FF8474;
-  
-  /* Orange */
-  --color-orange-light: #FF8474;
-  --color-orange: #FFC996;
-  --color-orange-dark: #EC8309;
-  
-  /* Yellow */
-  --color-yellow-light: #FFC996;
-  --color-yellow: #F9EEDC;
-  --color-yellow-bright: #FFEEAC;
-  --color-yellow-pale: #FFF1CE;
-  --color-yellow-red: #D92D28;
-  
-  /* Green */
-  --color-green: #13B49F;
-  --color-green-light: #91C4B3;
-  --color-green-lighter: #8DC8C8;
-  
-  /* Blue */
-  --color-blue-teal: #13948F;
-  --color-blue-cyan: #00A8A8;
-  --color-blue: #0044A8;
-  --color-blue-dark: #00004E;
-  --color-blue-light: #86C0F4;
-  
-  /* Brown */
-  --color-brown-light: #F5EEDC;
-  --color-brown: #EC8309;
-  --color-brown-red: #D92D28;
-  --color-brown-pink: #B5244A;
-  --color-brown-dark: #824A4A;
-  
-  /* Gray */
-  --color-gray: #E2E4E6;
-  --color-gray-light: #EEEEEE;
-  
-  /* Pink */
-  --color-pink: #FF6F74;
-  --color-pink-light: #FFC0CB;
-  
-  /* Purple */
-  --color-purple: #5B3D72;
-  --color-purple-light: #9F5FB0;
+  /* Chart colors — clear, distinct, cheerful */
+  --chart-1: #8DA286;   /* Blue */
+  --chart-2: #34C759;   /* Green */
+  --chart-3: #AF52DE;   /* Purple */
+  --chart-4: #FF9500;   /* Orange */
+  --chart-5: #FF2D55;   /* Pink */
+
+  --radius: 0.5rem;
+
+  /* Sidebar — warm parchment panels (distinct from near-white canvas) */
+  --sidebar: #F2EFDC;
+  --sidebar-foreground: #1C1C1E;
+  --sidebar-primary: #8DA286;
+  --sidebar-primary-foreground: #1C1C1E;
+  --sidebar-accent: #DBE4D7;
+  --sidebar-accent-foreground: #3A3A3C;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #8DA286;
+
+  /* === Calendar color palette (vibrant, distinct) === */
+  --color-blue: #5E8AE0;
+  --color-green: #34C759;
+  --color-purple: #AF52DE;
+  --color-orange: #FF9500;
+  --color-red: #FF3B30;
+  --color-teal: #5AC8FA;
+  --color-indigo: #5856D6;
+  --color-pink: #FF2D55;
+  --color-yellow: #FFCC00;
+  --color-mint: #00C7BE;
+  --color-brown: #A2845E;
 }
 
 .dark {
@@ -154,9 +125,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -171,64 +142,156 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    letter-spacing: -0.008em;
   }
 
   body {
     @apply bg-background text-foreground;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-}
-
-/**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
- */
-@layer base {
-  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
-    h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    label {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    button {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-    }
-
-    input {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
-    }
   }
 }
 
 html {
   font-size: var(--font-size);
+}
+
+/* === Slim, clean scrollbars === */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+
+/* === Block type visual language === */
+
+/* Events: structured, locked, clean left-stripe look */
+.block-event {
+  border-left: 3px solid var(--block-color, #8DA286);
+  border-radius: 0 8px 8px 0;
+  background: var(--block-bg, #EBF1FF);
+}
+
+/* Tasks: organic, flexible */
+.block-task {
+  border-radius: 8px;
+  position: relative;
+}
+
+/* Tag chips */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+}
+
+/* Calendar badge */
+.calendar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+/* Category pill */
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(0,0,0,0.05);
+}
+
+/* Flex indicator */
+.flex-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.5rem;
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Locked indicator */
+.locked-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.5rem;
+  opacity: 0.65;
+  letter-spacing: 0.04em;
+}
+
+/* Notes in blocks */
+.block-notes {
+  font-size: 0.6875rem;
+  color: inherit;
+  opacity: 0.75;
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* === Section label utility === */
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8E8E93;
+}
+
+/* === Segmented control base === */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.segmented-control-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #636366;
+  white-space: nowrap;
+}
+
+.segmented-control-item.active {
+  background: #FFFFFF;
+  color: #1C1C1E;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 0 0 0.5px rgba(0,0,0,0.04);
 }

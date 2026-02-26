@@ -162,11 +162,12 @@ export function EventCard({
         className={cn(
           'h-full w-full rounded-lg px-3 py-2 transition-all flex flex-col min-h-0 shadow-sm',
           plannedStyle ? '' : 'border-l-4',
-          isSelected && 'ring-2 ring-blue-400 ring-offset-1'
+          isSelected && 'ring-2 ring-offset-1'
         )}
         style={{
           backgroundColor: bgColor,
           opacity,
+          ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
         }}
       >
@@ -222,8 +223,11 @@ export function EventCard({
           />
           <div
             ref={popoverRef}
-            className="absolute z-20 bg-white rounded-lg shadow-lg border border-neutral-200 p-3 min-w-56"
+            className="absolute z-20 rounded-xl p-3 min-w-56"
             style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.09)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
               ...(popoverPosition === 'bottom-left'
                 ? { top: '100%', left: 0, marginTop: 8 }
                 : { bottom: '100%', right: 0, marginBottom: 8 }),
@@ -231,24 +235,25 @@ export function EventCard({
             }}
           >
             <div
-              className="cursor-grab active:cursor-grabbing border-b border-neutral-100 pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-lg"
+              className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl"
+              style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
               onMouseDown={handlePopoverDragStart}
             >
-              <div className="font-semibold text-sm text-neutral-800 truncate">
+              <div className="font-semibold text-sm truncate" style={{ color: '#1C1C1E' }}>
                 {event.title || 'Untitled Event'}
               </div>
             </div>
             <div className="pt-2">
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
+              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
+                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
-                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
+              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
+                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} />
                 <span>{event.date}</span>
               </div>
               {event.category && (
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-1.5">
+                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: event.category.color }}
@@ -257,30 +262,33 @@ export function EventCard({
                 </div>
               )}
               {event.calendarContainer && (
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
+                <div className="flex items-center gap-2 text-xs mb-3" style={{ color: '#636366' }}>
                   <div
-                    className="w-3 h-3 rounded flex-shrink-0 border"
-                    style={{ backgroundColor: event.calendarContainer.color, borderColor: event.calendarContainer.color }}
+                    className="w-3 h-3 rounded flex-shrink-0"
+                    style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `2px solid ${event.calendarContainer.color}` }}
                   />
                   <span>{event.calendarContainer.name}</span>
                 </div>
               )}
               {event.description && (
-                <div className="text-xs text-neutral-600 whitespace-pre-wrap mb-2">{event.description}</div>
+                <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: '#636366' }}>{event.description}</div>
               )}
               {event.link && (
                 <div className="mb-2">
-                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block max-w-full">
+                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
                     {event.link}
                   </a>
                 </div>
               )}
-              <div className="border-t border-neutral-200 my-1" />
+              <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
               <div className="flex gap-1">
                 {onEditEvent && (
                   <button
                     type="button"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+                    style={{ color: '#636366' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEditEvent(event.id);
@@ -295,7 +303,10 @@ export function EventCard({
                 {onDeleteEvent && (
                   <button
                     type="button"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+                    style={{ color: '#B85050' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteEvent(event.id);

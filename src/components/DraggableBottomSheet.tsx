@@ -29,9 +29,10 @@ interface DraggableBottomSheetProps {
   onDropBlock?: (blockId: string) => void;
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
+  onTogglePin?: (taskId: string) => void;
 }
 
-export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate, timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask }: DraggableBottomSheetProps) {
+export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate, timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, onTogglePin }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
   const minHeight = 80;
@@ -117,8 +118,10 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
   return (
     <div
       ref={sheetRef}
-      className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 rounded-t-2xl shadow-2xl transition-shadow lg:hidden flex flex-col"
+      className="fixed bottom-0 left-0 right-0 rounded-t-2xl shadow-2xl transition-shadow lg:hidden flex flex-col"
       style={{
+        backgroundColor: '#FFFFFF',
+        borderTop: '1px solid rgba(0,0,0,0.09)',
         height: `${height}px`,
         touchAction: 'none',
       }}
@@ -131,12 +134,12 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
       >
-        <div className="w-12 h-1.5 bg-neutral-300 rounded-full" />
+        <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(0,0,0,0.15)' }} />
       </div>
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-hidden">
-        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} doneTasks={doneTasks} selectedDate={selectedDate} timeBlocks={timeBlocks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onMarkTaskDone={onMarkTaskDone} onOpenAddModal={onOpenAddModal} onDropBlock={onDropBlock} onBreakIntoChunks={onBreakIntoChunks} onSplitTask={onSplitTask} isMobile isBottomSheet />
+        <RightSidebar tasks={tasks} unscheduledTasks={unscheduledTasks} partiallyCompletedTasks={partiallyCompletedTasks} fixedMissedTasks={fixedMissedTasks} doneTasks={doneTasks} selectedDate={selectedDate} timeBlocks={timeBlocks} categories={categories} tags={tags} onAddTask={onAddTask} onOpenScheduleTask={onOpenScheduleTask} onEditTask={onEditTask} onDeleteTask={onDeleteTask} onMarkTaskDone={onMarkTaskDone} onOpenAddModal={onOpenAddModal} onDropBlock={onDropBlock} onBreakIntoChunks={onBreakIntoChunks} onSplitTask={onSplitTask} onTogglePin={onTogglePin} isMobile isBottomSheet />
       </div>
     </div>
   );

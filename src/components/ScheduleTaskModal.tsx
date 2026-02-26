@@ -17,6 +17,13 @@ interface ScheduleTaskModalProps {
   onClose: () => void;
 }
 
+const inputClass = "w-full px-4 py-2 rounded-lg focus:outline-none transition-colors";
+const inputStyle: React.CSSProperties = {
+  backgroundColor: '#FFFFFF',
+  border: '1px solid rgba(0,0,0,0.12)',
+  color: '#1C1C1E',
+};
+
 export function ScheduleTaskModal({
   isOpen,
   taskTitle,
@@ -48,43 +55,54 @@ export function ScheduleTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full md:max-w-md md:rounded-2xl rounded-t-2xl shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
-          <h2 className="text-lg font-medium text-neutral-900">
-            Schedule task{taskTitle ? `: ${taskTitle}` : ''}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full md:max-w-md md:rounded-2xl rounded-t-2xl"
+        style={{ backgroundColor: '#FFFFFF', boxShadow: '0 20px 60px rgba(0,0,0,0.14)' }}
+      >
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
+        >
+          <h2 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
+            Schedule{taskTitle ? `: ${taskTitle}` : ' task'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: '#8E8E93' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
-            <XMarkIcon className="h-5 w-5 text-neutral-500" />
+            <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Date</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
+              style={inputStyle}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Start time</label>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>Start time</label>
             <input
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
+              style={inputStyle}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#636366' }}>
               Block length (minutes)
             </label>
             <input
@@ -94,20 +112,27 @@ export function ScheduleTaskModal({
               step={15}
               value={blockMinutes}
               onChange={(e) => setBlockMinutes(Number(e.target.value) || 60)}
-              className="w-full px-4 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
+              style={inputStyle}
             />
           </div>
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 font-medium"
+              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
+              style={{ backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366', border: '1px solid rgba(0,0,0,0.09)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.09)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
+              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
             >
               Schedule
             </button>

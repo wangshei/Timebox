@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mode } from '../types';
+import { Mode, Task } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
@@ -10,10 +10,12 @@ import {
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
   offsetYToMinutes as offsetYToMinsUtil,
 } from '../utils/gridUtils';
+import type { DropTaskParams, CreateBlockParams } from './DayView';
 
-interface WeekViewProps {
+interface ThreeDayViewProps {
   mode: Mode;
   timeBlocks: ResolvedTimeBlock[];
+  /** The anchor date — view shows this date + next 2 days */
   currentDate: Date;
   selectedBlock?: string | null;
   onSelectBlock?: (id: string | null) => void;
@@ -23,7 +25,7 @@ interface WeekViewProps {
   onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
-  onDropTask?: (taskId: string, params: import('./DayView').DropTaskParams) => void;
+  onDropTask?: (taskId: string, params: DropTaskParams) => void;
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
@@ -32,37 +34,49 @@ interface WeekViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
-  onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
+  onCreateBlock?: (params: CreateBlockParams) => string | undefined;
+  /** Raw tasks — used to show pinned task pills in day headers. */
+  tasks?: Task[];
+  /** Resolved categories for pinned task colors. */
+  categories?: import('../types').Category[];
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
+const PRIMARY = '#8DA286';
+const GRID_HOUR = 'rgba(0,0,0,0.07)';
+const GRID_HALF = 'rgba(0,0,0,0.035)';
+const BG_CANVAS = 'rgba(219,228,215,0.05)';
+const BG_TODAY = 'rgba(141,162,134,0.05)';
+
+export function ThreeDayView({
+  mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
+  focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm,
+  onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
+  onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
+  events = [], onDeleteEvent, onCreateBlock,
+  tasks = [], categories = [],
+}: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
+
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
-  const weekDays = React.useMemo(() => {
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-    return Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(startOfWeek);
-      day.setDate(startOfWeek.getDate() + i);
-      return day;
+  // Pinned tasks to show in day headers
+  const pinnedTasks = React.useMemo(
+    () => tasks.filter(t => t.pinned && t.status !== 'done' && t.status !== 'archived'),
+    [tasks]
+  );
+  const getCategoryColor = (categoryId: string) =>
+    categories.find(c => c.id === categoryId)?.color ?? '#8DA286';
+
+  // Three days: anchor date + next 2
+  const threeDays = React.useMemo(() => {
+    return Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(currentDate);
+      d.setDate(currentDate.getDate() + i);
+      return d;
     });
   }, [currentDate]);
-
-  const getBlockStyle = (block: ResolvedTimeBlock) => {
-    const startMinutes = parseTimeToMins(block.start);
-    const endMinutes = parseTimeToMins(block.end);
-    const duration = endMinutes - startMinutes;
-    const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-    const height = (duration / 60) * PX_PER_HOUR;
-    return { top, height };
-  };
-
-  const formatDate = (date: Date): string => getLocalDateString(date);
-
-  const isToday = (date: Date): boolean => isTodayLocal(getLocalDateString(date));
 
   const [now, setNow] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -78,7 +92,28 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   const offsetYToMinutes = (offsetY: number) => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
-  const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
+  const formatDate = (date: Date): string => getLocalDateString(date);
+  const isToday = (date: Date): boolean => isTodayLocal(getLocalDateString(date));
+
+  const getBlockStyle = (block: ResolvedTimeBlock) => {
+    const startMinutes = parseTimeToMins(block.start);
+    const endMinutes = parseTimeToMins(block.end);
+    const duration = endMinutes - startMinutes;
+    const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
+    const height = (duration / 60) * PX_PER_HOUR;
+    return { top, height };
+  };
+
+  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentTimeTopRaw =
+    currentTimeMinutes >= 0 && currentTimeMinutes < 24 * 60
+      ? ((currentTimeMinutes) / 60) * PX_PER_HOUR
+      : null;
+  const currentTimeTop =
+    currentTimeTopRaw != null
+      ? Math.max(0, Math.min(currentTimeTopRaw, GRID_HEIGHT - 2))
+      : null;
+  const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   // Drag-to-create state
   const MIN_CREATE_MINUTES = 15;
@@ -88,7 +123,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   React.useEffect(() => {
     if (!creatingBlock) return;
-    const gridEl = document.querySelector<HTMLDivElement>(`[data-week-day-col="${creatingBlock.date}"] [data-week-grid]`);
+    const gridEl = document.querySelector<HTMLDivElement>(`[data-3day-col="${creatingBlock.date}"] [data-3day-grid]`);
     if (!gridEl) return;
     const onMove = (e: MouseEvent) => {
       const rect = gridEl.getBoundingClientRect();
@@ -118,6 +153,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     };
   }, [creatingBlock, onCreateBlock]);
 
+  // Drag preview
+  const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
+
+  // Resize state
   const [resizingBlock, setResizingBlock] = React.useState<{
     block: ResolvedTimeBlock; startClientY: number;
   } | null>(null);
@@ -142,34 +181,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     };
   }, [resizingBlock, onResizeBlock]);
 
-  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-  const currentTimeTopRaw =
-    currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes < 24 * 60
-      ? ((currentTimeMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR
-      : null;
-  const currentTimeTop =
-    currentTimeTopRaw != null
-      ? Math.max(0, Math.min(currentTimeTopRaw, GRID_HEIGHT - 2))
-      : null;
-  const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
   return (
-    <div className="flex-1 overflow-auto" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
+    <div className="flex-1 overflow-auto" style={{ backgroundColor: BG_CANVAS }}>
       <div className="flex min-w-max">
         {/* Time column */}
         <div
-          className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10"
+          className="flex-shrink-0 py-2 sticky left-0 z-10"
           style={{
-            borderRight: '1px solid rgba(0,0,0,0.07)',
-            backgroundColor: 'rgba(219,228,215,0.05)',
+            width: 52,
+            borderRight: `1px solid ${GRID_HOUR}`,
+            backgroundColor: BG_CANVAS,
           }}
         >
-          <div className="h-9 md:h-10" /> {/* Spacer for day headers */}
+          <div style={{ height: pinnedTasks.length > 0 ? 76 : 48 }} /> {/* Spacer for day headers */}
           {hours.map((hour) => (
             <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
               <div
-                className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium"
-                style={{ color: '#AEAEB2', fontSize: '10px' }}
+                className="absolute w-full text-right font-medium"
+                style={{ right: 8, top: -7, color: '#AEAEB2', fontSize: '10px', letterSpacing: '-0.01em' }}
               >
                 {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
               </div>
@@ -177,50 +206,85 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
           ))}
         </div>
 
-        {/* Days columns */}
+        {/* Three day columns */}
         <div className="flex flex-1">
-          {weekDays.map((day, dayIndex) => {
+          {threeDays.map((day, dayIndex) => {
             const dateStr = formatDate(day);
-            const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
+            const dayBlocks = timeBlocks.filter(b => b.date === dateStr);
             const dayEvents = events.filter(e => e.date === dateStr);
             const today = isToday(day);
             const showCurrentTimeLine = today && currentTimeTop != null;
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
             return (
               <div
                 key={dayIndex}
-                className="flex-1 min-w-[90px] md:min-w-0 relative"
-                style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                className="flex-1 relative"
+                style={{
+                  minWidth: 160,
+                  borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
+                }}
               >
-                {/* Day header */}
+                {/* Day header — prominent for today */}
                 <div
-                  className="h-9 md:h-10 px-1.5 md:px-2 py-1.5 sticky top-0 z-10 flex flex-col justify-center"
+                  className="sticky top-0 z-10 flex flex-col px-3"
                   style={{
-                    borderBottom: '1px solid rgba(0,0,0,0.07)',
-                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'rgba(219,228,215,0.05)',
+                    height: pinnedTasks.length > 0 ? 76 : 48,
+                    borderBottom: `1px solid ${GRID_HOUR}`,
+                    backgroundColor: today ? BG_TODAY : BG_CANVAS,
                   }}
                 >
-                  <div
-                    className="font-semibold uppercase"
-                    style={{ color: today ? '#8DA286' : '#C7C7CC', fontSize: '9px', letterSpacing: '0.07em' }}
-                  >
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="flex flex-col">
+                      <div
+                        className="font-semibold uppercase"
+                        style={{
+                          color: today ? PRIMARY : isWeekend ? '#AEAEB2' : '#C7C7CC',
+                          fontSize: '10px',
+                          letterSpacing: '0.08em',
+                        }}
+                      >
+                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div
+                        className="font-bold leading-none"
+                        style={{
+                          color: today ? PRIMARY : isWeekend ? '#8E8E93' : '#3A3A3C',
+                          fontSize: today ? 20 : 17,
+                        }}
+                      >
+                        {day.getDate()}
+                      </div>
+                    </div>
                   </div>
-                  <div
-                    className="font-semibold leading-none"
-                    style={{
-                      color: today ? '#8DA286' : '#3A3A3C',
-                      fontSize: '14px',
-                    }}
-                  >
-                    {day.getDate()}
-                  </div>
+                  {/* Pinned task pills — shown across all day columns */}
+                  {pinnedTasks.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar flex-nowrap pb-1">
+                      {pinnedTasks.map(task => {
+                        const color = getCategoryColor(task.categoryId);
+                        return (
+                          <span
+                            key={task.id}
+                            className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap"
+                            style={{
+                              backgroundColor: `${color}18`,
+                              color,
+                              border: `1px solid ${color}33`,
+                            }}
+                            title={task.title}
+                          >
+                            ★ {task.title.length > 16 ? task.title.slice(0, 14) + '…' : task.title}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                {/* Day grid: drop target on the grid itself so drag-from-sidebar lands correctly */}
-                <div data-week-day-col={dateStr} className="px-1 md:px-2">
+                {/* Grid */}
+                <div data-3day-col={dateStr} className="px-1.5">
                   <div
-                    data-week-grid
+                    data-3day-grid
                     className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
                     style={{ height: GRID_HEIGHT }}
                     onDragOver={(e) => {
@@ -286,19 +350,27 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES });
                     } : undefined}
                   >
-                    {/* Grid lines: hour (strong), half-hour (subtle) */}
+                    {/* Grid lines */}
                     {hours.map((_, i) => (
                       <div
                         key={i}
                         className="absolute left-0 right-0 pointer-events-none"
                         style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
                       >
-                        <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
-                        <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: '1px solid rgba(0,0,0,0.035)' }} />
+                        <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: `1px solid ${GRID_HOUR}` }} />
+                        <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: `1px solid ${GRID_HALF}` }} />
                       </div>
                     ))}
 
-                    {/* Time blocks (tasks = slimmer left-aligned; event-type = overlap) + events */}
+                    {/* Today bg stripe */}
+                    {today && (
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ backgroundColor: BG_TODAY }}
+                      />
+                    )}
+
+                    {/* Blocks and events */}
                     <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                       {(() => {
                         const eventLikeItems = [
@@ -314,9 +386,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                               const layout = dayOverlapMap.get(block.id);
                               const widthPercent = isTask
                                 ? TASK_BLOCK_WIDTH_PERCENT
-                                : layout
-                                  ? 100 / layout.totalColumns
-                                  : 100;
+                                : layout ? 100 / layout.totalColumns : 100;
                               const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                               return (
                                 <TimeBlockCard
@@ -352,8 +422,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                               const startMinutes = parseTimeToMins(event.start);
                               const endMinutes = parseTimeToMins(event.end);
                               const duration = endMinutes - startMinutes;
-                              const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-                              const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
+                              const top = (startMinutes / 60) * PX_PER_HOUR;
+                              const height = Math.max((duration / 60) * PX_PER_HOUR, 18);
                               const layout = dayOverlapMap.get(`event-${event.id}`);
                               const widthPercent = layout ? 100 / layout.totalColumns : 100;
                               const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
@@ -382,7 +452,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       })()}
                     </div>
 
-                    {/* Current-time indicator: two independent layers — full-width line (single div) + time label */}
+                    {/* Current-time indicator */}
                     {showCurrentTimeLine && currentTimeTop != null && (
                       <>
                         <div
@@ -391,46 +461,60 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             top: currentTimeTop,
                             height: 0,
                             width: '100%',
-                            borderTop: '2px solid #8DA286',
+                            borderTop: `2px solid ${PRIMARY}`,
+                          }}
+                          aria-hidden
+                        />
+                        {/* Dot at the left edge */}
+                        <div
+                          className="absolute z-30 pointer-events-none"
+                          style={{
+                            top: currentTimeTop,
+                            left: -4,
+                            transform: 'translateY(-50%)',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: PRIMARY,
                           }}
                           aria-hidden
                         />
                         <div
-                          className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none"
-                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: '#8DA286', fontSize: '9px' }}
+                          className="absolute left-2 z-40 font-medium tabular-nums pointer-events-none"
+                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: PRIMARY, fontSize: '9px' }}
                         >
                           {currentTimeLabel}
                         </div>
                       </>
                     )}
 
-                    {/* Drag preview (drop), z-30 */}
+                    {/* Drag preview */}
                     {dragPreview && dragPreview.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
+                        className="absolute left-0 right-0 z-30 pointer-events-none rounded-lg"
                         style={{
-                          top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                          top: `${(dragPreview.startMins / 60) * PX_PER_HOUR}px`,
                           height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.12)',
-                          border: '2px dashed rgba(141,162,134,0.50)',
+                          backgroundColor: 'rgba(141,162,134,0.14)',
+                          border: '2px dashed rgba(141,162,134,0.55)',
                         }}
                       />
                     )}
 
-                    {/* Create-block preview, z-30 */}
+                    {/* Create-block preview */}
                     {creatingBlock && creatingBlock.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
+                        className="absolute left-0 right-0 z-30 pointer-events-none rounded-lg"
                         style={{
-                          top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                          top: `${(creatingBlock.startMins / 60) * PX_PER_HOUR}px`,
                           height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.09)',
-                          border: '2px dashed rgba(141,162,134,0.45)',
+                          backgroundColor: 'rgba(141,162,134,0.12)',
+                          border: '2px dashed rgba(141,162,134,0.50)',
                         }}
                       >
                         <span
-                          className="absolute bottom-0.5 left-1 font-medium truncate"
-                          style={{ color: '#8DA286', fontSize: '10px' }}
+                          className="absolute bottom-0.5 left-2 font-medium truncate"
+                          style={{ color: PRIMARY, fontSize: '10px' }}
                         >
                           {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
                         </span>

@@ -4,6 +4,13 @@ import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
+import { SegmentedControl } from './ui/SegmentedControl';
+
+const PRIMARY = '#8DA286';
+const MUTED = '#8E8E93';
+const TEXT = '#1C1C1E';
+const BORDER = 'rgba(0,0,0,0.08)';
+const BG_PANEL = '#F2EFDC';
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -35,6 +42,8 @@ interface RightSidebarProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
+  /** Toggle pin status on a task. */
+  onTogglePin?: (taskId: string) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
@@ -43,7 +52,7 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, onTogglePin, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
@@ -129,77 +138,76 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
   return (
     <div
-      className={`bg-white flex flex-col overflow-hidden min-h-0 ${
-        isBottomSheet ? 'h-full' : isMobile ? 'w-full border-l border-neutral-200' : 'w-80'
-      } ${isDragOverBlock ? 'ring-2 ring-inset ring-blue-300 bg-blue-50/50' : ''}`}
+      className={`flex flex-col overflow-hidden min-h-0 ${
+        isBottomSheet ? 'h-full' : isMobile ? 'w-full' : 'w-80'
+      }`}
+      style={{
+        backgroundColor: isDragOverBlock ? 'rgba(141,162,134,0.05)' : BG_PANEL,
+        outline: isDragOverBlock ? '2px solid rgba(141,162,134,0.35)' : 'none',
+        outlineOffset: '-2px',
+        borderLeft: isMobile ? `1px solid ${BORDER}` : 'none',
+      }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Overview toggle (button) + Today / Week / Month range — always visible */}
-      <div className={`border-b border-neutral-200 ${isBottomSheet ? 'px-4 py-3' : 'px-6 py-3'}`}>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setViewMode(viewMode === 'overview' ? 'plan' : 'overview')}
-            className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-              viewMode === 'overview'
-                ? 'bg-neutral-100 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200/80'
-                : 'bg-white text-neutral-800 shadow-sm border border-neutral-100'
-            }`}
-            title={viewMode === 'overview' ? 'Show as planning blocks' : 'Show as list'}
-          >
-            Overview
-          </button>
-          <div className="flex rounded-lg bg-neutral-100 p-0.5 border border-neutral-100">
-            <button
-              type="button"
-              onClick={() => setOverviewRange('today')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                overviewRange === 'today' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => setOverviewRange('week')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                overviewRange === 'week' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-              }`}
-            >
-              Week
-            </button>
-            <button
-              type="button"
-              onClick={() => setOverviewRange('month')}
-              className={`px-2 py-1 text-xs font-medium rounded transition-all touch-manipulation ${
-                overviewRange === 'month' ? 'bg-white text-neutral-800 shadow-sm border border-neutral-100' : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100/80'
-              }`}
-            >
-              Month
-            </button>
-          </div>
+      {/* Overview toggle + date range filter */}
+      <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex items-center justify-between gap-2">
+          <SegmentedControl
+            options={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'plan', label: 'Plan' },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as TaskViewMode)}
+            compact
+          />
+          <SegmentedControl
+            options={[
+              { value: 'today', label: 'Today' },
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+            ]}
+            value={overviewRange}
+            onChange={(v) => setOverviewRange(v as 'today' | 'week' | 'month')}
+            compact
+          />
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 overflow-y-auto space-y-6 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'p-6 pb-8'}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto space-y-5 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'px-4 py-4 pb-8'}`}>
         {/* Unscheduled Tasks */}
         <div>
-          <h2 className="text-sm font-medium text-neutral-500 mb-4">Unscheduled Tasks</h2>
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
           {onOpenAddModal && (
             <button
               type="button"
               onClick={() => onOpenAddModal('task')}
-              className="w-full py-2.5 px-3 mb-3 rounded-lg border border-dashed border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100 hover:border-neutral-400 text-sm font-medium text-neutral-600 hover:text-neutral-800 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-2 px-3 mb-3 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+              style={{
+                border: '1.5px dashed rgba(0,0,0,0.15)',
+                color: '#636366',
+                backgroundColor: 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                e.currentTarget.style.borderColor = 'rgba(141,162,134,0.50)';
+                e.currentTarget.style.color = '#8DA286';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
+                e.currentTarget.style.color = '#636366';
+              }}
             >
-              <PlusIcon className="h-4 w-4" />
+              <PlusIcon className="h-3.5 w-3.5" />
               Add task
             </button>
           )}
-          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
             {unscheduledTasks.length === 0 ? (
-              <div className="text-sm text-neutral-400 text-center py-4">No unscheduled tasks</div>
+              <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
             ) : (
               unscheduledTasks.map((task) => (
                 <TaskCard
@@ -217,6 +225,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))
             )}
@@ -226,8 +235,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Partially Completed */}
         {partiallyCompletedTasks.length > 0 && (
           <div>
-            <h2 className="text-sm font-medium text-neutral-500 mb-4">Partially Completed</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
               {              filteredPartially.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -244,6 +253,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -253,8 +263,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Fixed / Missed */}
         {fixedMissedTasks.length > 0 && (
           <div>
-            <h2 className="text-sm font-medium text-neutral-500 mb-4">Fixed / Missed</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
               {              filteredFixed.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -271,6 +281,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -286,21 +297,23 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               className="flex items-center gap-1.5 w-full text-left mb-2"
             >
               {doneSectionOpen ? (
-                <ChevronDownIcon className="h-3.5 w-3.5 text-neutral-500" />
+                <ChevronDownIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
               ) : (
-                <ChevronRightIcon className="h-3.5 w-3.5 text-neutral-500" />
+                <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
               )}
-              <h2 className="text-sm font-medium text-neutral-500">Done</h2>
+              <h2 className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
             </button>
             {doneSectionOpen && (
-              <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+              <div className="space-y-1.5">
                 {doneSorted.map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-100"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
                   >
-                    <span className="flex-1 min-w-0 text-sm text-neutral-600 line-through truncate">{task.title}</span>
-                    <span className="text-xs text-neutral-400">{task.recordedHours}h</span>
+                    <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#34C759' }} />
+                    <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#636366' }}>{task.title}</span>
+                    <span className="text-xs shrink-0" style={{ color: '#8E8E93' }}>{task.recordedHours}h</span>
                   </div>
                 ))}
               </div>
@@ -309,37 +322,41 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         )}
 
         {/* Events */}
-        <div>
-          <h2 className="text-sm font-medium text-neutral-500 mb-4">Events</h2>
-          {upcomingEvents.length === 0 ? (
-            <div className="text-sm text-neutral-400 text-center py-4">
-              No upcoming events
-            </div>
-          ) : (
+        {upcomingEvents.length > 0 && (
+          <div>
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Upcoming Events</h2>
             <div className="space-y-2">
               {upcomingEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-100 group"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl group"
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.04)',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    borderLeft: '3px solid #8DA286',
+                  }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-neutral-700 truncate">{event.title}</div>
-                    <div className="text-xs text-neutral-400">{event.start} – {event.end} · {event.date}</div>
+                    <div className="text-xs font-semibold truncate" style={{ color: '#1C1C1E' }}>{event.title}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: '#8E8E93' }}>{event.start} – {event.end} · {event.date}</div>
                   </div>
                   {onDeleteEvent && (
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-neutral-200 transition-opacity flex-shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
+                      style={{ color: '#AEAEB2' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
                       onClick={() => onDeleteEvent(event.id)}
                       title="Delete event"
                     >
-                      <XMarkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                      <XMarkIcon className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

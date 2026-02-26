@@ -1,7 +1,7 @@
 // Core entities matching the refined v0 spec
 
 export type Mode = 'overall' | 'compare';
-export type View = 'day' | 'week' | 'month';
+export type View = 'day' | '3day' | 'week' | 'month';
 
 export interface CalendarContainer {
   id: string;
@@ -42,6 +42,8 @@ export interface Task {
   link?: string | null;
   /** Optional description. Shown in detail when set. */
   description?: string | null;
+  /** When true, task is pinned as a priority — shown prominently in the calendar header. */
+  pinned?: boolean;
 
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;
@@ -63,6 +65,8 @@ export interface TimeBlock {
   source: 'manual' | 'autoAssumed'; // NEW: tracks how it was created
   link?: string | null;
   description?: string | null;
+  /** Quick inline notes — shown inside the block and in the popover. */
+  notes?: string | null;
 }
 
 /** Recurrence pattern for events. */
