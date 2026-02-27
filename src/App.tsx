@@ -806,7 +806,7 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
+          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
             {/* Header: Organization heading + settings + edit */}
             <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8E8E93' }}>
@@ -944,6 +944,25 @@ export default function App() {
             </div>
           </div>
         )}
+        {!leftPanelOpen && (
+          <button
+            type="button"
+            onClick={() => setLeftPanelOpen(true)}
+            className="flex-shrink-0 flex items-center justify-center self-center z-10"
+            style={{
+              width: 18, height: 40, backgroundColor: '#FCFBF7',
+              border: '1px solid rgba(0,0,0,0.09)',
+              borderLeft: 'none',
+              borderRadius: '0 6px 6px 0',
+              color: '#8E8E93',
+            }}
+            title="Show panel"
+          >
+            <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
+              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
         {/* Left bar — 8px, warm center line; click toggles, drag left closes / drag right opens */}
         <div
           className="flex-shrink-0 flex cursor-col-resize group"
@@ -1066,8 +1085,27 @@ export default function App() {
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
         {/* Right panel */}
+        {!rightPanelOpen && (
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen(true)}
+            className="flex-shrink-0 flex items-center justify-center self-center z-10"
+            style={{
+              width: 18, height: 40, backgroundColor: '#FCFBF7',
+              border: '1px solid rgba(0,0,0,0.09)',
+              borderRight: 'none',
+              borderRadius: '6px 0 0 6px',
+              color: '#8E8E93',
+            }}
+            title="Show tasks"
+          >
+            <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
+              <path d="M7 1L2 6l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
         {rightPanelOpen && (
-          <div className="w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7' }}>
+          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>Tasks</span>
             </div>
@@ -1091,7 +1129,6 @@ export default function App() {
                 onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
-                onTogglePin={(taskId) => updateTask(taskId, { pinned: !tasks.find(t => t.id === taskId)?.pinned })}
                 events={events}
                 onDeleteEvent={deleteEvent}
               />
@@ -1150,7 +1187,6 @@ export default function App() {
           onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
-          onTogglePin={(taskId) => updateTask(taskId, { pinned: !tasks.find(t => t.id === taskId)?.pinned })}
         />
       </div>
 

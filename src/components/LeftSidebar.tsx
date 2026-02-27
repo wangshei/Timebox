@@ -202,7 +202,7 @@ export function LeftSidebar({
     color: string; setColor: (v: string) => void;
     showColor: boolean; onSave: () => void; onCancel: () => void;
   }) => (
-    <div className="rounded-lg p-2.5 space-y-2" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
+    <div className="rounded-lg p-3 space-y-2.5 my-1" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
       <input
         type="text"
         value={name}
@@ -261,7 +261,7 @@ export function LeftSidebar({
       <div
         className="flex items-center w-full overflow-hidden"
         style={{
-          height: 30,
+          height: 28,
           paddingLeft: pl,
           paddingRight: 4,
           backgroundColor: hovered ? 'rgba(0,0,0,0.04)' : 'transparent',
@@ -285,7 +285,7 @@ export function LeftSidebar({
           onClick={onLabelClick}
           className="flex-1 min-w-0"
           style={{
-            fontSize: depth === 0 ? 13 : 12,
+            fontSize: depth === 0 ? 14 : 13,
             fontWeight: depth === 0 ? 500 : 400,
             color: muted ? '#AEAEB2' : depth === 0 ? '#1C1C1E' : '#3A3A3C',
             whiteSpace: 'nowrap',
@@ -367,15 +367,8 @@ export function LeftSidebar({
 
   return (
     <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7' }}>
-      {/* Global add form (top-level calendar/category) */}
-      {(isAdding && addingType === 'calendar') || (isAdding && addingType === 'category' && !addingParentId) ? (
-        <div className="px-3 pt-2 pb-1 flex-shrink-0">
-          <InlineEditForm name={addName} setName={setAddName} color={addColor} setColor={setAddColor} showColor onSave={saveAdd} onCancel={cancelAdd} />
-        </div>
-      ) : null}
-
       {/* Scrollable list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-2 pt-1 pb-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
         {calendarContainers.map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
           const isExpanded = expandedCalendars.has(calendar.id);
@@ -400,8 +393,8 @@ export function LeftSidebar({
                   actions={
                     isEditMode ? (
                       <>
-                        {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3 w-3" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                        {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3 w-3" />, '#B85050', 'rgba(255,59,48,0.08)')}
+                        {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
+                        {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3.5 w-3.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                       </>
                     ) : (
                       <button
@@ -441,8 +434,8 @@ export function LeftSidebar({
                             onLabelClick={() => onFocusCategory?.(category.id)}
                             actions={isEditMode ? (
                               <>
-                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-3 w-3" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                                {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-3 w-3" />, '#B85050', 'rgba(255,59,48,0.08)')}
+                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
+                                {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-3.5 w-3.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                               </>
                             ) : undefined}
                           />
@@ -541,6 +534,11 @@ export function LeftSidebar({
         {/* + Add calendar */}
         <div style={{ paddingLeft: 4, paddingTop: 4 }}>
           <AddBtn label="Add calendar" onClick={() => startAdd('calendar')} hoverColor="#8DA286" />
+          {isAdding && addingType === 'calendar' && (
+            <div className="mt-1 px-1">
+              <InlineEditForm name={addName} setName={setAddName} color={addColor} setColor={setAddColor} showColor onSave={saveAdd} onCancel={cancelAdd} />
+            </div>
+          )}
         </div>
       </div>
 

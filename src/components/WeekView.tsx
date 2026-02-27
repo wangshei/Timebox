@@ -156,300 +156,264 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex-1 overflow-auto" style={{ backgroundColor: '#FDFDFB' }}>
-      <div className="flex min-w-max">
-        {/* Time column */}
-        <div
-          className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10"
-          style={{
-            borderRight: '1px solid rgba(0,0,0,0.07)',
-            backgroundColor: '#FDFDFB',
-          }}
-        >
-          <div className="h-9 md:h-10" /> {/* Spacer for day headers */}
-          {hours.map((hour) => (
-            <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-              <div
-                className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium"
-                style={{ color: '#AEAEB2', fontSize: '10px' }}
-              >
-                {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Days columns */}
-        <div className="flex flex-1">
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#FDFDFB' }}>
+      {/* Sticky header row: time spacer + day name/date cells */}
+      <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB', zIndex: 20, position: 'relative' }}>
+        {/* Time gutter spacer */}
+        <div className="w-10 md:w-14 flex-shrink-0" style={{ borderRight: '1px solid rgba(0,0,0,0.07)' }} />
+        {/* Day headers */}
+        <div className="flex flex-1 min-w-0">
           {weekDays.map((day, dayIndex) => {
-            const dateStr = formatDate(day);
-            const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
-            const dayEvents = events.filter(e => e.date === dateStr);
             const today = isToday(day);
-            const showCurrentTimeLine = today && currentTimeTop != null;
-
             return (
               <div
                 key={dayIndex}
-                className="flex-1 min-w-[90px] md:min-w-0 relative"
-                style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                className="flex-1 min-w-[90px] md:min-w-0 h-9 md:h-10 px-1.5 md:px-2 py-1.5 flex flex-col justify-center gap-1"
+                style={{
+                  borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                  backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
+                }}
               >
-                {/* Day header */}
-                <div
-                  className="h-9 md:h-10 px-1.5 md:px-2 py-1.5 sticky top-0 z-10 flex flex-col justify-center"
-                  style={{
-                    borderBottom: '1px solid rgba(0,0,0,0.07)',
-                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : '#FDFDFB',
-                  }}
-                >
-                  <div
-                    className="font-semibold uppercase"
-                    style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}
-                  >
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </div>
-                  <div
-                    className="font-semibold leading-none"
-                    style={{
-                      color: today ? THEME.primary : THEME.textPrimary,
-                      fontSize: '14px',
-                    }}
-                  >
-                    {day.getDate()}
-                  </div>
+                <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
+                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
-
-                {/* Day grid: drop target on the grid itself so drag-from-sidebar lands correctly */}
-                <div data-week-day-col={dateStr} className="px-1 md:px-2">
-                  <div
-                    data-week-grid
-                    className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
-                    style={{ height: GRID_HEIGHT }}
-                    onDragOver={(e) => {
-                      const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
-                      const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-                      const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
-                      if (!hasTask && !hasBlock && !hasEvent) return;
-                      if (hasTask && !onDropTask) return;
-                      if (hasBlock && !onMoveBlock) return;
-                      if (hasEvent && !onMoveEvent) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
-                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                      const offsetY = e.clientY - rect.top;
-                      if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
-                      const startMins = offsetYToMinutes(offsetY);
-                      const durationStr = hasEvent
-                        ? e.dataTransfer.getData('application/x-timebox-event-duration')
-                        : hasBlock
-                          ? e.dataTransfer.getData('application/x-timebox-block-duration')
-                          : e.dataTransfer.getData('application/x-timebox-task-duration');
-                      const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
-                      setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
-                    }}
-                    onDragLeave={(e) => {
-                      const grid = e.currentTarget as HTMLDivElement;
-                      const related = e.relatedTarget as Node | null;
-                      if (!related || !grid.contains(related)) setDragPreview(null);
-                    }}
-                    onDrop={(e) => {
-                      const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
-                      const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-                      const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
-                      if (!taskId && !blockId && !eventId) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                      const offsetY = e.clientY - rect.top;
-                      const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
-
-                      if (blockId && onMoveBlock) {
-                        const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                        onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
-                      } else if (eventId && onMoveEvent) {
-                        const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
-                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                        onMoveEvent(eventId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
-                      } else if (taskId && onDropTask) {
-                        const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-                        const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                        onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
-                      }
-                      setDragPreview(null);
-                    }}
-                    onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
-                      if (creatingBlock) return;
-                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                      const offsetY = e.clientY - rect.top;
-                      if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
-                      const startMins = offsetYToMinutes(offsetY);
-                      setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES });
-                    } : undefined}
-                  >
-                    {/* Grid lines: hour (strong), half-hour (subtle) */}
-                    {hours.map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute left-0 right-0 pointer-events-none"
-                        style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
-                      >
-                        <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
-                        <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: '1px solid rgba(0,0,0,0.035)' }} />
-                      </div>
-                    ))}
-
-                    {/* Time blocks (tasks = slimmer left-aligned; event-type = overlap) + events */}
-                    <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
-                      {(() => {
-                        const eventLikeItems = [
-                          ...dayBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
-                          ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
-                        ];
-                        const dayOverlapMap = computeOverlapLayout(eventLikeItems);
-                        return (
-                          <>
-                            {dayBlocks.map((block) => {
-                              const { top, height } = getBlockStyle(block);
-                              const isTask = !!block.taskId;
-                              const layout = dayOverlapMap.get(block.id);
-                              const widthPercent = isTask
-                                ? TASK_BLOCK_WIDTH_PERCENT
-                                : layout
-                                  ? 100 / layout.totalColumns
-                                  : 100;
-                              const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
-                              return (
-                                <TimeBlockCard
-                                  key={block.id}
-                                  block={block}
-                                  mode={mode}
-                                  style={{
-                                    top: `${top}px`,
-                                    height: `${height}px`,
-                                    width: `${widthPercent}%`,
-                                    left: `${leftPercent}%`,
-                                  }}
-                                  isSelected={currentSelected === block.id}
-                                  onSelectBlock={handleSelect}
-                                  todayStr={todayStr}
-                                  nowMins={nowMins}
-                                  focusedCategoryId={focusedCategoryId}
-                                  focusedCalendarId={focusedCalendarId}
-                                  onConfirm={onConfirm}
-                                  onUnconfirm={onUnconfirm}
-                                  onEditBlock={onEditBlock}
-                                  onDeleteBlock={onDeleteBlock}
-                                  onDeleteTask={onDeleteTask}
-                                  onResizeStart={onResizeBlock ? (blockId, e) => {
-                                    const found = dayBlocks.find(b => b.id === blockId);
-                                    if (found) setResizingBlock({ block: found, startClientY: e.clientY });
-                                  } : undefined}
-                                  compact
-                                />
-                              );
-                            })}
-                            {dayEvents.map((event) => {
-                              const startMinutes = parseTimeToMins(event.start);
-                              const endMinutes = parseTimeToMins(event.end);
-                              const duration = endMinutes - startMinutes;
-                              const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-                              const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
-                              const layout = dayOverlapMap.get(`event-${event.id}`);
-                              const widthPercent = layout ? 100 / layout.totalColumns : 100;
-                              const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
-                              return (
-                                <EventCard
-                                  key={event.id}
-                                  event={event}
-                                  style={{
-                                    top: `${top}px`,
-                                    height: `${height}px`,
-                                    width: `${widthPercent}%`,
-                                    left: `${leftPercent}%`,
-                                  }}
-                                  isSelected={currentSelected === `event-${event.id}`}
-                                  onSelect={() => handleSelect(`event-${event.id}`)}
-                                  onDeselect={() => handleSelect(null)}
-                                  onDeleteEvent={onDeleteEvent}
-                                  onEditEvent={onEditEvent}
-                                  plannedStyle={false}
-                                  draggable={!!onMoveEvent}
-                                  compact={true}
-                                />
-                              );
-                            })}
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Current-time indicator: two independent layers — full-width line (single div) + time label */}
-                    {showCurrentTimeLine && currentTimeTop != null && (
-                      <>
-                        <div
-                          className="absolute left-0 right-0 z-30 pointer-events-none"
-                          style={{
-                            top: currentTimeTop,
-                            height: 0,
-                            width: '100%',
-                            borderTop: `2px solid ${THEME.primary}`,
-                          }}
-                          aria-hidden
-                        />
-                        <div
-                          className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none"
-                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: THEME.primary, fontSize: '9px' }}
-                        >
-                          {currentTimeLabel}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Drag preview (drop), z-30 — same event-style as saved blocks */}
-                    {dragPreview && dragPreview.date === dateStr && (
-                      <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
-                        style={{
-                          top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
-                          height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
-                          borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
-                          borderTop: '1px dashed rgba(0,0,0,0.08)',
-                          borderRight: '1px dashed rgba(0,0,0,0.08)',
-                          borderBottom: '1px dashed rgba(0,0,0,0.08)',
-                        }}
-                      />
-                    )}
-
-                    {/* Create-block preview, z-30 — matches saved event look */}
-                    {creatingBlock && creatingBlock.date === dateStr && (
-                      <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
-                        style={{
-                          top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
-                          height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
-                          borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
-                          borderTop: '1px dashed rgba(0,0,0,0.08)',
-                          borderRight: '1px dashed rgba(0,0,0,0.08)',
-                          borderBottom: '1px dashed rgba(0,0,0,0.08)',
-                        }}
-                      >
-                        <span
-                          className="absolute bottom-0.5 left-1 font-medium truncate"
-                          style={{ color: THEME.textPrimary, fontSize: '10px' }}
-                        >
-                          {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
+                  {day.getDate()}
                 </div>
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-auto" style={{ backgroundColor: '#FDFDFB' }}>
+        <div className="flex min-w-max">
+          {/* Time column */}
+          <div className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10" style={{ borderRight: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB' }}>
+            {hours.map((hour) => (
+              <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
+                <div className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium" style={{ color: '#AEAEB2', fontSize: '10px' }}>
+                  {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns (body only - headers are above) */}
+          <div className="flex flex-1">
+            {weekDays.map((day, dayIndex) => {
+              const dateStr = formatDate(day);
+              const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
+              const dayEvents = events.filter(e => e.date === dateStr);
+              const today = isToday(day);
+              const showCurrentTimeLine = today && currentTimeTop != null;
+
+              return (
+                <div
+                  key={dayIndex}
+                  className="flex-1 min-w-[90px] md:min-w-0 relative"
+                  style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                  data-week-day-col={dateStr}
+                >
+                  {/* Day grid */}
+                  <div className="px-1 md:px-2">
+                    <div
+                      data-week-grid
+                      className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
+                      style={{ height: GRID_HEIGHT }}
+                      onDragOver={(e) => {
+                        const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
+                        const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
+                        const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
+                        if (!hasTask && !hasBlock && !hasEvent) return;
+                        if (hasTask && !onDropTask) return;
+                        if (hasBlock && !onMoveBlock) return;
+                        if (hasEvent && !onMoveEvent) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                        const startMins = offsetYToMinutes(offsetY);
+                        const durationStr = hasEvent
+                          ? e.dataTransfer.getData('application/x-timebox-event-duration')
+                          : hasBlock
+                            ? e.dataTransfer.getData('application/x-timebox-block-duration')
+                            : e.dataTransfer.getData('application/x-timebox-task-duration');
+                        const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
+                        setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
+                      }}
+                      onDragLeave={(e) => {
+                        const grid = e.currentTarget as HTMLDivElement;
+                        const related = e.relatedTarget as Node | null;
+                        if (!related || !grid.contains(related)) setDragPreview(null);
+                      }}
+                      onDrop={(e) => {
+                        const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
+                        const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
+                        const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
+                        if (!taskId && !blockId && !eventId) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+                        if (blockId && onMoveBlock) {
+                          const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
+                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
+                          onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                        } else if (eventId && onMoveEvent) {
+                          const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
+                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
+                          onMoveEvent(eventId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                        } else if (taskId && onDropTask) {
+                          const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
+                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
+                          onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
+                        }
+                        setDragPreview(null);
+                      }}
+                      onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
+                        if (creatingBlock) return;
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                        const startMins = offsetYToMinutes(offsetY);
+                        setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES });
+                      } : undefined}
+                    >
+                      {/* Grid lines */}
+                      {hours.map((_, i) => (
+                        <div key={i} className="absolute left-0 right-0 pointer-events-none" style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}>
+                          <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
+                          <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: '1px solid rgba(0,0,0,0.035)' }} />
+                        </div>
+                      ))}
+
+                      {/* Blocks + events */}
+                      <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
+                        {(() => {
+                          const eventLikeItems = [
+                            ...dayBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
+                            ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
+                          ];
+                          const dayOverlapMap = computeOverlapLayout(eventLikeItems);
+                          return (
+                            <>
+                              {dayBlocks.map((block) => {
+                                const { top, height } = getBlockStyle(block);
+                                const isTask = !!block.taskId;
+                                const layout = dayOverlapMap.get(block.id);
+                                const widthPercent = isTask ? TASK_BLOCK_WIDTH_PERCENT : layout ? 100 / layout.totalColumns : 100;
+                                const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                                return (
+                                  <TimeBlockCard
+                                    key={block.id}
+                                    block={block}
+                                    mode={mode}
+                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%` }}
+                                    isSelected={currentSelected === block.id}
+                                    onSelectBlock={handleSelect}
+                                    todayStr={todayStr}
+                                    nowMins={nowMins}
+                                    focusedCategoryId={focusedCategoryId}
+                                    focusedCalendarId={focusedCalendarId}
+                                    onConfirm={onConfirm}
+                                    onUnconfirm={onUnconfirm}
+                                    onEditBlock={onEditBlock}
+                                    onDeleteBlock={onDeleteBlock}
+                                    onDeleteTask={onDeleteTask}
+                                    onResizeStart={onResizeBlock ? (blockId, e) => {
+                                      const found = dayBlocks.find(b => b.id === blockId);
+                                      if (found) setResizingBlock({ block: found, startClientY: e.clientY });
+                                    } : undefined}
+                                    compact
+                                  />
+                                );
+                              })}
+                              {dayEvents.map((event) => {
+                                const startMinutes = parseTimeToMins(event.start);
+                                const endMinutes = parseTimeToMins(event.end);
+                                const duration = endMinutes - startMinutes;
+                                const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
+                                const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
+                                const layout = dayOverlapMap.get(`event-${event.id}`);
+                                const widthPercent = layout ? 100 / layout.totalColumns : 100;
+                                const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                                return (
+                                  <EventCard
+                                    key={event.id}
+                                    event={event}
+                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%` }}
+                                    isSelected={currentSelected === `event-${event.id}`}
+                                    onSelect={() => handleSelect(`event-${event.id}`)}
+                                    onDeselect={() => handleSelect(null)}
+                                    onDeleteEvent={onDeleteEvent}
+                                    onEditEvent={onEditEvent}
+                                    plannedStyle={false}
+                                    draggable={!!onMoveEvent}
+                                    compact={true}
+                                  />
+                                );
+                              })}
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Current time indicator */}
+                      {showCurrentTimeLine && currentTimeTop != null && (
+                        <>
+                          <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: currentTimeTop, height: 0, width: '100%', borderTop: `2px solid ${THEME.primary}` }} aria-hidden />
+                          <div className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none" style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: THEME.primary, fontSize: '9px' }}>
+                            {currentTimeLabel}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Drag preview */}
+                      {dragPreview && dragPreview.date === dateStr && (
+                        <div
+                          className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
+                          style={{
+                            top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                            height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                            backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                            borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                            borderTop: '1px dashed rgba(0,0,0,0.08)',
+                            borderRight: '1px dashed rgba(0,0,0,0.08)',
+                            borderBottom: '1px dashed rgba(0,0,0,0.08)',
+                          }}
+                        />
+                      )}
+
+                      {/* Create-block preview */}
+                      {creatingBlock && creatingBlock.date === dateStr && (
+                        <div
+                          className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
+                          style={{
+                            top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                            height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+                            backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                            borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                            borderTop: '1px dashed rgba(0,0,0,0.08)',
+                            borderRight: '1px dashed rgba(0,0,0,0.08)',
+                            borderBottom: '1px dashed rgba(0,0,0,0.08)',
+                          }}
+                        >
+                          <span className="absolute bottom-0.5 left-1 font-medium truncate" style={{ color: THEME.textPrimary, fontSize: '10px' }}>
+                            {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

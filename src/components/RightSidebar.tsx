@@ -42,8 +42,6 @@ interface RightSidebarProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
-  /** Toggle pin status on a task. */
-  onTogglePin?: (taskId: string) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
@@ -52,9 +50,9 @@ interface RightSidebarProps {
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, onTogglePin, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
-  const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('today');
+  const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   const [doneSectionOpen, setDoneSectionOpen] = useState(true);
 
@@ -139,7 +137,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
   return (
     <div
       className={`flex flex-col overflow-hidden min-h-0 ${
-        isBottomSheet ? 'h-full' : isMobile ? 'w-full' : 'w-80'
+        isBottomSheet ? 'h-full' : isMobile ? 'w-full' : ''
       }`}
       style={{
         backgroundColor: isDragOverBlock ? 'rgba(141,162,134,0.05)' : BG_PANEL,
@@ -163,16 +161,21 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             onChange={(v) => setViewMode(v as TaskViewMode)}
             compact
           />
-          <SegmentedControl
-            options={[
-              { value: 'today', label: 'Today' },
-              { value: 'week', label: 'Week' },
-              { value: 'month', label: 'Month' },
-            ]}
-            value={overviewRange}
-            onChange={(v) => setOverviewRange(v as 'today' | 'week' | 'month')}
-            compact
-          />
+          <div className="flex gap-1">
+            {(['today', 'week'] as const).map((range) => (
+              <button
+                key={range}
+                type="button"
+                onClick={() => setOverviewRange(overviewRange === range ? 'month' : range)}
+                className="px-2 py-1 text-xs font-medium rounded-lg transition-all capitalize"
+                style={overviewRange === range
+                  ? { backgroundColor: 'rgba(141,162,134,0.12)', color: '#8DA286', border: '1px solid rgba(141,162,134,0.28)' }
+                  : { backgroundColor: 'rgba(0,0,0,0.04)', color: '#636366', border: '1px solid rgba(0,0,0,0.08)' }}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -225,7 +228,6 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))
             )}
@@ -253,7 +255,6 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -281,7 +282,6 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
