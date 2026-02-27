@@ -41,6 +41,7 @@ interface DayViewProps {
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   onConfirm?: (blockId: string) => void;
+  onSkip?: (blockId: string) => void;
   onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -65,7 +66,7 @@ interface DayViewProps {
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -448,6 +449,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 focusedCategoryId={focusedCategoryId}
                 focusedCalendarId={focusedCalendarId}
                 onConfirm={onConfirm}
+                onSkip={onSkip}
                 onUnconfirm={onUnconfirm}
                 onDeleteBlock={onDeleteBlock}
                 onDeleteTask={onDeleteTask}

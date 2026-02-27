@@ -23,6 +23,7 @@ interface WeekViewProps {
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   onConfirm?: (blockId: string) => void;
+  onSkip?: (blockId: string) => void;
   onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -38,7 +39,7 @@ interface WeekViewProps {
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -382,6 +383,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     focusedCategoryId={focusedCategoryId}
                                     focusedCalendarId={focusedCalendarId}
                                     onConfirm={onConfirm}
+                                    onSkip={onSkip}
                                     onUnconfirm={onUnconfirm}
                                     onEditBlock={onEditBlock}
                                     onDeleteBlock={onDeleteBlock}

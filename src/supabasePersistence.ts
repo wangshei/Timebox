@@ -185,8 +185,12 @@ export async function loadSupabaseState() {
         date: b.date,
         mode: b.mode,
         source: b.source,
+        confirmationStatus: b.confirmation_status ?? undefined,
+        recordedStart: b.recorded_start ?? null,
+        recordedEnd: b.recorded_end ?? null,
         link: b.link ?? null,
         description: b.description ?? null,
+        notes: b.notes ?? null,
       })
     ),
     events: events.map(
@@ -324,8 +328,12 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         date: b.date ?? '',
         mode: b.mode ?? 'planned',
         source: b.source ?? 'manual',
+        confirmation_status: b.confirmationStatus ?? null,
+        recorded_start: b.recordedStart ?? null,
+        recorded_end: b.recordedEnd ?? null,
         link: b.link ?? null,
         description: b.description ?? null,
+        notes: b.notes ?? null,
       })),
       { onConflict: 'id' }
     ));

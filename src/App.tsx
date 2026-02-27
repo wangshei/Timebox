@@ -25,7 +25,7 @@ import {
   selectDoneTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
-import { getLocalDateString } from './utils/dateTime';
+import { getLocalDateString, getViewDateRange } from './utils/dateTime';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -124,6 +124,10 @@ export default function App() {
     defaultBlockMinutes,
     markDoneAsPlanned,
     markDidSomethingElse,
+    confirmBlock,
+    skipBlock,
+    addUnplannedBlock,
+    batchConfirmDay,
     deleteTimeBlock,
     endDay,
     addCalendarContainer,
@@ -163,19 +167,21 @@ export default function App() {
     return events.filter((e) => containerVisibility[e.calendarContainerId] !== false);
   }, [events, selectedDate, view, containerVisibility]);
 
+  const analyticsDateRange = useMemo(
+    () => getViewDateRange(selectedDate, view),
+    [selectedDate, view]
+  );
   const planVsActualByCategory = useMemo(
-    () =>
-      selectPlanVsActualByCategory(timeBlocks, selectedDate, categories),
-    [timeBlocks, selectedDate, categories]
+    () => selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories),
+    [timeBlocks, analyticsDateRange, categories]
   );
   const planVsActualByContainer = useMemo(
-    () =>
-      selectPlanVsActualByContainer(timeBlocks, selectedDate, calendarContainers),
-    [timeBlocks, selectedDate, calendarContainers]
+    () => selectPlanVsActualByContainer(timeBlocks, analyticsDateRange, calendarContainers),
+    [timeBlocks, analyticsDateRange, calendarContainers]
   );
   const planVsActualByTag = useMemo(
-    () => selectPlanVsActualByTag(timeBlocks, selectedDate, tags),
-    [timeBlocks, selectedDate, tags]
+    () => selectPlanVsActualByTag(timeBlocks, analyticsDateRange, tags),
+    [timeBlocks, analyticsDateRange, tags]
   );
 
   type PlanVsActualView = 'category' | 'container' | 'tag';
@@ -882,77 +888,117 @@ export default function App() {
                 focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                 isEditMode={isEditMode}
-                endDayLabel={`End day (${selectedDate})`}
-                onEndDay={() => endDay(selectedDate)}
-                planVsActualSection={mode === 'compare' ? (
-                  <div className="px-4 pb-6 pt-3">
-                    <p className="text-[10px] mb-2.5 pl-0.5 font-medium" style={{ color: '#8E8E93' }}>
-                      {view === 'week'
-                        ? `Week of ${selectedDate}`
-                        : view === 'month'
-                          ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                          : selectedDate}
-                    </p>
-                    <div className="mb-3" style={{ display: 'flex' }}>
-                      <SegmentedControl
-                        options={[
-                          { value: 'category' as PlanVsActualView, label: 'Category' },
-                          { value: 'container' as PlanVsActualView, label: 'Calendar' },
-                          { value: 'tag' as PlanVsActualView, label: 'Tag' },
-                        ]}
-                        value={planVsActualView}
-                        onChange={setPlanVsActualView}
-                        compact
-                        style={{ flex: 1 }}
-                      />
-                    </div>
-                    {planVsActual.length > 0 ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-x-2 text-[9px] font-semibold uppercase tracking-widest mb-1 px-0.5" style={{ color: '#8E8E93' }}>
-                          <span>Planned</span>
-                          <span className="text-right">Recorded</span>
-                        </div>
-                        {planVsActual.map((row) => {
-                          const totalP = planVsActual.reduce((s, r) => s + r.plannedHours, 0);
-                          const totalR = planVsActual.reduce((s, r) => s + r.recordedHours, 0);
-                          const maxH = Math.max(totalP, totalR, 1);
-                          const pctP = (row.plannedHours / maxH) * 100;
-                          const pctR = (row.recordedHours / maxH) * 100;
-                          return (
-                            <div key={row.id} className="space-y-1.5">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }} />
-                                <span className="text-xs truncate font-medium" style={{ color: '#1C1C1E' }}>{row.name}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-0.5">
-                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.08)' }}>
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctP)}%`, backgroundColor: 'rgba(141,162,134,0.40)' }} />
-                                  </div>
-                                  <span className="text-[10px]" style={{ color: '#8E8E93' }}>{row.plannedHours.toFixed(1)}h</span>
+                endDayLabel={`Confirm all (${selectedDate})`}
+                onEndDay={() => batchConfirmDay(selectedDate)}
+                planVsActualSection={mode === 'compare' ? (() => {
+                  const totalPlanned = planVsActual.reduce((s, r) => s + r.plannedHours, 0);
+                  const totalRecorded = planVsActual.reduce((s, r) => s + r.recordedHours, 0);
+                  const totalDelta = totalRecorded - totalPlanned;
+                  const maxH = Math.max(totalPlanned, totalRecorded, 0.01);
+
+                  const fmtDate = (d: string) => {
+                    const [y, m, day] = d.split('-').map(Number);
+                    return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  };
+                  const rangeLabel = view === 'week'
+                    ? `Week of ${fmtDate(analyticsDateRange[0])}`
+                    : view === 'month'
+                      ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                      : view === '3day'
+                        ? `${fmtDate(analyticsDateRange[0])} – ${fmtDate(analyticsDateRange[2])}`
+                        : selectedDate;
+
+                  return (
+                    <div style={{ paddingTop: 2 }}>
+                      {/* Date range label */}
+                      <p style={{ fontSize: 10, color: '#AEAEB2', fontWeight: 400, marginBottom: 8, letterSpacing: '0' }}>
+                        {rangeLabel}
+                      </p>
+                      {/* Tab control — full width */}
+                      <div style={{ marginBottom: 12 }}>
+                        <SegmentedControl
+                          options={[
+                            { value: 'category' as PlanVsActualView, label: 'Category' },
+                            { value: 'container' as PlanVsActualView, label: 'Calendar' },
+                            { value: 'tag' as PlanVsActualView, label: 'Tag' },
+                          ]}
+                          value={planVsActualView}
+                          onChange={setPlanVsActualView}
+                          compact
+                          style={{ flex: 1, width: '100%' }}
+                        />
+                      </div>
+                      {planVsActual.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {planVsActual.map((row) => {
+                            const pctP = (row.plannedHours / maxH) * 100;
+                            const pctR = (row.recordedHours / maxH) * 100;
+                            const delta = row.deltaHours;
+                            const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF453A' : '#8E8E93';
+                            const deltaLabel = delta > 0.05 ? `+${delta.toFixed(1)}h` : delta < -0.05 ? `${delta.toFixed(1)}h` : '–';
+                            return (
+                              <div key={row.id}>
+                                {/* Name + delta */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: row.color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                                    {row.name}
+                                  </span>
+                                  <span style={{ fontSize: 10, fontWeight: 600, color: deltaColor, flexShrink: 0, letterSpacing: '-0.01em' }}>
+                                    {deltaLabel}
+                                  </span>
                                 </div>
-                                <div className="space-y-0.5 text-right">
-                                  <div className="rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.08)' }}>
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.9 }} />
+                                {/* Plan bar */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                                  <span style={{ fontSize: 9, width: 32, textAlign: 'right', color: '#AEAEB2', flexShrink: 0, letterSpacing: '0.02em' }}>plan</span>
+                                  <div style={{ flex: 1, height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, backgroundColor: row.color, opacity: 0.3, borderRadius: 99 }} />
                                   </div>
-                                  <span className="text-[10px]" style={{ color: '#8E8E93' }}>{row.recordedHours.toFixed(1)}h</span>
+                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: '#AEAEB2', flexShrink: 0 }}>
+                                    {row.plannedHours.toFixed(1)}h
+                                  </span>
+                                </div>
+                                {/* Actual bar */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ fontSize: 9, width: 32, textAlign: 'right', color: '#8E8E93', flexShrink: 0, letterSpacing: '0.02em' }}>actual</span>
+                                  <div style={{ flex: 1, height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.85, borderRadius: 99 }} />
+                                  </div>
+                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: '#1C1C1E', fontWeight: 500, flexShrink: 0 }}>
+                                    {row.recordedHours.toFixed(1)}h
+                                  </span>
                                 </div>
                               </div>
+                            );
+                          })}
+                          {/* Totals footer */}
+                          <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 8, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: 10, color: '#8E8E93' }}>Total recorded</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#1C1C1E', letterSpacing: '-0.01em' }}>{totalRecorded.toFixed(1)}h</span>
                             </div>
-                          );
-                        })}
-                        <div className="pt-3 mt-2 text-xs font-semibold" style={{ borderTop: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}>
-                          {planVsActual.reduce((s, r) => s + r.plannedHours, 0).toFixed(1)}h planned ·{' '}
-                          {planVsActual.reduce((s, r) => s + r.recordedHours, 0).toFixed(1)}h done
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: 10, color: '#AEAEB2' }}>Total planned</span>
+                              <span style={{ fontSize: 10, color: '#AEAEB2' }}>{totalPlanned.toFixed(1)}h</span>
+                            </div>
+                            {Math.abs(totalDelta) > 0.05 && (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
+                                <span style={{ fontSize: 10, color: '#AEAEB2' }}>Difference</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', color: totalDelta > 0 ? '#34C759' : '#FF453A' }}>
+                                  {totalDelta > 0 ? '+' : ''}{totalDelta.toFixed(1)}h
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-center py-8" style={{ color: '#8E8E93' }}>
-                        No time planned or recorded
-                      </div>
-                    )}
-                  </div>
-                ) : undefined}
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '14px 0', color: '#AEAEB2', fontSize: 11 }}>
+                          No data for this period
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : undefined}
                 canEditOrganization={true}
                 isShortcutsOpen={isShortcutsOpen}
                 onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
@@ -1040,8 +1086,9 @@ export default function App() {
           focusedCategoryId={focusedCategoryId}
           focusedCalendarId={focusedCalendarId}
           onOpenAddModal={handleOpenAddModal}
-          onConfirm={markDoneAsPlanned}
-          onUnconfirm={(id) => updateTimeBlock(id, { mode: 'planned' })}
+          onConfirm={confirmBlock}
+          onSkip={skipBlock}
+          onUnconfirm={(id) => updateTimeBlock(id, { confirmationStatus: undefined })}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
@@ -1175,8 +1222,9 @@ export default function App() {
           containerVisibility={containerVisibility}
           isMobile
           onOpenAddModal={handleOpenAddModal}
-          onConfirm={markDoneAsPlanned}
-          onUnconfirm={(id) => updateTimeBlock(id, { mode: 'planned' })}
+          onConfirm={confirmBlock}
+          onSkip={skipBlock}
+          onUnconfirm={(id) => updateTimeBlock(id, { confirmationStatus: undefined })}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}

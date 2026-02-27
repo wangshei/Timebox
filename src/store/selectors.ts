@@ -190,141 +190,142 @@ export function selectRecordedSummaryByCategory(
   }));
 }
 
-/** Plan vs Actual: combined by category for a date. */
+// --- Plan vs Actual helpers ---
+
+/**
+ * True if this block represents the original planned intent.
+ * Excludes retroactively-added unplanned blocks (they have no plan counterpart).
+ */
+function isPlannedIntent(b: TimeBlock): boolean {
+  return b.mode === 'planned' && b.source !== 'unplanned';
+}
+
+/**
+ * True if this block counts as "recorded" / actually done.
+ * Covers both the new confirmation model and legacy mode='recorded' blocks.
+ */
+function isRecordedBlock(b: TimeBlock): boolean {
+  return b.confirmationStatus === 'confirmed' || b.mode === 'recorded';
+}
+
+/** Minutes to use for recorded time — actual if set, else planned. */
+function recordedMins(b: TimeBlock): number {
+  const s = b.recordedStart ?? b.start;
+  const e = b.recordedEnd ?? b.end;
+  return parseTimeToMinutes(e) - parseTimeToMinutes(s);
+}
+
+/**
+ * Plan vs Actual by category across a set of dates (day, week, or month range).
+ * Pass all dates in the current view window as `dates`.
+ */
 export function selectPlanVsActualByCategory(
   timeBlocks: TimeBlock[],
-  date: string,
+  dates: string[],
   categories: Category[]
 ): SummaryRow[] {
-  const planned = timeBlocks.filter(
-    (b) => b.date === date && b.mode === 'planned'
-  );
-  const recorded = timeBlocks.filter(
-    (b) => b.date === date && b.mode === 'recorded'
-  );
+  const dateSet = new Set(dates);
+  const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
   const byCategory = new Map<
     string,
     { category: Category; plannedMins: number; recordedMins: number }
   >();
-  for (const block of planned) {
-    const cat = categories.find((c) => c.id === block.categoryId);
+  for (const b of inRange) {
+    const cat = categories.find((c) => c.id === b.categoryId);
     if (!cat) continue;
-    const mins =
-      parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
-    const prev = byCategory.get(cat.id) ?? {
-      category: cat,
-      plannedMins: 0,
-      recordedMins: 0,
-    };
-    byCategory.set(cat.id, { ...prev, plannedMins: prev.plannedMins + mins });
+    const prev = byCategory.get(cat.id) ?? { category: cat, plannedMins: 0, recordedMins: 0 };
+    if (isPlannedIntent(b)) {
+      const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
+      byCategory.set(cat.id, { ...prev, plannedMins: prev.plannedMins + mins });
+    }
+    if (isRecordedBlock(b)) {
+      byCategory.set(cat.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
+    }
   }
-  for (const block of recorded) {
-    const cat = categories.find((c) => c.id === block.categoryId);
-    if (!cat) continue;
-    const mins =
-      parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
-    const prev = byCategory.get(cat.id) ?? {
-      category: cat,
-      plannedMins: 0,
-      recordedMins: 0,
-    };
-    byCategory.set(cat.id, {
-      ...prev,
-      recordedMins: prev.recordedMins + mins,
-    });
-  }
-  return Array.from(byCategory.values()).map(
-    ({ category, plannedMins, recordedMins }) => ({
+  return Array.from(byCategory.values())
+    .map(({ category, plannedMins, recordedMins }) => ({
       id: category.id,
       name: category.name,
       color: category.color,
       plannedHours: plannedMins / 60,
       recordedHours: recordedMins / 60,
       deltaHours: (recordedMins - plannedMins) / 60,
-    })
-  );
+    }))
+    .sort((a, b) => b.recordedHours - a.recordedHours);
 }
 
+/** Plan vs Actual by calendar container across a set of dates. */
 export function selectPlanVsActualByContainer(
   timeBlocks: TimeBlock[],
-  date: string,
+  dates: string[],
   containers: CalendarContainer[]
 ): SummaryRow[] {
+  const dateSet = new Set(dates);
+  const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
   const byContainer = new Map<
     string,
     { container: CalendarContainer; plannedMins: number; recordedMins: number }
   >();
-  for (const block of timeBlocks.filter((b) => b.date === date)) {
-    const container = containers.find((c) => c.id === block.calendarContainerId);
+  for (const b of inRange) {
+    const container = containers.find((c) => c.id === b.calendarContainerId);
     if (!container) continue;
-    const mins =
-      parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
-    const prev = byContainer.get(container.id) ?? {
-      container,
-      plannedMins: 0,
-      recordedMins: 0,
-    };
-    if (block.mode === 'planned')
-      byContainer.set(container.id, {
-        ...prev,
-        plannedMins: prev.plannedMins + mins,
-      });
-    else
-      byContainer.set(container.id, {
-        ...prev,
-        recordedMins: prev.recordedMins + mins,
-      });
+    const prev = byContainer.get(container.id) ?? { container, plannedMins: 0, recordedMins: 0 };
+    if (isPlannedIntent(b)) {
+      const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
+      byContainer.set(container.id, { ...prev, plannedMins: prev.plannedMins + mins });
+    }
+    if (isRecordedBlock(b)) {
+      byContainer.set(container.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
+    }
   }
-  return Array.from(byContainer.values()).map(
-    ({ container, plannedMins, recordedMins }) => ({
+  return Array.from(byContainer.values())
+    .map(({ container, plannedMins, recordedMins }) => ({
       id: container.id,
       name: container.name,
       color: container.color,
       plannedHours: plannedMins / 60,
       recordedHours: recordedMins / 60,
       deltaHours: (recordedMins - plannedMins) / 60,
-    })
-  );
+    }))
+    .sort((a, b) => b.recordedHours - a.recordedHours);
 }
 
-/** Plan vs Actual by tag for a date. Blocks contribute to each of their tagIds. */
+/** Plan vs Actual by tag across a set of dates. Blocks contribute to each of their tagIds. */
 export function selectPlanVsActualByTag(
   timeBlocks: TimeBlock[],
-  date: string,
+  dates: string[],
   tags: Tag[]
 ): SummaryRow[] {
+  const dateSet = new Set(dates);
+  const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
   const byTag = new Map<
     string,
     { tag: Tag; plannedMins: number; recordedMins: number }
   >();
-  const defaultTagColor = '#6b7280';
-  for (const block of timeBlocks.filter((b) => b.date === date)) {
-    const mins =
-      parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
-    for (const tagId of block.tagIds) {
+  for (const b of inRange) {
+    for (const tagId of b.tagIds) {
       const tag = tags.find((t) => t.id === tagId);
       if (!tag) continue;
-      const prev = byTag.get(tag.id) ?? {
-        tag,
-        plannedMins: 0,
-        recordedMins: 0,
-      };
-      if (block.mode === 'planned')
+      const prev = byTag.get(tag.id) ?? { tag, plannedMins: 0, recordedMins: 0 };
+      if (isPlannedIntent(b)) {
+        const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
         byTag.set(tag.id, { ...prev, plannedMins: prev.plannedMins + mins });
-      else
-        byTag.set(tag.id, { ...prev, recordedMins: prev.recordedMins + mins });
+      }
+      if (isRecordedBlock(b)) {
+        byTag.set(tag.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
+      }
     }
   }
-  return Array.from(byTag.values()).map(
-    ({ tag, plannedMins, recordedMins }) => ({
+  return Array.from(byTag.values())
+    .map(({ tag, plannedMins, recordedMins }) => ({
       id: tag.id,
       name: tag.name,
-      color: defaultTagColor,
+      color: '#6b7280',
       plannedHours: plannedMins / 60,
       recordedHours: recordedMins / 60,
       deltaHours: (recordedMins - plannedMins) / 60,
-    })
-  );
+    }))
+    .sort((a, b) => b.recordedHours - a.recordedHours);
 }
 
 /** Display shape for backlog (TaskCard expects estimatedHours, recordedHours, category, tags, calendar, dueDate, link, description). */

@@ -33,6 +33,7 @@ interface TimeBlockCardProps {
   todayStr?: string;
   nowMins?: number;
   onConfirm?: (blockId: string) => void;
+  onSkip?: (blockId: string) => void;
   onUnconfirm?: (blockId: string) => void;
   onEditBlock?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
@@ -59,6 +60,7 @@ function TimeBlockCardInner({
   todayStr: todayStrProp,
   nowMins: nowMinsProp,
   onConfirm,
+  onSkip,
   onUnconfirm,
   onEditBlock,
   onDeleteBlock,
@@ -103,7 +105,9 @@ function TimeBlockCardInner({
   };
 
   const isCompareMode = mode === 'compare';
-  const confirmed = block.mode === 'recorded';
+  // A block is "confirmed" if explicitly confirmed, or if it uses the legacy mode='recorded' pattern
+  const confirmed = block.confirmationStatus === 'confirmed' || block.mode === 'recorded';
+  const skipped = block.confirmationStatus === 'skipped';
   const matchedSet = compareMatchedTaskIds ? new Set(compareMatchedTaskIds) : null;
 
   const doSelect = onSelectBlock ? () => onSelectBlock(block.id) : (onSelect ?? (() => {}));
@@ -118,11 +122,13 @@ function TimeBlockCardInner({
     return (h ?? 0) * 60 + (m ?? 0);
   })();
   const isPast = block.date < todayStr || (block.date === todayStr && blockEndMins <= nowMins);
-  type TimeState = 'future' | 'pastUnconfirmed' | 'pastConfirmed';
+  type TimeState = 'future' | 'pastPending' | 'pastConfirmed' | 'pastSkipped';
   const timeState: TimeState = isPast
     ? confirmed
       ? 'pastConfirmed'
-      : 'pastUnconfirmed'
+      : skipped
+        ? 'pastSkipped'
+        : 'pastPending'
     : 'future';
 
   const blockVisualState = isCompareMode
@@ -143,8 +149,9 @@ function TimeBlockCardInner({
   const getBaseOpacity = () => {
     if (blockVisualState === 'ghost') return 0.22;
     if (blockVisualState === 'future') return 1;
-    if (blockVisualState === 'pastUnconfirmed') return 0.75;
+    if (blockVisualState === 'pastPending') return 0.75;
     if (blockVisualState === 'pastConfirmed') return isTask ? 0.82 : 0.78;
+    if (blockVisualState === 'pastSkipped') return 0.35;
     return 1;
   };
 
@@ -229,15 +236,30 @@ function TimeBlockCardInner({
         ...vars,
       };
     }
-    if (blockVisualState === 'pastUnconfirmed') {
+    if (blockVisualState === 'pastPending') {
+      // Needs review — same structure as future but slightly faded, with a dashed border hint
       return {
         backgroundColor: '#FDFAF3',
         borderTop: `3px solid ${hexToRgba(blockColor, 0.45)}`,
-        borderLeft: `1px solid ${hexToRgba(blockColor, 0.12)}`,
-        borderRight: `1px solid ${hexToRgba(blockColor, 0.12)}`,
-        borderBottom: `1px solid ${hexToRgba(blockColor, 0.12)}`,
+        borderLeft: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
+        borderRight: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
+        borderBottom: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
         borderRadius: 5,
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        opacity,
+        ...vars,
+      };
+    }
+    if (blockVisualState === 'pastSkipped') {
+      // Marked as not done — very muted, desaturated
+      const mutedColor = desaturate(blockColor, 0.8);
+      return {
+        backgroundColor: 'rgba(0,0,0,0.025)',
+        borderTop: `2px solid ${hexToRgba(mutedColor, 0.2)}`,
+        borderLeft: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
+        borderRight: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
+        borderBottom: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
+        borderRadius: 5,
         opacity,
         ...vars,
       };
