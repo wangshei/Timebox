@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { PALETTE_COLORS } from '../constants/colors';
 
-const SWATCH_PX = { sm: 20, md: 28 } as const;
+const SWATCH_PX = { sm: 20, md: 24 } as const;
 
 /** Palette grouped by hue family — 4 rows × 5 columns */
 const PALETTE_ROWS = [
@@ -221,7 +221,7 @@ export function ColorPicker({
               </div>
 
               {/* Apply / Cancel */}
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 mt-2 pt-2">
                 <button
                   type="button"
                   onClick={handleHexCommit}
