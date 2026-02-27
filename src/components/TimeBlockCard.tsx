@@ -155,7 +155,8 @@ function TimeBlockCardInner({
       base = isMatched ? base * 0.4 : Math.min(1, base + 0.25);
     }
     if (focusedCategoryId != null) {
-      return (block.category?.id ?? block.categoryId) === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
+      const catId = (block as any).category?.id ?? (block as any).categoryId;
+      return catId === focusedCategoryId ? base : FOCUS_MUTED_OPACITY;
     }
     if (focusedCalendarId != null) {
       return block.calendarContainerId === focusedCalendarId ? base : FOCUS_MUTED_OPACITY;
@@ -163,7 +164,7 @@ function TimeBlockCardInner({
     return base;
   };
 
-  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? THEME.primary;
+  const getBlockColor = () => (block as any).category?.color ?? (block as any).calendarContainer?.color ?? THEME.primary;
   const blockColor = getBlockColor();
 
   /**
@@ -483,14 +484,23 @@ function TimeBlockCardInner({
             </div>
           )}
 
-          {/* Emoji — bottom-right inside compact block (tasks only) */}
-          {isTask && block.emoji && (
-            <div
-              className="absolute bottom-0.5 right-1 text-[10px] select-none"
-              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
-            >
-              {block.emoji}
-            </div>
+          {/* Confirm circle — compact mode (tasks only) */}
+          {isTask && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
+              className="absolute top-0.5 right-0.5 flex items-center justify-center rounded-full transition-all"
+              style={{
+                width: 10,
+                height: 10,
+                opacity: confirmed ? 1 : 0.7,
+                ...(confirmed
+                  ? { backgroundColor: blockColor, border: `1px solid ${blockColor}` }
+                  : { backgroundColor: 'transparent', border: `1px solid ${hexToRgba(blockColor, 0.6)}` }),
+              }}
+              title={confirmed ? 'Mark not done' : 'Mark done'}
+              aria-label={confirmed ? 'Mark not done' : 'Mark done'}
+            />
           )}
         </div>
 
@@ -637,7 +647,7 @@ function TimeBlockCardInner({
                     color={blockColor}
                     contrastBackgroundHex={undefined}
                     className="text-[9px] py-0.5 px-1.5"
-                    style={{ borderColor: hexToRgba(blockColor, 0.45) }}
+                    style={{ borderColor: hexToRgba(blockColor, 1) }}
                   >
                     {tag.name}
                   </Chip>
@@ -654,16 +664,6 @@ function TimeBlockCardInner({
                 {(block as any).notes}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Emoji — bottom-right inside full block (tasks only) */}
-        {isTask && block.emoji && (
-          <div
-            className="absolute bottom-0.5 right-1 text-[11px] select-none"
-            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
-          >
-            {block.emoji}
           </div>
         )}
 

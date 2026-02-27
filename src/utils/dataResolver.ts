@@ -21,8 +21,7 @@ export interface ResolvedTimeBlock {
   mode: 'planned' | 'recorded';
   source: 'manual' | 'autoAssumed';
   calendarContainer: CalendarContainer;
-  /** Optional emoji inherited from the linked task (if any). */
-  emoji?: string | null;
+  // Emoji removed from UI; keep type minimal.
 }
 
 /**
@@ -55,7 +54,6 @@ export function resolveTimeBlock(
     category,
     tags: blockTags,
     calendarContainer: container,
-    emoji: linkedTask?.emoji ?? null,
   };
 }
 

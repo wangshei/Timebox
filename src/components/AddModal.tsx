@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
@@ -105,7 +105,7 @@ export function AddModal({
   const [description, setDescription] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [pinned, setPinned] = useState<boolean>(false);
-  const [emoji, setEmoji] = useState<string>('');
+  const [priority, setPriority] = useState<number | undefined>(undefined);
   const [moreOpen, setMoreOpen] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
@@ -175,7 +175,7 @@ export function AddModal({
       setLink(editingTask.link ?? '');
       setDescription(editingTask.description ?? '');
       setPinned(!!editingTask.pinned);
-      setEmoji(editingTask.emoji ?? '');
+      setPriority(typeof editingTask.priority === 'number' ? editingTask.priority : undefined);
     }
   }, [isOpen, editingTask?.id, categories, tags]);
 
@@ -193,7 +193,7 @@ export function AddModal({
       setDescription(editingTimeBlock.description ?? '');
       setNotes((editingTimeBlock as any).notes ?? '');
       setPinned(false);
-      setEmoji('');
+      setPriority(undefined);
     }
   }, [isOpen, editingTimeBlock?.id, categories, tags]);
 
@@ -212,7 +212,7 @@ export function AddModal({
       setLink(editingEvent.link ?? '');
       setDescription(editingEvent.description ?? '');
       setPinned(false);
-      setEmoji('');
+      setPriority(undefined);
     }
   }, [isOpen, editingEvent?.id, categories]);
 
@@ -221,7 +221,7 @@ export function AddModal({
     if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(initialMode);
       setPinned(false);
-      setEmoji('');
+      setPriority(undefined);
     }
   }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent]);
 
@@ -258,7 +258,7 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         pinned,
-        emoji: emoji.trim() || null,
+        priority,
       });
     } else if (editingEvent && onUpdateEvent) {
       onUpdateEvent(editingEvent.id, {
@@ -298,8 +298,7 @@ export function AddModal({
         dueDate: dueDate.trim() || null,
         link: link.trim() || null,
         description: description.trim() || null,
-        pinned,
-        emoji: emoji.trim() || null,
+        priority,
       });
     } else {
       onAddEvent({
@@ -333,7 +332,7 @@ export function AddModal({
     setTagInput('');
     setSelectedCalendar(calendars[0]?.id ?? 'personal');
     setPinned(false);
-    setEmoji('');
+    setPriority(3);
     onClose();
   };
 
@@ -452,44 +451,29 @@ export function AddModal({
                   style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                 />
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold" style={{ color: '#636366' }}>
-                  Priority
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setPinned((v) => !v)}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors"
-                  style={
-                    pinned
-                      ? {
-                          backgroundColor: 'rgba(245,166,35,0.12)',
-                          color: '#F5A623',
-                          border: '1px solid rgba(245,166,35,0.6)',
-                        }
-                      : {
-                          backgroundColor: 'transparent',
-                          color: '#636366',
-                          border: '1px solid rgba(0,0,0,0.12)',
-                        }
-                  }
-                >
-                  <span>Mark as priority</span>
-                </button>
-              </div>
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>
-                  Emoji <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span>
+                  Priority
                 </label>
-                <input
-                  type="text"
-                  value={emoji}
-                  onChange={(e) => setEmoji(e.target.value)}
-                  maxLength={2}
-                  placeholder="e.g., 🔥"
-                  className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
-                />
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((level) => {
+                    const active = priority >= level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setPriority(level)}
+                        className="p-0.5 rounded-full transition-colors"
+                        style={{
+                          color: active ? '#F5A623' : '#D1D1D6',
+                          backgroundColor: active ? 'rgba(245,166,35,0.08)' : 'transparent',
+                        }}
+                      >
+                        <StarIcon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}

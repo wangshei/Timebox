@@ -56,7 +56,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
-  const [doneSectionOpen, setDoneSectionOpen] = useState(true);
+  const [doneSectionOpen, setDoneSectionOpen] = useState(false);
 
   const upcomingEvents = useMemo(() => {
     const today = getLocalDateString();
@@ -120,11 +120,42 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     });
   }, [doneTasks, timeBlocks]);
 
-  /** Pinned (priority) tasks, shown above Unscheduled. */
+  const getPriority = (t: Task): number | null =>
+    typeof t.priority === 'number' && t.priority >= 1 && t.priority <= 5
+      ? t.priority
+      : null;
+
+  const sortByPriority = (a: Task, b: Task) => {
+    const pa = getPriority(a);
+    const pb = getPriority(b);
+    if (pa === null && pb === null) return a.title.localeCompare(b.title);
+    if (pa === null) return 1; // a has no priority → after b
+    if (pb === null) return -1; // b has no priority → after a
+    return pb - pa || a.title.localeCompare(b.title);
+  };
+
+  /** High-priority tasks (rating ≥ 4), shown above Unscheduled (plan view only). */
   const priorityTasks = useMemo(
-    () => tasks.filter((t) => t.pinned),
+    () => tasks.filter((t) => {
+      const p = getPriority(t);
+      return p !== null && p >= 4;
+    }).sort(sortByPriority),
     [tasks]
   );
+
+  const allTasksSorted = useMemo(() => {
+    // Filter by time range for Overview: today/week limit to tasks with blocks in range,
+    // month shows all; unscheduled tasks (no blocks) are always included.
+    let base = tasks;
+    if (overviewRange !== 'month' && timeBlocks) {
+      base = tasks.filter((t) => {
+        const hasBlocksInRange = taskIdsInRange.has(t.id);
+        const hasAnyBlocks = (t as any).blockCount && (t as any).blockCount > 0;
+        return hasBlocksInRange || !hasAnyBlocks;
+      });
+    }
+    return [...base].sort(sortByPriority);
+  }, [tasks, overviewRange, timeBlocks, taskIdsInRange]);
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
@@ -188,6 +219,69 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       </div>
 
       <div className={`flex-1 min-h-0 overflow-y-auto space-y-4 ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
+        {viewMode === 'overview' ? (
+          <>
+            <div>
+              <h2
+                className="uppercase tracking-widest mb-2"
+                style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}
+              >
+                All tasks
+              </h2>
+              <div className="space-y-2">
+                {allTasksSorted.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    viewMode={viewMode}
+                    popoverSide="left"
+                    onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                    onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                    onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                    onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                    onBreakIntoChunks={onBreakIntoChunks}
+                    onSplitTask={onSplitTask}
+                    onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Done summary below, if available */}
+            {doneSorted.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setDoneSectionOpen(!doneSectionOpen)}
+                  className="flex items-center gap-1.5 w-full text-left mb-2"
+                >
+                  {doneSectionOpen ? (
+                    <ChevronDownIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
+                  ) : (
+                    <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
+                  )}
+                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
+                </button>
+                {doneSectionOpen && (
+                  <div className="space-y-1.5">
+                    {doneSorted.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
+                      >
+                        <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#34C759' }} />
+                        <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#636366' }}>{task.title}</span>
+                        <span className="text-xs shrink-0" style={{ color: '#8E8E93' }}>{task.recordedHours}h</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
         {/* Priority Tasks */}
         {priorityTasks.length > 0 && (
           <div>
@@ -384,6 +478,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

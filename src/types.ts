@@ -35,6 +35,8 @@ export interface Task {
   categoryId: string;
   tagIds: string[];
   flexible: boolean; // NEW: default true
+  /** Priority 1–5 (higher = more important). */
+  priority?: number;
   status?: 'inbox' | 'partially_planned' | 'fully_planned' | 'partially_done' | 'done' | 'archived';
   /** Optional due date (YYYY-MM-DD). Shown on card when set. */
   dueDate?: string | null;
@@ -42,9 +44,8 @@ export interface Task {
   link?: string | null;
   /** Optional description. Shown in detail when set. */
   description?: string | null;
-  /** When true, task is pinned as a priority — shown prominently in the calendar header. */
+  /** Legacy fields kept for backward compatibility. */
   pinned?: boolean;
-  /** Optional emoji shown on the task card (e.g. sticky-note bottom-right). */
   emoji?: string | null;
 
   // Derived (computed from TimeBlocks, not stored)

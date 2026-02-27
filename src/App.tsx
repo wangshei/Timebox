@@ -43,16 +43,14 @@ export interface Task {
   recordedHours: number;
   /** Total number of time blocks (planned + recorded) linked to this task. */
   blockCount: number;
+  /** Priority 1–5 (higher = more important). Optional. */
+  priority?: number;
   category: Category;
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
   dueDate?: string | null;
   link?: string | null;
   description?: string | null;
-  /** When true, task is pinned as a priority. */
-  pinned?: boolean;
-  /** Optional emoji shown on the task card. */
-  emoji?: string | null;
   /** Stored task status, mirrors core Task.status. */
   status?: import('./types').Task['status'];
 }
@@ -247,10 +245,15 @@ export default function App() {
   );
 
   const handleMarkTaskDone = (taskId: string) => {
-    const plannedBlocks = timeBlocks.filter(
-      (b) => b.taskId === taskId && b.mode === 'planned'
-    );
-    plannedBlocks.forEach((b) => markDoneAsPlanned(b.id));
+    const coreTask = tasks.find((t) => t.id === taskId);
+    if (!coreTask) return;
+
+    // Toggle behaviour: if already marked done, clear the explicit done status.
+    // This button ONLY flips status; it does NOT create additional recorded time.
+    if (coreTask.status === 'done') {
+      updateTask(taskId, { status: undefined });
+      return;
+    }
 
     // Persist explicit "done" status on the task itself (used by Supabase via supabasePersistence).
     updateTask(taskId, { status: 'done' });
@@ -265,8 +268,7 @@ export default function App() {
     dueDate?: string | null;
     link?: string | null;
     description?: string | null;
-    pinned?: boolean;
-    emoji?: string | null;
+    priority?: number;
   }) => {
     addTask({
       title: taskData.title,
@@ -278,8 +280,7 @@ export default function App() {
       dueDate: taskData.dueDate ?? undefined,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
-      pinned: taskData.pinned ?? false,
-      emoji: taskData.emoji ?? null,
+      priority: typeof taskData.priority === 'number' ? taskData.priority : 3,
     });
   };
 
@@ -974,7 +975,7 @@ export default function App() {
             title="Show panel"
           >
             <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
-              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         )}
@@ -1115,7 +1116,7 @@ export default function App() {
             title="Show tasks"
           >
             <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
-              <path d="M7 1L2 6l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7 1L2 6l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         )}
@@ -1144,11 +1145,11 @@ export default function App() {
                 onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
-                onTogglePin={(taskId) =>
-                  updateTask(taskId, {
-                    pinned: !tasks.find((t) => t.id === taskId)?.pinned,
-                  })
-                }
+                onTogglePin={(taskId) => {
+                  const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
+                  const next = current >= 5 ? 1 : current + 1;
+                  updateTask(taskId, { priority: next });
+                }}
                 events={events}
                 onDeleteEvent={deleteEvent}
               />
@@ -1207,11 +1208,11 @@ export default function App() {
           onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
-          onTogglePin={(taskId) =>
-            updateTask(taskId, {
-              pinned: !tasks.find((t) => t.id === taskId)?.pinned,
-            })
-          }
+          onTogglePin={(taskId) => {
+            const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
+            const next = current >= 5 ? 1 : current + 1;
+            updateTask(taskId, { priority: next });
+          }}
         />
       </div>
 
@@ -1290,32 +1291,34 @@ export default function App() {
       />
 
       {/* Recording overlap warning dialog */}
-      {recordingOverlapWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-          <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'rgba(200,120,104,0.12)' }}>
-                <svg className="w-5 h-5" style={{ color: '#C87868' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
+      {
+        recordingOverlapWarning && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+            <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(200,120,104,0.12)' }}>
+                  <svg className="w-5 h-5" style={{ color: '#C87868' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Overlapping Recording</h3>
               </div>
-              <h3 className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Overlapping Recording</h3>
+              <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
+              <button
+                type="button"
+                className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
+                style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
+                onClick={() => setRecordingOverlapWarning(null)}
+              >
+                Got it
+              </button>
             </div>
-            <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
-            <button
-              type="button"
-              className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
-              onClick={() => setRecordingOverlapWarning(null)}
-            >
-              Got it
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <SettingsPanel
         isOpen={isSettingsOpen}
@@ -1334,6 +1337,6 @@ export default function App() {
         onDeleteTag={deleteTag}
       />
 
-    </div>
+    </div >
   );
 }

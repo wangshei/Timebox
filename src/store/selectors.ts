@@ -54,6 +54,7 @@ export function selectDoneTasks(
   timeBlocks: TimeBlock[]
 ): Task[] {
   return tasks.filter((task) => {
+    if (task.status === 'done') return true;
     const planned = getPlannedMinutes(task, timeBlocks);
     const recorded = getRecordedMinutes(task, timeBlocks);
     return planned === 0 && recorded > 0;
@@ -334,16 +335,14 @@ export interface DisplayTask {
   recordedHours: number;
   /** Total number of time blocks (planned + recorded) linked to this task. */
   blockCount: number;
+  /** Priority 1–5 (higher = more important). Optional. */
+  priority?: number;
   category: Category;
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
   dueDate?: string | null;
   link?: string | null;
   description?: string | null;
-  /** When true, task is pinned as a priority. */
-  pinned?: boolean;
-  /** Optional emoji shown on the task card. */
-  emoji?: string | null;
   /** Stored task status, mirrors Task.status from the store. */
   status?: Task['status'];
 }
@@ -367,6 +366,9 @@ export function selectDisplayTasksForBacklog(
       : 'personal';
     const blocksForTask = timeBlocks.filter((b) => b.taskId === task.id);
     const blockCount = blocksForTask.length;
+    const priority = typeof task.priority === 'number' && task.priority >= 1 && task.priority <= 5
+      ? task.priority
+      : undefined;
     const plannedMins = getPlannedMinutes(task, timeBlocks);
     const recordedMins = getRecordedMinutes(task, timeBlocks);
     return {
@@ -375,14 +377,13 @@ export function selectDisplayTasksForBacklog(
       estimatedHours: task.estimatedMinutes / 60,
       recordedHours: recordedMins / 60,
       blockCount,
+      priority,
       category,
       tags: taskTags,
       calendar,
       dueDate: task.dueDate ?? null,
       link: task.link ?? null,
       description: task.description ?? null,
-      pinned: task.pinned ?? false,
-      emoji: task.emoji ?? null,
       status: task.status,
     };
   });

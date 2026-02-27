@@ -29,7 +29,7 @@ interface TaskCardProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
-  /** Toggle pin status of this task (priority). */
+  /** Cycle priority rating (1–5 stars). */
   onTogglePin?: () => void;
 }
 
@@ -99,9 +99,7 @@ export function TaskCard({
   const remainingMins = Math.max(0, estimatedMins - recordedMins);
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
   const catColor = task.category?.color ?? '#8DA286';
-  const isDone =
-    task.status === 'done' ||
-    (estimatedMins > 0 && recordedMins >= estimatedMins);
+  const isDone = task.status === 'done';
 
   // Position popover with fixed coords (both plan and overview modes)
   useLayoutEffect(() => {
@@ -367,15 +365,6 @@ export function TaskCard({
                 </div>
               )}
             </div>
-            {/* Emoji spot — bottom-right of the sticky */}
-            {task.emoji && (
-              <div
-                className="absolute bottom-2 right-2 text-lg select-none"
-                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
-              >
-                {task.emoji}
-              </div>
-            )}
             {/* Resize handle */}
             <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
@@ -436,7 +425,7 @@ export function TaskCard({
           window.setTimeout(() => { dragEndedRef.current = false; }, 200);
         }}
       >
-        {/* Pin button — always visible when pinned, shows on hover otherwise */}
+        {/* Priority stars (1–5) */}
         {onTogglePin && (
           <button
             type="button"
@@ -444,18 +433,20 @@ export function TaskCard({
               e.stopPropagation();
               onTogglePin();
             }}
-            className={`absolute top-2.5 right-2.5 transition-all ${
-              task.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'
-            }`}
-            style={{ color: task.pinned ? '#F5A623' : '#AEAEB2' }}
-            title={task.pinned ? 'Unpin task' : 'Pin task'}
-            aria-label={task.pinned ? 'Unpin task' : 'Pin task'}
+            className="absolute top-2.5 right-2.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-white/80 shadow-sm"
+            style={{ color: '#F5A623' }}
+            title="Cycle priority"
+            aria-label="Cycle priority"
           >
-            {task.pinned ? (
-              <StarIcon className="h-3.5 w-3.5" />
-            ) : (
-              <StarOutlineIcon className="h-3.5 w-3.5" />
-            )}
+            {[1, 2, 3, 4, 5].map((level) => (
+              <span key={level} className="inline-flex">
+                {task.priority >= level ? (
+                  <StarIcon className="h-2.5 w-2.5" />
+                ) : (
+                  <StarOutlineIcon className="h-2.5 w-2.5" />
+                )}
+              </span>
+            ))}
           </button>
         )}
 
@@ -487,8 +478,8 @@ export function TaskCard({
                   }}
                   className="flex items-center justify-center rounded-full"
                   style={{
-                    width: 6,
-                    height: 6,
+                    width: 18,
+                    height: 18,
                     borderRadius: '999px',
                     border: `1px solid ${hexRgba(catColor, isDone ? 0.0 : 0.6)}`,
                     backgroundColor: isDone ? catColor : 'transparent',
@@ -546,12 +537,6 @@ export function TaskCard({
           )}
         </div>
 
-        {/* Emoji spot — bottom-right of the card (same offset as plan view) */}
-        {task.emoji && (
-          <div className="absolute bottom-2 right-2 text-base select-none">
-            {task.emoji}
-          </div>
-        )}
       </div>
 
       {/* Popover portal — fixed position escapes overflow:hidden; pointerdown capture closes on outside click */}
