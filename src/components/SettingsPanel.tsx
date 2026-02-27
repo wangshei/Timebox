@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
@@ -22,6 +22,13 @@ interface SettingsPanelProps {
 }
 
 type TabType = 'calendars' | 'categories' | 'tags';
+
+const PRIMARY = '#8DA286';
+const BG = '#FCFBF7';
+const BORDER = 'rgba(0,0,0,0.08)';
+const TEXT = '#1C1C1E';
+const TEXT_MUTED = '#8E8E93';
+const TEXT_SECONDARY = '#636366';
 
 export function SettingsPanel({
   isOpen,
@@ -69,7 +76,7 @@ export function SettingsPanel({
     if (activeTab === 'calendars' && onUpdateCalendar) {
       onUpdateCalendar(editingId, { name: editName, color: editColor });
     } else if (activeTab === 'categories' && onUpdateCategory) {
-      onUpdateCategory(editingId, { name: editName, color: editColor, calendarContainerIds: editCalendarIds.length > 0 ? editCalendarIds : null });
+      onUpdateCategory(editingId, { name: editName, color: editColor, calendarContainerIds: editCalendarIds.length > 0 ? editCalendarIds : undefined });
     } else if (activeTab === 'tags' && onUpdateTag) {
       onUpdateTag(editingId, { name: editName });
     }
@@ -132,302 +139,368 @@ export function SettingsPanel({
     { id: 'tags' as const, label: 'Tags', icon: TagIcon },
   ];
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 13,
+    color: TEXT,
+    backgroundColor: '#FFFFFF',
+    border: `1px solid ${BORDER}`,
+    borderRadius: 8,
+    outline: 'none',
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0"
+        style={{ backgroundColor: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)' }}
+        onClick={onClose}
+      />
 
-      <div className="relative bg-white rounded-xl shadow-2xl w-[50%] min-w-[400px] max-w-2xl max-h-[80vh] flex flex-col">
+      <div
+        className="relative flex flex-col"
+        style={{
+          backgroundColor: BG,
+          borderRadius: 14,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.14)',
+          border: `1px solid ${BORDER}`,
+          width: '44%',
+          minWidth: 380,
+          maxWidth: 580,
+          maxHeight: '80vh',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
-          <h2 className="text-xl font-medium text-neutral-900">Settings</h2>
+        <div
+          className="flex items-center justify-between px-5 py-3.5 flex-shrink-0"
+          style={{ borderBottom: `1px solid ${BORDER}` }}
+        >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>Settings</h2>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
+            className="flex items-center justify-center rounded-lg transition-colors"
+            style={{ width: 28, height: 28, color: TEXT_MUTED }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
-            <XMarkIcon className="h-5 w-5 text-neutral-500" />
+            <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-neutral-200 px-6 pt-4">
-          <div className="flex gap-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setEditingId(null);
-                    setIsAdding(false);
-                  }}
-                  className={`px-4 py-2.5 rounded-t-lg transition-all text-sm font-medium flex items-center gap-2 ${
-                    activeTab === tab.id
-                      ? 'bg-neutral-100 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex gap-1 px-5 pt-3 pb-0 flex-shrink-0">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setEditingId(null);
+                  setIsAdding(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all"
+                style={{
+                  fontSize: 12,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? PRIMARY : TEXT_SECONDARY,
+                  backgroundColor: active ? `${PRIMARY}14` : 'transparent',
+                  border: active ? `1px solid ${PRIMARY}28` : '1px solid transparent',
+                }}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-3">
-            {/* Calendars List */}
-            {activeTab === 'calendars' &&
-              calendarContainers.map((calendar) => (
-                <div key={calendar.id}>
-                  {editingId === calendar.id ? (
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Calendar name"
-                        autoFocus
-                      />
-                      <ColorPicker
-                        label="Color"
-                        value={editColor}
-                        onChange={setEditColor}
-                        swatchSize="sm"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: calendar.color }} />
-                      <CalendarIcon className="h-4 w-4 text-neutral-400" />
-                      <span className="flex-1 text-sm text-neutral-700">{calendar.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
-                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <PencilIcon className="h-4 w-4 text-neutral-500" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(calendar.id)}
-                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <TrashIcon className="h-4 w-4 text-red-500" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+        {/* Divider */}
+        <div style={{ height: 1, backgroundColor: BORDER, margin: '12px 20px 0' }} />
 
-            {/* Categories List */}
-            {activeTab === 'categories' &&
-              categories.map((category) => (
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          {/* Calendars */}
+          {activeTab === 'calendars' &&
+            calendarContainers.map((calendar) => (
+              <div key={calendar.id}>
+                {editingId === calendar.id ? (
+                  <div
+                    className="space-y-3 p-3 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                  >
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      style={inputStyle}
+                      placeholder="Calendar name"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                    />
+                    <ColorPicker label="Color" value={editColor} onChange={setEditColor} swatchSize="sm" />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                        <CheckIcon className="h-3 w-3" /> Save
+                      </button>
+                      <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: calendar.color }} />
+                    <span className="flex-1 text-sm" style={{ color: TEXT, fontWeight: 500, fontSize: 13 }}>{calendar.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      style={{ color: TEXT_MUTED }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <PencilIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(calendar.id)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      style={{ color: '#C87868' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+          {/* Categories */}
+          {activeTab === 'categories' &&
+            categories.map((category) => {
+              const calIds = (category.calendarContainerIds && category.calendarContainerIds.length > 0)
+                ? category.calendarContainerIds
+                : (category.calendarContainerId ? [category.calendarContainerId] : []);
+              const calNames = calIds.map(id => calendarContainers.find(c => c.id === id)?.name).filter(Boolean);
+              return (
                 <div key={category.id}>
                   {editingId === category.id ? (
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
+                    <div
+                      className="space-y-3 p-3 rounded-xl"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={inputStyle}
                         placeholder="Category name"
                         autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
                       />
-                      <ColorPicker
-                        label="Color"
-                        value={editColor}
-                        onChange={setEditColor}
-                        swatchSize="sm"
-                      />
+                      <ColorPicker label="Color" value={editColor} onChange={setEditColor} swatchSize="sm" />
                       <div>
-                        <span className="block text-xs font-medium text-neutral-600 mb-2">Show on calendars</span>
-                        <div className="flex flex-wrap gap-2">
+                        <span className="block mb-1.5" style={{ fontSize: 11, fontWeight: 500, color: TEXT_MUTED }}>Show on calendars</span>
+                        <div className="flex flex-wrap gap-1.5">
                           {calendarContainers.map((cal) => {
                             const checked = editCalendarIds.includes(cal.id);
                             return (
-                              <label key={cal.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white cursor-pointer hover:bg-neutral-50">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    setEditCalendarIds((prev) =>
-                                      prev.includes(cal.id) ? prev.filter((id) => id !== cal.id) : [...prev, cal.id]
-                                    );
-                                  }}
-                                  className="rounded border-neutral-300"
-                                />
-                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cal.color }} />
-                                <span className="text-sm text-neutral-700">{cal.name}</span>
-                              </label>
+                              <button
+                                key={cal.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditCalendarIds((prev) =>
+                                    prev.includes(cal.id) ? prev.filter((id) => id !== cal.id) : [...prev, cal.id]
+                                  );
+                                }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all"
+                                style={{
+                                  fontSize: 12,
+                                  backgroundColor: checked ? `${cal.color}18` : 'rgba(0,0,0,0.04)',
+                                  border: checked ? `1.5px solid ${cal.color}50` : `1px solid ${BORDER}`,
+                                  color: checked ? cal.color : TEXT_SECONDARY,
+                                  fontWeight: checked ? 500 : 400,
+                                }}
+                              >
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cal.color }} />
+                                {cal.name}
+                                {checked && <CheckIcon className="h-3 w-3 flex-shrink-0" />}
+                              </button>
                             );
                           })}
                         </div>
                         {calendarContainers.length === 0 && (
-                          <p className="text-xs text-neutral-500">Add a calendar first.</p>
+                          <p style={{ fontSize: 11, color: TEXT_MUTED }}>Add a calendar first.</p>
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
-                        >
-                          Save
+                        <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                          <CheckIcon className="h-3 w-3" /> Save
                         </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
-                        >
+                        <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
-                      <FolderIcon className="h-4 w-4 text-neutral-400" />
-                      <span className="flex-1 text-sm text-neutral-700">{category.name}</span>
+                    <div
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="block" style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{category.name}</span>
+                        {calNames.length > 0 && (
+                          <span style={{ fontSize: 11, color: TEXT_MUTED }}>{calNames.join(', ')}</span>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleStartEdit(category.id, category.name, category.color, category)}
-                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: TEXT_MUTED }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       >
-                        <PencilIcon className="h-4 w-4 text-neutral-500" />
+                        <PencilIcon className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(category.id)}
-                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: '#C87868' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       >
-                        <TrashIcon className="h-4 w-4 text-red-500" />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
-              ))}
+              );
+            })}
 
-            {/* Tags List */}
-            {activeTab === 'tags' &&
-              tags.map((tag) => (
-                <div key={tag.id}>
-                  {editingId === tag.id ? (
-                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 space-y-3">
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tag name"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 rounded-lg group">
-                      <TagIcon className="h-4 w-4 text-neutral-400" />
-                      <span className="flex-1 text-sm text-neutral-700">{tag.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(tag.id, tag.name)}
-                        className="p-2 hover:bg-neutral-200 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <PencilIcon className="h-4 w-4 text-neutral-500" />
+          {/* Tags */}
+          {activeTab === 'tags' &&
+            tags.map((tag) => (
+              <div key={tag.id}>
+                {editingId === tag.id ? (
+                  <div
+                    className="space-y-3 p-3 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                  >
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      style={inputStyle}
+                      placeholder="Tag name"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                    />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                        <CheckIcon className="h-3 w-3" /> Save
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(tag.id)}
-                        className="p-2 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <TrashIcon className="h-4 w-4 text-red-500" />
+                      <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
+                        Cancel
                       </button>
                     </div>
-                  )}
-                </div>
-              ))}
-
-            {/* Add New Button/Form */}
-            {isAdding ? (
-              <div className="bg-neutral-50 border-2 border-dashed border-neutral-300 rounded-lg p-4 space-y-3">
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={`New ${activeTab.slice(0, -1)} name`}
-                  autoFocus
-                />
-                {(activeTab === 'calendars' || activeTab === 'categories') && (
-                  <ColorPicker
-                    label="Color"
-                    value={newColor}
-                    onChange={setNewColor}
-                    swatchSize="sm"
-                  />
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
+                  >
+                    <TagIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: TEXT_MUTED }} />
+                    <span className="flex-1" style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{tag.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(tag.id, tag.name)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      style={{ color: TEXT_MUTED }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <PencilIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(tag.id)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      style={{ color: '#C87868' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveAdd}
-                    className="px-4 py-2 bg-[#0044A8] text-white rounded-lg hover:bg-[#003380] transition-colors text-sm font-medium"
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-colors text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartAdd}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-neutral-300 rounded-lg text-neutral-500 hover:text-neutral-700 hover:border-neutral-400 transition-colors"
-              >
-                <PlusIcon className="h-4 w-4" />
-                Add {activeTab.slice(0, -1)}
-              </button>
-            )}
-          </div>
+            ))}
+
+          {/* Add New */}
+          {isAdding ? (
+            <div
+              className="space-y-3 p-3 rounded-xl"
+              style={{ border: `1.5px dashed ${PRIMARY}50`, backgroundColor: `${PRIMARY}06` }}
+            >
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                style={inputStyle}
+                placeholder={`New ${activeTab.slice(0, -1)} name`}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveAdd()}
+              />
+              {(activeTab === 'calendars' || activeTab === 'categories') && (
+                <ColorPicker label="Color" value={newColor} onChange={setNewColor} swatchSize="sm" />
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={handleSaveAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                  <PlusIcon className="h-3 w-3" /> Add
+                </button>
+                <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartAdd}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all"
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: TEXT_MUTED,
+                border: `1.5px dashed rgba(0,0,0,0.15)`,
+                backgroundColor: 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = PRIMARY;
+                e.currentTarget.style.borderColor = `${PRIMARY}60`;
+                e.currentTarget.style.backgroundColor = `${PRIMARY}06`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = TEXT_MUTED;
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Add {activeTab.slice(0, -1)}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,20 +1,37 @@
 /**
  * Single source of truth for category/calendar color selection.
- * Vibrant, clear, distinct palette — easy to tell apart at a glance.
+ * Muted, natural palette — rows grouped by hue family.
+ *
+ * Row 1 — Reds / Pinks / Peaches (6)
+ * Row 2 — Yellows (4)
+ * Row 3 — Greens (4)
+ * Row 4 — Blues (6)
  */
 export const PALETTE_COLORS = [
-  { name: 'Blue', value: '#5E8AE0' },           // Cornflower blue
-  { name: 'Green', value: '#34C759' },           // Fresh emerald green
-  { name: 'Purple', value: '#AF52DE' },          // Bright violet
-  { name: 'Orange', value: '#FF9500' },          // Warm amber orange
-  { name: 'Red', value: '#FF3B30' },             // Clear red
-  { name: 'Teal', value: '#5AC8FA' },            // Sky teal
-  { name: 'Indigo', value: '#5856D6' },          // Deep indigo
-  { name: 'Pink', value: '#FF2D55' },            // Hot pink
-  { name: 'Yellow', value: '#FFCC00' },          // Bright yellow
-  { name: 'Mint', value: '#00C7BE' },            // Mint green
-  { name: 'Brown', value: '#A2845E' },           // Warm brown
-  { name: 'Sage', value: '#8DA286' },            // Earthy sage green
+  // Row 1 — Reds / Pinks / Peaches (5)
+  { name: 'Blush',   value: '#F8E7DD' },
+  { name: 'Peach',   value: '#F3DDC7' },
+  { name: 'Apricot', value: '#F4CCAC' },
+  { name: 'Rose',    value: '#F4B6B6' },
+  { name: 'Mauve',   value: '#DE8D91' },
+  // Row 2 — Yellows (5)
+  { name: 'Cream',   value: '#F3EFDC' },
+  { name: 'Straw',   value: '#E7E5BC' },
+  { name: 'Lime',    value: '#D6E089' },
+  { name: 'Gold',    value: '#DAD15F' },
+  { name: 'Olive',   value: '#B3B46D' },
+  // Row 3 — Greens (5)
+  { name: 'Mist',    value: '#DBE4D7' },
+  { name: 'Sage',    value: '#C6D8C7' },
+  { name: 'Fern',    value: '#A4C7A6' },
+  { name: 'Forest',  value: '#8DA387' },
+  { name: 'Teal',    value: '#6593A6' },
+  // Row 4 — Blues (5)
+  { name: 'Sky',     value: '#D6E6FB' },
+  { name: 'Periwinkle', value: '#B8CAF2' },
+  { name: 'Lavender', value: '#AFB7E7' },
+  { name: 'Cornflower', value: '#8E9DCA' },
+  { name: 'Navy',    value: '#5B718C' },
 ] as const;
 
 /** Flat list of hex values for components that only need the color. */
@@ -23,7 +40,7 @@ export const PALETTE_HEX = PALETTE_COLORS.map((c) => c.value);
 export type PaletteColorName = (typeof PALETTE_COLORS)[number]['name'];
 
 /** Default color when creating a new calendar or category. */
-export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Blue
+export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[12].value; // Fern green
 
 /**
  * Semantic color tokens for the design system.

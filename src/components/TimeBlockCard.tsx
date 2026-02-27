@@ -4,6 +4,7 @@ import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
+import { activeDrag } from '../utils/dragState';
 import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
@@ -307,7 +308,10 @@ function TimeBlockCardInner({
     heightPx < 72  ? 'medium' :
     heightPx < 100 ? 'full'   : 'rich';
 
-  const showMeta = sizeTier === 'medium' || sizeTier === 'full' || sizeTier === 'rich';
+  // Events show time at small+ (>= 52px); tasks only at medium+ to avoid clutter
+  const showMeta = isEvent
+    ? sizeTier !== 'micro' && sizeTier !== 'tiny'
+    : sizeTier === 'medium' || sizeTier === 'full' || sizeTier === 'rich';
   const showCategory = sizeTier === 'full' || sizeTier === 'rich';
   const showTags = sizeTier === 'rich' && block.tags.length > 0;
   const showNotes = sizeTier === 'rich' && !!(block as any).notes;
@@ -324,6 +328,9 @@ function TimeBlockCardInner({
     e.dataTransfer.setData('application/x-timebox-block-color', getBlockColor());
     e.dataTransfer.setData('text/plain', block.title || 'Block');
     e.dataTransfer.effectAllowed = 'move';
+    activeDrag.type = block.taskId ? 'task' : 'event';
+    activeDrag.duration = getDurationMinutes();
+    activeDrag.color = getBlockColor();
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
       const color = getBlockColor();
@@ -421,6 +428,7 @@ function TimeBlockCardInner({
         onClick={() => { doSelect(); setShowPopover((v) => !v); }}
         draggable
         onDragStart={handleBlockDragStart}
+        onDragEnd={() => { activeDrag.type = null; }}
       >
         <div
           data-slot="block-container"
@@ -441,8 +449,8 @@ function TimeBlockCardInner({
               )}
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div
-                  className={cn('font-medium truncate leading-none', titleTextClass)}
-                  style={{ fontSize: compactTier === 'tiny' ? 9 : 10 }}
+                  className={cn(isTask ? 'font-semibold' : 'font-medium', 'truncate leading-none', titleTextClass)}
+                  style={{ fontSize: compactTier === 'tiny' ? 10 : isTask ? 12 : 11 }}
                 >
                   {block.title || 'Untitled'}
                 </div>
@@ -504,6 +512,7 @@ function TimeBlockCardInner({
       onClick={() => { doSelect(); setShowPopover((v) => !v); }}
       draggable
       onDragStart={handleBlockDragStart}
+      onDragEnd={() => { activeDrag.type = null; }}
     >
       <div
         data-slot="block-container"
@@ -532,20 +541,19 @@ function TimeBlockCardInner({
         ) : (
           /* small+: title at top, time at bottom-right */
           <div className="flex flex-col justify-between h-full min-w-0" style={{ padding: fullPadding }}>
-            {/* Title */}
+            {/* Title — wraps naturally, no ellipsis */}
             <span
               className={cn(
-                'font-medium leading-snug min-w-0',
+                isTask ? 'font-semibold' : 'font-medium',
+                'leading-snug min-w-0',
                 titleTextClass,
                 isTask && confirmed && 'line-through decoration-current/40',
               )}
               style={{
                 fontSize: isTask ? 13 : 11,
                 textDecorationSkipInk: 'none',
-                display: '-webkit-box',
-                WebkitLineClamp: sizeTier === 'small' ? 1 : sizeTier === 'medium' ? 2 : 3,
-                WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
+                wordBreak: 'break-word',
               }}
             >
               {block.title || 'Untitled'}
@@ -573,7 +581,7 @@ function TimeBlockCardInner({
 
             {/* Tags — rich only */}
             {showTags && (
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-1 mt-1 overflow-hidden" style={{ maxHeight: '28px' }}>
                 {block.tags.slice(0, 4).map((tag) => (
                   <Chip
                     key={tag.id}
@@ -605,9 +613,10 @@ function TimeBlockCardInner({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
-            className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full transition-all opacity-50 group-hover:opacity-100"
+            className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full transition-all"
             style={{
               width: 12, height: 12,
+              opacity: confirmed ? 1 : 0.6,
               ...(confirmed
                 ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
                 : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.5)}` }),

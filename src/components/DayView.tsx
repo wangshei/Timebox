@@ -6,13 +6,14 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
 import {
-  PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL, TASK_BLOCK_WIDTH_PERCENT,
+  PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL,
   minutesToTimeString,
   offsetYToMinutes as offsetYToMinsUtil,
   parseTimeToMins,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
+import { activeDrag } from '../utils/dragState';
 
 export { SNAP_MINUTES_UTIL as SNAP_MINUTES };
 const DEFAULT_DROP_MINUTES = 15;
@@ -110,23 +111,20 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
     const currentMins = offsetYToMinutes(offsetY);
     if (hasEvent) {
-      const durationStr = e.dataTransfer.getData('application/x-timebox-event-duration');
-      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
-      const color = e.dataTransfer.getData('application/x-timebox-event-color');
+      const duration = activeDrag.type === 'event' && activeDrag.duration > 0 ? activeDrag.duration : DEFAULT_DROP_MINUTES;
+      const color = activeDrag.color || BLOCK_PREVIEW.color;
       if (color) setDragColor(color);
       setDragPreviewType('event');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
     } else if (hasBlock) {
-      const durationStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
-      const color = e.dataTransfer.getData('application/x-timebox-block-color');
+      const duration = activeDrag.type === 'block' || activeDrag.type === 'task' ? (activeDrag.duration || DEFAULT_DROP_MINUTES) : DEFAULT_DROP_MINUTES;
+      const color = activeDrag.color || BLOCK_PREVIEW.color;
       if (color) setDragColor(color);
       setDragPreviewType('block');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
     } else {
-      const durationStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-      const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
-      const color = e.dataTransfer.getData('application/x-timebox-task-color');
+      const duration = activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : DEFAULT_DROP_MINUTES;
+      const color = activeDrag.color || BLOCK_PREVIEW.color;
       if (color) setDragColor(color);
       setDragPreviewType('task');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
@@ -333,27 +331,22 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     mode === 'compare' &&
     selectedDate < todayStr;
 
-  // Overlap layout only for events and event-type blocks (no taskId). Tasks get slimmer left-aligned width.
+  // Overlap layout for ALL blocks and events (tasks share column with events using overlap algorithm).
   const overlapMap = React.useMemo(() => {
-    const eventLikeItems = [
-      ...timeBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
+    const allItems = [
+      ...timeBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
       ...events.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
     ];
-    return computeOverlapLayout(eventLikeItems);
+    return computeOverlapLayout(allItems);
   }, [timeBlocks, events]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();
     timeBlocks.forEach((block) => {
       const { top, height } = getBlockStyle(block);
-      const isTask = !!block.taskId;
       const layout = overlapMap.get(block.id);
-      const widthPercent = isTask
-        ? TASK_BLOCK_WIDTH_PERCENT
-        : layout
-          ? 100 / layout.totalColumns
-          : 100;
-      const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+      const widthPercent = layout ? 100 / layout.totalColumns : 100;
+      const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
       map.set(block.id, {
         top: `${top}px`,
         height: `${height}px`,

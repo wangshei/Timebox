@@ -136,9 +136,15 @@ export function LeftSidebar({
       onAddCalendar({ name: addName.trim(), color: addColor });
     } else if (addingType === 'category') {
       if (addingParentId && addExistingCategoryId) {
-        onUpdateCategory(addExistingCategoryId, { calendarContainerId: addingParentId });
+        // ADD the calendar to the category's calendarContainerIds (not replace)
+        const existingCat = categories.find((c) => c.id === addExistingCategoryId);
+        const currentIds = (existingCat?.calendarContainerIds && existingCat.calendarContainerIds.length > 0)
+          ? existingCat.calendarContainerIds
+          : (existingCat?.calendarContainerId ? [existingCat.calendarContainerId] : []);
+        const newIds = currentIds.includes(addingParentId) ? currentIds : [...currentIds, addingParentId];
+        onUpdateCategory(addExistingCategoryId, { calendarContainerId: newIds[0], calendarContainerIds: newIds });
       } else if (addingParentId) {
-        onAddCategory({ name: addName.trim(), color: addColor, calendarContainerId: addingParentId });
+        onAddCategory({ name: addName.trim(), color: addColor, calendarContainerId: addingParentId, calendarContainerIds: [addingParentId] });
       } else {
         onAddCategory({ name: addName.trim(), color: addColor });
       }
@@ -166,10 +172,15 @@ export function LeftSidebar({
     if (!tagIdsByCalendarCategory.has(key)) tagIdsByCalendarCategory.set(key, new Set());
     (b.tagIds ?? []).forEach((tid) => tagIdsByCalendarCategory.get(key)!.add(tid));
   });
+  // Include all categories under every calendar they belong to (supports multi-calendar assignment)
   categories.forEach((cat) => {
-    if (!cat.calendarContainerId) return;
-    if (!categoryIdsByCalendar.has(cat.calendarContainerId)) categoryIdsByCalendar.set(cat.calendarContainerId, new Set());
-    categoryIdsByCalendar.get(cat.calendarContainerId)!.add(cat.id);
+    const calIds = (cat.calendarContainerIds && cat.calendarContainerIds.length > 0)
+      ? cat.calendarContainerIds
+      : (cat.calendarContainerId ? [cat.calendarContainerId] : []);
+    calIds.forEach((calId) => {
+      if (!categoryIdsByCalendar.has(calId)) categoryIdsByCalendar.set(calId, new Set());
+      categoryIdsByCalendar.get(calId)!.add(cat.id);
+    });
   });
   const categoriesByCalendar = new Map<string, Category[]>();
   calendarContainers.forEach((cal) => {
@@ -366,7 +377,7 @@ export function LeftSidebar({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7' }}>
+    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
       {/* Scrollable list */}
       <div className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
         {calendarContainers.map((calendar) => {

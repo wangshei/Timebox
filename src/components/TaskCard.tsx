@@ -1,7 +1,8 @@
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
 import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { activeDrag } from '../utils/dragState';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -59,6 +60,26 @@ export function TaskCard({
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  // Tracks when popup was last opened (to skip the initiating pointerdown)
+  const popoverOpenedAtRef = useRef<number>(0);
+  // Suppresses the synthetic click that some browsers fire after a drag
+  const dragEndedRef = useRef(false);
+
+  // pointerdown capture — fires before any element handler, independent of z-index stacking.
+  // Using capture:true means it runs even if child elements call stopPropagation().
+  useEffect(() => {
+    if (!showPopover) return;
+    const close = (e: PointerEvent) => {
+      // Skip events within 120ms of the popup opening (same pointerdown that triggered it)
+      if (Date.now() - popoverOpenedAtRef.current < 120) return;
+      if (cardRef.current?.contains(e.target as Node)) return;
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      setShowPopover(false);
+    };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [showPopover]);
 
   // Derive time values — displayTasks provides estimatedHours and recordedHours
   const estimatedMins = Math.round((task.estimatedHours ?? 0) * 60);
@@ -67,9 +88,9 @@ export function TaskCard({
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
   const catColor = task.category?.color ?? '#8DA286';
 
-  // Position overview popover with fixed coords
+  // Position popover with fixed coords (both plan and overview modes)
   useLayoutEffect(() => {
-    if (!showPopover || viewMode !== 'overview' || !cardRef.current) return;
+    if (!showPopover || !cardRef.current) return;
     const el = cardRef.current;
     const popoverWidth = 292;
     const popoverMaxHeight = 460;
@@ -95,12 +116,18 @@ export function TaskCard({
   }, [showPopover, viewMode, popoverSide]);
 
   const handleDragStart = (e: React.DragEvent) => {
+    // Close popup when drag begins (otherwise backdrop blocks the drop target)
+    setShowPopover(false);
+    dragEndedRef.current = false;
     e.dataTransfer.setData('application/x-timebox-task-id', task.id);
     const durationMins = Math.max(15, recordedMins > 0 ? remainingMins : estimatedMins);
     e.dataTransfer.setData('application/x-timebox-task-duration', String(durationMins));
     e.dataTransfer.setData('application/x-timebox-task-color', catColor);
     e.dataTransfer.setData('text/plain', task.title);
     e.dataTransfer.effectAllowed = 'copy';
+    activeDrag.type = 'task';
+    activeDrag.duration = durationMins;
+    activeDrag.color = catColor;
     if (e.dataTransfer.setDragImage) {
       const ghost = document.createElement('div');
       ghost.style.cssText = [
@@ -189,7 +216,7 @@ export function TaskCard({
         <div className="mb-2 -mx-3 px-3 py-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)', backgroundColor: 'rgba(0,0,0,0.02)' }}>
           {onBreakIntoChunks && (
             <div className="mb-1.5">
-              <div className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#AEAEB2' }}>Break into blocks</div>
+              <div className="text-xs mb-1.5" style={{ color: '#8E8E93' }}>Break into blocks</div>
               <div className="flex flex-wrap gap-1">
                 {[30, 60, 90].map((mins) => (
                   <button key={mins} type="button"
@@ -206,7 +233,7 @@ export function TaskCard({
           )}
           {onSplitTask && (
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#AEAEB2' }}>Get a block</div>
+              <div className="text-xs mb-1.5" style={{ color: '#8E8E93' }}>Get a block</div>
               <div className="flex flex-wrap items-center gap-1">
                 {SPLIT_BLOCK_OPTIONS.map((mins) => (
                   <button key={mins} type="button"
@@ -287,11 +314,21 @@ export function TaskCard({
     return (
       <>
         <div
+          ref={cardRef}
           className="cursor-grab active:cursor-grabbing group relative"
-          style={{ height: `${cardHeight}px` }}
-          onClick={() => setShowPopover((v) => !v)}
+          style={{ height: `${cardHeight}px`, ...(showPopover ? { zIndex: 101 } : {}) }}
+          onClick={() => {
+            if (dragEndedRef.current) { dragEndedRef.current = false; return; }
+            popoverOpenedAtRef.current = Date.now();
+            setShowPopover((v) => !v);
+          }}
           draggable
           onDragStart={handleDragStart}
+          onDragEnd={() => {
+            activeDrag.type = null;
+            dragEndedRef.current = true;
+            window.setTimeout(() => { dragEndedRef.current = false; }, 200);
+          }}
         >
           <div className="h-full rounded-xl p-3 overflow-hidden transition-[box-shadow] duration-150"
             style={{
@@ -322,16 +359,22 @@ export function TaskCard({
           </div>
         </div>
 
-        {/* Plan-mode popover */}
-        {showPopover && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowPopover(false); }} />
-            <div
-              className={`absolute z-20 top-0 rounded-xl shadow-2xl p-3 min-w-[268px] ${popoverSide === 'left' ? 'right-full mr-2' : 'left-full ml-2'}`}
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 12px 40px rgba(0,0,0,0.12)' }}>
-              {renderPopoverContent()}
-            </div>
-          </>
+        {/* Plan-mode popover — portal escapes overflow; pointerdown capture closes on outside click */}
+        {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
+          <div
+            ref={popoverRef}
+            className="fixed rounded-xl p-3 min-w-[268px] max-w-xs"
+            style={{
+              zIndex: 200,
+              top: popoverRect.top,
+              left: popoverRect.left,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.09)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
+            }}>
+            {renderPopoverContent()}
+          </div>,
+          document.body
         )}
       </>
     );
@@ -355,14 +398,51 @@ export function TaskCard({
           outline: showPopover ? `1.5px solid ${hexRgba(catColor, 0.6)}` : 'none',
           outlineOffset: '1px',
         }}
-        onClick={(e) => { if (e.detail === 1) setShowPopover((v) => !v); }}
+        onClick={(e) => {
+          if (e.detail !== 1) return;
+          if (dragEndedRef.current) { dragEndedRef.current = false; return; }
+          popoverOpenedAtRef.current = Date.now();
+          setShowPopover((v) => !v);
+        }}
         draggable
         onDragStart={handleDragStart}
+        onDragEnd={() => {
+          activeDrag.type = null;
+          dragEndedRef.current = true;
+          window.setTimeout(() => { dragEndedRef.current = false; }, 200);
+        }}
       >
         {/* Drag handle */}
         <div className="absolute top-3 right-2.5 opacity-0 group-hover:opacity-50 transition-opacity">
           <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
         </div>
+
+        {/* Direct done button — circle checkmark, visible on hover */}
+        {onMarkTaskDone && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
+            className="absolute top-3 right-7 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full"
+            style={{
+              width: 15,
+              height: 15,
+              border: `1.5px solid ${hexRgba(catColor, 0.5)}`,
+              backgroundColor: 'rgba(255,255,255,0.9)',
+            }}
+            title="Mark as done"
+            aria-label="Mark as done"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.12);
+              e.currentTarget.style.borderColor = catColor;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)';
+              e.currentTarget.style.borderColor = hexRgba(catColor, 0.5);
+            }}
+          >
+            <CheckIcon className="h-2 w-2" style={{ color: catColor }} />
+          </button>
+        )}
 
         <div className="flex flex-col gap-2 pr-5">
           {/* Title + duration badge */}
@@ -418,22 +498,21 @@ export function TaskCard({
         </div>
       </div>
 
-      {/* Popover portal — fixed position so it escapes overflow:hidden sidebar */}
+      {/* Popover portal — fixed position escapes overflow:hidden; pointerdown capture closes on outside click */}
       {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
-        <>
-          <div className="fixed inset-0 z-40"
-            onClick={(e) => { e.stopPropagation(); setShowPopover(false); }} />
-          <div className="fixed z-50 rounded-xl p-3 min-w-[272px] max-w-xs"
-            style={{
-              top: popoverRect.top,
-              left: popoverRect.left,
-              backgroundColor: '#FFFFFF',
-              border: '1px solid rgba(0,0,0,0.09)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
-            }}>
-            {renderPopoverContent()}
-          </div>
-        </>,
+        <div
+          ref={popoverRef}
+          className="fixed rounded-xl p-3 min-w-[272px] max-w-xs"
+          style={{
+            zIndex: 200,
+            top: popoverRect.top,
+            left: popoverRect.left,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.09)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
+          }}>
+          {renderPopoverContent()}
+        </div>,
         document.body
       )}
     </>

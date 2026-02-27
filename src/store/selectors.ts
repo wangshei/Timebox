@@ -99,7 +99,7 @@ function getMonthDateSet(dateStr: string): Set<string> {
   return set;
 }
 
-/** Blocks visible for the current view range (day, week, or month). */
+/** Blocks visible for the current view range (day, 3day, week, or month). */
 export function selectTimeBlocksForView(
   timeBlocks: TimeBlock[],
   selectedDate: string,
@@ -109,6 +109,19 @@ export function selectTimeBlocksForView(
   const visible = (b: TimeBlock) => containerVisibility[b.calendarContainerId] !== false;
   if (view === 'day') {
     return timeBlocks.filter((b) => b.date === selectedDate && visible(b));
+  }
+  if (view === '3day') {
+    // Build the exact 3 dates shown (anchor + 2 days). getMonthDateSet would miss
+    // dates that cross into the next month (e.g. anchor = Feb 27, third day = March 1).
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const anchor = new Date(y, (m ?? 1) - 1, d ?? 1);
+    const set = new Set<string>();
+    for (let i = 0; i < 3; i++) {
+      const day = new Date(anchor);
+      day.setDate(anchor.getDate() + i);
+      set.add(getLocalDateString(day));
+    }
+    return timeBlocks.filter((b) => set.has(b.date) && visible(b));
   }
   const dateSet = view === 'week' ? getWeekDateSet(selectedDate) : getMonthDateSet(selectedDate);
   return timeBlocks.filter((b) => dateSet.has(b.date) && visible(b));

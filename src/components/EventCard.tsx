@@ -6,6 +6,7 @@ import { getTextClassForBackground, hexToRgba, desaturate, lighten } from '../ut
 import { getLocalDateString } from '../utils/dateTime';
 import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
+import { activeDrag } from '../utils/dragState';
 
 const POPOVER_WIDTH = 224;
 const POPOVER_MAX_HEIGHT = 420;
@@ -111,6 +112,9 @@ export function EventCard({
     e.dataTransfer.setData('application/x-timebox-event-color', categoryColor);
     e.dataTransfer.setData('text/plain', event.title || 'Event');
     e.dataTransfer.effectAllowed = 'move';
+    activeDrag.type = 'event';
+    activeDrag.duration = getDurationMinutes();
+    activeDrag.color = categoryColor;
     if (e.dataTransfer.setDragImage && event.title) {
       const ghost = document.createElement('div');
       ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
@@ -165,6 +169,7 @@ export function EventCard({
       }}
       draggable={draggable}
       onDragStart={handleDragStart}
+      onDragEnd={() => { activeDrag.type = null; }}
     >
       <div
         className={cn(

@@ -6,12 +6,13 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
 import {
-  PX_PER_HOUR, SNAP_MINUTES, TASK_BLOCK_WIDTH_PERCENT,
+  PX_PER_HOUR, SNAP_MINUTES,
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
   offsetYToMinutes as offsetYToMinsUtil,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
+import { activeDrag } from '../utils/dragState';
 
 interface WeekViewProps {
   mode: Mode;
@@ -42,6 +43,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+
+  // Refs for scroll-sync between the fixed time column and the scrollable grid
+  const gridRef = React.useRef<HTMLDivElement>(null);
+  const timeColInnerRef = React.useRef<HTMLDivElement>(null);
+  const headerInnerRef = React.useRef<HTMLDivElement>(null);
+
+  const handleGridScroll = React.useCallback(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    // Sync time column vertical position via transform (overflow:hidden wrapper)
+    if (timeColInnerRef.current) {
+      timeColInnerRef.current.style.transform = `translateY(-${grid.scrollTop}px)`;
+    }
+    // Sync date header horizontal position via transform
+    if (headerInnerRef.current) {
+      headerInnerRef.current.style.transform = `translateX(-${grid.scrollLeft}px)`;
+    }
+  }, []);
 
   const weekDays = React.useMemo(() => {
     const startOfWeek = new Date(currentDate);
@@ -157,40 +176,55 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#FDFDFB' }}>
-      {/* Sticky header row: time spacer + day name/date cells */}
-      <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB', zIndex: 20, position: 'relative' }}>
-        {/* Time gutter spacer */}
+      {/* Fixed header row: time gutter + date cells (does not scroll vertically) */}
+      <div
+        className="flex flex-shrink-0"
+        style={{
+          borderBottom: '1px solid rgba(0,0,0,0.07)',
+          backgroundColor: '#FDFDFB',
+          zIndex: 20,
+          position: 'relative',
+        }}
+      >
+        {/* Time gutter spacer (matches time column width) */}
         <div className="w-10 md:w-14 flex-shrink-0" style={{ borderRight: '1px solid rgba(0,0,0,0.07)' }} />
-        {/* Day headers */}
-        <div className="flex flex-1 min-w-0">
-          {weekDays.map((day, dayIndex) => {
-            const today = isToday(day);
-            return (
-              <div
-                key={dayIndex}
-                className="flex-1 min-w-[90px] md:min-w-0 h-9 md:h-10 px-1.5 md:px-2 py-1.5 flex flex-col justify-center gap-1"
-                style={{
-                  borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                  backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
-                }}
-              >
-                <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
-                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
+        {/* Day headers — overflow hidden so transform-based horizontal sync doesn't leak */}
+        <div className="flex-1 overflow-hidden">
+          <div ref={headerInnerRef} className="flex" style={{ minWidth: 'max-content' }}>
+            {weekDays.map((day, dayIndex) => {
+              const today = isToday(day);
+              return (
+                <div
+                  key={dayIndex}
+                  className="min-w-[90px] md:min-w-0 h-9 md:h-10 px-1.5 md:px-2 py-1.5 flex flex-col justify-center gap-1"
+                  style={{
+                    width: `${100 / 7}%`,
+                    minWidth: 90,
+                    borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
+                  }}
+                >
+                  <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
+                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </div>
+                  <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
+                    {day.getDate()}
+                  </div>
                 </div>
-                <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
-                  {day.getDate()}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-auto" style={{ backgroundColor: '#FDFDFB' }}>
-        <div className="flex min-w-max">
-          {/* Time column */}
-          <div className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10" style={{ borderRight: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB' }}>
+      {/* Body: fixed time column (left) + scrollable day grid (right) */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Time column — fixed left, does not scroll; inner div translates vertically in sync with grid */}
+        <div
+          className="w-10 md:w-14 flex-shrink-0 overflow-hidden"
+          style={{ borderRight: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB' }}
+        >
+          <div ref={timeColInnerRef} className="py-2" style={{ willChange: 'transform' }}>
             {hours.map((hour) => (
               <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
                 <div className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium" style={{ color: '#AEAEB2', fontSize: '10px' }}>
@@ -199,8 +233,17 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Day columns (body only - headers are above) */}
+        {/* Scrollable day grid */}
+        <div
+          ref={gridRef}
+          className="flex-1 overflow-auto"
+          style={{ backgroundColor: '#FDFDFB' }}
+          onScroll={handleGridScroll}
+        >
+          <div className="flex min-w-max">
+          {/* Day columns */}
           <div className="flex flex-1">
             {weekDays.map((day, dayIndex) => {
               const dateStr = formatDate(day);
@@ -237,12 +280,11 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         const offsetY = e.clientY - rect.top;
                         if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                         const startMins = offsetYToMinutes(offsetY);
-                        const durationStr = hasEvent
-                          ? e.dataTransfer.getData('application/x-timebox-event-duration')
+                        const duration = hasEvent
+                          ? (activeDrag.type === 'event' && activeDrag.duration > 0 ? activeDrag.duration : 15)
                           : hasBlock
-                            ? e.dataTransfer.getData('application/x-timebox-block-duration')
-                            : e.dataTransfer.getData('application/x-timebox-task-duration');
-                        const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
+                            ? (activeDrag.type === 'block' || activeDrag.type === 'task' ? (activeDrag.duration || 15) : 15)
+                            : (activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : 15);
                         setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
                       }}
                       onDragLeave={(e) => {
@@ -295,19 +337,18 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       {/* Blocks + events */}
                       <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                         {(() => {
-                          const eventLikeItems = [
-                            ...dayBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
+                          const allItems = [
+                            ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
                             ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
                           ];
-                          const dayOverlapMap = computeOverlapLayout(eventLikeItems);
+                          const dayOverlapMap = computeOverlapLayout(allItems);
                           return (
                             <>
                               {dayBlocks.map((block) => {
                                 const { top, height } = getBlockStyle(block);
-                                const isTask = !!block.taskId;
                                 const layout = dayOverlapMap.get(block.id);
-                                const widthPercent = isTask ? TASK_BLOCK_WIDTH_PERCENT : layout ? 100 / layout.totalColumns : 100;
-                                const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                                const widthPercent = layout ? 100 / layout.totalColumns : 100;
+                                const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                                 return (
                                   <TimeBlockCard
                                     key={block.id}
@@ -417,5 +458,6 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
         </div>
       </div>
     </div>
+  </div>
   );
 }

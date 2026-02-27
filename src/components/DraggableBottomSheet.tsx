@@ -123,6 +123,7 @@ export function DraggableBottomSheet({ tasks, unscheduledTasks, partiallyComplet
         borderTop: '1px solid rgba(0,0,0,0.09)',
         height: `${height}px`,
         touchAction: 'none',
+        zIndex: 50,
       }}
     >
       {/* Drag Handle */}

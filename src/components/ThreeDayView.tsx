@@ -6,13 +6,14 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
 import {
-  PX_PER_HOUR, SNAP_MINUTES, TASK_BLOCK_WIDTH_PERCENT,
+  PX_PER_HOUR, SNAP_MINUTES,
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
   offsetYToMinutes as offsetYToMinsUtil,
 } from '../utils/gridUtils';
 import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
+import { activeDrag } from '../utils/dragState';
 
 interface ThreeDayViewProps {
   mode: Mode;
@@ -306,18 +307,12 @@ export function ThreeDayView({
                       const offsetY = e.clientY - rect.top;
                       if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                       const startMins = offsetYToMinutes(offsetY);
-                      const durationStr = hasEvent
-                        ? e.dataTransfer.getData('application/x-timebox-event-duration')
+                      const duration = hasEvent
+                        ? (activeDrag.type === 'event' && activeDrag.duration > 0 ? activeDrag.duration : 15)
                         : hasBlock
-                          ? e.dataTransfer.getData('application/x-timebox-block-duration')
-                          : e.dataTransfer.getData('application/x-timebox-task-duration');
-                      const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
-                      const colorKey = hasEvent
-                        ? 'application/x-timebox-event-color'
-                        : hasBlock
-                          ? 'application/x-timebox-block-color'
-                          : 'application/x-timebox-task-color';
-                      const color = e.dataTransfer.getData(colorKey);
+                          ? (activeDrag.type === 'block' || activeDrag.type === 'task' ? (activeDrag.duration || 15) : 15)
+                          : (activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : 15);
+                      const color = activeDrag.color || BLOCK_PREVIEW.color;
                       if (color) setDragColor(color);
                       setDragPreviewType(hasEvent ? 'event' : hasBlock ? 'block' : 'task');
                       setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
@@ -389,21 +384,18 @@ export function ThreeDayView({
                     {/* Blocks and events */}
                     <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                       {(() => {
-                        const eventLikeItems = [
-                          ...dayBlocks.filter((b) => !b.taskId).map((b) => ({ id: b.id, start: b.start, end: b.end })),
+                        const allItems = [
+                          ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
                           ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
                         ];
-                        const dayOverlapMap = computeOverlapLayout(eventLikeItems);
+                        const dayOverlapMap = computeOverlapLayout(allItems);
                         return (
                           <>
                             {dayBlocks.map((block) => {
                               const { top, height } = getBlockStyle(block);
-                              const isTask = !!block.taskId;
                               const layout = dayOverlapMap.get(block.id);
-                              const widthPercent = isTask
-                                ? TASK_BLOCK_WIDTH_PERCENT
-                                : layout ? 100 / layout.totalColumns : 100;
-                              const leftPercent = isTask ? 0 : layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                              const widthPercent = layout ? 100 / layout.totalColumns : 100;
+                              const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                               return (
                                 <TimeBlockCard
                                   key={block.id}
