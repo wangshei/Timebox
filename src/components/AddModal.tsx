@@ -332,7 +332,7 @@ export function AddModal({
     setTagInput('');
     setSelectedCalendar(calendars[0]?.id ?? 'personal');
     setPinned(false);
-    setPriority(3);
+    setPriority(undefined);
     onClose();
   };
 

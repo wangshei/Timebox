@@ -21,6 +21,8 @@ export interface ResolvedTimeBlock {
   mode: 'planned' | 'recorded';
   source: 'manual' | 'autoAssumed';
   calendarContainer: CalendarContainer;
+  /** Priority inherited from linked Task (1–5), undefined if unset. */
+  priority?: number;
   // Emoji removed from UI; keep type minimal.
 }
 
@@ -54,6 +56,7 @@ export function resolveTimeBlock(
     category,
     tags: blockTags,
     calendarContainer: container,
+    priority: typeof linkedTask?.priority === 'number' ? linkedTask.priority : undefined,
   };
 }
 

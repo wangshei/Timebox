@@ -280,7 +280,7 @@ export default function App() {
       dueDate: taskData.dueDate ?? undefined,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
-      priority: typeof taskData.priority === 'number' ? taskData.priority : 3,
+      priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
     });
   };
 
@@ -1146,8 +1146,9 @@ export default function App() {
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
                 onTogglePin={(taskId) => {
-                  const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
-                  const next = current >= 5 ? 1 : current + 1;
+                  const current = tasks.find((t) => t.id === taskId)?.priority;
+                  // Cycle: none → 1 → 2 → 3 → 4 → 5 → none
+                  const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
                   updateTask(taskId, { priority: next });
                 }}
                 events={events}
@@ -1209,8 +1210,9 @@ export default function App() {
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
           onTogglePin={(taskId) => {
-            const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
-            const next = current >= 5 ? 1 : current + 1;
+            const current = tasks.find((t) => t.id === taskId)?.priority;
+            // Cycle: none → 1 → 2 → 3 → 4 → 5 → none
+            const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
             updateTask(taskId, { priority: next });
           }}
         />

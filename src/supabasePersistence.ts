@@ -167,7 +167,7 @@ export async function loadSupabaseState() {
         dueDate: t.due_date ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
-        priority: t.priority ?? 3,
+        priority: typeof t.priority === 'number' ? t.priority : undefined,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
       })
@@ -302,7 +302,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         due_date: t.dueDate ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
-        priority: typeof t.priority === 'number' ? t.priority : 3,
+        priority: typeof t.priority === 'number' ? t.priority : null,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
       })),

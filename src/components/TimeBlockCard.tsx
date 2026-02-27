@@ -5,7 +5,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag } from '../utils/dragState';
-import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
+import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
 
@@ -387,31 +387,51 @@ function TimeBlockCardInner({
           {(block as any).notes}
         </div>
       )}
-      <div className="flex gap-1 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginTop: 6 }}>
-        {onEditBlock && (
+      <div className="flex flex-col gap-1 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginTop: 6 }}>
+        {isTask && (onConfirm || onUnconfirm) && (
           <button
             type="button"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-            style={{ color: '#636366' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+            style={{ color: confirmed ? '#636366' : blockColor }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.05)' : `${hexToRgba(blockColor, 0.1)}`; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-            onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
+            onClick={() => {
+              if (confirmed) onUnconfirm?.(block.id);
+              else onConfirm?.(block.id);
+              setShowPopover(false);
+              doDeselect();
+            }}
           >
-            <PencilIcon className="h-3.5 w-3.5" /> Edit
+            <CheckIcon className="h-3.5 w-3.5" />
+            {confirmed ? 'Mark as not done' : 'Mark as done'}
           </button>
         )}
-        {onDeleteBlock && (
-          <button
-            type="button"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-            style={{ color: '#B85050' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-            onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
-          >
-            <TrashIcon className="h-3.5 w-3.5" /> Delete
-          </button>
-        )}
+        <div className="flex gap-1">
+          {onEditBlock && (
+            <button
+              type="button"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+              style={{ color: '#636366' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
+            >
+              <PencilIcon className="h-3.5 w-3.5" /> Edit
+            </button>
+          )}
+          {onDeleteBlock && (
+            <button
+              type="button"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+              style={{ color: '#B85050' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
+            >
+              <TrashIcon className="h-3.5 w-3.5" /> Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -501,6 +521,19 @@ function TimeBlockCardInner({
               title={confirmed ? 'Mark not done' : 'Mark done'}
               aria-label={confirmed ? 'Mark not done' : 'Mark done'}
             />
+          )}
+
+          {/* Priority stars — bottom-right corner, compact, tasks only */}
+          {isTask && typeof block.priority === 'number' && block.priority >= 1 &&
+            compactTier !== 'micro' && compactTier !== 'tiny' && (
+            <div
+              className="absolute flex items-center"
+              style={{ bottom: 2, right: 2, gap: 1, pointerEvents: 'none' }}
+            >
+              {[1, 2, 3, 4, 5].filter((l) => l <= block.priority!).map((l) => (
+                <StarIcon key={l} style={{ width: 6, height: 6, color: blockColor, opacity: 0.65 }} />
+              ))}
+            </div>
           )}
         </div>
 
@@ -685,6 +718,19 @@ function TimeBlockCardInner({
           >
             {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
           </button>
+        )}
+
+        {/* Priority stars — bottom-right corner, tasks only, category color */}
+        {isTask && typeof block.priority === 'number' && block.priority >= 1 &&
+          sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+          <div
+            className="absolute flex items-center"
+            style={{ bottom: 4, right: 4, gap: 1, pointerEvents: 'none' }}
+          >
+            {[1, 2, 3, 4, 5].filter((l) => l <= block.priority!).map((l) => (
+              <StarIcon key={l} style={{ width: 7, height: 7, color: blockColor, opacity: 0.7 }} />
+            ))}
+          </div>
         )}
 
         {/* Resize handle (tasks only, small+) */}

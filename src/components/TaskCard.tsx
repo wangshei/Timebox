@@ -23,13 +23,13 @@ interface TaskCardProps {
   onScheduleTask?: () => void;
   onEditTask?: () => void;
   onDeleteTask?: () => void;
-  /** Mark all planned blocks of this task as done (create recorded for each). */
+  /** Toggle the task's done status. */
   onMarkTaskDone?: () => void;
   /** Break task into smaller tasks (e.g. 30min, 1h chunks) and add to backlog. */
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
-  /** Cycle priority rating (1–5 stars). */
+  /** Cycle priority rating (1–5 stars, then back to unset). */
   onTogglePin?: () => void;
 }
 
@@ -73,17 +73,12 @@ export function TaskCard({
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  // Tracks when popup was last opened (to skip the initiating pointerdown)
   const popoverOpenedAtRef = useRef<number>(0);
-  // Suppresses the synthetic click that some browsers fire after a drag
   const dragEndedRef = useRef(false);
 
-  // pointerdown capture — fires before any element handler, independent of z-index stacking.
-  // Using capture:true means it runs even if child elements call stopPropagation().
   useEffect(() => {
     if (!showPopover) return;
     const close = (e: PointerEvent) => {
-      // Skip events within 120ms of the popup opening (same pointerdown that triggered it)
       if (Date.now() - popoverOpenedAtRef.current < 120) return;
       if (cardRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
@@ -93,15 +88,16 @@ export function TaskCard({
     return () => document.removeEventListener('pointerdown', close, true);
   }, [showPopover]);
 
-  // Derive time values — displayTasks provides estimatedHours and recordedHours
   const estimatedMins = Math.round((task.estimatedHours ?? 0) * 60);
   const recordedMins = Math.round((task.recordedHours ?? 0) * 60);
   const remainingMins = Math.max(0, estimatedMins - recordedMins);
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
   const catColor = task.category?.color ?? '#8DA286';
   const isDone = task.status === 'done';
+  const priority = typeof task.priority === 'number' && task.priority >= 1 && task.priority <= 5
+    ? task.priority
+    : 0;
 
-  // Position popover with fixed coords (both plan and overview modes)
   useLayoutEffect(() => {
     if (!showPopover || !cardRef.current) return;
     const el = cardRef.current;
@@ -129,7 +125,6 @@ export function TaskCard({
   }, [showPopover, viewMode, popoverSide]);
 
   const handleDragStart = (e: React.DragEvent) => {
-    // Close popup when drag begins (otherwise backdrop blocks the drop target)
     setShowPopover(false);
     dragEndedRef.current = false;
     e.dataTransfer.setData('application/x-timebox-task-id', task.id);
@@ -170,6 +165,14 @@ export function TaskCard({
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: catColor }} />
           {task.category && (
             <span className="text-xs font-medium" style={{ color: catColor }}>{task.category.name}</span>
+          )}
+          {/* Priority stars beside category, using category color */}
+          {priority > 0 && (
+            <div className="flex items-center gap-0.5 ml-auto">
+              {[1, 2, 3, 4, 5].filter((l) => l <= priority).map((l) => (
+                <StarIcon key={l} style={{ width: 10, height: 10, color: catColor, opacity: 0.85 }} />
+              ))}
+            </div>
           )}
         </div>
         <h3 className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{task.title}</h3>
@@ -247,7 +250,7 @@ export function TaskCard({
           {onSplitTask && (
             <div>
               <div className="text-xs mb-1.5" style={{ color: '#8E8E93' }}>Get a block</div>
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="flex flex-wrap gap-1 mb-2">
                 {SPLIT_BLOCK_OPTIONS.map((mins) => (
                   <button key={mins} type="button"
                     onClick={() => setSplitBlockMinutes(mins)}
@@ -260,13 +263,13 @@ export function TaskCard({
                     {mins < 60 ? `${mins}m` : `${mins / 60}h`}
                   </button>
                 ))}
-                <button type="button"
-                  onClick={() => { onSplitTask(task.id, splitBlockMinutes); setShowPopover(false); }}
-                  className="px-2 py-1 text-xs font-medium rounded-md"
-                  style={{ backgroundColor: hexRgba(catColor, 0.12), color: catColor, border: `1px solid ${hexRgba(catColor, 0.25)}` }}>
-                  Split
-                </button>
               </div>
+              <button type="button"
+                onClick={() => { onSplitTask(task.id, splitBlockMinutes); setShowPopover(false); }}
+                className="w-full py-1.5 text-xs font-medium rounded-md"
+                style={{ backgroundColor: hexRgba(catColor, 0.12), color: catColor, border: `1px solid ${hexRgba(catColor, 0.25)}` }}>
+                Split off {splitBlockMinutes < 60 ? `${splitBlockMinutes}m` : `${splitBlockMinutes / 60}h`}
+              </button>
             </div>
           )}
         </div>
@@ -287,12 +290,12 @@ export function TaskCard({
         {onMarkTaskDone && (
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-            style={{ color: '#6A8C5A' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(106,140,90,0.08)')}
+            style={{ color: isDone ? '#8E8E93' : '#6A8C5A' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             onClick={() => { onMarkTaskDone(); setShowPopover(false); }}>
             <CheckIcon className="h-3.5 w-3.5 flex-shrink-0" />
-            Mark as done
+            {isDone ? 'Mark as not done' : 'Mark as done'}
           </button>
         )}
 
@@ -322,7 +325,8 @@ export function TaskCard({
   // ─── PLAN MODE ───────────────────────────────────────────────────────────────
   if (viewMode === 'plan') {
     const displayMins = recordedMins > 0 ? remainingMins : estimatedMins;
-    const cardHeight = Math.max(displayMins, 60); // 1px per min, min 60px
+    // Scale 1.5×: 30min→45px, 1h→90px (exactly 2× taller), 2h→180px
+    const cardHeight = Math.max(Math.round(displayMins * 1.5), 45);
 
     return (
       <>
@@ -343,36 +347,81 @@ export function TaskCard({
             window.setTimeout(() => { dragEndedRef.current = false; }, 200);
           }}
         >
-          <div className="h-full rounded-xl p-3 overflow-hidden transition-[box-shadow] duration-150"
+          {/* Calendar-block style: cream bg, colored top border, dark text */}
+          <div
+            className="h-full overflow-hidden"
             style={{
-              backgroundColor: hexRgba(catColor, 0.88),
-              border: `1.5px solid ${hexRgba(catColor, 0.55)}`,
-              boxShadow: showPopover ? `0 0 0 2.5px ${catColor}, 0 4px 12px ${hexRgba(catColor, 0.25)}` : `0 2px 8px ${hexRgba(catColor, 0.2)}`,
-            }}>
-            <div className="flex flex-col h-full text-white overflow-hidden">
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-medium text-sm leading-snug flex-1 line-clamp-2">{task.title}</span>
-                <span className="text-xs opacity-80 whitespace-nowrap shrink-0">{fmtMins(displayMins)}</span>
+              backgroundColor: '#FFF9EC',
+              borderTop: `3px solid ${catColor}`,
+              borderLeft: `1px solid ${hexRgba(catColor, 0.22)}`,
+              borderRight: `1px solid ${hexRgba(catColor, 0.22)}`,
+              borderBottom: `1px solid ${hexRgba(catColor, 0.22)}`,
+              borderRadius: 5,
+              boxShadow: showPopover
+                ? `0 0 0 2px ${catColor}, 0 4px 12px ${hexRgba(catColor, 0.25)}`
+                : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+            }}
+          >
+            <div className="flex flex-col h-full overflow-hidden" style={{ padding: '4px 7px' }}>
+              {/* Title + total time */}
+              <div className="flex items-start justify-between gap-1">
+                <span
+                  className="font-semibold leading-snug flex-1 line-clamp-2"
+                  style={{
+                    fontSize: 13,
+                    color: '#1C1C1E',
+                    wordBreak: 'break-word',
+                    overflow: 'hidden',
+                    textDecorationLine: isDone ? 'line-through' : 'none',
+                    opacity: isDone ? 0.55 : 1,
+                  }}
+                >
+                  {task.title}
+                </span>
+                <span
+                  className="shrink-0 tabular-nums"
+                  style={{ fontSize: 10, color: '#1C1C1E', opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
+                >
+                  {fmtMins(estimatedMins)}
+                </span>
               </div>
-              {recordedMins > 0 && cardHeight >= 80 && (
-                <div className="mt-1 text-xs opacity-70">{fmtMins(recordedMins)} done · {fmtMins(remainingMins)} left</div>
-              )}
-              {cardHeight >= 100 && task.tags.length > 0 && (
-                <div className="mt-auto flex flex-wrap gap-1 pt-1">
-                  {task.tags.map(tag => (
-                    <span key={tag.id} className="text-xs px-1.5 py-0.5 rounded-full bg-white/20">{tag.name}</span>
-                  ))}
+
+              {/* Priority stars are shown in absolute bottom-right corner (see below) */}
+
+              {/* Due date — pushed to bottom */}
+              {cardHeight >= 65 && task.dueDate && (
+                <div
+                  className="mt-auto flex items-center gap-0.5"
+                  style={{ fontSize: 10, color: '#1C1C1E', opacity: 0.5 }}
+                >
+                  <CalendarIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                  <span className="truncate">{task.dueDate}</span>
                 </div>
               )}
             </div>
+
+            {/* Priority stars — bottom-right corner, category color */}
+            {priority > 0 && cardHeight >= 36 && (
+              <div
+                className="absolute flex items-center"
+                style={{ bottom: 4, right: 5, gap: 1.5, pointerEvents: 'none' }}
+              >
+                {[1, 2, 3, 4, 5].filter((l) => l <= priority).map((l) => (
+                  <StarIcon key={l} style={{ width: 7, height: 7, color: catColor, opacity: 0.75 }} />
+                ))}
+              </div>
+            )}
+
             {/* Resize handle */}
             <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
+              <div
+                className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full"
+                style={{ backgroundColor: hexRgba(catColor, 0.35) }}
+              />
             </div>
           </div>
         </div>
 
-        {/* Plan-mode popover — portal escapes overflow; pointerdown capture closes on outside click */}
         {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
@@ -393,27 +442,20 @@ export function TaskCard({
     );
   }
 
-  // ─── OVERVIEW MODE ────────────────────────────────────────────────────────────
+  // ─── OVERVIEW MODE — todo-list style ──────────────────────────────────────
   return (
     <>
       <div
         ref={cardRef}
-        className="group relative cursor-grab active:cursor-grabbing rounded-xl p-3 transition-all duration-150 ease-out active:scale-[0.99]"
+        className="group relative cursor-pointer"
         style={{
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid rgba(0,0,0,0.09)',
-          borderRight: '1px solid rgba(0,0,0,0.09)',
-          borderBottom: '1px solid rgba(0,0,0,0.09)',
-          borderLeft: `3px solid ${catColor}`,
-          boxShadow: showPopover
-            ? `0 0 0 2px ${hexRgba(catColor, 0.2)}, 0 4px 16px rgba(0,0,0,0.08)`
-            : '0 1px 3px rgba(0,0,0,0.04)',
-          outline: showPopover ? `1.5px solid ${hexRgba(catColor, 0.6)}` : 'none',
-          outlineOffset: '1px',
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          ...(showPopover ? { zIndex: 101 } : {}),
         }}
         onClick={(e) => {
           if (e.detail !== 1) return;
           if (dragEndedRef.current) { dragEndedRef.current = false; return; }
+          // Don't open popover if clicking interactive children
           popoverOpenedAtRef.current = Date.now();
           setShowPopover((v) => !v);
         }}
@@ -425,121 +467,119 @@ export function TaskCard({
           window.setTimeout(() => { dragEndedRef.current = false; }, 200);
         }}
       >
-        {/* Priority stars (1–5) */}
-        {onTogglePin && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePin();
-            }}
-            className="absolute top-2.5 right-2.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-white/80 shadow-sm"
-            style={{ color: '#F5A623' }}
-            title="Cycle priority"
-            aria-label="Cycle priority"
-          >
-            {[1, 2, 3, 4, 5].map((level) => (
-              <span key={level} className="inline-flex">
-                {task.priority >= level ? (
-                  <StarIcon className="h-2.5 w-2.5" />
-                ) : (
-                  <StarOutlineIcon className="h-2.5 w-2.5" />
-                )}
-              </span>
-            ))}
-          </button>
-        )}
-
-        {/* Drag handle */}
-        <div className="absolute top-3 right-6 opacity-0 group-hover:opacity-50 transition-opacity">
-          <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
-        </div>
-
-        <div className="flex flex-col gap-2 pr-5">
-          {/* Title + done circle + duration badge */}
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={`font-medium text-sm leading-snug line-clamp-2 flex-1${isDone ? ' line-through' : ''}`}
-              style={{
-                color: '#1C1C1E',
-                textDecorationThickness: isDone ? '1px' : undefined,
-                textDecorationColor: isDone ? 'rgba(0,0,0,0.35)' : undefined,
+        <div
+          className="flex items-start gap-2 px-2 py-2 rounded-lg transition-colors"
+          style={{ backgroundColor: showPopover ? hexRgba(catColor, 0.04) : 'transparent' }}
+          onMouseEnter={(e) => { if (!showPopover) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
+          onMouseLeave={(e) => { if (!showPopover) e.currentTarget.style.backgroundColor = 'transparent'; }}
+        >
+          {/* Done circle — left side */}
+          {onMarkTaskDone ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkTaskDone();
               }}
+              className="flex-shrink-0 flex items-center justify-center rounded-full transition-all mt-0.5"
+              style={{
+                width: 16,
+                height: 16,
+                border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.22)'}`,
+                backgroundColor: isDone ? catColor : 'transparent',
+              }}
+              title={isDone ? 'Mark as not done' : 'Mark as done'}
+              aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
             >
-              {task.title}
-            </h3>
-            <div className="flex items-center gap-1.5">
-              {onMarkTaskDone && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkTaskDone();
-                  }}
-                  className="flex items-center justify-center rounded-full"
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: '999px',
-                    border: `1px solid ${hexRgba(catColor, isDone ? 0.0 : 0.6)}`,
-                    backgroundColor: isDone ? catColor : 'transparent',
-                  }}
-                  title={isDone ? 'Task done' : 'Mark as done'}
-                  aria-label={isDone ? 'Task done' : 'Mark as done'}
-                />
-              )}
+              {isDone && <CheckIcon className="h-2.5 w-2.5" style={{ color: '#FFFFFF' }} />}
+            </button>
+          ) : (
+            <div className="flex-shrink-0 mt-0.5" style={{ width: 16, height: 16 }} />
+          )}
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-start justify-between gap-2">
               <span
-                className="text-xs whitespace-nowrap shrink-0 px-1.5 py-0.5 rounded-md font-medium"
-                style={{ backgroundColor: hexRgba(catColor, 0.1), color: catColor }}
+                className="text-sm font-medium leading-snug flex-1 min-w-0"
+                style={{
+                  color: isDone ? '#AEAEB2' : '#1C1C1E',
+                  textDecorationLine: isDone ? 'line-through' : 'none',
+                  textDecorationColor: 'rgba(0,0,0,0.3)',
+                  wordBreak: 'break-word',
+                }}
               >
-                {fmtMins(estimatedMins)}
+                {task.title}
               </span>
+
+              {/* Right: priority stars + time */}
+              <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                {onTogglePin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePin();
+                    }}
+                    className="flex items-center gap-0.5 transition-opacity"
+                    style={{
+                      color: '#F5A623',
+                      opacity: priority > 0 ? 1 : 0,
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = priority > 0 ? '1' : '0'; }}
+                    title="Cycle priority"
+                    aria-label="Cycle priority"
+                  >
+                    {priority > 0
+                      ? [1, 2, 3, 4, 5].filter((l) => l <= priority).map((l) => (
+                          <StarIcon key={l} className="h-2.5 w-2.5" />
+                        ))
+                      : <StarOutlineIcon className="h-2.5 w-2.5" />
+                    }
+                  </button>
+                )}
+                <span
+                  className="text-xs font-medium tabular-nums"
+                  style={{ color: isDone ? '#AEAEB2' : catColor }}
+                >
+                  {fmtMins(estimatedMins)}
+                </span>
+              </div>
             </div>
+
+            {/* Due date */}
+            {'dueDate' in task && task.dueDate && !isDone && (
+              <div className="mt-0.5" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>
+                Due {task.dueDate}
+              </div>
+            )}
+
+            {/* Progress bar — only when task is split into multiple blocks */}
+            {task.blockCount > 1 && (
+              <div className="mt-1.5 space-y-0.5">
+                <div className="w-full rounded-full overflow-hidden" style={{ height: 3, backgroundColor: hexRgba(catColor, 0.12) }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }}
+                  />
+                </div>
+                <div className="text-xs" style={{ color: '#8E8E93' }}>
+                  {fmtMins(recordedMins)} done · {fmtMins(estimatedMins)} total
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Progress — shown once task is broken into multiple blocks or has any recorded time */}
-          {(task.blockCount > 1 || recordedMins > 0) && (
-            <div className="space-y-1">
-              <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: hexRgba(catColor, 0.1) }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }} />
-              </div>
-              <div className="text-xs" style={{ color: '#636366' }}>
-                {fmtMins(recordedMins)} done · {fmtMins(remainingMins)} left
-              </div>
-            </div>
-          )}
-
-          {/* Category + tags */}
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {task.category && (
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ backgroundColor: hexRgba(catColor, 0.12), color: catColor, border: `1px solid ${hexRgba(catColor, 0.25)}` }}>
-                {task.category.name}
-              </span>
-            )}
-            {task.tags.slice(0, 3).map(tag => (
-              <span key={tag.id} className="text-xs px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: hexRgba(catColor, 0.07), color: catColor, border: `1px solid ${hexRgba(catColor, 0.18)}` }}>
-                {tag.name}
-              </span>
-            ))}
-            {task.tags.length > 3 && (
-              <span className="text-xs" style={{ color: '#636366' }}>+{task.tags.length - 3}</span>
-            )}
+          {/* Drag handle — subtle on hover */}
+          <div className="flex-shrink-0 opacity-0 group-hover:opacity-30 transition-opacity mt-0.5">
+            <Bars3Icon className="h-3 w-3" style={{ color: catColor }} />
           </div>
-
-          {/* Due date */}
-          {'dueDate' in task && task.dueDate && (
-            <div className="flex items-center gap-1 text-xs" style={{ color: '#636366' }}>
-              <CalendarIcon className="h-3 w-3" />
-              <span>Due {task.dueDate}</span>
-            </div>
-          )}
         </div>
-
       </div>
 
-      {/* Popover portal — fixed position escapes overflow:hidden; pointerdown capture closes on outside click */}
+      {/* Popover portal */}
       {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
