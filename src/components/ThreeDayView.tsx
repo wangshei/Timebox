@@ -25,6 +25,7 @@ interface ThreeDayViewProps {
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   onConfirm?: (blockId: string) => void;
+  onSkip?: (blockId: string) => void;
   onUnconfirm?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -48,7 +49,7 @@ const BG_TODAY = 'rgba(141,162,134,0.05)';
 
 export function ThreeDayView({
   mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
-  focusedCategoryId, focusedCalendarId, onConfirm, onUnconfirm,
+  focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm,
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onCreateBlock,
@@ -379,6 +380,7 @@ export function ThreeDayView({
                                   focusedCategoryId={focusedCategoryId}
                                   focusedCalendarId={focusedCalendarId}
                                   onConfirm={onConfirm}
+                                  onSkip={onSkip}
                                   onUnconfirm={onUnconfirm}
                                   onEditBlock={onEditBlock}
                                   onDeleteBlock={onDeleteBlock}

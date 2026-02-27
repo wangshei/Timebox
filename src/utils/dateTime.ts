@@ -29,6 +29,43 @@ export function isTodayLocal(dateStr: string): boolean {
 }
 
 /**
+ * Return the YYYY-MM-DD strings for every day in a view window.
+ * - 'day'   → [date]
+ * - '3day'  → [date, date+1, date+2]
+ * - 'week'  → Mon–Sun of the week containing date
+ * - 'month' → all days in the month containing date
+ */
+export function getViewDateRange(date: string, view: 'day' | '3day' | 'week' | 'month'): string[] {
+  const base = parseLocalDateString(date);
+  if (view === 'day') return [date];
+  if (view === '3day') {
+    return [0, 1, 2].map((offset) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + offset);
+      return getLocalDateString(d);
+    });
+  }
+  if (view === 'week') {
+    // Week starts Monday (day 1); Sunday (0) maps to -6
+    const dow = base.getDay();
+    const daysToMon = dow === 0 ? -6 : 1 - dow;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + daysToMon + i);
+      return getLocalDateString(d);
+    });
+  }
+  // month
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const d = new Date(year, month, i + 1);
+    return getLocalDateString(d);
+  });
+}
+
+/**
  * Parse YYYY-MM-DD as a local date (midnight in local time).
  * Use when you need a Date for a calendar day, not a UTC moment.
  */

@@ -99,7 +99,17 @@ export interface AppActions {
     taskId: string,
     params: { date: string; startTime: string; blockMinutes?: number; splitTask?: boolean; singleBlock?: boolean }
   ) => void;
+  /** Confirm a past planned block as done. Optionally override the actual start/end times. */
+  confirmBlock: (id: string, recordedStart?: string, recordedEnd?: string) => void;
+  /** Mark a past planned block as skipped / not done. */
+  skipBlock: (id: string) => void;
+  /** Add a retroactive block for time spent that was never planned. Always confirmed. */
+  addUnplannedBlock: (block: Omit<TimeBlock, 'id' | 'source' | 'confirmationStatus'>) => string;
+  /** Confirm all unreviewed (pending) planned blocks on a given date as done as planned. */
+  batchConfirmDay: (date: string) => void;
+  /** @deprecated Use confirmBlock instead. Kept for backward compat with existing UI. */
   markDoneAsPlanned: (plannedBlockId: string) => void;
+  /** @deprecated Use addUnplannedBlock + skipBlock instead. */
   markDidSomethingElse: (plannedBlockId: string, recorded: Omit<TimeBlock, 'id' | 'mode' | 'source'>) => void;
   endDay: (date: string) => void;
 
@@ -282,59 +292,68 @@ export const useStore = create<AppState & AppActions>()(
     }));
   },
 
-  markDoneAsPlanned: (plannedBlockId) => {
-    const state = get();
-    const block = state.timeBlocks.find((b) => b.id === plannedBlockId && b.mode === 'planned');
-    if (!block) return;
-    const recorded: TimeBlock = {
-      ...block,
-      id: generateId(),
-      mode: 'recorded',
-      source: 'manual',
-    };
-    set((s) => ({ timeBlocks: [...s.timeBlocks, recorded] }));
+  confirmBlock: (id, recordedStart, recordedEnd) => {
+    set((s) => ({
+      timeBlocks: s.timeBlocks.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              confirmationStatus: 'confirmed' as const,
+              recordedStart: recordedStart ?? b.recordedStart ?? null,
+              recordedEnd: recordedEnd ?? b.recordedEnd ?? null,
+            }
+          : b
+      ),
+    }));
   },
 
-  markDidSomethingElse: (plannedBlockId, recorded) => {
+  skipBlock: (id) => {
+    set((s) => ({
+      timeBlocks: s.timeBlocks.map((b) =>
+        b.id === id ? { ...b, confirmationStatus: 'skipped' as const } : b
+      ),
+    }));
+  },
+
+  addUnplannedBlock: (block) => {
+    const id = generateId();
     set((s) => ({
       timeBlocks: [
         ...s.timeBlocks,
         {
-          ...recorded,
-          id: generateId(),
-          mode: 'recorded' as const,
-          source: 'manual' as const,
+          ...block,
+          id,
+          source: 'unplanned' as const,
+          confirmationStatus: 'confirmed' as const,
         },
       ],
     }));
+    return id;
+  },
+
+  batchConfirmDay: (date) => {
+    set((s) => ({
+      timeBlocks: s.timeBlocks.map((b) => {
+        if (b.date !== date || b.mode !== 'planned' || b.source === 'unplanned') return b;
+        if (b.confirmationStatus === 'confirmed' || b.confirmationStatus === 'skipped') return b;
+        return { ...b, confirmationStatus: 'confirmed' as const };
+      }),
+    }));
+  },
+
+  // --- Backward-compat wrappers ---
+
+  markDoneAsPlanned: (plannedBlockId) => {
+    get().confirmBlock(plannedBlockId);
+  },
+
+  markDidSomethingElse: (plannedBlockId, recorded) => {
+    get().skipBlock(plannedBlockId);
+    get().addUnplannedBlock({ ...recorded, mode: 'planned' });
   },
 
   endDay: (date) => {
-    const state = get();
-    const plannedOnDate = state.timeBlocks.filter(
-      (b) => b.date === date && b.mode === 'planned'
-    );
-    const recordedOnDate = state.timeBlocks.filter(
-      (b) => b.date === date && b.mode === 'recorded'
-    );
-    const newBlocks: TimeBlock[] = [];
-    for (const planned of plannedOnDate) {
-      const hasRecorded = recordedOnDate.some(
-        (r) =>
-          r.start === planned.start &&
-          r.end === planned.end &&
-          r.calendarContainerId === planned.calendarContainerId
-      );
-      if (!hasRecorded) {
-        newBlocks.push({
-          ...planned,
-          id: generateId(),
-          mode: 'recorded',
-          source: 'autoAssumed',
-        });
-      }
-    }
-    set((s) => ({ timeBlocks: [...s.timeBlocks, ...newBlocks] }));
+    get().batchConfirmDay(date);
   },
 
   addCalendarContainer: (c) => {

@@ -54,18 +54,34 @@ export interface Task {
   // progress: number;
 }
 
+/**
+ * Whether a past planned block has been reviewed.
+ * - 'pending'   — in the past, not yet confirmed or skipped (needs review)
+ * - 'confirmed' — marked as done (actual times may differ via recordedStart/End)
+ * - 'skipped'   — marked as not done / missed
+ * Future blocks (date ≥ today) leave this undefined.
+ */
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'skipped';
+
 export interface TimeBlock {
   id: string;
-  taskId?: string | null; // NEW: links to Task, nullable for standalone blocks
-  title?: string; // Optional: for standalone blocks or when task title differs
-  calendarContainerId: string; // Changed from calendar string union
+  taskId?: string | null; // links to Task, nullable for standalone blocks
+  title?: string; // for standalone blocks or when task title differs
+  calendarContainerId: string;
   categoryId: string;
   tagIds: string[];
-  start: string; // ISO datetime string or "HH:mm" format
-  end: string; // ISO datetime string or "HH:mm" format
-  date: string; // YYYY-MM-DD format for day/week/month views
-  mode: 'planned' | 'recorded'; // Changed from 'type'
-  source: 'manual' | 'autoAssumed'; // NEW: tracks how it was created
+  start: string; // planned start — "HH:mm"
+  end: string;   // planned end   — "HH:mm"
+  date: string;  // YYYY-MM-DD
+  mode: 'planned' | 'recorded'; // 'recorded' is legacy; new blocks are always 'planned'
+  /** How the block was created. 'unplanned' = added retroactively during review (no plan). */
+  source: 'manual' | 'autoAssumed' | 'unplanned';
+  /** Review state for past planned blocks. Undefined for future blocks. */
+  confirmationStatus?: ConfirmationStatus;
+  /** Actual start time if it differed from planned — set when confirming. "HH:mm" */
+  recordedStart?: string | null;
+  /** Actual end time if it differed from planned — set when confirming. "HH:mm" */
+  recordedEnd?: string | null;
   link?: string | null;
   description?: string | null;
   /** Quick inline notes — shown inside the block and in the popover. */
