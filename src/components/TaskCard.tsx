@@ -1,7 +1,16 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
-import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import {
+  Bars3Icon,
+  CalendarIcon,
+  CheckIcon,
+  ClockIcon,
+  PencilIcon,
+  XMarkIcon,
+  StarIcon,
+} from '@heroicons/react/24/solid';
+import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { activeDrag } from '../utils/dragState';
 
 interface TaskCardProps {
@@ -20,6 +29,8 @@ interface TaskCardProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
+  /** Toggle pin status of this task (priority). */
+  onTogglePin?: () => void;
 }
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const;
@@ -55,6 +66,7 @@ export function TaskCard({
   onMarkTaskDone,
   onBreakIntoChunks,
   onSplitTask,
+  onTogglePin,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
@@ -87,6 +99,9 @@ export function TaskCard({
   const remainingMins = Math.max(0, estimatedMins - recordedMins);
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
   const catColor = task.category?.color ?? '#8DA286';
+  const isDone =
+    task.status === 'done' ||
+    (estimatedMins > 0 && recordedMins >= estimatedMins);
 
   // Position popover with fixed coords (both plan and overview modes)
   useLayoutEffect(() => {
@@ -352,6 +367,15 @@ export function TaskCard({
                 </div>
               )}
             </div>
+            {/* Emoji spot — bottom-right of the sticky */}
+            {task.emoji && (
+              <div
+                className="absolute bottom-2 right-2 text-lg select-none"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
+              >
+                {task.emoji}
+              </div>
+            )}
             {/* Resize handle */}
             <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
@@ -412,53 +436,78 @@ export function TaskCard({
           window.setTimeout(() => { dragEndedRef.current = false; }, 200);
         }}
       >
-        {/* Drag handle */}
-        <div className="absolute top-3 right-2.5 opacity-0 group-hover:opacity-50 transition-opacity">
-          <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
-        </div>
-
-        {/* Direct done button — circle checkmark, visible on hover */}
-        {onMarkTaskDone && (
+        {/* Pin button — always visible when pinned, shows on hover otherwise */}
+        {onTogglePin && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
-            className="absolute top-3 right-7 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full"
-            style={{
-              width: 15,
-              height: 15,
-              border: `1.5px solid ${hexRgba(catColor, 0.5)}`,
-              backgroundColor: 'rgba(255,255,255,0.9)',
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin();
             }}
-            title="Mark as done"
-            aria-label="Mark as done"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.12);
-              e.currentTarget.style.borderColor = catColor;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)';
-              e.currentTarget.style.borderColor = hexRgba(catColor, 0.5);
-            }}
+            className={`absolute top-2.5 right-2.5 transition-all ${
+              task.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'
+            }`}
+            style={{ color: task.pinned ? '#F5A623' : '#AEAEB2' }}
+            title={task.pinned ? 'Unpin task' : 'Pin task'}
+            aria-label={task.pinned ? 'Unpin task' : 'Pin task'}
           >
-            <CheckIcon className="h-2 w-2" style={{ color: catColor }} />
+            {task.pinned ? (
+              <StarIcon className="h-3.5 w-3.5" />
+            ) : (
+              <StarOutlineIcon className="h-3.5 w-3.5" />
+            )}
           </button>
         )}
 
+        {/* Drag handle */}
+        <div className="absolute top-3 right-6 opacity-0 group-hover:opacity-50 transition-opacity">
+          <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
+        </div>
+
         <div className="flex flex-col gap-2 pr-5">
-          {/* Title + duration badge */}
+          {/* Title + done circle + duration badge */}
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1" style={{ color: '#1C1C1E' }}>
+            <h3
+              className={`font-medium text-sm leading-snug line-clamp-2 flex-1${isDone ? ' line-through' : ''}`}
+              style={{
+                color: '#1C1C1E',
+                textDecorationThickness: isDone ? '1px' : undefined,
+                textDecorationColor: isDone ? 'rgba(0,0,0,0.35)' : undefined,
+              }}
+            >
               {task.title}
             </h3>
-            <span
-              className="text-xs whitespace-nowrap shrink-0 px-1.5 py-0.5 rounded-md font-medium"
-              style={{ backgroundColor: hexRgba(catColor, 0.1), color: catColor }}>
-              {fmtMins(estimatedMins)}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {onMarkTaskDone && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkTaskDone();
+                  }}
+                  className="flex items-center justify-center rounded-full"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '999px',
+                    border: `1px solid ${hexRgba(catColor, isDone ? 0.0 : 0.6)}`,
+                    backgroundColor: isDone ? catColor : 'transparent',
+                  }}
+                  title={isDone ? 'Task done' : 'Mark as done'}
+                  aria-label={isDone ? 'Task done' : 'Mark as done'}
+                />
+              )}
+              <span
+                className="text-xs whitespace-nowrap shrink-0 px-1.5 py-0.5 rounded-md font-medium"
+                style={{ backgroundColor: hexRgba(catColor, 0.1), color: catColor }}
+              >
+                {fmtMins(estimatedMins)}
+              </span>
+            </div>
           </div>
 
-          {/* Progress (if in progress) */}
-          {recordedMins > 0 && (
+          {/* Progress — shown once task is broken into multiple blocks or has any recorded time */}
+          {(task.blockCount > 1 || recordedMins > 0) && (
             <div className="space-y-1">
               <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: hexRgba(catColor, 0.1) }}>
                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }} />
@@ -496,6 +545,13 @@ export function TaskCard({
             </div>
           )}
         </div>
+
+        {/* Emoji spot — bottom-right of the card (same offset as plan view) */}
+        {task.emoji && (
+          <div className="absolute bottom-2 right-2 text-base select-none">
+            {task.emoji}
+          </div>
+        )}
       </div>
 
       {/* Popover portal — fixed position escapes overflow:hidden; pointerdown capture closes on outside click */}

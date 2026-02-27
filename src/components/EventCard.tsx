@@ -188,39 +188,50 @@ export function EventCard({
         {compact ? (
           <div className={cn('flex flex-col h-full min-w-0', textClass)}>
             <div className="flex items-start min-w-0 flex-shrink-0">
-              <span className="font-medium text-sm leading-snug truncate">
+              <span
+                className="font-medium text-sm leading-snug min-w-0"
+                style={{
+                  fontSize: 12,
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  overflow: 'hidden',
+                }}
+              >
                 {event.title || 'Untitled Event'}
               </span>
             </div>
-            {heightPx >= 32 && (
-              <div className="mt-0.5 text-xs opacity-80 shrink-0">
-                {event.start}–{event.end}
-              </div>
-            )}
           </div>
         ) : (
           <div className={cn('flex flex-col h-full min-w-0', textClass)}>
             <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
-              <span className="font-medium text-sm leading-snug truncate">
+              <span
+                className="font-medium leading-snug min-w-0"
+                style={{
+                  fontSize: 14,
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  overflow: 'hidden',
+                }}
+              >
                 {event.title || 'Untitled Event'}
               </span>
               <span className="text-xs whitespace-nowrap opacity-90 shrink-0">
                 {getDuration()}
               </span>
             </div>
-            {heightPx >= 48 && (
-              <div className="mt-0.5 text-xs opacity-80 shrink-0">
-                {event.start} – {event.end}
-              </div>
-            )}
             {heightPx >= 72 && event.description && (
               <p className="mt-1 text-xs opacity-90 line-clamp-2 min-w-0 flex-shrink-0">
                 {event.description}
               </p>
             )}
             {heightPx >= 56 && event.category && (
-              <div className="mt-auto flex flex-wrap items-center gap-1 pt-1 shrink-0">
-                <Chip variant="subtle" color={categoryColor} contrastBackgroundHex={plannedStyle ? undefined : categoryColor} className="max-w-[120px]">
+              <div className="mt-auto flex items-end gap-1 pt-1 shrink-0">
+                <Chip
+                  variant="subtle"
+                  color={categoryColor}
+                  contrastBackgroundHex={plannedStyle ? undefined : categoryColor}
+                  className="max-w-[120px]"
+                >
                   {event.category.name}
                 </Chip>
               </div>

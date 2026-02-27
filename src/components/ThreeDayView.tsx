@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mode, Task } from '../types';
+import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
@@ -38,10 +38,6 @@ interface ThreeDayViewProps {
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
-  /** Raw tasks — used to show pinned task pills in day headers. */
-  tasks?: Task[];
-  /** Resolved categories for pinned task colors. */
-  categories?: import('../types').Category[];
 }
 
 const PRIMARY = THEME.primary;
@@ -56,21 +52,12 @@ export function ThreeDayView({
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onCreateBlock,
-  tasks = [], categories = [],
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
 
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-
-  // Pinned tasks to show in day headers
-  const pinnedTasks = React.useMemo(
-    () => tasks.filter(t => t.pinned && t.status !== 'done' && t.status !== 'archived'),
-    [tasks]
-  );
-  const getCategoryColor = (categoryId: string) =>
-    categories.find(c => c.id === categoryId)?.color ?? '#8DA286';
 
   // Three days: anchor date + next 2
   const threeDays = React.useMemo(() => {
@@ -198,7 +185,7 @@ export function ThreeDayView({
             backgroundColor: BG_CANVAS,
           }}
         >
-          <div style={{ height: pinnedTasks.length > 0 ? 76 : 48 }} /> {/* Spacer for day headers */}
+          <div style={{ height: 48 }} /> {/* Spacer for day headers */}
           {hours.map((hour) => (
             <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
               <div
@@ -234,7 +221,7 @@ export function ThreeDayView({
                 <div
                   className="sticky top-0 z-10 flex flex-col px-3"
                   style={{
-                    height: pinnedTasks.length > 0 ? 76 : 48,
+                    height: 48,
                     borderBottom: `1px solid ${GRID_HOUR}`,
                     backgroundColor: today ? BG_TODAY : BG_CANVAS,
                   }}
@@ -262,28 +249,6 @@ export function ThreeDayView({
                       </div>
                     </div>
                   </div>
-                  {/* Pinned task pills — shown across all day columns */}
-                  {pinnedTasks.length > 0 && (
-                    <div className="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar flex-nowrap pb-1">
-                      {pinnedTasks.map(task => {
-                        const color = getCategoryColor(task.categoryId);
-                        return (
-                          <span
-                            key={task.id}
-                            className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap"
-                            style={{
-                              backgroundColor: `${color}18`,
-                              color,
-                              border: `1px solid ${color}33`,
-                            }}
-                            title={task.title}
-                          >
-                            ★ {task.title.length > 16 ? task.title.slice(0, 14) + '…' : task.title}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
 
                 {/* Grid */}
@@ -423,6 +388,7 @@ export function ThreeDayView({
                                     if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                   } : undefined}
                                   compact
+                                  view="3day"
                                 />
                               );
                             })}

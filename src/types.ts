@@ -44,6 +44,8 @@ export interface Task {
   description?: string | null;
   /** When true, task is pinned as a priority — shown prominently in the calendar header. */
   pinned?: boolean;
+  /** Optional emoji shown on the task card (e.g. sticky-note bottom-right). */
+  emoji?: string | null;
 
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;

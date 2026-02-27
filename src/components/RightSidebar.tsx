@@ -46,11 +46,13 @@ interface RightSidebarProps {
   onDeleteEvent?: (eventId: string) => void;
   isMobile?: boolean;
   isBottomSheet?: boolean;
+  /** Toggle pin status for a task (priority). */
+  onTogglePin?: (taskId: string) => void;
 }
 
 export type TaskViewMode = 'overview' | 'plan';
 
-export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false }: RightSidebarProps) {
+export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false, onTogglePin }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
@@ -118,6 +120,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     });
   }, [doneTasks, timeBlocks]);
 
+  /** Pinned (priority) tasks, shown above Unscheduled. */
+  const priorityTasks = useMemo(
+    () => tasks.filter((t) => t.pinned),
+    [tasks]
+  );
+
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
     e.preventDefault();
@@ -180,6 +188,35 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       </div>
 
       <div className={`flex-1 min-h-0 overflow-y-auto space-y-4 ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
+        {/* Priority Tasks */}
+        {priorityTasks.length > 0 && (
+          <div>
+            <h2
+              className="uppercase tracking-widest mb-2"
+              style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}
+            >
+              Priority
+            </h2>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
+              {priorityTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  viewMode={viewMode}
+                  popoverSide="left"
+                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                  onBreakIntoChunks={onBreakIntoChunks}
+                  onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Unscheduled Tasks */}
         <div>
           <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
@@ -221,13 +258,10 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={
-                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
-                      ? () => onMarkTaskDone(task.id)
-                      : undefined
-                  }
+                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))
             )}
@@ -239,7 +273,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {              filteredPartially.map((task) => (
+              {filteredPartially.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -248,13 +282,10 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={
-                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
-                      ? () => onMarkTaskDone(task.id)
-                      : undefined
-                  }
+                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>
@@ -266,7 +297,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
           <div>
             <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
             <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {              filteredFixed.map((task) => (
+              {filteredFixed.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -275,13 +306,10 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
                   onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
                   onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={
-                    onMarkTaskDone && timeBlocks?.some((b) => b.taskId === task.id && b.mode === 'planned')
-                      ? () => onMarkTaskDone(task.id)
-                      : undefined
-                  }
+                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
                   onBreakIntoChunks={onBreakIntoChunks}
                   onSplitTask={onSplitTask}
+                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                 />
               ))}
             </div>

@@ -176,18 +176,25 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#FDFDFB' }}>
-      {/* Fixed header row: time gutter + date cells (does not scroll vertically) */}
+      {/* Fixed header row: time gutter + date cells (sticks to top of calendar panel) */}
       <div
         className="flex flex-shrink-0"
         style={{
           borderBottom: '1px solid rgba(0,0,0,0.07)',
           backgroundColor: '#FDFDFB',
           zIndex: 20,
-          position: 'relative',
+          position: 'sticky',
+          top: 0,
         }}
       >
         {/* Time gutter spacer (matches time column width) */}
-        <div className="w-10 md:w-14 flex-shrink-0" style={{ borderRight: '1px solid rgba(0,0,0,0.07)' }} />
+        <div
+          className="flex-shrink-0"
+          style={{
+            width: 52,
+            borderRight: '1px solid rgba(0,0,0,0.07)',
+          }}
+        />
         {/* Day headers — overflow hidden so transform-based horizontal sync doesn't leak */}
         <div className="flex-1 overflow-hidden">
           <div ref={headerInnerRef} className="flex" style={{ minWidth: 'max-content' }}>
@@ -221,13 +228,26 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       <div className="flex-1 flex overflow-hidden">
         {/* Time column — fixed left, does not scroll; inner div translates vertically in sync with grid */}
         <div
-          className="w-10 md:w-14 flex-shrink-0 overflow-hidden"
-          style={{ borderRight: '1px solid rgba(0,0,0,0.07)', backgroundColor: '#FDFDFB' }}
+          className="flex-shrink-0 overflow-hidden"
+          style={{
+            width: 52,
+            borderRight: '1px solid rgba(0,0,0,0.07)',
+            backgroundColor: '#FDFDFB',
+          }}
         >
           <div ref={timeColInnerRef} className="py-2" style={{ willChange: 'transform' }}>
             {hours.map((hour) => (
               <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-                <div className="absolute left-0 top-0 w-full text-right pr-1 md:pr-2 font-medium" style={{ color: '#AEAEB2', fontSize: '10px' }}>
+                <div
+                  className="absolute w-full text-right font-medium"
+                  style={{
+                    right: 8,
+                    top: -7,
+                    color: '#AEAEB2',
+                    fontSize: '10px',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
                   {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
                 </div>
               </div>
@@ -371,6 +391,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                       if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                     } : undefined}
                                     compact
+                                    view="week"
                                   />
                                 );
                               })}

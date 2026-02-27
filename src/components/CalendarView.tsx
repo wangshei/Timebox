@@ -266,7 +266,7 @@ export function CalendarView({
             backgroundColor: PRIMARY,
             boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A6EDE')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#B3B46D')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}
           aria-label="Add task or event"
         >

@@ -41,12 +41,20 @@ export interface Task {
   title: string;
   estimatedHours: number;
   recordedHours: number;
+  /** Total number of time blocks (planned + recorded) linked to this task. */
+  blockCount: number;
   category: Category;
   tags: Tag[];
   calendar: 'personal' | 'work' | 'school';
   dueDate?: string | null;
   link?: string | null;
   description?: string | null;
+  /** When true, task is pinned as a priority. */
+  pinned?: boolean;
+  /** Optional emoji shown on the task card. */
+  emoji?: string | null;
+  /** Stored task status, mirrors core Task.status. */
+  status?: import('./types').Task['status'];
 }
 export interface TimeBlock {
   id: string;
@@ -204,7 +212,7 @@ export default function App() {
   const unscheduledDisplay = useMemo(
     () =>
       displayTasks.filter((t) =>
-        unscheduledTasks.some((u) => u.id === t.id)
+        unscheduledTasks.some((u) => u.id === t.id) && !t.pinned
       ),
     [displayTasks, unscheduledTasks]
   );
@@ -243,6 +251,9 @@ export default function App() {
       (b) => b.taskId === taskId && b.mode === 'planned'
     );
     plannedBlocks.forEach((b) => markDoneAsPlanned(b.id));
+
+    // Persist explicit "done" status on the task itself (used by Supabase via supabasePersistence).
+    updateTask(taskId, { status: 'done' });
   };
 
   const handleAddTask = (taskData: {
@@ -254,6 +265,8 @@ export default function App() {
     dueDate?: string | null;
     link?: string | null;
     description?: string | null;
+    pinned?: boolean;
+    emoji?: string | null;
   }) => {
     addTask({
       title: taskData.title,
@@ -265,6 +278,8 @@ export default function App() {
       dueDate: taskData.dueDate ?? undefined,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
+      pinned: taskData.pinned ?? false,
+      emoji: taskData.emoji ?? null,
     });
   };
 
@@ -1129,6 +1144,11 @@ export default function App() {
                 onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
+                onTogglePin={(taskId) =>
+                  updateTask(taskId, {
+                    pinned: !tasks.find((t) => t.id === taskId)?.pinned,
+                  })
+                }
                 events={events}
                 onDeleteEvent={deleteEvent}
               />
@@ -1187,6 +1207,11 @@ export default function App() {
           onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
+          onTogglePin={(taskId) =>
+            updateTask(taskId, {
+              pinned: !tasks.find((t) => t.id === taskId)?.pinned,
+            })
+          }
         />
       </div>
 

@@ -167,6 +167,8 @@ export async function loadSupabaseState() {
         dueDate: t.due_date ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
+        pinned: t.pinned ?? false,
+        emoji: t.emoji ?? null,
       })
     ),
     timeBlocks: blocks.map(
@@ -299,6 +301,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         due_date: t.dueDate ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
+        pinned: t.pinned ?? false,
+        emoji: t.emoji ?? null,
       })),
       { onConflict: 'id' }
     ));

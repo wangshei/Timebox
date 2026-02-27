@@ -21,6 +21,8 @@ export interface ResolvedTimeBlock {
   mode: 'planned' | 'recorded';
   source: 'manual' | 'autoAssumed';
   calendarContainer: CalendarContainer;
+  /** Optional emoji inherited from the linked task (if any). */
+  emoji?: string | null;
 }
 
 /**
@@ -37,20 +39,23 @@ export function resolveTimeBlock(
   const category = categories.find(c => c.id === block.categoryId) ?? categories[0] ?? FALLBACK_CATEGORY;
   const container = containers.find(c => c.id === block.calendarContainerId) ?? containers[0] ?? FALLBACK_CONTAINER;
   const blockTags = tags.filter(t => block.tagIds.includes(t.id));
-  
+
+  // Resolve from linked task when available
+  const linkedTask = block.taskId ? tasks.find(t => t.id === block.taskId) : undefined;
+
   // Resolve title: from linked Task if exists, otherwise from TimeBlock.title
   let title = block.title || '';
-  if (!title && block.taskId) {
-    const task = tasks.find(t => t.id === block.taskId);
-    title = task?.title || '';
+  if (!title && linkedTask) {
+    title = linkedTask.title || '';
   }
-  
+
   return {
     ...block,
     title,
     category,
     tags: blockTags,
     calendarContainer: container,
+    emoji: linkedTask?.emoji ?? null,
   };
 }
 

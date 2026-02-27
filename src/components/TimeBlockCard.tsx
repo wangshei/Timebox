@@ -42,6 +42,8 @@ interface TimeBlockCardProps {
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
   compact?: boolean;
+  /** Optional hint for view; used for subtle typography tweaks (e.g. week vs 3-day). */
+  view?: 'day' | '3day' | 'week';
 }
 
 const FOCUS_MUTED_OPACITY = 0.3;
@@ -66,6 +68,7 @@ function TimeBlockCardInner({
   focusedCategoryId,
   focusedCalendarId,
   compact = false,
+  view = 'day',
 }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
@@ -294,7 +297,7 @@ function TimeBlockCardInner({
         : 0;
 
   // ─── Adaptive size tiers ─────────────────────────────────────────────────
-  // Compact (week view) tiers
+  // Compact (week / 3-day compact) tiers
   const compactTier =
     heightPx < 18 ? 'micro' :
     heightPx < 32 ? 'tiny'  :
@@ -414,6 +417,19 @@ function TimeBlockCardInner({
 
   // ─── Compact mode (week view) ───────────────────────────────────────────
   if (compact) {
+    const compactTitleFontSize = (() => {
+      const base =
+        compactTier === 'tiny'
+          ? 10
+          : isTask
+            ? 12
+            : 11;
+      // Week view: only shrink event titles by ~2px; tasks stay at base size.
+      if (!isTask && view === 'week') {
+        return Math.max(8, base - 2);
+      }
+      return base;
+    })();
     const blockStyle = getBlockInlineStyle();
     // Events: rounded right side. Tasks: borderRadius from inline style.
     const containerClass = isEvent
@@ -432,7 +448,7 @@ function TimeBlockCardInner({
       >
         <div
           data-slot="block-container"
-          className={containerClass}
+          className={cn('relative', containerClass)}
           style={{
             ...blockStyle,
             boxShadow: isSelected ? `0 0 0 1.5px ${blockColor}` : undefined,
@@ -441,7 +457,7 @@ function TimeBlockCardInner({
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
-              className="flex items-center h-full min-w-0"
+              className="flex items-start h-full min-w-0"
               style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px', gap: 2 }}
             >
               {isEvent && compactTier !== 'tiny' && (
@@ -449,12 +465,31 @@ function TimeBlockCardInner({
               )}
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div
-                  className={cn(isTask ? 'font-semibold' : 'font-medium', 'truncate leading-none', titleTextClass)}
-                  style={{ fontSize: compactTier === 'tiny' ? 10 : isTask ? 12 : 11 }}
+                  className={cn(
+                    isTask ? 'font-semibold' : 'font-medium',
+                    'leading-snug min-w-0',
+                    titleTextClass,
+                  )}
+                  style={{
+                    fontSize: compactTitleFontSize,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    overflow: 'hidden',
+                  }}
                 >
                   {block.title || 'Untitled'}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Emoji — bottom-right inside compact block (tasks only) */}
+          {isTask && block.emoji && (
+            <div
+              className="absolute bottom-0.5 right-1 text-[10px] select-none"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
+            >
+              {block.emoji}
             </div>
           )}
         </div>
@@ -462,7 +497,16 @@ function TimeBlockCardInner({
         {/* Compact popover */}
         {showPopover && isSelected && (
           <>
-            <div className="fixed inset-0 z-10" style={{ pointerEvents: 'auto' }} onClick={() => { setShowPopover(false); doDeselect(); }} aria-hidden />
+            <div
+              className="fixed inset-0 z-10"
+              style={{ pointerEvents: 'auto' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPopover(false);
+                doDeselect();
+              }}
+              aria-hidden
+            />
             <div
               ref={popoverRef}
               className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
@@ -539,7 +583,7 @@ function TimeBlockCardInner({
             </span>
           </div>
         ) : (
-          /* small+: title at top, time at bottom-right */
+          /* small+: title at top, meta + tags below */
           <div className="flex flex-col justify-between h-full min-w-0" style={{ padding: fullPadding }}>
             {/* Title — wraps naturally, no ellipsis */}
             <span
@@ -559,7 +603,7 @@ function TimeBlockCardInner({
               {block.title || 'Untitled'}
             </span>
 
-            {/* Bottom row: time-range right-aligned + optional category */}
+            {/* Bottom row: category chip + (optionally) time-range on non-task blocks */}
             {showMeta && (
               <div className="flex items-end justify-between gap-1 mt-1 min-w-0">
                 {block.category && showCategory ? (
@@ -569,13 +613,17 @@ function TimeBlockCardInner({
                   >
                     {block.category.name}
                   </span>
-                ) : <span />}
-                <span
-                  className="text-[10px] tabular-nums shrink-0"
-                  style={{ color: '#1C1C1E', opacity: 0.5 }}
-                >
-                  {fmtShort(block.start)}–{fmtShort(block.end)}
-                </span>
+                ) : (
+                  <span />
+                )}
+                {(isEvent || view !== 'day') && (
+                  <span
+                    className="text-[10px] tabular-nums shrink-0"
+                    style={{ color: '#1C1C1E', opacity: 0.5 }}
+                  >
+                    {fmtShort(block.start)}–{fmtShort(block.end)}
+                  </span>
+                )}
               </div>
             )}
 
@@ -589,6 +637,7 @@ function TimeBlockCardInner({
                     color={blockColor}
                     contrastBackgroundHex={undefined}
                     className="text-[9px] py-0.5 px-1.5"
+                    style={{ borderColor: hexToRgba(blockColor, 0.45) }}
                   >
                     {tag.name}
                   </Chip>
@@ -608,14 +657,24 @@ function TimeBlockCardInner({
           </div>
         )}
 
+        {/* Emoji — bottom-right inside full block (tasks only) */}
+        {isTask && block.emoji && (
+          <div
+            className="absolute bottom-0.5 right-1 text-[11px] select-none"
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
+          >
+            {block.emoji}
+          </div>
+        )}
+
         {/* Confirm circle — tiny overlay top-right (tasks only) */}
-        {isTask && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {isTask && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
             className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full transition-all"
             style={{
-              width: 12, height: 12,
+              width: 10, height: 10,
               opacity: confirmed ? 1 : 0.6,
               ...(confirmed
                 ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }

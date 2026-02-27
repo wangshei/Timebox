@@ -225,67 +225,80 @@ export function SettingsPanel({
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
           {/* Calendars */}
           {activeTab === 'calendars' &&
-            calendarContainers.map((calendar) => (
-              <div key={calendar.id}>
-                {editingId === calendar.id ? (
-                  <div
-                    className="space-y-3 p-3 rounded-xl"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
-                  >
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={inputStyle}
-                      placeholder="Calendar name"
-                      autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                    />
-                    <ColorPicker label="Color" value={editColor} onChange={setEditColor} swatchSize="sm" />
-                    <div className="flex gap-2">
-                      <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
-                        <CheckIcon className="h-3 w-3" /> Save
+            calendarContainers.map((calendar) => {
+              const calColor =
+                calendar.color && /^#[0-9A-Fa-f]{6}$/.test(calendar.color)
+                  ? calendar.color
+                  : PRIMARY;
+              return (
+                <div key={calendar.id}>
+                  {editingId === calendar.id ? (
+                    <div
+                      className="space-y-3 p-3 rounded-xl"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        style={inputStyle}
+                        placeholder="Calendar name"
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                      />
+                      <ColorPicker label="Color" value={editColor} onChange={setEditColor} swatchSize="sm" />
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                          <CheckIcon className="h-3 w-3" /> Save
+                        </button>
+                        <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg group"
+                      style={{
+                        backgroundColor: `${calColor}10`,
+                        border: `1px solid ${calColor}33`,
+                      }}
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: calColor }} />
+                      <span className="flex-1 text-sm" style={{ color: TEXT, fontWeight: 500, fontSize: 13 }}>{calendar.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: TEXT_MUTED }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <PencilIcon className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
-                        Cancel
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(calendar.id)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: '#C87868' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: calendar.color }} />
-                    <span className="flex-1 text-sm" style={{ color: TEXT, fontWeight: 500, fontSize: 13 }}>{calendar.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: TEXT_MUTED }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <PencilIcon className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(calendar.id)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: '#C87868' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
 
           {/* Categories */}
           {activeTab === 'categories' &&
             categories.map((category) => {
+              const baseColor =
+                category.color && /^#[0-9A-Fa-f]{6}$/.test(category.color)
+                  ? category.color
+                  : PRIMARY;
               const calIds = (category.calendarContainerIds && category.calendarContainerIds.length > 0)
                 ? category.calendarContainerIds
                 : (category.calendarContainerId ? [category.calendarContainerId] : []);
@@ -352,10 +365,13 @@ export function SettingsPanel({
                     </div>
                   ) : (
                     <div
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
-                      style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg group"
+                      style={{
+                        backgroundColor: `${baseColor}10`,
+                        border: `1px solid ${baseColor}33`,
+                      }}
                     >
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: baseColor }} />
                       <div className="flex-1 min-w-0">
                         <span className="block" style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{category.name}</span>
                         {calNames.length > 0 && (
@@ -390,62 +406,79 @@ export function SettingsPanel({
 
           {/* Tags */}
           {activeTab === 'tags' &&
-            tags.map((tag) => (
-              <div key={tag.id}>
-                {editingId === tag.id ? (
-                  <div
-                    className="space-y-3 p-3 rounded-xl"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
-                  >
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={inputStyle}
-                      placeholder="Tag name"
-                      autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                    />
-                    <div className="flex gap-2">
-                      <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
-                        <CheckIcon className="h-3 w-3" /> Save
+            tags.map((tag) => {
+              const parentCategory = tag.categoryId
+                ? categories.find((c) => c.id === tag.categoryId)
+                : undefined;
+              const tagColor =
+                parentCategory?.color && /^#[0-9A-Fa-f]{6}$/.test(parentCategory.color)
+                  ? parentCategory.color
+                  : PRIMARY;
+              return (
+                <div key={tag.id}>
+                  {editingId === tag.id ? (
+                    <div
+                      className="space-y-3 p-3 rounded-xl"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        style={inputStyle}
+                        placeholder="Tag name"
+                        autoFocus
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                      />
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleSaveEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}>
+                          <CheckIcon className="h-3 w-3" /> Save
+                        </button>
+                        <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg group"
+                      style={{
+                        backgroundColor: `${tagColor}10`,
+                        border: `1px solid ${tagColor}33`,
+                      }}
+                    >
+                      <TagIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: tagColor }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="block" style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{tag.name}</span>
+                        {parentCategory && (
+                          <span style={{ fontSize: 11, color: TEXT_MUTED }}>{parentCategory.name}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(tag.id, tag.name)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: TEXT_MUTED }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <PencilIcon className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={handleCancelEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.07)', color: TEXT_SECONDARY }}>
-                        Cancel
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(tag.id)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: '#C87868' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl group"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: `1px solid ${BORDER}` }}
-                  >
-                    <TagIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: TEXT_MUTED }} />
-                    <span className="flex-1" style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{tag.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(tag.id, tag.name)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: TEXT_MUTED }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <PencilIcon className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(tag.id)}
-                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      style={{ color: '#C87868' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
 
           {/* Add New */}
           {isAdding ? (

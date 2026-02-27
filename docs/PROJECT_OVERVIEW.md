@@ -84,19 +84,19 @@ A short description of what Timebox is and the main ideas that drive it. Use thi
 
 ## Summary Table
 
-| Idea | Short description |
-|------|-------------------|
-| Plan vs Record | Planned = intention; Recorded = what happened. Recorded replaces planned in the same slot in the main view. |
-| Task dragging | Drag task from sidebar onto calendar → creates a time block (planned or recorded based on drop time). |
+| Idea              | Short description                                                                                                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan vs Record    | Planned = intention; Recorded = what happened. Recorded replaces planned in the same slot in the main view.                                                                            |
+| Task dragging     | Drag task from sidebar onto calendar → creates a time block (planned or recorded based on drop time).                                                                                  |
 | Block drag/resize | Move block to new time/date; resize end time via bottom edge; 15‑min snap; moving/resizing can flip planned ↔ recorded based on new end time, with overlap checks for recorded blocks. |
-| Create on grid | Drag on empty slot → draft block → Add Modal → event or standalone block. |
-| Done as planned | Click circle on past planned block → create recorded copy; unconfirm = delete recorded copy. |
-| End Day | Auto-create recorded blocks for unconfirmed planned blocks (assume done as planned). |
-| Compare mode | Day: Plan \| Recorded columns; sidebar: Plan vs Actual by category/calendar/tag. |
-| Unschedule | In the main calendar view, drop block on right sidebar → delete block. |
-| Organization | Calendars (containers), Categories (block color), Tags; visibility and focus. |
-| Visit mode | Use without sign-in; data in browser only, lost on refresh. |
+| Create on grid    | Drag on empty slot → draft block → Add Modal → event or standalone block.                                                                                                              |
+| Done as planned   | Click circle on past planned block → create recorded copy; unconfirm = delete recorded copy.                                                                                           |
+| End Day           | Auto-create recorded blocks for unconfirmed planned blocks (assume done as planned).                                                                                                   |
+| Compare mode      | Day: Plan \| Recorded columns; sidebar: Plan vs Actual by category/calendar/tag.                                                                                                       |
+| Unschedule        | In the main calendar view, drop block on right sidebar → delete block.                                                                                                                 |
+| Organization      | Calendars (containers), Categories (block color), Tags; visibility and focus.                                                                                                          |
+| Visit mode        | Use without sign-in; data in browser only, lost on refresh.                                                                                                                            |
 
 ---
 
-*For implementation details and UI variations, see [PM_UIUX_FEATURE_DESIGN.md](./PM_UIUX_FEATURE_DESIGN.md). For code standards, see [PROJECT_STANDARDS.md](./PROJECT_STANDARDS.md).*
+_For implementation details and UI variations, see [PM_UIUX_FEATURE_DESIGN.md](./PM_UIUX_FEATURE_DESIGN.md). For code standards, see [PROJECT_STANDARDS.md](./PROJECT_STANDARDS.md)._
