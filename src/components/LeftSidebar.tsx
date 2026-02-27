@@ -4,7 +4,6 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   PencilIcon,
-  TrashIcon,
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/react/24/solid';
@@ -152,12 +151,6 @@ export function LeftSidebar({
       onAddTag({ name: addName.trim(), categoryId: addingParentId });
     }
     cancelAdd();
-  };
-
-  const handleDelete = (type: 'calendar' | 'category' | 'tag', id: string) => {
-    if (type === 'calendar') onDeleteCalendar(id);
-    else if (type === 'category') onDeleteCategory(id);
-    else onDeleteTag(id);
   };
 
   // Build sidebar hierarchy from timeBlocks + explicit calendarContainerId
@@ -405,7 +398,6 @@ export function LeftSidebar({
                     isEditMode ? (
                       <>
                         {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                        {iconBtn(() => handleDelete('calendar', calendar.id), <TrashIcon className="h-3.5 w-3.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                       </>
                     ) : (
                       <button
@@ -446,7 +438,6 @@ export function LeftSidebar({
                             actions={isEditMode ? (
                               <>
                                 {iconBtn(() => startEdit('category', category), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                                {iconBtn(() => handleDelete('category', category.id), <TrashIcon className="h-3.5 w-3.5" />, '#B85050', 'rgba(255,59,48,0.08)')}
                               </>
                             ) : undefined}
                           />
@@ -486,7 +477,6 @@ export function LeftSidebar({
                                       {isEditMode && (
                                         <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
                                           {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2 w-2" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                                          {iconBtn(() => handleDelete('tag', tag.id), <TrashIcon className="h-2 w-2" />, '#B85050', 'rgba(255,59,48,0.08)')}
                                         </div>
                                       )}
                                     </div>

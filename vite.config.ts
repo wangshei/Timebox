@@ -6,6 +6,7 @@
   export default defineConfig({
     plugins: [react()],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
         'vaul@1.1.2': 'vaul',
@@ -54,7 +55,7 @@
       outDir: 'dist',
     },
     server: {
-      port: 3005,
+      port: process.env.PORT ? parseInt(process.env.PORT) : 3005,
       open: true,
     },
   });
