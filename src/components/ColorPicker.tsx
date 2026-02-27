@@ -60,9 +60,9 @@ export function ColorPicker({
       {label && (
         <label className="block text-xs font-medium" style={{ color: '#636366' }}>{label}</label>
       )}
-      <div className="space-y-1 pt-1.5">
+      <div className="space-y-1" style={{ paddingTop: label ? 6 : 0 }}>
         {PALETTE_ROWS.map((row, rowIdx) => (
-          <div key={rowIdx} className="flex gap-1">
+          <div key={rowIdx} className="flex gap-1 justify-center">
             {row.map(({ name, value: hex }) => (
               <button
                 key={name}
@@ -89,8 +89,11 @@ export function ColorPicker({
           </div>
         ))}
 
+        {/* Divider before custom row */}
+        <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '4px 0' }} />
+
         {/* Custom color row */}
-        <div className="flex gap-1 pt-0.5 items-center" style={{ position: 'relative' }}>
+        <div className="flex gap-1 items-center justify-center" style={{ position: 'relative' }}>
           {/* "+" button */}
           <button
             type="button"
@@ -142,24 +145,24 @@ export function ColorPicker({
               style={{
                 top: '100%',
                 left: 0,
-                marginTop: 6,
+                marginTop: 8,
                 zIndex: 50,
                 backgroundColor: '#FFFFFF',
                 border: '1px solid rgba(0,0,0,0.09)',
-                padding: '12px',
-                minWidth: 172,
+                padding: '14px 14px 12px',
+                minWidth: 196,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
               }}
             >
               <div
-                className="text-[10px] font-semibold uppercase tracking-wider mb-2.5"
-                style={{ color: '#AEAEB2', letterSpacing: '0.08em' }}
+                className="text-[10px] font-semibold uppercase tracking-wider"
+                style={{ color: '#AEAEB2', letterSpacing: '0.08em', marginBottom: 10 }}
               >
                 Custom color
               </div>
 
               {/* Color preview + hex input */}
-              <div className="flex gap-2 items-center mb-2.5">
+              <div className="flex gap-2 items-center" style={{ marginBottom: 10 }}>
                 {/* Native picker trigger (preview swatch) */}
                 <label
                   style={{
@@ -220,8 +223,11 @@ export function ColorPicker({
                 />
               </div>
 
+              {/* Divider */}
+              <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '0 0 10px' }} />
+
               {/* Apply / Cancel */}
-              <div className="flex gap-1.5 mt-2 pt-2">
+              <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={handleHexCommit}
