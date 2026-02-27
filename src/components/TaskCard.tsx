@@ -1,8 +1,7 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
-import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/solid';
-import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -20,8 +19,6 @@ interface TaskCardProps {
   onBreakIntoChunks?: (taskId: string, chunkMinutes: number) => void;
   /** Split this task into two: one with chunkMinutes, original reduced by that amount. */
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
-  /** Toggle pin status of this task. Pinned tasks appear prominently in the calendar. */
-  onTogglePin?: () => void;
 }
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const;
@@ -57,7 +54,6 @@ export function TaskCard({
   onMarkTaskDone,
   onBreakIntoChunks,
   onSplitTask,
-  onTogglePin,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
@@ -102,6 +98,7 @@ export function TaskCard({
     e.dataTransfer.setData('application/x-timebox-task-id', task.id);
     const durationMins = Math.max(15, recordedMins > 0 ? remainingMins : estimatedMins);
     e.dataTransfer.setData('application/x-timebox-task-duration', String(durationMins));
+    e.dataTransfer.setData('application/x-timebox-task-color', catColor);
     e.dataTransfer.setData('text/plain', task.title);
     e.dataTransfer.effectAllowed = 'copy';
     if (e.dataTransfer.setDragImage) {
@@ -235,18 +232,6 @@ export function TaskCard({
           </div>
         )}
 
-        {onTogglePin && (
-          <button type="button"
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
-            style={{ color: (task as any).pinned ? '#F5A623' : '#636366' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = (task as any).pinned ? 'rgba(245,166,35,0.08)' : 'rgba(0,0,0,0.04)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            onClick={() => { onTogglePin(); setShowPopover(false); }}>
-            {(task as any).pinned ? <StarIcon className="h-4 w-4" /> : <StarOutlineIcon className="h-4 w-4" />}
-            {(task as any).pinned ? 'Unpin task' : 'Pin as priority'}
-          </button>
-        )}
-
         <button type="button"
           className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
           style={{ color: '#636366' }}
@@ -302,7 +287,7 @@ export function TaskCard({
         <div
           className="cursor-grab active:cursor-grabbing group relative"
           style={{ height: `${cardHeight}px` }}
-          onClick={() => setShowPopover(true)}
+          onClick={() => setShowPopover((v) => !v)}
           draggable
           onDragStart={handleDragStart}
         >
@@ -368,28 +353,10 @@ export function TaskCard({
           outline: showPopover ? `1.5px solid ${hexRgba(catColor, 0.6)}` : 'none',
           outlineOffset: '1px',
         }}
-        onClick={(e) => { if (e.detail === 1) setShowPopover(true); }}
+        onClick={(e) => { if (e.detail === 1) setShowPopover((v) => !v); }}
         draggable
         onDragStart={handleDragStart}
       >
-        {/* Pin button — always visible when pinned, shows on card hover */}
-        {onTogglePin && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-            className={`absolute top-2.5 right-8 transition-all ${(task as any).pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`}
-            style={{ color: (task as any).pinned ? '#F5A623' : '#AEAEB2' }}
-            title={(task as any).pinned ? 'Unpin task' : 'Pin task'}
-            aria-label={(task as any).pinned ? 'Unpin task' : 'Pin task'}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#F5A623'; }}
-            onMouseLeave={e => { if (!(task as any).pinned) { e.currentTarget.style.opacity = '0'; e.currentTarget.style.color = '#AEAEB2'; } }}
-          >
-            {(task as any).pinned
-              ? <StarIcon className="h-3.5 w-3.5" />
-              : <StarOutlineIcon className="h-3.5 w-3.5" />
-            }
-          </button>
-        )}
         {/* Drag handle */}
         <div className="absolute top-3 right-2.5 opacity-0 group-hover:opacity-50 transition-opacity">
           <Bars3Icon className="h-3.5 w-3.5" style={{ color: catColor }} />
@@ -399,9 +366,6 @@ export function TaskCard({
           {/* Title + duration badge */}
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1" style={{ color: '#1C1C1E' }}>
-              {(task as any).pinned && (
-                <StarIcon className="inline h-3 w-3 mr-1 mb-0.5 align-middle" style={{ color: '#F5A623' }} />
-              )}
               {task.title}
             </h3>
             <span

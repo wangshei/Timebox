@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
-import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
+import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { Chip } from './ui/chip';
 
 type AddMode = 'task' | 'event';
 
@@ -107,6 +108,8 @@ export function AddModal({
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [showTagInput, setShowTagInput] = useState(false);
 
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -223,38 +226,16 @@ export function AddModal({
       return;
     }
 
-    // Resolve category: when user typed a name, use it (find existing or create); otherwise use selected or first for calendar
-    const typedCategoryName = categoryInput.trim();
-    let categoryToUse: Category | null = null;
-    if (typedCategoryName) {
-      const matchCalendar = (c: Category) =>
-        c.calendarContainerId === fallbackCalendar ||
-        (c.calendarContainerIds && c.calendarContainerIds.length > 0 && c.calendarContainerIds.includes(fallbackCalendar));
-      const existing = categories.find(
-        (c) => c.name.toLowerCase() === typedCategoryName.toLowerCase() && matchCalendar(c)
-      );
-      categoryToUse = existing ?? (onAddCategory ? onAddCategory({
-        name: typedCategoryName,
-        color: DEFAULT_PALETTE_COLOR,
-        calendarContainerId: fallbackCalendar,
-        calendarContainerIds: [fallbackCalendar],
-      }) : null);
-    }
-    if (!categoryToUse) {
-      categoryToUse = selectedCategory ?? categories.find((c) => c.calendarContainerId === fallbackCalendar) ?? categories.find((c) => c.calendarContainerIds?.includes(fallbackCalendar)) ?? null;
-    }
+    // Category is always committed immediately via the inline "+" form (or pre-selected)
+    const categoryToUse: Category | null =
+      selectedCategory ??
+      categories.find((c) => c.calendarContainerId === fallbackCalendar) ??
+      categories.find((c) => c.calendarContainerIds?.includes(fallbackCalendar)) ??
+      null;
     if (!categoryToUse) return;
 
-    // Resolve tags: selectedTags + create from tagInput (comma-separated) under categoryToUse
-    let tagsToUse = [...selectedTags];
-    if (tagInput.trim() && onAddTag) {
-      const names = tagInput.split(',').map((s) => s.trim()).filter(Boolean);
-      for (const name of names) {
-        const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === categoryToUse!.id);
-        if (existing) tagsToUse.push(existing);
-        else tagsToUse.push(onAddTag({ name, categoryId: categoryToUse.id }));
-      }
-    }
+    // Tags are committed immediately via the inline "+" form or pill toggle
+    const tagsToUse = [...selectedTags];
 
     if (editingTask && onUpdateTask) {
       onUpdateTask(editingTask.id, {
@@ -496,8 +477,8 @@ export function AddModal({
               <button
                 type="button"
                 onClick={onRequireCalendar}
-                className="w-full px-3 py-2 text-xs font-medium flex items-center justify-center gap-1.5 rounded-lg"
-                style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1.5px dashed rgba(141,162,134,0.45)' }}
+                className="w-full px-3 py-2 text-sm font-medium flex items-center justify-center gap-1.5 rounded-lg"
+                style={{ color: THEME.primary, backgroundColor: `rgba(141,162,134,0.08)`, border: `1.5px dashed ${THEME.primary}40` }}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add a calendar first
@@ -511,13 +492,17 @@ export function AddModal({
                       key={cal.id}
                       type="button"
                       onClick={() => setSelectedCalendar(cal.id)}
-                      className="min-w-[70px] px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all capitalize flex items-center justify-center gap-1.5"
-                      style={isSel
-                        ? { backgroundColor: `${cal.color}20`, color: cal.color, border: `1.5px solid ${cal.color}` }
-                        : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
+                      className="rounded-full transition-all capitalize"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cal.color }} />
-                      {cal.name}
+                      <Chip
+                        variant={isSel ? 'subtle' : 'outline'}
+                        color={isSel ? cal.color : undefined}
+                        className={!isSel ? 'border-[rgba(0,0,0,0.12)] text-[var(--muted-foreground)]' : ''}
+                        style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cal.color : THEME.textMuted }} />
+                        {cal.name}
+                      </Chip>
                     </button>
                   );
                 })}
@@ -528,7 +513,7 @@ export function AddModal({
           {/* Category — pill select, with colored dot */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap items-center">
               {categoriesToShow
                 .filter((category) => {
                   if (!selectedCalendar) return true;
@@ -542,90 +527,129 @@ export function AddModal({
                     <button
                       key={category.id}
                       type="button"
-                      onClick={() => { setSelectedCategory(category); setCategoryInput(''); }}
-                      className="px-2.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                      style={isSel
-                        ? { backgroundColor: `${category.color}22`, color: category.color, border: `1.5px solid ${category.color}` }
-                        : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
+                      onClick={() => setSelectedCategory(category)}
+                      className="rounded-full transition-all"
                     >
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: category.color }} />
-                      {category.name}
+                      <Chip
+                        variant={isSel ? 'subtle' : 'outline'}
+                        color={isSel ? category.color : undefined}
+                        className={!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}
+                        style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isSel ? category.color : THEME.textMuted }} />
+                        {category.name}
+                      </Chip>
                     </button>
                   );
                 })}
+              {onAddCategory && !showCategoryInput && (
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryInput(true)}
+                  className="flex items-center justify-center rounded-full transition-all"
+                  style={{ width: 22, height: 22, border: '1.5px dashed rgba(0,0,0,0.18)', color: '#8E8E93' }}
+                  title="New category"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              value={categoryInput}
-              onChange={(e) => setCategoryInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const name = categoryInput.trim();
-                  if (!name) return;
-                  const forCalendar = categories.filter((c) => c.calendarContainerId === selectedCalendar);
-                  const existing = forCalendar.find((c) => c.name.toLowerCase() === name.toLowerCase());
-                  if (existing) {
-                    setSelectedCategory(existing);
+            {showCategoryInput && (
+              <input
+                type="text"
+                value={categoryInput}
+                onChange={(e) => setCategoryInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const name = categoryInput.trim();
+                    if (name && onAddCategory && selectedCalendar) {
+                      const existing = categories.find(
+                        (c) => c.name.toLowerCase() === name.toLowerCase() &&
+                          (c.calendarContainerId === selectedCalendar || c.calendarContainerIds?.includes(selectedCalendar))
+                      );
+                      const cat = existing ?? onAddCategory({ name, color: DEFAULT_PALETTE_COLOR, calendarContainerId: selectedCalendar, calendarContainerIds: [selectedCalendar] });
+                      setSelectedCategory(cat);
+                    }
                     setCategoryInput('');
-                  } else if (onAddCategory && selectedCalendar) {
-                    const newCat = onAddCategory({ name, color: DEFAULT_PALETTE_COLOR, calendarContainerId: selectedCalendar });
-                    setSelectedCategory(newCat);
-                    setCategoryInput('');
+                    setShowCategoryInput(false);
                   }
-                }
-              }}
-              placeholder="Or type to create new…"
-              className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
-            />
+                  if (e.key === 'Escape') { setCategoryInput(''); setShowCategoryInput(false); }
+                }}
+                onBlur={() => { setCategoryInput(''); setShowCategoryInput(false); }}
+                placeholder="Category name, Enter to add…"
+                autoFocus
+                className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
+                style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
+              />
+            )}
           </div>
 
           {/* Tags — multi-select pills */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap items-center">
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
                   const isSelected = selectedTags.some((s) => s.id === tag.id);
-                  const catColor = selectedCategory?.color ?? '#8DA286';
+                  const catColor = selectedCategory?.color ?? THEME.primary;
                   return (
                     <button
                       key={tag.id}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                      style={isSelected
-                        ? { backgroundColor: `${catColor}18`, color: catColor, border: `1.5px solid ${catColor}` }
-                        : { backgroundColor: 'transparent', color: '#8E8E93', border: '1.5px solid rgba(0,0,0,0.09)' }}
+                      className="rounded-full transition-all"
                     >
-                      {tag.name}
+                      <Chip
+                        variant={isSelected ? 'subtle' : 'outline'}
+                        color={isSelected ? catColor : undefined}
+                        className={!isSelected ? 'border-[rgba(0,0,0,0.09)]' : ''}
+                        style={!isSelected ? { color: THEME.textMuted, borderColor: 'rgba(0,0,0,0.09)' } : undefined}
+                      >
+                        {tag.name}
+                      </Chip>
                     </button>
                   );
                 })}
+              {onAddTag && selectedCategory && !showTagInput && (
+                <button
+                  type="button"
+                  onClick={() => setShowTagInput(true)}
+                  className="flex items-center justify-center rounded-full transition-all"
+                  style={{ width: 22, height: 22, border: '1.5px dashed rgba(0,0,0,0.18)', color: '#8E8E93' }}
+                  title="New tag"
+                >
+                  <PlusIcon className="h-3 w-3" />
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                  e.preventDefault();
-                  const name = tagInput.trim().replace(/,/g, '');
-                  if (!name) return;
-                  const categoryId = selectedCategory?.id ?? null;
-                  if (!categoryId) return;
-                  const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === categoryId);
-                  if (existing) setSelectedTags((prev) => (prev.some((t) => t.id === existing.id) ? prev : [...prev, existing]));
-                  else if (onAddTag) setSelectedTags((prev) => [...prev, onAddTag({ name, categoryId })]);
-                  setTagInput('');
-                }
-              }}
-              placeholder="Type and Enter to add…"
-              className="mt-1.5 w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
-            />
+            {showTagInput && (
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    const name = tagInput.trim().replace(/,/g, '');
+                    if (name && selectedCategory) {
+                      const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === selectedCategory.id);
+                      if (existing) setSelectedTags((prev) => prev.some((t) => t.id === existing.id) ? prev : [...prev, existing]);
+                      else if (onAddTag) setSelectedTags((prev) => [...prev, onAddTag({ name, categoryId: selectedCategory.id })]);
+                    }
+                    setTagInput('');
+                    setShowTagInput(false);
+                  }
+                  if (e.key === 'Escape') { setTagInput(''); setShowTagInput(false); }
+                }}
+                onBlur={() => { setTagInput(''); setShowTagInput(false); }}
+                placeholder="Tag name, Enter to add…"
+                autoFocus
+                className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
+                style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
+              />
+            )}
           </div>
 
           {/* Quick Notes — shown inline on the block */}
@@ -659,7 +683,7 @@ export function AddModal({
               {moreOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
             </button>
             {moreOpen && (
-              <div className="p-3 space-y-3" style={{ backgroundColor: '#F2EFDC' }}>
+              <div className="p-3 space-y-3" style={{ backgroundColor: '#FCFBF7' }}>
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Link <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
                   <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} />

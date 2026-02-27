@@ -4,6 +4,7 @@ import { ResolvedEvent } from '../utils/dataResolver';
 import { cn } from './ui/utils';
 import { getTextClassForBackground, hexToRgba, desaturate, lighten } from '../utils/color';
 import { getLocalDateString } from '../utils/dateTime';
+import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
 
 const POPOVER_WIDTH = 224;
@@ -25,6 +26,8 @@ interface EventCardProps {
   draggable?: boolean;
   /** Called when user mousedowns on the bottom-edge resize handle */
   onResizeStart?: (e: React.MouseEvent) => void;
+  /** When true, shows compact card without duration, description, or category chip */
+  compact?: boolean;
 }
 
 export function EventCard({
@@ -38,6 +41,7 @@ export function EventCard({
   plannedStyle = false,
   draggable = false,
   onResizeStart,
+  compact = false,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
@@ -59,19 +63,22 @@ export function EventCard({
   })();
   const isPast = event.date < todayStr || (event.date === todayStr && eventEndMins <= nowMins);
 
-  const categoryColor = event.category?.color ?? '#6b7280';
-  const calendarColor = event.calendarContainer?.color ?? '#6b7280';
+  const categoryColor = event.category?.color ?? THEME.primary;
+  const calendarColor = event.calendarContainer?.color ?? THEME.primary;
   const baseBg = plannedStyle ? hexToRgba(categoryColor, 0.2) : categoryColor;
+  // Background uses rgba directly — keeps text/chips at full opacity (no container opacity hack)
   const bgColor = plannedStyle
     ? baseBg
     : isPast
-      ? lighten(desaturate(categoryColor, 0.35), 0.55)
-      : categoryColor;
-  const opacity = plannedStyle ? 1 : isPast ? 0.82 : 1;
-  const textClass = plannedStyle ? 'text-neutral-900' : getTextClassForBackground(isPast ? lighten(desaturate(categoryColor, 0.35), 0.55) : categoryColor);
+      ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
+      : hexToRgba(categoryColor, 0.65);
+  const opacity = 1; // Applied via rgba background, not container — text stays fully opaque
+  const textClass = plannedStyle ? 'text-neutral-900' : 'text-[#1C1C1E]'; // Always dark — bg is semi-transparent
   const borderStyle = plannedStyle
     ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
-    : { borderLeft: `4px solid ${calendarColor}` };
+    : isPast
+      ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.40)}` }
+      : { borderLeft: `4px solid ${calendarColor}` };
 
   const heightPx =
     typeof style.height === 'number'
@@ -101,6 +108,7 @@ export function EventCard({
     if (!draggable) return;
     e.dataTransfer.setData('application/x-timebox-event-id', event.id);
     e.dataTransfer.setData('application/x-timebox-event-duration', String(getDurationMinutes()));
+    e.dataTransfer.setData('application/x-timebox-event-color', categoryColor);
     e.dataTransfer.setData('text/plain', event.title || 'Event');
     e.dataTransfer.effectAllowed = 'move';
     if (e.dataTransfer.setDragImage && event.title) {
@@ -153,14 +161,15 @@ export function EventCard({
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => {
         onSelect();
-        setShowPopover(true);
+        setShowPopover((v) => !v);
       }}
       draggable={draggable}
       onDragStart={handleDragStart}
     >
       <div
         className={cn(
-          'h-full w-full rounded-lg px-3 py-2 transition-all flex flex-col min-h-0 shadow-sm',
+          'h-full w-full px-3 py-2 transition-all flex flex-col min-h-0',
+          compact && 'overflow-hidden',
           plannedStyle ? '' : 'border-l-4',
           isSelected && 'ring-2 ring-offset-1'
         )}
@@ -171,33 +180,48 @@ export function EventCard({
           ...borderStyle,
         }}
       >
-        <div className={cn('flex flex-col h-full min-w-0', textClass)}>
-          <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
-            <span className="font-medium text-sm leading-snug truncate">
-              {event.title || 'Untitled Event'}
-            </span>
-            <span className="text-xs whitespace-nowrap opacity-90 shrink-0">
-              {getDuration()}
-            </span>
+        {compact ? (
+          <div className={cn('flex flex-col h-full min-w-0', textClass)}>
+            <div className="flex items-start min-w-0 flex-shrink-0">
+              <span className="font-medium text-sm leading-snug truncate">
+                {event.title || 'Untitled Event'}
+              </span>
+            </div>
+            {heightPx >= 32 && (
+              <div className="mt-0.5 text-xs opacity-80 shrink-0">
+                {event.start}–{event.end}
+              </div>
+            )}
           </div>
-          {heightPx >= 48 && (
-            <div className="mt-0.5 text-xs opacity-80 shrink-0">
-              {event.start} – {event.end}
+        ) : (
+          <div className={cn('flex flex-col h-full min-w-0', textClass)}>
+            <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
+              <span className="font-medium text-sm leading-snug truncate">
+                {event.title || 'Untitled Event'}
+              </span>
+              <span className="text-xs whitespace-nowrap opacity-90 shrink-0">
+                {getDuration()}
+              </span>
             </div>
-          )}
-          {heightPx >= 72 && event.description && (
-            <p className="mt-1 text-xs opacity-90 line-clamp-2 min-w-0 flex-shrink-0">
-              {event.description}
-            </p>
-          )}
-          {heightPx >= 56 && event.category && (
-            <div className="mt-auto flex flex-wrap items-center gap-1 pt-1 shrink-0">
-              <Chip variant="subtle" color={categoryColor} contrastBackgroundHex={plannedStyle ? undefined : categoryColor} className="max-w-[120px]">
-                {event.category.name}
-              </Chip>
-            </div>
-          )}
-        </div>
+            {heightPx >= 48 && (
+              <div className="mt-0.5 text-xs opacity-80 shrink-0">
+                {event.start} – {event.end}
+              </div>
+            )}
+            {heightPx >= 72 && event.description && (
+              <p className="mt-1 text-xs opacity-90 line-clamp-2 min-w-0 flex-shrink-0">
+                {event.description}
+              </p>
+            )}
+            {heightPx >= 56 && event.category && (
+              <div className="mt-auto flex flex-wrap items-center gap-1 pt-1 shrink-0">
+                <Chip variant="subtle" color={categoryColor} contrastBackgroundHex={plannedStyle ? undefined : categoryColor} className="max-w-[120px]">
+                  {event.category.name}
+                </Chip>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {onResizeStart && (
@@ -239,21 +263,21 @@ export function EventCard({
               style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
               onMouseDown={handlePopoverDragStart}
             >
-              <div className="font-semibold text-sm truncate" style={{ color: '#1C1C1E' }}>
+              <div className="font-semibold text-sm truncate" style={{ color: THEME.textPrimary }}>
                 {event.title || 'Untitled Event'}
               </div>
             </div>
             <div className="pt-2">
-              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
-                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} />
+              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
-              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
-                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} />
+              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
                 <span>{event.date}</span>
               </div>
               {event.category && (
-                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: '#636366' }}>
+                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: event.category.color }}
@@ -262,7 +286,7 @@ export function EventCard({
                 </div>
               )}
               {event.calendarContainer && (
-                <div className="flex items-center gap-2 text-xs mb-3" style={{ color: '#636366' }}>
+                <div className="flex items-center gap-2 text-xs mb-3" style={{ color: THEME.textSecondary }}>
                   <div
                     className="w-3 h-3 rounded flex-shrink-0"
                     style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `2px solid ${event.calendarContainer.color}` }}
@@ -271,7 +295,7 @@ export function EventCard({
                 </div>
               )}
               {event.description && (
-                <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: '#636366' }}>{event.description}</div>
+                <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{event.description}</div>
               )}
               {event.link && (
                 <div className="mb-2">
@@ -286,7 +310,7 @@ export function EventCard({
                   <button
                     type="button"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-                    style={{ color: '#636366' }}
+                    style={{ color: THEME.textSecondary }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     onClick={(e) => {

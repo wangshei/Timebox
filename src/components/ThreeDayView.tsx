@@ -11,6 +11,8 @@ import {
   offsetYToMinutes as offsetYToMinsUtil,
 } from '../utils/gridUtils';
 import type { DropTaskParams, CreateBlockParams } from './DayView';
+import { BLOCK_PREVIEW, THEME } from '../constants/colors';
+import { hexToRgba } from '../utils/color';
 
 interface ThreeDayViewProps {
   mode: Mode;
@@ -41,10 +43,10 @@ interface ThreeDayViewProps {
   categories?: import('../types').Category[];
 }
 
-const PRIMARY = '#8DA286';
+const PRIMARY = THEME.primary;
 const GRID_HOUR = 'rgba(0,0,0,0.07)';
 const GRID_HALF = 'rgba(0,0,0,0.035)';
-const BG_CANVAS = 'rgba(219,228,215,0.05)';
+const BG_CANVAS = '#FDFDFB';
 const BG_TODAY = 'rgba(141,162,134,0.05)';
 
 export function ThreeDayView({
@@ -155,6 +157,8 @@ export function ThreeDayView({
 
   // Drag preview
   const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
+  const [dragPreviewType, setDragPreviewType] = React.useState<'task' | 'block' | 'event'>('task');
+  const [dragColor, setDragColor] = React.useState<string>(BLOCK_PREVIEW.color);
 
   // Resize state
   const [resizingBlock, setResizingBlock] = React.useState<{
@@ -308,12 +312,23 @@ export function ThreeDayView({
                           ? e.dataTransfer.getData('application/x-timebox-block-duration')
                           : e.dataTransfer.getData('application/x-timebox-task-duration');
                       const duration = durationStr ? Math.max(15, parseInt(durationStr, 10)) : 15;
+                      const colorKey = hasEvent
+                        ? 'application/x-timebox-event-color'
+                        : hasBlock
+                          ? 'application/x-timebox-block-color'
+                          : 'application/x-timebox-task-color';
+                      const color = e.dataTransfer.getData(colorKey);
+                      if (color) setDragColor(color);
+                      setDragPreviewType(hasEvent ? 'event' : hasBlock ? 'block' : 'task');
                       setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
                     }}
                     onDragLeave={(e) => {
                       const grid = e.currentTarget as HTMLDivElement;
                       const related = e.relatedTarget as Node | null;
-                      if (!related || !grid.contains(related)) setDragPreview(null);
+                      if (!related || !grid.contains(related)) {
+                        setDragPreview(null);
+                        setDragColor(BLOCK_PREVIEW.color);
+                      }
                     }}
                     onDrop={(e) => {
                       const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
@@ -340,6 +355,7 @@ export function ThreeDayView({
                         onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
                       }
                       setDragPreview(null);
+                      setDragColor(BLOCK_PREVIEW.color);
                     }}
                     onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
                       if (creatingBlock) return;
@@ -488,33 +504,54 @@ export function ThreeDayView({
                       </>
                     )}
 
-                    {/* Drag preview */}
-                    {dragPreview && dragPreview.date === dateStr && (
-                      <div
-                        className="absolute left-0 right-0 z-30 pointer-events-none rounded-lg"
-                        style={{
-                          top: `${(dragPreview.startMins / 60) * PX_PER_HOUR}px`,
-                          height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.14)',
-                          border: '2px dashed rgba(141,162,134,0.55)',
-                        }}
-                      />
-                    )}
+                    {/* Drag preview — task-style (filled) or event-style (stripe) */}
+                    {dragPreview && dragPreview.date === dateStr && (() => {
+                      const isEventPreview = dragPreviewType === 'event';
+                      return (
+                        <div
+                          className={`absolute left-0 right-0 z-30 pointer-events-none overflow-hidden ${isEventPreview ? 'rounded-r-md' : ''}`}
+                          style={{
+                            top: `${(dragPreview.startMins / 60) * PX_PER_HOUR}px`,
+                            height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                            ...(isEventPreview
+                              ? {
+                                  backgroundColor: hexToRgba(dragColor, BLOCK_PREVIEW.bgAlpha),
+                                  borderLeft: `3px solid ${hexToRgba(dragColor, BLOCK_PREVIEW.stripeAlpha)}`,
+                                  borderTop: '1px dashed rgba(0,0,0,0.08)',
+                                  borderRight: '1px dashed rgba(0,0,0,0.08)',
+                                  borderBottom: '1px dashed rgba(0,0,0,0.08)',
+                                }
+                              : {
+                                  backgroundColor: '#FFF9EC',
+                                  borderTop: `3px solid ${dragColor}`,
+                                  borderLeft: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                                  borderRight: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                                  borderBottom: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                                  borderRadius: 5,
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+                                }),
+                          }}
+                        />
+                      );
+                    })()}
 
-                    {/* Create-block preview */}
+                    {/* Create-block preview — event-style (left stripe) */}
                     {creatingBlock && creatingBlock.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 z-30 pointer-events-none rounded-lg"
+                        className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
                         style={{
                           top: `${(creatingBlock.startMins / 60) * PX_PER_HOUR}px`,
                           height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.12)',
-                          border: '2px dashed rgba(141,162,134,0.50)',
+                          backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                          borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                          borderTop: '1px dashed rgba(0,0,0,0.08)',
+                          borderRight: '1px dashed rgba(0,0,0,0.08)',
+                          borderBottom: '1px dashed rgba(0,0,0,0.08)',
                         }}
                       >
                         <span
                           className="absolute bottom-0.5 left-2 font-medium truncate"
-                          style={{ color: PRIMARY, fontSize: '10px' }}
+                          style={{ color: THEME.textPrimary, fontSize: '10px' }}
                         >
                           {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
                         </span>

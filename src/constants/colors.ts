@@ -32,7 +32,7 @@ export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[0].value; // Blue
 export const THEME = {
   // Background palette
   background: 'rgba(219,228,215,0.05)', // 5% sage tint — near-white canvas
-  sidebar: '#F2EFDC',            // Warm parchment panel bg
+  sidebar: '#FCFBF7',            // Slightly lighter parchment (solid)
   secondaryBg: '#DBE4D7',        // Input bg, subtle sections
   card: '#FFFFFF',               // Pure white cards / modals
   muted: '#F2F2F0',              // Muted surfaces
@@ -71,3 +71,13 @@ export const THEME = {
 
 // Keep MONET_THEME as an alias so existing imports don't break
 export const MONET_THEME = THEME;
+
+/** Used for drag preview and create-block preview when no calendar/category is set. Matches saved block visual language. */
+export const BLOCK_PREVIEW = {
+  /** Event-style: left stripe + light fill (same as saved events). */
+  stripeAlpha: 0.5,
+  bgAlpha: 0.1,
+  borderDash: '2px dashed',
+  /** Fallback when no category/calendar (use primary). */
+  color: THEME.primary,
+} as const;

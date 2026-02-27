@@ -3,6 +3,7 @@ import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
+import { THEME } from '../constants/colors';
 import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
@@ -158,13 +159,16 @@ function TimeBlockCardInner({
     return base;
   };
 
-  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? '#8DA286';
+  const getBlockColor = () => block.category?.color ?? block.calendarContainer?.color ?? THEME.primary;
   const blockColor = getBlockColor();
 
   /**
    * Visual language:
    * - Events: Clean white/light background with a strong left color stripe. Structured, "locked in" feel.
-   * - Tasks: Warm, slightly tinted background in the category color. Organic rounded corners. "Flexible" feel.
+   * - Tasks: Drag-preview aesthetic — light tinted fill + dashed border. Clean, flexible feel.
+   *   Future: 45% fill + dashed border (active, needs to be done)
+   *   PastUnconfirmed: 18% fill + dashed border (faded, needs action)
+   *   PastConfirmed: 15% fill + solid border (done, muted)
    */
   const getBlockInlineStyle = (): React.CSSProperties => {
     const opacity = getOpacity();
@@ -183,7 +187,8 @@ function TimeBlockCardInner({
         };
       }
       return {
-        backgroundColor: hexToRgba(blockColor, 0.12),
+        background: `linear-gradient(${hexToRgba(blockColor, 0.18)}, ${hexToRgba(blockColor, 0.18)}), #FDFDFB`,
+        border: `1px solid ${hexToRgba(blockColor, 0.2)}`,
         opacity,
         ...vars,
       };
@@ -191,20 +196,55 @@ function TimeBlockCardInner({
 
     if (isEvent) {
       // Events: prominent left stripe on light background
-      const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.07 : 0.1;
-      const stripeAlpha = blockVisualState === 'pastConfirmed' ? 0.5 : 1;
+      // Past states: desaturate color for a grayer, more faded look
+      const eventDisplayColor = (blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed')
+        ? desaturate(blockColor, 0.45)
+        : blockColor;
+      const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.06 : blockVisualState === 'pastUnconfirmed' ? 0.08 : 0.1;
+      const stripeAlpha = blockVisualState === 'pastConfirmed' ? 0.30 : blockVisualState === 'pastUnconfirmed' ? 0.50 : 1;
       return {
-        borderLeft: `4px solid ${hexToRgba(blockColor, stripeAlpha)}`,
-        backgroundColor: hexToRgba(blockColor, bgAlpha),
+        borderLeft: `3px solid ${hexToRgba(eventDisplayColor, stripeAlpha)}`,
+        backgroundColor: hexToRgba(eventDisplayColor, bgAlpha),
         opacity,
         ...vars,
       };
     }
 
-    // Tasks: warm tinted background, no left stripe
-    const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.65 : blockVisualState === 'pastUnconfirmed' ? 0.75 : 0.88;
+    // Tasks: sticky-note aesthetic — colored top border + warm cream bg + subtle shadow
+    if (blockVisualState === 'future') {
+      return {
+        backgroundColor: '#FFF9EC',
+        borderTop: `3px solid ${blockColor}`,
+        borderLeft: `1px solid ${hexToRgba(blockColor, 0.22)}`,
+        borderRight: `1px solid ${hexToRgba(blockColor, 0.22)}`,
+        borderBottom: `1px solid ${hexToRgba(blockColor, 0.22)}`,
+        borderRadius: 5,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+        opacity,
+        ...vars,
+      };
+    }
+    if (blockVisualState === 'pastUnconfirmed') {
+      return {
+        backgroundColor: '#FDFAF3',
+        borderTop: `3px solid ${hexToRgba(blockColor, 0.45)}`,
+        borderLeft: `1px solid ${hexToRgba(blockColor, 0.12)}`,
+        borderRight: `1px solid ${hexToRgba(blockColor, 0.12)}`,
+        borderBottom: `1px solid ${hexToRgba(blockColor, 0.12)}`,
+        borderRadius: 5,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        opacity,
+        ...vars,
+      };
+    }
+    // Past confirmed: neutral, settled
     return {
-      backgroundColor: hexToRgba(blockColor, bgAlpha),
+      backgroundColor: 'rgba(0,0,0,0.035)',
+      borderTop: `3px solid ${hexToRgba(blockColor, 0.25)}`,
+      borderLeft: `1px solid ${hexToRgba(blockColor, 0.10)}`,
+      borderRight: `1px solid ${hexToRgba(blockColor, 0.10)}`,
+      borderBottom: `1px solid ${hexToRgba(blockColor, 0.10)}`,
+      borderRadius: 5,
       opacity,
       ...vars,
     };
@@ -212,13 +252,11 @@ function TimeBlockCardInner({
 
   const getTitleColor = (): string => {
     if (isEvent) {
-      // Event titles in dark warm text, with subtle color tint
       if (blockVisualState === 'ghost') return 'text-[#AEAEB2]';
       return 'text-[#1C1C1E]';
     }
-    // Task titles: get contrast vs the saturated bg
-    const bgForContrast = blockColor;
-    return getTextClassForBackground(bgForContrast);
+    // Tasks now have lighter tinted backgrounds — use dark text always
+    return 'text-[#1C1C1E]';
   };
 
   const titleTextClass = getTitleColor();
@@ -283,6 +321,7 @@ function TimeBlockCardInner({
   const handleBlockDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-timebox-block-id', block.id);
     e.dataTransfer.setData('application/x-timebox-block-duration', String(getDurationMinutes()));
+    e.dataTransfer.setData('application/x-timebox-block-color', getBlockColor());
     e.dataTransfer.setData('text/plain', block.title || 'Block');
     e.dataTransfer.effectAllowed = 'move';
     if (e.dataTransfer.setDragImage) {
@@ -308,16 +347,6 @@ function TimeBlockCardInner({
         onMouseDown={handlePopoverDragStart}
       >
         <div className="flex items-start gap-2">
-          {/* Type badge */}
-          <span
-            className="mt-0.5 flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full tracking-wide uppercase"
-            style={{
-              backgroundColor: isEvent ? hexToRgba(blockColor, 0.12) : hexToRgba(blockColor, 0.18),
-              color: blockColor,
-            }}
-          >
-            {isEvent ? 'Event' : 'Task'}
-          </span>
           <span className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{block.title || 'Untitled'}</span>
         </div>
       </div>
@@ -340,22 +369,6 @@ function TimeBlockCardInner({
         <div className="flex items-center gap-2 py-0.5">
           <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: hexToRgba(block.calendarContainer.color, 0.3), border: `2px solid ${block.calendarContainer.color}` }} />
           <span className="text-xs" style={{ color: '#636366' }}>{block.calendarContainer.name}</span>
-        </div>
-      )}
-      {block.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1">
-          {block.tags.slice(0, 6).map((tag) => (
-            <span
-              key={tag.id}
-              className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-[2px] rounded-full"
-              style={{
-                backgroundColor: hexToRgba(blockColor, 0.12),
-                color: blockColor,
-              }}
-            >
-              {tag.name}
-            </span>
-          ))}
         </div>
       )}
       {(block as any).notes && (
@@ -395,16 +408,17 @@ function TimeBlockCardInner({
   // ─── Compact mode (week view) ───────────────────────────────────────────
   if (compact) {
     const blockStyle = getBlockInlineStyle();
+    // Events: rounded right side. Tasks: borderRadius from inline style.
     const containerClass = isEvent
-      ? 'h-full overflow-hidden min-w-0 rounded-r-lg'
-      : 'h-full overflow-hidden min-w-0 rounded-xl';
+      ? 'h-full overflow-hidden min-w-0 rounded-r-sm'
+      : 'h-full overflow-hidden min-w-0';
 
     return (
       <div
         className="absolute cursor-grab active:cursor-grabbing pointer-events-auto"
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { doSelect(); setShowPopover(true); }}
+        onClick={() => { doSelect(); setShowPopover((v) => !v); }}
         draggable
         onDragStart={handleBlockDragStart}
       >
@@ -413,44 +427,25 @@ function TimeBlockCardInner({
           className={containerClass}
           style={{
             ...blockStyle,
-            boxShadow: isSelected ? `0 0 0 2px ${blockColor}` : undefined,
+            boxShadow: isSelected ? `0 0 0 1.5px ${blockColor}` : undefined,
           }}
         >
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
               className="flex items-center h-full min-w-0"
-              style={{ padding: compactTier === 'tiny' ? '1px 4px' : '2px 6px', gap: 3 }}
+              style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px', gap: 2 }}
             >
-              {/* Icon: only in small+ */}
-              {compactTier !== 'tiny' && isTask && (
-                <button
-                  type="button"
-                  onClick={handleCircleClick}
-                  className="flex-shrink-0 w-3 h-3 min-w-[12px] rounded-full border flex items-center justify-center transition-colors"
-                  style={
-                    confirmed
-                      ? { backgroundColor: blockColor, borderColor: blockColor }
-                      : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.7)' }
-                  }
-                  title={confirmed ? 'Mark not done' : 'Mark done'}
-                >
-                  {confirmed && <CheckIcon className="h-1.5 w-1.5 text-white" />}
-                </button>
-              )}
-              {compactTier !== 'tiny' && isEvent && (
-                <LockClosedIcon className="flex-shrink-0 h-2 w-2 opacity-50" style={{ color: blockColor }} />
+              {isEvent && compactTier !== 'tiny' && (
+                <LockClosedIcon className="flex-shrink-0 h-1.5 w-1.5 opacity-40" style={{ color: blockColor }} />
               )}
               <div className="min-w-0 flex-1 overflow-hidden">
-                <div className={cn('font-semibold truncate leading-none', titleTextClass)}
-                  style={{ fontSize: compactTier === 'tiny' ? 9 : 10 }}>
+                <div
+                  className={cn('font-medium truncate leading-none', titleTextClass)}
+                  style={{ fontSize: compactTier === 'tiny' ? 9 : 10 }}
+                >
                   {block.title || 'Untitled'}
                 </div>
-                {compactTier === 'medium' && (
-                  <div className="text-[9px] opacity-65 truncate mt-0.5" style={{ color: isEvent ? '#636366' : 'inherit' }}>
-                    {block.start.slice(0, 5)}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -459,7 +454,7 @@ function TimeBlockCardInner({
         {/* Compact popover */}
         {showPopover && isSelected && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => { setShowPopover(false); doDeselect(); }} aria-hidden />
+            <div className="fixed inset-0 z-10" style={{ pointerEvents: 'auto' }} onClick={() => { setShowPopover(false); doDeselect(); }} aria-hidden />
             <div
               ref={popoverRef}
               className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
@@ -479,135 +474,116 @@ function TimeBlockCardInner({
 
   // ─── Full mode (day / 3-day view) ───────────────────────────────────────
   const blockStyle = getBlockInlineStyle();
+  // Events: rounded right side. Tasks: borderRadius from inline style.
   const containerClass = isEvent
-    ? 'h-full overflow-hidden min-w-0 rounded-r-lg'
-    : 'h-full overflow-hidden min-w-0 rounded-xl shadow-sm';
+    ? 'h-full overflow-hidden min-w-0 rounded-r-md'
+    : 'h-full overflow-hidden min-w-0';
 
   // Padding scales with size
   const fullPadding =
     sizeTier === 'micro' ? '1px 6px' :
     sizeTier === 'tiny'  ? '2px 8px' :
-    sizeTier === 'small' ? '4px 8px 4px 10px' :
-    isEvent ? '6px 8px 6px 10px' : '7px 10px';
+    isEvent ? '5px 8px 5px 10px' : '5px 8px';
 
-  // Whether to show the icon (circle/lock)
-  const showIcon = sizeTier !== 'micro' && sizeTier !== 'tiny';
+  // Format short time like "9:00" or "9am"
+  const fmtShort = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    const hour = h ?? 0;
+    const min = m ?? 0;
+    const suffix = hour >= 12 ? 'pm' : 'am';
+    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
+  };
 
   return (
     <div
       ref={blockRef}
-      className="absolute cursor-grab active:cursor-grabbing group pr-1 pointer-events-auto"
+      className="absolute cursor-grab active:cursor-grabbing group pointer-events-auto"
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { doSelect(); setShowPopover(true); }}
+      onClick={() => { doSelect(); setShowPopover((v) => !v); }}
       draggable
       onDragStart={handleBlockDragStart}
     >
       <div
         data-slot="block-container"
-        className={cn(containerClass)}
+        className={cn('relative', containerClass)}
         style={{
           ...blockStyle,
           boxShadow: isSelected ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
         }}
       >
         {sizeTier === 'micro' ? (
-          /* micro: just a colored pill with no text — used for very short blocks (<22px) */
-          <div className="h-full w-full" style={{ padding: '1px 6px' }} />
-        ) : (
-          <div className="flex flex-col h-full min-w-0" style={{ padding: fullPadding }}>
-            {/* Header row */}
-            <div
-              className="flex min-w-0 flex-shrink-0"
-              style={{ alignItems: sizeTier === 'tiny' ? 'center' : 'flex-start', gap: 5 }}
+          /* micro: just a colored sliver — no text */
+          <div className="h-full w-full" />
+        ) : sizeTier === 'tiny' ? (
+          /* tiny: single-line title only */
+          <div className="flex items-center h-full min-w-0" style={{ padding: fullPadding, gap: 4 }}>
+            {isEvent && (
+              <LockClosedIcon className="flex-shrink-0 opacity-35" style={{ width: 8, height: 8, color: blockColor }} />
+            )}
+            <span
+              className={cn('font-medium truncate leading-none min-w-0', titleTextClass)}
+              style={{ fontSize: 10 }}
             >
-              {/* Task: completion circle (small+) */}
-              {showIcon && isTask && (
-                <button
-                  type="button"
-                  onClick={handleCircleClick}
-                  className="flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all"
-                  style={{
-                    marginTop: sizeTier === 'small' ? 1 : 2,
-                    width: 13, height: 13, minWidth: 13,
-                    ...(confirmed
-                      ? { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.9)' }
-                      : { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.65)' }),
-                  }}
-                  title={confirmed ? 'Mark not done' : 'Mark done'}
-                  aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-                >
-                  {confirmed && <CheckIcon className="h-[7px] w-[7px]" style={{ color: blockColor }} />}
-                </button>
+              {block.title || 'Untitled'}
+            </span>
+          </div>
+        ) : (
+          /* small+: title at top, time at bottom-right */
+          <div className="flex flex-col justify-between h-full min-w-0" style={{ padding: fullPadding }}>
+            {/* Title */}
+            <span
+              className={cn(
+                'font-medium leading-snug min-w-0',
+                titleTextClass,
+                isTask && confirmed && 'line-through decoration-current/40',
               )}
-              {/* Event: lock icon (small+) */}
-              {showIcon && isEvent && (
-                <LockClosedIcon
-                  className="flex-shrink-0 opacity-40"
-                  style={{ marginTop: sizeTier === 'small' ? 1 : 2, width: 9, height: 9, color: blockColor }}
-                />
-              )}
+              style={{
+                fontSize: isTask ? 13 : 11,
+                textDecorationSkipInk: 'none',
+                display: '-webkit-box',
+                WebkitLineClamp: sizeTier === 'small' ? 1 : sizeTier === 'medium' ? 2 : 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {block.title || 'Untitled'}
+            </span>
 
-              <span
-                className={cn(
-                  'font-semibold leading-snug flex-1 min-w-0 truncate',
-                  titleTextClass,
-                  isTask && confirmed && 'line-through decoration-current/40',
-                )}
-                style={{
-                  fontSize: sizeTier === 'tiny' ? 10 : 11,
-                  textDecorationSkipInk: 'none',
-                  whiteSpace: sizeTier === 'tiny' ? 'nowrap' : 'normal',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: sizeTier === 'tiny' ? 'block' : undefined,
-                }}
-              >
-                {block.title || 'Untitled'}
-              </span>
-            </div>
-
-            {/* Time row — medium+ */}
+            {/* Bottom row: time-range right-aligned + optional category */}
             {showMeta && (
-              <div
-                className={cn(
-                  'flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 min-w-0',
-                  isEvent ? 'text-[#636366]' : 'text-white/75',
-                )}
-                style={{ fontSize: 10 }}
-              >
-                <span className="whitespace-nowrap opacity-85">{getTimeRange()}</span>
-                {block.category && showCategory && (
+              <div className="flex items-end justify-between gap-1 mt-1 min-w-0">
+                {block.category && showCategory ? (
                   <span
-                    className="px-1.5 py-[1px] rounded-full font-medium"
-                    style={
-                      isEvent
-                        ? { backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }
-                        : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)' }
-                    }
+                    className="text-[9px] font-medium px-1.5 py-[1px] rounded-full truncate max-w-[50%]"
+                    style={{ backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }}
                   >
                     {block.category.name}
                   </span>
-                )}
+                ) : <span />}
+                <span
+                  className="text-[10px] tabular-nums shrink-0"
+                  style={{ color: '#1C1C1E', opacity: 0.5 }}
+                >
+                  {fmtShort(block.start)}–{fmtShort(block.end)}
+                </span>
               </div>
             )}
 
-            {/* Tags row — rich only */}
+            {/* Tags — rich only */}
             {showTags && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
+              <div className="flex flex-wrap gap-1 mt-1">
                 {block.tags.slice(0, 4).map((tag) => (
-                  <span
+                  <Chip
                     key={tag.id}
-                    className="font-medium px-1.5 py-[2px] rounded-full"
-                    style={{
-                      fontSize: 9,
-                      ...(isEvent
-                        ? { backgroundColor: hexToRgba(blockColor, 0.12), color: blockColor }
-                        : { backgroundColor: 'rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.88)' }),
-                    }}
+                    variant="subtle"
+                    color={blockColor}
+                    contrastBackgroundHex={undefined}
+                    className="text-[9px] py-0.5 px-1.5"
                   >
                     {tag.name}
-                  </span>
+                  </Chip>
                 ))}
               </div>
             )}
@@ -615,8 +591,8 @@ function TimeBlockCardInner({
             {/* Notes — rich only */}
             {showNotes && (
               <div
-                className="mt-1 italic line-clamp-2 opacity-70"
-                style={{ fontSize: 10, color: isEvent ? '#636366' : 'rgba(255,255,255,0.85)' }}
+                className="mt-0.5 italic line-clamp-2 opacity-65"
+                style={{ fontSize: 9.5, color: '#636366' }}
               >
                 {(block as any).notes}
               </div>
@@ -624,13 +600,32 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Resize handle (tasks only, full+) */}
+        {/* Confirm circle — tiny overlay top-right (tasks only) */}
+        {isTask && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
+            className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full transition-all opacity-50 group-hover:opacity-100"
+            style={{
+              width: 12, height: 12,
+              ...(confirmed
+                ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
+                : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.5)}` }),
+            }}
+            title={confirmed ? 'Mark not done' : 'Mark done'}
+            aria-label={confirmed ? 'Mark not done' : 'Mark done'}
+          >
+            {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
+          </button>
+        )}
+
+        {/* Resize handle (tasks only, small+) */}
         {onResizeStart && isTask && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
-            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white/50 rounded-full" />
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
           </div>
         )}
       </div>
@@ -640,6 +635,7 @@ function TimeBlockCardInner({
         <>
           <div
             className="fixed inset-0 z-10"
+            style={{ pointerEvents: 'auto' }}
             onClick={(e) => {
               e.stopPropagation();
               setShowPopover(false);

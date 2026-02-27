@@ -11,6 +11,8 @@ import {
   offsetYToMinutes as offsetYToMinsUtil,
   parseTimeToMins,
 } from '../utils/gridUtils';
+import { BLOCK_PREVIEW, THEME } from '../constants/colors';
+import { hexToRgba } from '../utils/color';
 
 export { SNAP_MINUTES_UTIL as SNAP_MINUTES };
 const DEFAULT_DROP_MINUTES = 15;
@@ -66,6 +68,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
+  const [dragPreviewType, setDragPreviewType] = React.useState<'task' | 'block' | 'event'>('task');
+  const [dragColor, setDragColor] = React.useState<string>(BLOCK_PREVIEW.color);
   const dragPreviewRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
   const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number } | null>(null);
   const creatingBlockRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
@@ -108,14 +112,23 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     if (hasEvent) {
       const durationStr = e.dataTransfer.getData('application/x-timebox-event-duration');
       const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      const color = e.dataTransfer.getData('application/x-timebox-event-color');
+      if (color) setDragColor(color);
+      setDragPreviewType('event');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
     } else if (hasBlock) {
       const durationStr = e.dataTransfer.getData('application/x-timebox-block-duration');
       const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      const color = e.dataTransfer.getData('application/x-timebox-block-color');
+      if (color) setDragColor(color);
+      setDragPreviewType('block');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
     } else {
       const durationStr = e.dataTransfer.getData('application/x-timebox-task-duration');
       const duration = durationStr ? Math.max(MIN_CREATE_MINUTES, parseInt(durationStr, 10)) : DEFAULT_DROP_MINUTES;
+      const color = e.dataTransfer.getData('application/x-timebox-task-color');
+      if (color) setDragColor(color);
+      setDragPreviewType('task');
       setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
     }
   };
@@ -123,6 +136,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const handleDragLeave = () => {
     setIsDragOver(false);
     setDragPreview(null);
+    setDragColor(BLOCK_PREVIEW.color);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -132,6 +146,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const preview = dragPreviewRef.current ?? dragPreview;
     setIsDragOver(false);
     setDragPreview(null);
+    setDragColor(BLOCK_PREVIEW.color);
     dragPreviewRef.current = null;
     e.preventDefault();
 
@@ -497,42 +512,67 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             />
             <div
               className="absolute left-0 z-40 text-xs font-semibold tabular-nums pointer-events-none"
-              style={{ top: currentTimeTop - 8, color: '#8DA286', fontSize: '10px' }}
+              style={{ top: currentTimeTop - 8, color: THEME.primary, fontSize: '10px' }}
             >
               {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
           </>
         )}
 
-        {/* Drag preview (task/block drop) */}
-        {(onDropTask || onMoveBlock || onMoveEvent) && dragPreview && (
-          <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-xl"
-            style={{
-              top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
-              height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(141,162,134,0.12)',
-              border: '2px dashed rgba(141,162,134,0.50)',
-            }}
-          >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#8DA286' }}>
-              {minutesToTimeString(dragPreview.startMins)}–{minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
-            </span>
-          </div>
-        )}
+        {/* Drag preview — task-style (filled) or event-style (stripe) based on drag type */}
+        {(onDropTask || onMoveBlock || onMoveEvent) && dragPreview && (() => {
+          const isEventPreview = dragPreviewType === 'event';
+          const previewStyle: React.CSSProperties = isEventPreview
+            ? {
+                backgroundColor: hexToRgba(dragColor, BLOCK_PREVIEW.bgAlpha),
+                borderLeft: `3px solid ${hexToRgba(dragColor, BLOCK_PREVIEW.stripeAlpha)}`,
+                borderTop: '1px dashed rgba(0,0,0,0.08)',
+                borderRight: '1px dashed rgba(0,0,0,0.08)',
+                borderBottom: '1px dashed rgba(0,0,0,0.08)',
+              }
+            : {
+                backgroundColor: '#FFF9EC',
+                borderTop: `3px solid ${dragColor}`,
+                borderLeft: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                borderRight: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                borderBottom: `1px solid ${hexToRgba(dragColor, 0.22)}`,
+                borderRadius: 5,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+              };
+          const previewClass = isEventPreview
+            ? 'absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden'
+            : 'absolute left-14 md:left-20 right-2 z-30 pointer-events-none overflow-hidden';
+          return (
+            <div
+              className={previewClass}
+              style={{
+                top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                ...previewStyle,
+              }}
+            >
+              <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
+                {minutesToTimeString(dragPreview.startMins)}–{minutesToTimeString(dragPreview.endMins)} ({dragPreview.endMins - dragPreview.startMins}m)
+              </span>
+            </div>
+          );
+        })()}
 
-        {/* Create-block preview */}
+        {/* Create-block preview — event-style (left stripe) since block creation always creates an event-type block */}
         {creatingBlock && (
           <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-xl"
+            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
             style={{
               top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: 'rgba(141,162,134,0.09)',
-              border: '2px dashed rgba(141,162,134,0.45)',
+              backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+              borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+              borderTop: '1px dashed rgba(0,0,0,0.08)',
+              borderRight: '1px dashed rgba(0,0,0,0.08)',
+              borderBottom: '1px dashed rgba(0,0,0,0.08)',
             }}
           >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: '#8DA286' }}>
+            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
               {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
             </span>
           </div>
@@ -544,8 +584,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg"
             style={{
               height: GRID_HEIGHT,
-              backgroundColor: 'rgba(141,162,134,0.04)',
-              boxShadow: 'inset 0 0 0 2px rgba(141,162,134,0.23)',
+              backgroundColor: hexToRgba(THEME.primary, 0.04),
+              boxShadow: `inset 0 0 0 2px ${hexToRgba(THEME.primary, 0.23)}`,
             }}
           />
         )}

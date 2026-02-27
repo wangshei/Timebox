@@ -10,7 +10,7 @@ const PRIMARY = '#8DA286';
 const MUTED = '#8E8E93';
 const TEXT = '#1C1C1E';
 const BORDER = 'rgba(0,0,0,0.08)';
-const BG_PANEL = '#F2EFDC';
+const BG_PANEL = '#FCFBF7';
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -176,10 +176,10 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 overflow-y-auto space-y-5 ${isBottomSheet ? 'px-4 py-4 pb-6' : 'px-4 py-4 pb-8'}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto space-y-4 ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
         {/* Unscheduled Tasks */}
         <div>
-          <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
+          <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
           {onOpenAddModal && (
             <button
               type="button"
@@ -205,7 +205,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               Add task
             </button>
           )}
-          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
+          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
             {unscheduledTasks.length === 0 ? (
               <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
             ) : (
@@ -235,8 +235,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Partially Completed */}
         {partiallyCompletedTasks.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
+            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
               {              filteredPartially.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -263,8 +263,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Fixed / Missed */}
         {fixedMissedTasks.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-2.5'}>
+            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
+            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
               {              filteredFixed.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -301,7 +301,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               ) : (
                 <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
               )}
-              <h2 className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
+              <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
             </button>
             {doneSectionOpen && (
               <div className="space-y-1.5">
@@ -324,12 +324,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         {/* Events */}
         {upcomingEvents.length > 0 && (
           <div>
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#8E8E93', letterSpacing: '0.09em' }}>Upcoming Events</h2>
+            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Upcoming Events</h2>
             <div className="space-y-2">
               {upcomingEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl group"
+                  className="flex items-center gap-2 px-3 py-3 rounded-xl group"
                   style={{
                     backgroundColor: 'rgba(0,0,0,0.04)',
                     border: '1px solid rgba(0,0,0,0.06)',
@@ -337,8 +337,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold truncate" style={{ color: '#1C1C1E' }}>{event.title}</div>
-                    <div className="text-[10px] mt-0.5" style={{ color: '#8E8E93' }}>{event.start} – {event.end} · {event.date}</div>
+                    <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E', lineHeight: 1.3 }}>{event.title}</div>
+                    <div className="mt-1 truncate" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
                   </div>
                   {onDeleteEvent && (
                     <button

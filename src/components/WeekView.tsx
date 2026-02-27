@@ -10,6 +10,8 @@ import {
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
   offsetYToMinutes as offsetYToMinsUtil,
 } from '../utils/gridUtils';
+import { BLOCK_PREVIEW, THEME } from '../constants/colors';
+import { hexToRgba } from '../utils/color';
 
 interface WeekViewProps {
   mode: Mode;
@@ -154,14 +156,14 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex-1 overflow-auto" style={{ backgroundColor: 'rgba(219,228,215,0.05)' }}>
+    <div className="flex-1 overflow-auto" style={{ backgroundColor: '#FDFDFB' }}>
       <div className="flex min-w-max">
         {/* Time column */}
         <div
           className="w-10 md:w-14 flex-shrink-0 py-2 sticky left-0 z-10"
           style={{
             borderRight: '1px solid rgba(0,0,0,0.07)',
-            backgroundColor: 'rgba(219,228,215,0.05)',
+            backgroundColor: '#FDFDFB',
           }}
         >
           <div className="h-9 md:h-10" /> {/* Spacer for day headers */}
@@ -197,19 +199,19 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   className="h-9 md:h-10 px-1.5 md:px-2 py-1.5 sticky top-0 z-10 flex flex-col justify-center"
                   style={{
                     borderBottom: '1px solid rgba(0,0,0,0.07)',
-                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'rgba(219,228,215,0.05)',
+                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : '#FDFDFB',
                   }}
                 >
                   <div
                     className="font-semibold uppercase"
-                    style={{ color: today ? '#8DA286' : '#C7C7CC', fontSize: '9px', letterSpacing: '0.07em' }}
+                    style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}
                   >
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
                   <div
                     className="font-semibold leading-none"
                     style={{
-                      color: today ? '#8DA286' : '#3A3A3C',
+                      color: today ? THEME.primary : THEME.textPrimary,
                       fontSize: '14px',
                     }}
                   >
@@ -374,6 +376,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                   onEditEvent={onEditEvent}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
+                                  compact={true}
                                 />
                               );
                             })}
@@ -391,46 +394,52 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             top: currentTimeTop,
                             height: 0,
                             width: '100%',
-                            borderTop: '2px solid #8DA286',
+                            borderTop: `2px solid ${THEME.primary}`,
                           }}
                           aria-hidden
                         />
                         <div
                           className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none"
-                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: '#8DA286', fontSize: '9px' }}
+                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: THEME.primary, fontSize: '9px' }}
                         >
                           {currentTimeLabel}
                         </div>
                       </>
                     )}
 
-                    {/* Drag preview (drop), z-30 */}
+                    {/* Drag preview (drop), z-30 — same event-style as saved blocks */}
                     {dragPreview && dragPreview.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
+                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
                         style={{
                           top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                           height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.12)',
-                          border: '2px dashed rgba(141,162,134,0.50)',
+                          backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                          borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                          borderTop: '1px dashed rgba(0,0,0,0.08)',
+                          borderRight: '1px dashed rgba(0,0,0,0.08)',
+                          borderBottom: '1px dashed rgba(0,0,0,0.08)',
                         }}
                       />
                     )}
 
-                    {/* Create-block preview, z-30 */}
+                    {/* Create-block preview, z-30 — matches saved event look */}
                     {creatingBlock && creatingBlock.date === dateStr && (
                       <div
-                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded"
+                        className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
                         style={{
                           top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                           height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-                          backgroundColor: 'rgba(141,162,134,0.09)',
-                          border: '2px dashed rgba(141,162,134,0.45)',
+                          backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                          borderLeft: `4px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                          borderTop: '1px dashed rgba(0,0,0,0.08)',
+                          borderRight: '1px dashed rgba(0,0,0,0.08)',
+                          borderBottom: '1px dashed rgba(0,0,0,0.08)',
                         }}
                       >
                         <span
                           className="absolute bottom-0.5 left-1 font-medium truncate"
-                          style={{ color: '#8DA286', fontSize: '10px' }}
+                          style={{ color: THEME.textPrimary, fontSize: '10px' }}
                         >
                           {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
                         </span>

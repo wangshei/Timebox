@@ -10,7 +10,7 @@ import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 
 const PRIMARY = '#8DA286';
-const BG = 'rgba(219,228,215,0.05)';
+const BG = '#FDFDFB';
 const BORDER = 'rgba(0,0,0,0.08)';
 const TEXT_PRIMARY = '#1C1C1E';
 const TEXT_MUTED = '#8E8E93';
@@ -160,15 +160,15 @@ export function CalendarView({
 
             <div className="min-w-0">
               {!isMobile && view === 'day' ? (
-                <h1 className="text-base font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
+                <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
                   <span>{(headerTitle as any).dayName}</span>
-                  <span className="font-normal ml-1.5 text-sm" style={{ color: TEXT_SECONDARY }}>
+                  <span className="font-normal ml-1.5" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>
                     {(headerTitle as any).dateStr}
                   </span>
                 </h1>
               ) : (
                 <h1
-                  className={`font-semibold truncate ${isMobile ? 'text-sm' : 'text-base'}`}
+                  className={`font-semibold truncate ${isMobile ? 'text-xs' : 'text-sm'}`}
                   style={{ color: TEXT_PRIMARY }}
                 >
                   {isMobile && view === 'day'

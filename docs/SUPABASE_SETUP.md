@@ -262,7 +262,7 @@ This matches the queries in `src/supabasePersistence.ts`, which always filter by
 
 If the app is signed in but inserts fail with **403** and error code **42501** ("new row violates row-level security policy"), run this in the Supabase SQL Editor. It **drops all existing policies** on these tables and creates fresh ones that explicitly allow the **authenticated** role to INSERT/UPDATE/DELETE when `user_id = auth.uid()`.
 
-(The "Personal" row is missing from the calendar table *because* these inserts are blocked—fixing RLS will let the app create it.)
+(The "Personal" row is missing from the calendar table _because_ these inserts are blocked—fixing RLS will let the app create it.)
 
 ```sql
 -- 1) Drop ALL existing policies on these tables (clean slate)
