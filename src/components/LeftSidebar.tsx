@@ -378,8 +378,8 @@ export function LeftSidebar({
   if (isCompareMode) {
     return (
       <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
-        {/* Compare header with back button */}
-        <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+        {/* Compare header — just back arrow, no title (outer header already shows "Compare") */}
+        <div className="flex items-center px-2 py-2 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
           <button
             type="button"
             onClick={onExitCompare}
@@ -387,12 +387,10 @@ export function LeftSidebar({
             style={{ color: '#8E8E93' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#636366')}
             onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
+            title="Exit compare mode"
           >
             <ArrowLeftIcon className="h-3.5 w-3.5" />
           </button>
-          <span className="text-base font-semibold" style={{ color: '#3A3A3C' }}>
-            Compare
-          </span>
         </div>
         {/* Analytics section fills remaining space */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-2 pb-3">

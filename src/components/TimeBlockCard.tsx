@@ -441,7 +441,7 @@ function TimeBlockCardInner({
         </div>
       )}
       <div className="flex flex-col gap-1 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginTop: 6 }}>
-        {isTask && (onConfirm || onUnconfirm) && (
+        {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
           <button
             type="button"
             className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
@@ -449,8 +449,13 @@ function TimeBlockCardInner({
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.05)' : `${hexToRgba(blockColor, 0.1)}`; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             onClick={() => {
-              if (confirmed) onUnconfirm?.(block.id);
-              else onConfirm?.(block.id);
+              if (confirmed) {
+                // For events: skip = didn't happen; for tasks: unconfirm = revert to pending
+                if (isEvent) onSkip?.(block.id);
+                else onUnconfirm?.(block.id);
+              } else {
+                onConfirm?.(block.id);
+              }
               setShowPopover(false);
               doDeselect();
             }}
@@ -608,7 +613,7 @@ function TimeBlockCardInner({
         {showPopover && isSelected && (
           <>
             <div
-              className="fixed inset-0 z-10"
+              className="fixed inset-0 z-[55]"
               style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -619,7 +624,7 @@ function TimeBlockCardInner({
             />
             <div
               ref={popoverRef}
-              className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
+              className="absolute z-[60] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
               style={{
                 top: '100%', left: 0, marginTop: 6,
                 backgroundColor: '#FFFFFF',
@@ -861,7 +866,7 @@ function TimeBlockCardInner({
       {showPopover && isSelected && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[55]"
             style={{ pointerEvents: 'auto' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -872,7 +877,7 @@ function TimeBlockCardInner({
           />
           <div
             ref={popoverRef}
-            className="absolute z-20 rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
+            className="absolute z-[60] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
             style={{
               ...(popoverPosition === 'bottom-left'
                 ? { top: '100%', left: 0, marginTop: 8 }

@@ -284,9 +284,9 @@ export function CalendarView({
           <div className="flex-1 flex flex-col min-h-0" style={{ borderRight: `1px solid ${BORDER}` }}>
             <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={showDifferences} />
           </div>
-          {/* Actual: right half */}
+          {/* Actual: right half — has its own time gutter */}
           <div className="flex-1 flex flex-col min-h-0">
-            <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} hideTimeGutter panelLabel="Actual" showDifferences={showDifferences} />
+            <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={showDifferences} />
           </div>
         </div>
       ) : (
