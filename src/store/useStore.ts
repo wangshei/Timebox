@@ -59,7 +59,20 @@ export interface AppState {
   hasCompletedSetup: boolean;
   userName: string;
   onboardingTourComplete: boolean;
+  // Persistence status
+  saveError: boolean;
+  sessionExpired: boolean;
 }
+
+// --- Entity limits (prevent unbounded data creation) ---
+export const ENTITY_LIMITS = {
+  tasks: 500,
+  timeBlocks: 2000,
+  events: 2000,
+  calendarContainers: 20,
+  categories: 100,
+  tags: 200,
+} as const;
 
 // --- Initial state from seed ---
 
@@ -87,6 +100,8 @@ function getInitialState(): AppState {
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
+    saveError: false,
+    sessionExpired: false,
   };
 }
 
@@ -165,6 +180,9 @@ export interface AppActions {
   setTags: (tags: Tag[]) => void;
 
   resetToSeed: () => void;
+
+  setSaveError: (val: boolean) => void;
+  setSessionExpired: (val: boolean) => void;
 }
 
 function generateId(): string {
@@ -197,10 +215,16 @@ export const useStore = create<AppState & AppActions>()(
       ),
     })),
 
-  addTask: (task) =>
+  addTask: (task) => {
+    const s = get();
+    if (s.tasks.length >= ENTITY_LIMITS.tasks) {
+      console.warn(`[useStore] Task limit (${ENTITY_LIMITS.tasks}) reached`);
+      return;
+    }
     set((s) => ({
       tasks: [...s.tasks, { ...task, id: generateId() }],
-    })),
+    }));
+  },
   updateTask: (id, updates) =>
     set((s) => ({
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
@@ -212,6 +236,11 @@ export const useStore = create<AppState & AppActions>()(
     })),
 
   addTimeBlock: (block) => {
+    const s = get();
+    if (s.timeBlocks.length >= ENTITY_LIMITS.timeBlocks) {
+      console.warn(`[useStore] Time block limit (${ENTITY_LIMITS.timeBlocks}) reached`);
+      return '';
+    }
     const id = generateId();
     set((s) => ({
       timeBlocks: [...s.timeBlocks, { ...block, id }],
@@ -474,6 +503,11 @@ export const useStore = create<AppState & AppActions>()(
   },
 
   addCalendarContainer: (c, opts) => {
+    const current = get();
+    if (current.calendarContainers.length >= ENTITY_LIMITS.calendarContainers) {
+      console.warn(`[useStore] Calendar limit (${ENTITY_LIMITS.calendarContainers}) reached`);
+      return '';
+    }
     const id = generateId();
     const generalId = generateId();
     set((s) => {
@@ -520,6 +554,11 @@ export const useStore = create<AppState & AppActions>()(
       };
     }),
   addCategory: (c) => {
+    const current = get();
+    if (current.categories.length >= ENTITY_LIMITS.categories) {
+      console.warn(`[useStore] Category limit (${ENTITY_LIMITS.categories}) reached`);
+      return { ...c, id: '' } as Category;
+    }
     const id = generateId();
     const newCategory: Category = { ...c, id };
     if (newCategory.calendarContainerId && (!newCategory.calendarContainerIds || newCategory.calendarContainerIds.length === 0)) {
@@ -540,6 +579,11 @@ export const useStore = create<AppState & AppActions>()(
       events: s.events.filter((e) => e.categoryId !== id),
     })),
   addTag: (t) => {
+    const current = get();
+    if (current.tags.length >= ENTITY_LIMITS.tags) {
+      console.warn(`[useStore] Tag limit (${ENTITY_LIMITS.tags}) reached`);
+      return { ...t, id: '' } as Tag;
+    }
     const id = generateId();
     const newTag: Tag = { ...t, id };
     set((s) => ({ tags: [...s.tags, newTag] }));
@@ -555,6 +599,11 @@ export const useStore = create<AppState & AppActions>()(
     })),
 
   addEvent: (e) => {
+    const s = get();
+    if (s.events.length >= ENTITY_LIMITS.events) {
+      console.warn(`[useStore] Event limit (${ENTITY_LIMITS.events}) reached`);
+      return '';
+    }
     const id = generateId();
     set((s) => ({ events: [...s.events, { ...e, id }] }));
     return id;
@@ -578,7 +627,14 @@ export const useStore = create<AppState & AppActions>()(
   },
 
   addEvents: (events) => {
-    const newEvents = events.map((e) => ({ ...e, id: generateId() }));
+    const s = get();
+    const headroom = ENTITY_LIMITS.events - s.events.length;
+    if (headroom <= 0) {
+      console.warn(`[useStore] Event limit (${ENTITY_LIMITS.events}) reached`);
+      return [];
+    }
+    const capped = events.slice(0, headroom);
+    const newEvents = capped.map((e) => ({ ...e, id: generateId() }));
     set((s) => ({ events: [...s.events, ...newEvents] }));
     return newEvents.map((e) => e.id);
   },
@@ -599,6 +655,9 @@ export const useStore = create<AppState & AppActions>()(
   setTags: (tags) => set({ tags }),
 
   resetToSeed: () => set(getInitialState()),
+
+  setSaveError: (val) => set({ saveError: val }),
+  setSessionExpired: (val) => set({ sessionExpired: val }),
 }))
 );
 

@@ -426,19 +426,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         onDragLeave={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragLeave : undefined}
         onDrop={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDrop : undefined}
       >
-        {/* Past/today overlays: single continuous block (no gaps), 30% tint for past */}
-        {mode === 'overall' && selectedDate < todayStr && (
-          <div
-            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
-            style={{ height: GRID_HEIGHT, backgroundColor: 'rgba(0,0,0,0.03)' }}
-          />
-        )}
-        {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop > 0 && (
-          <div
-            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
-            style={{ height: currentTimeTop, backgroundColor: 'rgba(0,0,0,0.03)' }}
-          />
-        )}
+        {/* Today green tint for future portion of current day */}
         {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (
           <div
             className="absolute left-14 md:left-20 right-0 pointer-events-none"
@@ -446,7 +434,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           />
         )}
 
-        {/* Grid: hour rows (lines only; fill is from overlays above so no gaps) */}
+        {/* Grid: hour rows */}
         {hours.map((hour) => (
           <div
             key={hour}

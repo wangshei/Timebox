@@ -46,7 +46,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
             error.message.toLowerCase().includes('already exists') ||
             error.message.toLowerCase().includes('user already')
           ) {
-            setMessage({ text: 'An account with this email already exists. Log in instead?', isError: true });
+            // Generic message to prevent account enumeration
+            setMessage({ text: 'If this email isn\'t already registered, we\'ll send a confirmation link. Otherwise, try logging in.', isError: true });
           } else {
             setMessage({ text: error.message, isError: true });
           }

@@ -178,6 +178,10 @@ export default function App() {
     applyTemplate,
     mergeTemplate,
     applyBlankSetup,
+    saveError,
+    sessionExpired,
+    setSaveError,
+    setSessionExpired,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -635,6 +639,7 @@ export default function App() {
   const handleResizeBlock = (blockId: string, params: { date: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
+    if (parseTimeToMins(params.endTime) <= parseTimeToMins(block.start)) return;
     if (block.mode === 'recorded') {
       if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
     }
@@ -642,12 +647,14 @@ export default function App() {
   };
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
+    if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
     updateEvent(eventId, { date: params.date, start: params.startTime, end: params.endTime });
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
+    if (parseTimeToMins(params.endTime) <= parseTimeToMins(event.start)) return;
     updateEvent(eventId, { date: params.date, end: params.endTime });
   };
 
@@ -683,6 +690,9 @@ export default function App() {
         unsubscribePersistence = undefined;
       }
       if (next) {
+        // Clear stale error flags on fresh sign-in
+        setSessionExpired(false);
+        setSaveError(false);
         // Start persistence subscription BEFORE loading so that the store
         // changes made by loadSupabaseState (e.g. default Personal calendar)
         // are captured and saved to Supabase.
@@ -819,6 +829,40 @@ export default function App() {
             className="px-2 py-1 rounded border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 transition-colors"
           >
             Sign in
+          </button>
+        </div>
+      )}
+
+      {/* Session expired banner */}
+      {sessionExpired && session === null && !visitMode && (
+        <div className="w-full border-b px-4 py-1.5 flex items-center justify-between text-xs" style={{ borderColor: 'rgba(255,59,48,0.25)', backgroundColor: 'rgba(255,59,48,0.05)' }}>
+          <span style={{ color: '#B85050' }} className="font-medium">
+            Session expired — sign in again to save your changes.
+          </span>
+          <button
+            type="button"
+            onClick={() => { setSessionExpired(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
+            className="px-2 py-1 rounded font-medium transition-colors"
+            style={{ border: '1px solid rgba(255,59,48,0.25)', color: '#B85050' }}
+          >
+            Sign in
+          </button>
+        </div>
+      )}
+
+      {/* Save error banner */}
+      {saveError && !sessionExpired && session && (
+        <div className="w-full border-b px-4 py-1.5 flex items-center justify-between text-xs" style={{ borderColor: 'rgba(255,149,0,0.3)', backgroundColor: 'rgba(255,149,0,0.06)' }}>
+          <span style={{ color: '#996300' }} className="font-medium">
+            Changes couldn't be saved — check your connection. We'll retry automatically.
+          </span>
+          <button
+            type="button"
+            onClick={() => setSaveError(false)}
+            className="px-2 py-1 rounded font-medium transition-colors"
+            style={{ border: '1px solid rgba(255,149,0,0.3)', color: '#996300' }}
+          >
+            Dismiss
           </button>
         </div>
       )}

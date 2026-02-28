@@ -9,7 +9,7 @@ export function generateRecurrenceDates(
   startDate: string,
   pattern: RecurrencePattern,
   recurrenceDays?: number[],
-  maxInstances = 365
+  maxInstances = 52
 ): string[] {
   if (pattern === 'none') return [startDate];
 

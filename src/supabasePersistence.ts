@@ -370,6 +370,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   if (errors.length > 0) {
     // eslint-disable-next-line no-console
     console.error(`[supabasePersistence] Save had ${errors.length} upsert error(s) — skipping orphan cleanup`, errors);
+    useStore.getState().setSaveError(true);
     return;
   }
 
@@ -469,6 +470,7 @@ export function startSupabasePersistence() {
     if (!userId) {
       // eslint-disable-next-line no-console
       console.warn('[supabasePersistence] Skipping save — not signed in.');
+      useStore.getState().setSessionExpired(true);
       saving = false;
       return;
     }
@@ -477,9 +479,12 @@ export function startSupabasePersistence() {
     try {
       await saveSupabaseStateForUser(userId, slice);
       lastSaveCompletedAt = Date.now();
+      // Clear any previous error on success
+      if (useStore.getState().saveError) useStore.getState().setSaveError(false);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[supabasePersistence] Save error', e);
+      useStore.getState().setSaveError(true);
     } finally {
       // If the store changed while we were saving, save the latest state now.
       if (pendingSlice) {

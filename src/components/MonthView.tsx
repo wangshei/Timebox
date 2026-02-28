@@ -15,13 +15,11 @@ interface MonthViewProps {
   events?: Event[];
 }
 
-const BG_PAST = 'rgba(0,0,0,0.03)';
 const BG_TODAY = 'rgba(141,162,134,0.08)';
 
 export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [] }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const todayStr = getLocalDateString(new Date());
 
   // Get first day of month
   const firstDay = new Date(year, month, 1);
@@ -96,8 +94,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           const dateStr = formatDate(day.date);
           const dayEvents = events.filter(e => e.date === dateStr);
           const today = isToday(day.date);
-          const isPast = dateStr < todayStr;
-          const dayBg = isPast ? BG_PAST : today ? BG_TODAY : undefined;
+          const dayBg = today ? BG_TODAY : undefined;
           const plannedBlocks = blocks.filter(b => b.mode === 'planned');
           const recordedBlocks = blocks.filter(b => b.mode === 'recorded');
           const allItems = [...blocks.map(b => ({ ...b, _type: 'block' as const })), ...dayEvents.map(e => ({ ...e, _type: 'event' as const }))];

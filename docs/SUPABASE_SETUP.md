@@ -78,7 +78,11 @@ create table if not exists tasks (
   status text,
   due_date text,  -- optional YYYY-MM-DD
   link text,      -- optional URL
-  description text  -- optional notes
+  description text, -- optional notes
+  notes text,       -- quick inline notes
+  priority integer, -- 1–5 (higher = more important)
+  pinned boolean not null default false,
+  emoji text
 );
 
 create table if not exists time_blocks (
@@ -93,9 +97,13 @@ create table if not exists time_blocks (
   "end" text not null,
   date text not null,
   mode text not null,   -- 'planned' | 'recorded'
-  source text not null,  -- 'manual' | 'autoAssumed'
+  source text not null,  -- 'manual' | 'autoAssumed' | 'unplanned'
+  confirmation_status text, -- 'pending' | 'confirmed' | 'skipped'
+  recorded_start text,  -- actual start if different from planned (HH:mm)
+  recorded_end text,    -- actual end if different from planned (HH:mm)
   link text,
-  description text
+  description text,
+  notes text            -- quick inline notes
 );
 
 create table if not exists events (
@@ -112,7 +120,8 @@ create table if not exists events (
   recurrence_days integer[],  -- for custom: 0=Sun..6=Sat
   recurrence_series_id uuid,  -- for "all after" edits: id of first event in series
   link text,
-  description text
+  description text,
+  notes text            -- quick inline notes
 );
 
 -- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
@@ -124,6 +133,16 @@ create table if not exists user_settings (
 
 comment on column user_settings.timezone is 'IANA timezone e.g. America/Los_Angeles; used for date/time display and "today" logic';
 comment on column user_settings.has_completed_setup is 'Whether the user has completed onboarding (template/migration modal); prevents "new template" modal on every refresh.';
+
+-- Bug reports (from in-app "Report a bug"); no user_id — RLS allows INSERT only so users cannot read others' reports
+create table if not exists bug_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_email text,
+  description text not null,
+  created_at timestamptz not null default now()
+);
+
+comment on table bug_reports is 'User-submitted bug reports; app only inserts. View in Dashboard → Table Editor.';
 ```
 
 > **Note:** The app generates IDs with `crypto.randomUUID()`, which is compatible with `uuid` columns.
@@ -156,6 +175,34 @@ alter table events add column if not exists description text;
 
 -- User settings: onboarding completed (stops "new template" modal on refresh)
 alter table user_settings add column if not exists has_completed_setup boolean not null default false;
+
+-- Tasks: notes, priority, pinned, emoji
+alter table tasks add column if not exists notes text;
+alter table tasks add column if not exists priority integer;
+alter table tasks add column if not exists pinned boolean not null default false;
+alter table tasks add column if not exists emoji text;
+
+-- Time blocks: confirmation workflow + notes
+alter table time_blocks add column if not exists confirmation_status text;
+alter table time_blocks add column if not exists recorded_start text;
+alter table time_blocks add column if not exists recorded_end text;
+alter table time_blocks add column if not exists notes text;
+
+-- Events: notes
+alter table events add column if not exists notes text;
+
+-- Bug reports table (if not created with base schema)
+create table if not exists bug_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_email text,
+  description text not null,
+  created_at timestamptz not null default now()
+);
+alter table bug_reports enable row level security;
+create policy if not exists "Authenticated can insert bug_reports"
+  on bug_reports for insert to authenticated with check (true);
+create policy if not exists "Anon can insert bug_reports"
+  on bug_reports for insert to anon with check (true);
 ```
 
 **Categories on multiple calendars:** To let a category appear on more than one calendar, ensure the `categories` table has the column `calendar_container_ids`. Run this in the Supabase SQL Editor if you haven’t already:
@@ -184,6 +231,7 @@ alter table tasks enable row level security;
 alter table time_blocks enable row level security;
 alter table events enable row level security;
 alter table user_settings enable row level security;
+alter table bug_reports enable row level security;
 
 -- IMPORTANT: You must create policies for EVERY table below.
 -- If RLS is enabled but no policies exist, ALL operations are denied by default.
@@ -257,9 +305,20 @@ create policy "Users can write own user_settings"
   on user_settings for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- bug_reports: allow INSERT only (no SELECT so users cannot read others' reports). Anon + authenticated so reports work before sign-in.
+create policy "Authenticated can insert bug_reports"
+  on bug_reports for insert
+  to authenticated
+  with check (true);
+
+create policy "Anon can insert bug_reports"
+  on bug_reports for insert
+  to anon
+  with check (true);
 ```
 
-This matches the queries in `src/supabasePersistence.ts`, which always filter by `user_id`.
+This matches the queries in `src/supabasePersistence.ts`, which always filter by `user_id`. The `bug_reports` table is insert-only for the app; view submissions in Supabase Dashboard → Table Editor → bug_reports.
 
 ---
 
@@ -338,6 +397,20 @@ alter publication supabase_realtime add table user_settings;
 
 > **Note:** If the publication already includes a table you'll get an "already a member" error — that's fine, skip it.
 > After adding tables, the app will detect remote changes within ~1 second and reload silently.
+
+---
+
+## 5. Indexes (recommended for performance)
+
+Add indexes on columns used in range queries so loading stays fast as data grows:
+
+```sql
+create index if not exists idx_time_blocks_user_date on time_blocks (user_id, date);
+create index if not exists idx_events_user_date on events (user_id, date);
+create index if not exists idx_tasks_user on tasks (user_id);
+create index if not exists idx_categories_user on categories (user_id);
+create index if not exists idx_tags_user on tags (user_id);
+```
 
 ---
 
