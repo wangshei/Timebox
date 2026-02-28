@@ -54,10 +54,12 @@ export function SettingsSidePanel({
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory.name.trim()) return;
+    const calId = newCategory.calendarContainerId || undefined;
     onAddCategory({
       name: newCategory.name.trim(),
       color: newCategory.color || '#6b7280',
-      calendarContainerId: newCategory.calendarContainerId || undefined,
+      calendarContainerId: calId,
+      calendarContainerIds: calId ? [calId] : undefined,
     });
     setNewCategory({ name: '', color: '#6b7280', calendarContainerId: null });
   };
@@ -240,7 +242,10 @@ export function SettingsSidePanel({
         calendarContainers={calendarContainers}
         initialCalendarContainerId={categories.find((c) => c.id === editingCategoryId)?.calendarContainerId}
         onSave={(name, color, calendarContainerId) => {
-          if (editingCategoryId) onUpdateCategory(editingCategoryId, { name, color, calendarContainerId: calendarContainerId ?? undefined });
+          if (editingCategoryId) {
+            const calId = calendarContainerId ?? undefined;
+            onUpdateCategory(editingCategoryId, { name, color, calendarContainerId: calId, calendarContainerIds: calId ? [calId] : undefined });
+          }
           setEditingCategoryId(null);
         }}
       />

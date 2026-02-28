@@ -104,6 +104,14 @@ export function AddModal({
     { id: 'school', name: 'School', color: '#EC8309' },
   ];
   const calendars = calendarContainers.length > 0 ? calendarContainers : defaultCalendars;
+  const getCategoriesForCalendar = (calId: string): Category[] =>
+    categories.filter(
+      (c) =>
+        c.calendarContainerId === calId ||
+        (c.calendarContainerIds && c.calendarContainerIds.length > 0 && c.calendarContainerIds.includes(calId))
+    );
+  const firstCategoryForCalendar = (calId: string): Category | null =>
+    getCategoriesForCalendar(calId)[0] ?? null;
   const [selectedCalendar, setSelectedCalendar] = useState(calendars[0]?.id ?? 'personal');
   const [dueDate, setDueDate] = useState<string>('');
   const [link, setLink] = useState<string>('');
@@ -178,7 +186,7 @@ export function AddModal({
       setMode('task');
       setTitle(editingTask.title);
       setEstimatedHours(Math.round((editingTask.estimatedMinutes / 60) * 10) / 10);
-      setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? (categories[0] || null));
+      setSelectedCategory(categories.find(c => c.id === editingTask.categoryId) ?? firstCategoryForCalendar(editingTask.calendarContainerId) ?? null);
       setSelectedTags(tags.filter(t => editingTask.tagIds.includes(t.id)));
       setSelectedCalendar(editingTask.calendarContainerId);
       setDueDate(editingTask.dueDate ?? '');
@@ -197,7 +205,7 @@ export function AddModal({
       setDate(editingTimeBlock.date);
       setStartTime(editingTimeBlock.start);
       setEndTime(editingTimeBlock.end);
-      setSelectedCategory(categories.find((c) => c.id === editingTimeBlock.categoryId) ?? (categories[0] || null));
+      setSelectedCategory(categories.find((c) => c.id === editingTimeBlock.categoryId) ?? firstCategoryForCalendar(editingTimeBlock.calendarContainerId) ?? null);
       setSelectedTags(tags.filter((t) => editingTimeBlock.tagIds.includes(t.id)));
       setSelectedCalendar(editingTimeBlock.calendarContainerId);
       setLink(editingTimeBlock.link ?? '');
@@ -215,7 +223,7 @@ export function AddModal({
       setDate(editingEvent.date);
       setStartTime(editingEvent.start);
       setEndTime(editingEvent.end);
-      setSelectedCategory(categories.find((c) => c.id === editingEvent.categoryId) ?? (categories[0] || null));
+      setSelectedCategory(categories.find((c) => c.id === editingEvent.categoryId) ?? firstCategoryForCalendar(editingEvent.calendarContainerId) ?? null);
       setSelectedTags([]);
       setSelectedCalendar(editingEvent.calendarContainerId);
       setRecurrencePattern(editingEvent.recurrencePattern ?? 'none');
@@ -237,6 +245,16 @@ export function AddModal({
     }
   }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent]);
 
+  // Keep category in sync with selected calendar: when opening for new event/task, or when user changes calendar, use first category for that calendar.
+  useEffect(() => {
+    if (!isOpen || editingTask || editingTimeBlock || editingEvent) return;
+    const first = firstCategoryForCalendar(selectedCalendar);
+    setSelectedCategory((prev) => {
+      const belongs = prev && getCategoriesForCalendar(selectedCalendar).some((c) => c.id === prev.id);
+      return belongs ? prev : first ?? prev;
+    });
+  }, [isOpen, selectedCalendar, editingTask, editingTimeBlock, editingEvent, categories]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -248,12 +266,9 @@ export function AddModal({
       return;
     }
 
-    // Category is always committed immediately via the inline "+" form (or pre-selected)
+    // Category: use selected, or first category that belongs to the selected calendar
     const categoryToUse: Category | null =
-      selectedCategory ??
-      categories.find((c) => c.calendarContainerId === fallbackCalendar) ??
-      categories.find((c) => c.calendarContainerIds?.includes(fallbackCalendar)) ??
-      null;
+      selectedCategory ?? firstCategoryForCalendar(fallbackCalendar) ?? null;
     if (!categoryToUse) return;
 
     // Tags are committed immediately via the inline "+" form or pill toggle

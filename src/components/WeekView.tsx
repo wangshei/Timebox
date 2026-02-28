@@ -358,6 +358,14 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         </div>
                       ))}
 
+                      {/* Past section background: light gray for past days/slots */}
+                      {dateStr < todayStr && (
+                        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: '#ebebeb' }} />
+                      )}
+                      {today && currentTimeTop != null && currentTimeTop > 0 && (
+                        <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ height: currentTimeTop, backgroundColor: '#ebebeb' }} />
+                      )}
+
                       {/* Blocks + events */}
                       <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                         {(() => {

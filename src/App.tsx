@@ -568,10 +568,15 @@ export default function App() {
       containerId = useStore.getState().calendarContainers[0]?.id;
       if (!containerId) return undefined;
     }
-    let categoryId = categories[0]?.id;
+    const categoriesForContainer = categories.filter(
+      (c) =>
+        c.calendarContainerId === containerId ||
+        (c.calendarContainerIds && c.calendarContainerIds.length > 0 && c.calendarContainerIds.includes(containerId))
+    );
+    let categoryId = categoriesForContainer[0]?.id ?? categories[0]?.id;
     if (!categoryId) {
       // No categories exist — create a default one so drag-to-create works.
-      const newCat = addCategory({ name: 'General', color: '#6b7280', calendarContainerId: containerId });
+      const newCat = addCategory({ name: 'General', color: '#6b7280', calendarContainerId: containerId, calendarContainerIds: [containerId] });
       categoryId = newCat.id;
     }
     if (!categoryId) return undefined;

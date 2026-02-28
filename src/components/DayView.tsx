@@ -432,8 +432,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           const isPastSlot =
             mode === 'overall' &&
             (selectedDate < todayStr || (selectedDate === todayStr && slotEndMins <= nowMins));
+          const isTodayFutureSlot = mode === 'overall' && selectedDate === todayStr && !isPastSlot;
           const isHalfHour = false; // placeholder, used below
           void isHalfHour;
+          const slotBg =
+            isPastSlot ? '#ebebeb'
+            : isTodayFutureSlot ? 'rgba(141,162,134,0.05)'
+            : 'transparent';
           return (
             <div
               key={hour}
@@ -453,13 +458,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                       ? `${hour - 12}pm`
                       : `${hour}am`}
               </div>
-              {/* Hour line + optional past-slot fill */}
+              {/* Hour line + past/today/future slot fill */}
               <div
                 className="absolute left-14 md:left-20 right-0 top-0"
                 style={{
                   height: PX_PER_HOUR,
                   borderTop: '1px solid rgba(0,0,0,0.07)',
-                  backgroundColor: isPastSlot ? 'rgba(0,0,0,0.025)' : 'transparent',
+                  backgroundColor: slotBg,
                 }}
               />
               {/* Half-hour line */}

@@ -42,10 +42,14 @@ export function OrganizationTree({
   const categoriesByCalendar = new Map<string, Category[]>();
   const ungroupedCategories: Category[] = [];
   categories.forEach((c) => {
-    const calId = c.calendarContainerId ?? undefined;
-    if (calId) {
-      if (!categoriesByCalendar.has(calId)) categoriesByCalendar.set(calId, []);
-      categoriesByCalendar.get(calId)!.push(c);
+    const calIds = (c.calendarContainerIds && c.calendarContainerIds.length > 0)
+      ? c.calendarContainerIds
+      : (c.calendarContainerId ? [c.calendarContainerId] : []);
+    if (calIds.length > 0) {
+      calIds.forEach((calId) => {
+        if (!categoriesByCalendar.has(calId)) categoriesByCalendar.set(calId, []);
+        categoriesByCalendar.get(calId)!.push(c);
+      });
     } else {
       ungroupedCategories.push(c);
     }

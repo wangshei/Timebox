@@ -404,9 +404,9 @@ export function EventCard({
                     <button
                       type="button"
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
-                      style={{ color: THEME.textSecondary, border: '1.5px solid rgba(0,0,0,0.09)', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.18)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
+                      style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEditEvent(event.id);
@@ -422,9 +422,9 @@ export function EventCard({
                     <button
                       type="button"
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
-                      style={{ color: '#B85050', border: '1.5px solid rgba(184,80,80,0.18)', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                      style={{ color: '#B85050', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.recurring && event.recurrenceSeriesId && onDeleteEventSeries) {

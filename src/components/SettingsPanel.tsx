@@ -77,7 +77,12 @@ export function SettingsPanel({
     if (activeTab === 'calendars' && onUpdateCalendar) {
       onUpdateCalendar(editingId, { name: editName, color: editColor });
     } else if (activeTab === 'categories' && onUpdateCategory) {
-      onUpdateCategory(editingId, { name: editName, color: editColor, calendarContainerIds: editCalendarIds.length > 0 ? editCalendarIds : undefined });
+      onUpdateCategory(editingId, {
+        name: editName,
+        color: editColor,
+        calendarContainerId: editCalendarIds.length > 0 ? editCalendarIds[0] : undefined,
+        calendarContainerIds: editCalendarIds.length > 0 ? editCalendarIds : undefined,
+      });
     } else if (activeTab === 'tags' && onUpdateTag) {
       onUpdateTag(editingId, { name: editName });
     }

@@ -15,9 +15,13 @@ interface MonthViewProps {
   events?: Event[];
 }
 
+const BG_PAST = '#ebebeb';
+const BG_TODAY = 'rgba(141,162,134,0.08)';
+
 export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [] }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const todayStr = getLocalDateString(new Date());
 
   // Get first day of month
   const firstDay = new Date(year, month, 1);
@@ -92,6 +96,8 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           const dateStr = formatDate(day.date);
           const dayEvents = events.filter(e => e.date === dateStr);
           const today = isToday(day.date);
+          const isPast = dateStr < todayStr;
+          const dayBg = isPast ? BG_PAST : today ? BG_TODAY : undefined;
           const plannedBlocks = blocks.filter(b => b.mode === 'planned');
           const recordedBlocks = blocks.filter(b => b.mode === 'recorded');
           const allItems = [...blocks.map(b => ({ ...b, _type: 'block' as const })), ...dayEvents.map(e => ({ ...e, _type: 'event' as const }))];
@@ -100,9 +106,12 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           return (
             <div
               key={index}
-              className={`bg-white min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer hover:bg-neutral-50 relative ${
+              className={`min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer relative ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
-              } ${today ? 'bg-blue-50' : ''}`}
+              }`}
+              style={{ backgroundColor: dayBg ?? '#ffffff' }}
+              onMouseEnter={(e) => { if (!dayBg) e.currentTarget.style.backgroundColor = '#fafafa'; }}
+              onMouseLeave={(e) => { if (!dayBg) e.currentTarget.style.backgroundColor = '#ffffff'; }}
               onClick={() => onSelectDate?.(formatDate(day.date))}
             >
               {/* Current day indicator — red line on left for today */}

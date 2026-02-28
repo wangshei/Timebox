@@ -522,6 +522,9 @@ export const useStore = create<AppState & AppActions>()(
   addCategory: (c) => {
     const id = generateId();
     const newCategory: Category = { ...c, id };
+    if (newCategory.calendarContainerId && (!newCategory.calendarContainerIds || newCategory.calendarContainerIds.length === 0)) {
+      newCategory.calendarContainerIds = [newCategory.calendarContainerId];
+    }
     set((s) => ({ categories: [...s.categories, newCategory] }));
     return newCategory;
   },
