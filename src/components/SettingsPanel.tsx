@@ -10,7 +10,7 @@ interface SettingsPanelProps {
   calendarContainers: CalendarContainer[];
   categories: Category[];
   tags: Tag[];
-  onAddCalendar: (c: Omit<CalendarContainer, 'id'>) => void;
+  onAddCalendar: (c: Omit<CalendarContainer, 'id'>, opts?: { skipAutoGeneral?: boolean }) => string;
   onUpdateCalendar: (id: string, u: Partial<CalendarContainer>) => void;
   onDeleteCalendar: (id: string) => void;
   onAddCategory: (c: Omit<Category, 'id'>) => void;

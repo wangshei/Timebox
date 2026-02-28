@@ -33,6 +33,11 @@ import {
   initialTimeBlocks as seedTimeBlocks,
   initialTasks as seedTasks,
 } from '../data/seed';
+import {
+  DEFAULT_TEMPLATE,
+  GENERAL_CATEGORY_COLOR,
+  BLANK_PERSONAL_COLOR,
+} from '../data/templates';
 
 // --- State shape ---
 
@@ -50,6 +55,10 @@ export interface AppState {
   selectedDate: string; // YYYY-MM-DD
   containerVisibility: CalendarContainerVisibility;
   defaultBlockMinutes: number;
+  // Onboarding
+  hasCompletedSetup: boolean;
+  userName: string;
+  onboardingTourComplete: boolean;
 }
 
 // --- Initial state from seed ---
@@ -75,6 +84,9 @@ function getInitialState(): AppState {
     selectedDate: getLocalDateString(),
     containerVisibility: visibility,
     defaultBlockMinutes: 60,
+    hasCompletedSetup: false,
+    userName: '',
+    onboardingTourComplete: false,
   };
 }
 
@@ -113,7 +125,18 @@ export interface AppActions {
   markDidSomethingElse: (plannedBlockId: string, recorded: Omit<TimeBlock, 'id' | 'mode' | 'source'>) => void;
   endDay: (date: string) => void;
 
-  addCalendarContainer: (c: Omit<CalendarContainer, 'id'>) => void;
+  // Onboarding
+  setHasCompletedSetup: (val: boolean) => void;
+  setUserName: (name: string) => void;
+  setOnboardingTourComplete: (val: boolean) => void;
+  /** New user: clears seed data and applies the default template fresh. */
+  applyTemplate: () => void;
+  /** Existing user (migration): adds template calendars/categories that don't already exist. */
+  mergeTemplate: () => void;
+  /** New user: clears seed data and sets up a bare Personal calendar. */
+  applyBlankSetup: () => void;
+
+  addCalendarContainer: (c: Omit<CalendarContainer, 'id'>, opts?: { skipAutoGeneral?: boolean }) => string;
   updateCalendarContainer: (id: string, updates: Partial<CalendarContainer>) => void;
   deleteCalendarContainer: (id: string) => void;
   addCategory: (c: Omit<Category, 'id'>) => Category;
@@ -128,6 +151,13 @@ export interface AppActions {
   deleteEvent: (id: string) => void;
   /** Atomically delete a time block and create an event in a single state update. */
   convertTimeBlockToEvent: (blockId: string, event: Omit<Event, 'id'>) => string;
+
+  /** Add multiple events in a single state update. Returns array of new IDs. */
+  addEvents: (events: Omit<Event, 'id'>[]) => string[];
+  /** Update multiple events in a single state update. */
+  updateEvents: (updates: Array<{ id: string; changes: Partial<Event> }>) => void;
+  /** Delete multiple events in a single state update. */
+  deleteEvents: (ids: string[]) => void;
 
   /** Replace organization data (for Revert in settings). */
   setCalendarContainers: (containers: CalendarContainer[]) => void;
@@ -356,12 +386,116 @@ export const useStore = create<AppState & AppActions>()(
     get().batchConfirmDay(date);
   },
 
-  addCalendarContainer: (c) => {
-    const id = generateId();
-    set((s) => ({
-      calendarContainers: [...s.calendarContainers, { ...c, id }],
-      containerVisibility: { ...s.containerVisibility, [id]: true },
+  setHasCompletedSetup: (val) => set({ hasCompletedSetup: val }),
+  setUserName: (name) => set({ userName: name }),
+  setOnboardingTourComplete: (val) => set({ onboardingTourComplete: val }),
+
+  applyTemplate: () => {
+    const tmpl = DEFAULT_TEMPLATE;
+    const containerMap: Record<string, string> = {};
+    const containers: CalendarContainer[] = tmpl.calendars.map((cal) => {
+      const id = generateId();
+      containerMap[cal.templateId] = id;
+      return { id, name: cal.name, color: cal.color };
+    });
+    const categories: Category[] = tmpl.categories.map((cat) => ({
+      id: generateId(),
+      name: cat.name,
+      color: cat.color,
+      calendarContainerId: containerMap[cat.calendarTemplateId] ?? null,
     }));
+    const visibility: CalendarContainerVisibility = {};
+    containers.forEach((c) => { visibility[c.id] = true; });
+    set({ calendarContainers: containers, categories, tags: [], containerVisibility: visibility });
+  },
+
+  mergeTemplate: () => {
+    const tmpl = DEFAULT_TEMPLATE;
+    set((s) => {
+      const containerMap: Record<string, string> = {};
+      const newContainers: CalendarContainer[] = [];
+
+      tmpl.calendars.forEach((cal) => {
+        const existing = s.calendarContainers.find(
+          (c) => c.name.toLowerCase() === cal.name.toLowerCase()
+        );
+        if (existing) {
+          containerMap[cal.templateId] = existing.id;
+        } else {
+          const id = generateId();
+          newContainers.push({ id, name: cal.name, color: cal.color });
+          containerMap[cal.templateId] = id;
+        }
+      });
+
+      const newCategories: Category[] = [];
+      tmpl.categories.forEach((cat) => {
+        const targetCalendarId = containerMap[cat.calendarTemplateId];
+        const alreadyExists = s.categories.some(
+          (c) =>
+            c.name.toLowerCase() === cat.name.toLowerCase() &&
+            c.calendarContainerId === targetCalendarId
+        );
+        if (!alreadyExists) {
+          newCategories.push({
+            id: generateId(),
+            name: cat.name,
+            color: cat.color,
+            calendarContainerId: targetCalendarId ?? null,
+          });
+        }
+      });
+
+      const newVisibility = { ...s.containerVisibility };
+      newContainers.forEach((c) => { newVisibility[c.id] = true; });
+
+      return {
+        calendarContainers: [...s.calendarContainers, ...newContainers],
+        categories: [...s.categories, ...newCategories],
+        containerVisibility: newVisibility,
+      };
+    });
+  },
+
+  applyBlankSetup: () => {
+    const calId = generateId();
+    const catId = generateId();
+    set({
+      calendarContainers: [{ id: calId, name: 'Personal', color: BLANK_PERSONAL_COLOR }],
+      categories: [{
+        id: catId,
+        name: 'General',
+        color: GENERAL_CATEGORY_COLOR,
+        calendarContainerId: calId,
+      }],
+      tags: [],
+      containerVisibility: { [calId]: true },
+    });
+  },
+
+  addCalendarContainer: (c, opts) => {
+    const id = generateId();
+    const generalId = generateId();
+    set((s) => {
+      const newCats =
+        opts?.skipAutoGeneral
+          ? s.categories
+          : [
+              ...s.categories,
+              {
+                id: generalId,
+                name: 'General',
+                color: GENERAL_CATEGORY_COLOR,
+                calendarContainerId: id,
+              },
+            ];
+      return {
+        calendarContainers: [...s.calendarContainers, { ...c, id }],
+        containerVisibility: { ...s.containerVisibility, [id]: true },
+        categories: newCats,
+      };
+    });
+    return id;
   },
   updateCalendarContainer: (id, updates) =>
     set((s) => ({
@@ -430,6 +564,23 @@ export const useStore = create<AppState & AppActions>()(
     return eventId;
   },
 
+  addEvents: (events) => {
+    const newEvents = events.map((e) => ({ ...e, id: generateId() }));
+    set((s) => ({ events: [...s.events, ...newEvents] }));
+    return newEvents.map((e) => e.id);
+  },
+  updateEvents: (updates) =>
+    set((s) => ({
+      events: s.events.map((e) => {
+        const u = updates.find((u) => u.id === e.id);
+        return u ? { ...e, ...u.changes } : e;
+      }),
+    })),
+  deleteEvents: (ids) =>
+    set((s) => ({
+      events: s.events.filter((e) => !ids.includes(e.id)),
+    })),
+
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),
   setCategories: (categories) => set({ categories }),
   setTags: (tags) => set({ tags }),
@@ -456,6 +607,9 @@ type PersistedSlice = Pick<
   | 'selectedDate'
   | 'containerVisibility'
   | 'defaultBlockMinutes'
+  | 'hasCompletedSetup'
+  | 'userName'
+  | 'onboardingTourComplete'
 >;
 
 /** Hydrate store from localStorage on app startup (no-op on server). */
@@ -494,6 +648,9 @@ export function startLocalStoragePersistence() {
       selectedDate: state.selectedDate,
       containerVisibility: state.containerVisibility,
       defaultBlockMinutes: state.defaultBlockMinutes,
+      hasCompletedSetup: state.hasCompletedSetup,
+      userName: state.userName,
+      onboardingTourComplete: state.onboardingTourComplete,
     }),
     (slice) => {
       try {

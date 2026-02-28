@@ -21,7 +21,7 @@ interface LeftSidebarProps {
   visibility: CalendarContainerVisibility;
   onToggleVisibility: (containerId: string) => void;
   onUpdateCalendar: (id: string, u: Partial<CalendarContainer>) => void;
-  onAddCalendar: (c: Omit<CalendarContainer, 'id'>) => void;
+  onAddCalendar: (c: Omit<CalendarContainer, 'id'>, opts?: { skipAutoGeneral?: boolean }) => string;
   onDeleteCalendar: (id: string) => void;
   onUpdateCategory: (id: string, u: Partial<Category>) => void;
   onAddCategory: (c: Omit<Category, 'id'>) => void;
@@ -377,9 +377,9 @@ export function LeftSidebar({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+    <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
       {/* Scrollable list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
+      <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
         {calendarContainers.map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
           const isExpanded = expandedCalendars.has(calendar.id);
