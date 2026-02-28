@@ -19,7 +19,7 @@ export interface ResolvedTimeBlock {
   end: string;
   date: string;
   mode: 'planned' | 'recorded';
-  source: 'manual' | 'autoAssumed';
+  source: 'manual' | 'autoAssumed' | 'unplanned';
   calendarContainer: CalendarContainer;
   /** Priority inherited from linked Task (1–5), undefined if unset. */
   priority?: number;
@@ -91,6 +91,8 @@ export interface ResolvedEvent {
   link?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** Origin: 'unplanned' = created from actual panel, absent/undefined = planned. */
+  source?: 'manual' | 'unplanned';
 }
 
 export function resolveEvent(

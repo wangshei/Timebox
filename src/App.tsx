@@ -373,13 +373,17 @@ export default function App() {
     // If we were editing a draft timeBlock (from drag-to-create),
     // atomically convert it to an event (or series) in a single state change.
     if (isDraftTimeBlock && editingTimeBlockId) {
+      // Preserve source from draft block so actual-panel events stay out of plan panel
+      const draftBlock = timeBlocks.find((b) => b.id === editingTimeBlockId);
+      const draftSource = draftBlock?.source === 'unplanned' ? ('unplanned' as const) : undefined;
+      const payloadWithSource = { ...eventPayload, source: draftSource };
       if (isRecurring) {
         const seriesId = crypto.randomUUID();
         const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
         deleteTimeBlock(editingTimeBlockId);
-        addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
+        addEvents(dates.map((date) => ({ ...payloadWithSource, date, recurrenceSeriesId: seriesId })));
       } else {
-        convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+        convertTimeBlockToEvent(editingTimeBlockId, payloadWithSource);
       }
       setEditingTimeBlockId(null);
       setIsDraftTimeBlock(false);
@@ -1666,6 +1670,8 @@ export default function App() {
                 recurrenceDays: u.recurrenceDays,
                 link: updates.link ?? block.link ?? undefined,
                 description: updates.description ?? block.description ?? undefined,
+                // Preserve source so actual-panel events stay out of plan panel
+                source: block.source === 'unplanned' ? ('unplanned' as const) : undefined,
               };
               if (isRecurring) {
                 const seriesId = crypto.randomUUID();

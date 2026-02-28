@@ -117,6 +117,8 @@ export interface Event {
   description?: string | null;
   /** Quick inline notes — shown in the detail popup. */
   notes?: string | null;
+  /** Origin: 'manual' = planned, 'unplanned' = added from actual/recorded panel. */
+  source?: 'manual' | 'unplanned';
 }
 
 export interface User {

@@ -212,6 +212,7 @@ export async function loadSupabaseState() {
         link: e.link ?? null,
         description: e.description ?? null,
         notes: (e as any).notes ?? null,
+        source: (e as any).source ?? undefined,
       })
     ),
     };
@@ -361,6 +362,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         link: e.link ?? null,
         description: e.description ?? null,
         notes: e.notes ?? null,
+        source: e.source ?? null,
       })),
       { onConflict: 'id' }
     ));
