@@ -560,7 +560,7 @@ function TimeBlockCardInner({
 
     return (
       <div
-        className={cn('absolute pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+        className={cn('absolute overflow-hidden pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
@@ -691,7 +691,7 @@ function TimeBlockCardInner({
   return (
     <div
       ref={blockRef}
-      className={cn('absolute group pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+      className={cn('absolute overflow-hidden group pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
@@ -735,13 +735,13 @@ function TimeBlockCardInner({
           </div>
         ) : (
           /* small+: title at top, meta + tags below */
-          <div className="flex flex-col justify-between h-full min-w-0" style={{ padding: fullPadding }}>
+          <div className="flex flex-col justify-between h-full min-w-0 overflow-hidden" style={{ padding: fullPadding }}>
             {/* Title row */}
-            <div className="flex items-start" style={{ gap: 2 }}>
+            <div className="flex items-start min-w-0 overflow-hidden" style={{ gap: 2 }}>
               <span
                 className={cn(
                   isTask ? 'font-semibold' : 'font-medium',
-                  'leading-snug min-w-0',
+                  'leading-snug min-w-0 truncate',
                   isTask && confirmed && 'line-through decoration-current/40',
                 )}
                 style={{
@@ -749,6 +749,7 @@ function TimeBlockCardInner({
                   color: getTitleColor(),
                   textDecorationSkipInk: 'none',
                   overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   wordBreak: 'break-word',
                 }}
               >

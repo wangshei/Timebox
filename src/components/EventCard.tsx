@@ -177,7 +177,7 @@ export function EventCard({
     <div
       ref={cardRef}
       className={cn(
-        'absolute w-full min-w-0 pointer-events-auto group',
+        'absolute w-full min-w-0 overflow-hidden pointer-events-auto group',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       )}
       style={style}
@@ -192,8 +192,7 @@ export function EventCard({
     >
       <div
         className={cn(
-          'h-full w-full px-3 py-2 transition-all flex flex-col min-h-0',
-          compact && 'overflow-hidden',
+          'h-full w-full px-3 py-2 transition-all flex flex-col min-h-0 overflow-hidden',
           plannedStyle ? '' : 'border-l-4',
           isSelected && 'ring-2 ring-offset-1'
         )}
@@ -205,15 +204,14 @@ export function EventCard({
         }}
       >
         {compact ? (
-          <div className="flex flex-col h-full min-w-0" style={{ color: eventTextColor }}>
-            <div className="flex items-start min-w-0 flex-shrink-0 gap-1">
+          <div className="flex flex-col h-full min-w-0 overflow-hidden" style={{ color: eventTextColor }}>
+            <div className="flex items-start min-w-0 flex-shrink-0 gap-1 overflow-hidden">
               <span
-                className="font-medium text-sm leading-snug min-w-0 flex-1"
+                className="font-medium text-sm leading-snug min-w-0 flex-1 truncate"
                 style={{
                   fontSize: 12,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
                   overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {event.title || 'Untitled Event'}
@@ -224,15 +222,14 @@ export function EventCard({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full min-w-0" style={{ color: eventTextColor }}>
-            <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
+          <div className="flex flex-col h-full min-w-0 overflow-hidden" style={{ color: eventTextColor }}>
+            <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0 overflow-hidden">
               <span
-                className="font-medium leading-snug min-w-0"
+                className="font-medium leading-snug min-w-0 flex-1 truncate"
                 style={{
                   fontSize: 14,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
                   overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {event.title || 'Untitled Event'}
@@ -252,12 +249,12 @@ export function EventCard({
               </p>
             )}
             {heightPx >= 56 && event.category && (
-              <div className="mt-auto flex items-end gap-2 pt-1 shrink-0">
+              <div className="mt-auto flex items-end gap-2 pt-1 shrink-0 min-w-0 overflow-hidden">
                 <Chip
                   variant="subtle"
                   color={categoryColor}
                   contrastBackgroundHex={plannedStyle ? undefined : categoryColor}
-                  className="max-w-[120px]"
+                  className="max-w-full min-w-0"
                 >
                   {event.category.name}
                 </Chip>

@@ -103,7 +103,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           return (
             <div
               key={index}
-              className={`min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer relative ${
+              className={`min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer relative overflow-hidden ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
               }`}
               style={{ backgroundColor: dayBg ?? '#ffffff' }}
@@ -120,7 +120,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                 {today && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" aria-label="Today" />}
               </div>
 
-              <div className="space-y-0.5 md:space-y-1">
+              <div className="space-y-0.5 md:space-y-1 min-w-0 overflow-hidden">
                 {blocks.slice(0, dayEvents.length > 0 ? 1 : 2).map((block) => {
                   const isCompareMode = mode === 'compare';
                   const isRecorded = block.mode === 'recorded';
