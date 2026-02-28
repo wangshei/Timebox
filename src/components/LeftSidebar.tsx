@@ -390,7 +390,7 @@ export function LeftSidebar({
           >
             <ArrowLeftIcon className="h-3.5 w-3.5" />
           </button>
-          <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
+          <span className="text-base font-semibold" style={{ color: '#3A3A3C' }}>
             Compare
           </span>
         </div>
@@ -637,7 +637,7 @@ export function LeftSidebar({
             <>
               <div className="fixed inset-0 z-40" onClick={onToggleShortcuts} aria-hidden />
               <div className="fixed bottom-16 left-4 z-50 w-52 rounded-xl py-2 px-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
-              <p className="text-xs font-semibold mb-2" style={{ color: '#1C1C1E' }}>Shortcuts</p>
+              <p className="text-xs font-semibold mb-2" style={{ color: '#3A3A3C' }}>Shortcuts</p>
                 <div className="space-y-1.5 text-xs" style={{ color: '#636366' }}>
                   {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                     <div key={key} className="flex justify-between gap-4">

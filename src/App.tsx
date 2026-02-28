@@ -817,7 +817,7 @@ export default function App() {
             <div className="flex-shrink-0 flex flex-col" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
             {/* Header: Calendars title + settings + edit icons */}
             <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
+              <span className="text-base font-semibold" style={{ color: '#3A3A3C' }}>
                 {mode === 'compare' ? 'Compare' : 'Calendars'}
               </span>
               {mode !== 'compare' && (
@@ -1132,7 +1132,7 @@ export default function App() {
                     }}
                   >
                     <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0', color: '#1C1C1E', margin: 0 }}>Report a bug</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0', color: '#3A3A3C', margin: 0 }}>Report a bug</p>
                       <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
                     </div>
                     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1197,7 +1197,7 @@ export default function App() {
                       boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
                     }}
                   >
-                    <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: '#1C1C1E', margin: '0 0 8px' }}>Shortcuts</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: '#3A3A3C', margin: '0 0 8px' }}>Shortcuts</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
                       {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                         <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
@@ -1377,7 +1377,7 @@ export default function App() {
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Tasks</span>
+              <span className="text-base font-semibold" style={{ color: '#3A3A3C' }}>Tasks</span>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar

@@ -75,7 +75,7 @@ export function SettingsSidePanel({
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
-        <p className="text-base font-semibold text-neutral-900 mb-3 pl-0.5">Organization</p>
+        <p className="text-base font-semibold text-neutral-800 mb-3 pl-0.5">Organization</p>
 
         {/* Calendars */}
         <section className="mb-4">
