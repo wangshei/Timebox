@@ -501,7 +501,7 @@ export function LeftSidebar({
                                     <div key={tag.id} className="group/tag flex items-center gap-0.5">
                                       <span
                                         className="inline-flex items-center font-medium rounded-full cursor-default"
-                                        style={{ fontSize: 10, padding: '1px 6px', color: category.color, backgroundColor: `${category.color}14`, border: `1px solid ${category.color}28` }}
+                                        style={{ fontSize: 10, padding: '4px 8px', color: category.color, backgroundColor: `${category.color}14`, border: `1px solid ${category.color}28` }}
                                       >
                                         {tag.name}
                                       </span>
@@ -545,7 +545,7 @@ export function LeftSidebar({
                             <button key={cat.id} type="button"
                               onClick={() => { setAddExistingCategoryId(cat.id); setAddName(cat.name); setAddColor(cat.color); }}
                               className="rounded-full font-medium transition-all"
-                              style={{ fontSize: 10, padding: '1px 6px', ...(addExistingCategoryId === cat.id
+                              style={{ fontSize: 10, padding: '4px 8px', ...(addExistingCategoryId === cat.id
                                 ? { backgroundColor: `${cat.color}18`, color: cat.color, border: `1.5px solid ${cat.color}` }
                                 : { backgroundColor: 'transparent', color: '#636366', border: '1px solid rgba(0,0,0,0.12)' }) }}
                             >
