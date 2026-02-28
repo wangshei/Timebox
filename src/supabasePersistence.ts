@@ -167,6 +167,7 @@ export async function loadSupabaseState() {
         dueDate: t.due_date ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
+        notes: (t as any).notes ?? null,
         priority: typeof t.priority === 'number' ? t.priority : undefined,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
@@ -208,6 +209,7 @@ export async function loadSupabaseState() {
         recurrenceSeriesId: e.recurrence_series_id ?? null,
         link: e.link ?? null,
         description: e.description ?? null,
+        notes: (e as any).notes ?? null,
       })
     ),
     };
@@ -306,6 +308,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         due_date: t.dueDate ?? null,
         link: t.link ?? null,
         description: t.description ?? null,
+        notes: t.notes ?? null,
         priority: typeof t.priority === 'number' ? t.priority : null,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
@@ -355,6 +358,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         recurrence_series_id: e.recurrenceSeriesId ?? null,
         link: e.link ?? null,
         description: e.description ?? null,
+        notes: e.notes ?? null,
       })),
       { onConflict: 'id' }
     ));

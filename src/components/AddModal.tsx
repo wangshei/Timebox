@@ -35,6 +35,7 @@ interface AddModalProps {
     dueDate?: string | null;
     link?: string | null;
     description?: string | null;
+    notes?: string | null;
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
@@ -52,6 +53,7 @@ interface AddModalProps {
     recurrenceDays?: number[];
     link?: string | null;
     description?: string | null;
+    notes?: string | null;
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -169,7 +171,8 @@ export function AddModal({
     };
   }, [isDragging]);
 
-  // Prefill when editing
+  // Prefill when editing — only when modal opens or the edited entity changes (not when categories/tags update)
+  // so that adding a new category/tag doesn't reset the form or wipe typed input.
   useEffect(() => {
     if (isOpen && editingTask) {
       setMode('task');
@@ -181,10 +184,11 @@ export function AddModal({
       setDueDate(editingTask.dueDate ?? '');
       setLink(editingTask.link ?? '');
       setDescription(editingTask.description ?? '');
+      setNotes(editingTask.notes ?? '');
       setPinned(!!editingTask.pinned);
       setPriority(typeof editingTask.priority === 'number' ? editingTask.priority : undefined);
     }
-  }, [isOpen, editingTask?.id, categories, tags]);
+  }, [isOpen, editingTask?.id]); // categories/tags intentionally omitted to avoid form reset on add
 
   useEffect(() => {
     if (isOpen && editingTimeBlock) {
@@ -202,7 +206,7 @@ export function AddModal({
       setPinned(false);
       setPriority(undefined);
     }
-  }, [isOpen, editingTimeBlock?.id, categories, tags]);
+  }, [isOpen, editingTimeBlock?.id]); // categories/tags intentionally omitted to avoid form reset on add
 
   useEffect(() => {
     if (isOpen && editingEvent) {
@@ -218,10 +222,11 @@ export function AddModal({
       setRecurrenceDays(editingEvent.recurrenceDays ?? []);
       setLink(editingEvent.link ?? '');
       setDescription(editingEvent.description ?? '');
+      setNotes(editingEvent.notes ?? '');
       setPinned(false);
       setPriority(undefined);
     }
-  }, [isOpen, editingEvent?.id, categories]);
+  }, [isOpen, editingEvent?.id]); // categories intentionally omitted to avoid form reset on add
 
   // Reset add mode when modal opens (unless editing).
   useEffect(() => {
@@ -264,6 +269,7 @@ export function AddModal({
         dueDate: dueDate.trim() || null,
         link: link.trim() || null,
         description: description.trim() || null,
+        notes: notes.trim() || null,
         pinned,
         priority,
       });
@@ -281,6 +287,7 @@ export function AddModal({
         recurrenceEditScope: (editingEvent.recurring || recurrencePattern !== 'none') ? recurrenceEditScope : undefined,
         link: link.trim() || null,
         description: description.trim() || null,
+        notes: notes.trim() || null,
       });
     } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
@@ -309,6 +316,7 @@ export function AddModal({
         dueDate: dueDate.trim() || null,
         link: link.trim() || null,
         description: description.trim() || null,
+        notes: notes.trim() || null,
         priority,
       });
     } else {
@@ -325,6 +333,7 @@ export function AddModal({
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
         link: link.trim() || null,
         description: description.trim() || null,
+        notes: notes.trim() || null,
       });
     }
 

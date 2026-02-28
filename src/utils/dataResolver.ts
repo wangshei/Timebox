@@ -87,8 +87,10 @@ export interface ResolvedEvent {
   date: string;
   recurring: boolean;
   recurrencePattern?: string;
+  recurrenceSeriesId?: string | null;
   link?: string | null;
   description?: string | null;
+  notes?: string | null;
 }
 
 export function resolveEvent(

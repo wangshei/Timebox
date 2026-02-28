@@ -219,6 +219,10 @@ export function TaskCard({
       {'description' in task && task.description && (
         <div className="text-xs whitespace-pre-wrap leading-relaxed mb-2.5" style={{ color: '#636366' }}>{task.description}</div>
       )}
+      {/* Quick notes */}
+      {'notes' in task && task.notes && (
+        <div className="text-xs italic leading-relaxed mb-2.5 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: '#636366' }}>{task.notes}</div>
+      )}
       {/* Link */}
       {'link' in task && task.link && (
         <a href={task.link} target="_blank" rel="noopener noreferrer"

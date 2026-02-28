@@ -44,6 +44,8 @@ export interface Task {
   link?: string | null;
   /** Optional description. Shown in detail when set. */
   description?: string | null;
+  /** Quick inline notes — shown in the task detail popup. */
+  notes?: string | null;
   /** Legacy fields kept for backward compatibility. */
   pinned?: boolean;
   emoji?: string | null;
@@ -113,6 +115,8 @@ export interface Event {
   recurrenceSeriesId?: string | null;
   link?: string | null;
   description?: string | null;
+  /** Quick inline notes — shown in the detail popup. */
+  notes?: string | null;
 }
 
 export interface User {

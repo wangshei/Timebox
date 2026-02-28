@@ -633,7 +633,7 @@ function TimeBlockCardInner({
         {showPopover && isSelected && (
           <>
             <div
-              className="fixed inset-0 z-[55]"
+              className="fixed inset-0 z-[9998]"
               style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -644,7 +644,7 @@ function TimeBlockCardInner({
             />
             <div
               ref={popoverRef}
-              className="absolute z-[60] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
+              className="absolute z-[9999] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
               style={{
                 top: '100%', left: 0, marginTop: 6,
                 backgroundColor: '#FFFFFF',
@@ -838,7 +838,7 @@ function TimeBlockCardInner({
       {showPopover && isSelected && (
         <>
           <div
-            className="fixed inset-0 z-[55]"
+            className="fixed inset-0 z-[9998]"
             style={{ pointerEvents: 'auto' }}
             onClick={(e) => {
               e.stopPropagation();
@@ -849,7 +849,7 @@ function TimeBlockCardInner({
           />
           <div
             ref={popoverRef}
-            className="absolute z-[60] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
+            className="absolute z-[9999] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
             style={{
               ...(popoverPosition === 'bottom-left'
                 ? { top: '100%', left: 0, marginTop: 8 }

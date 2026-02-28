@@ -317,6 +317,7 @@ export default function App() {
     dueDate?: string | null;
     link?: string | null;
     description?: string | null;
+    notes?: string | null;
     priority?: number;
   }) => {
     addTask({
@@ -329,6 +330,7 @@ export default function App() {
       dueDate: taskData.dueDate ?? undefined,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
+      notes: taskData.notes ?? undefined,
       priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
     });
   };
@@ -346,6 +348,7 @@ export default function App() {
     recurrenceDays?: number[];
     link?: string | null;
     description?: string | null;
+    notes?: string | null;
   }) => {
     const eventPayload = {
       title: eventData.title,
@@ -359,6 +362,7 @@ export default function App() {
       recurrenceDays: eventData.recurrenceDays,
       link: eventData.link ?? undefined,
       description: eventData.description ?? undefined,
+      notes: eventData.notes ?? undefined,
     };
     const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
 
