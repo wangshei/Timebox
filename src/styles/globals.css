@@ -1,5 +1,27 @@
 @custom-variant dark (&:is(.dark *));
 
+/* ── react-colorful compact sizing ── */
+.react-colorful {
+  width: 100% !important;
+  height: 90px !important;
+}
+.react-colorful__saturation {
+  border-radius: 5px 5px 0 0 !important;
+  flex-grow: 1 !important;
+}
+.react-colorful__hue,
+.react-colorful__alpha {
+  border-radius: 4px !important;
+  height: 10px !important;
+  margin-top: 5px !important;
+  flex-shrink: 0 !important;
+}
+.react-colorful__hue-pointer,
+.react-colorful__saturation-pointer {
+  width: 14px !important;
+  height: 14px !important;
+}
+
 :root {
   --font-size: 16px;
 

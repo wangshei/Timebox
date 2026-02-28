@@ -1,14 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { PALETTE_COLORS } from '../constants/colors';
 
 const SWATCH_PX = { sm: 20, md: 24 } as const;
 
-/** Palette grouped by hue family — 4 rows × 5 columns */
-const PALETTE_ROWS = [
-  PALETTE_COLORS.slice(0, 5),   // Row 1 — Reds / Pinks / Peaches
-  PALETTE_COLORS.slice(5, 10),  // Row 2 — Yellows
-  PALETTE_COLORS.slice(10, 15), // Row 3 — Greens
-  PALETTE_COLORS.slice(15, 20), // Row 4 — Blues
+/**
+ * Palette grouped by hue family — 4 rows × 5 columns.
+ * Each group has a tinted background.
+ */
+const PALETTE_GROUPS = [
+  { label: 'Warm',   colors: PALETTE_COLORS.slice(0, 5),  bg: 'rgba(222,141,145,0.10)' },
+  { label: 'Yellow', colors: PALETTE_COLORS.slice(5, 10), bg: 'rgba(218,209,95,0.12)'  },
+  { label: 'Green',  colors: PALETTE_COLORS.slice(10, 15), bg: 'rgba(141,163,135,0.12)' },
+  { label: 'Blue',   colors: PALETTE_COLORS.slice(15, 20), bg: 'rgba(91,113,140,0.10)'  },
 ] as const;
 
 interface ColorPickerProps {
@@ -20,8 +24,9 @@ interface ColorPickerProps {
 }
 
 /**
- * Color selection: 4×5 palette grid grouped by hue family.
- * Custom: "+" button opens a small popup with hex input + native color picker.
+ * Color selection:
+ * - 4×5 palette grid with per-hue-group tinted backgrounds
+ * - "+" button toggles the react-colorful HexColorPicker + hex input
  */
 export function ColorPicker({
   value,
@@ -29,16 +34,13 @@ export function ColorPicker({
   label,
   swatchSize = 'md',
 }: ColorPickerProps) {
-  const [showCustom, setShowCustom] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const [hexInput, setHexInput] = useState('');
-  const nativePickerRef = useRef<HTMLInputElement>(null);
 
   const px = SWATCH_PX[swatchSize];
   const normalizedValue = value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : '#8DA387';
-  const swatchStyle = { width: px, height: px, minWidth: px, minHeight: px };
-  const isCustom = !PALETTE_COLORS.some(c => c.value.toLowerCase() === value.toLowerCase()) && value.startsWith('#');
 
-  /** Resolve hex input to a valid #RRGGBB (with or without leading #) */
+  /** Resolve hex input to a valid #RRGGBB */
   const resolveHex = (raw: string): string | null => {
     const h = raw.trim().startsWith('#') ? raw.trim() : `#${raw.trim()}`;
     return /^#[0-9A-Fa-f]{6}$/.test(h) ? h : null;
@@ -46,212 +48,141 @@ export function ColorPicker({
 
   const handleHexCommit = () => {
     const hex = resolveHex(hexInput);
-    if (hex) {
-      onChange(hex);
-      setShowCustom(false);
-    }
+    if (hex) { onChange(hex); setHexInput(''); }
   };
-
-  /** Preview color for the hex input swatch — use current value if input invalid */
-  const previewColor = resolveHex(hexInput) ?? normalizedValue;
 
   return (
     <div className="space-y-1.5">
       {label && (
         <label className="block text-xs font-medium" style={{ color: '#636366' }}>{label}</label>
       )}
-      <div className="space-y-1" style={{ paddingTop: label ? 6 : 0 }}>
-        {PALETTE_ROWS.map((row, rowIdx) => (
-          <div key={rowIdx} className="flex gap-1 justify-center">
-            {row.map(({ name, value: hex }) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => onChange(hex)}
-                style={{
-                  ...swatchStyle,
-                  backgroundColor: hex,
-                  borderRadius: 5,
-                  border: value.toLowerCase() === hex.toLowerCase()
-                    ? '2px solid rgba(0,0,0,0.35)'
-                    : '1.5px solid rgba(0,0,0,0.10)',
-                  boxShadow: value.toLowerCase() === hex.toLowerCase()
-                    ? '0 0 0 1.5px rgba(255,255,255,0.9) inset'
-                    : 'none',
-                  transition: 'transform 0.1s, border-color 0.1s',
-                }}
-                title={name}
-                aria-label={name}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.15)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
-              />
-            ))}
-          </div>
-        ))}
 
-        {/* Divider before custom row */}
-        <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '4px 0' }} />
+      <div style={{ paddingTop: label ? 4 : 0 }}>
+        {/* ── Palette groups ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {PALETTE_GROUPS.map((group, gi) => (
+            <div
+              key={gi}
+              style={{ backgroundColor: group.bg, borderRadius: 6, padding: '4px 5px' }}
+            >
+              <div className="flex gap-1 justify-center">
+                {group.colors.map(({ name, value: hex }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => onChange(hex)}
+                    style={{
+                      width: px, height: px, minWidth: px, minHeight: px,
+                      backgroundColor: hex,
+                      borderRadius: 5,
+                      border: value.toLowerCase() === hex.toLowerCase()
+                        ? '2px solid rgba(0,0,0,0.35)'
+                        : '1.5px solid rgba(0,0,0,0.10)',
+                      boxShadow: value.toLowerCase() === hex.toLowerCase()
+                        ? '0 0 0 1.5px rgba(255,255,255,0.9) inset'
+                        : 'none',
+                      transition: 'transform 0.1s, border-color 0.1s',
+                    }}
+                    title={name}
+                    aria-label={name}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.15)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
 
-        {/* Custom color row */}
-        <div className="flex gap-1 items-center justify-center" style={{ position: 'relative' }}>
-          {/* "+" button */}
+        {/* ── Thin divider + "+" toggle row ── */}
+        <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '6px 0' }} />
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
-              setHexInput(isCustom ? value : '');
-              setShowCustom((v) => !v);
+              setShowPicker((v) => !v);
+              setHexInput('');
             }}
             style={{
-              ...swatchStyle,
+              width: px, height: px, minWidth: px,
               borderRadius: 5,
-              border: showCustom
+              border: showPicker
                 ? '2px solid rgba(141,162,134,0.5)'
                 : '1.5px dashed rgba(0,0,0,0.22)',
+              backgroundColor: showPicker ? 'rgba(141,162,134,0.08)' : 'transparent',
+              color: showPicker ? '#8DA286' : '#8E8E93',
+              fontSize: 14, lineHeight: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
-              backgroundColor: showCustom ? 'rgba(141,162,134,0.08)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: showCustom ? '#8DA286' : '#8E8E93',
-              fontSize: px > 24 ? 16 : 13,
-              lineHeight: 1,
               transition: 'border-color 0.1s, background-color 0.1s, color 0.1s',
+              flexShrink: 0,
             }}
             title="Custom color"
             aria-label="Pick custom color"
           >
             +
           </button>
-
-          {/* Current custom color preview swatch */}
-          {isCustom && (
-            <div
-              style={{
-                ...swatchStyle,
-                backgroundColor: value,
-                borderRadius: 5,
-                border: '2px solid rgba(0,0,0,0.35)',
-                boxShadow: '0 0 0 1.5px rgba(255,255,255,0.9) inset',
-                flexShrink: 0,
-              }}
-              title="Current custom color"
-            />
-          )}
-
-          {/* Custom picker popup */}
-          {showCustom && (
-            <div
-              className="absolute rounded-xl shadow-xl"
-              style={{
-                top: '100%',
-                left: 0,
-                marginTop: 8,
-                zIndex: 50,
-                backgroundColor: '#FFFFFF',
-                border: '1px solid rgba(0,0,0,0.09)',
-                padding: '14px 14px 12px',
-                minWidth: 196,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
-              }}
-            >
-              <div
-                className="text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: '#AEAEB2', letterSpacing: '0.08em', marginBottom: 10 }}
-              >
-                Custom color
-              </div>
-
-              {/* Color preview + hex input */}
-              <div className="flex gap-2 items-center" style={{ marginBottom: 10 }}>
-                {/* Native picker trigger (preview swatch) */}
-                <label
-                  style={{
-                    width: 32,
-                    height: 32,
-                    minWidth: 32,
-                    borderRadius: 7,
-                    backgroundColor: previewColor,
-                    border: '1.5px solid rgba(0,0,0,0.12)',
-                    cursor: 'pointer',
-                    display: 'block',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  }}
-                  title="Open system color picker"
-                >
-                  <input
-                    ref={nativePickerRef}
-                    type="color"
-                    value={normalizedValue}
-                    onChange={(e) => {
-                      setHexInput(e.target.value);
-                      onChange(e.target.value);
-                    }}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      opacity: 0,
-                      cursor: 'pointer',
-                    }}
-                    aria-label="Pick custom color"
-                  />
-                </label>
-
-                {/* Hex input */}
-                <input
-                  type="text"
-                  placeholder="#000000"
-                  value={hexInput}
-                  onChange={(e) => setHexInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleHexCommit();
-                    if (e.key === 'Escape') setShowCustom(false);
-                  }}
-                  maxLength={7}
-                  className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none"
-                  style={{
-                    border: '1px solid rgba(0,0,0,0.10)',
-                    backgroundColor: '#F5F5F7',
-                    color: '#1C1C1E',
-                    fontFamily: 'ui-monospace, monospace',
-                    letterSpacing: '0.02em',
-                  }}
-                />
-              </div>
-
-              {/* Divider */}
-              <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '0 0 10px' }} />
-
-              {/* Apply / Cancel */}
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleHexCommit}
-                  className="flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                  style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCustom(false)}
-                  className="py-1.5 px-2.5 text-xs rounded-lg transition-colors"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.09)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Live preview of current color */}
+          <div
+            style={{
+              width: px, height: px, minWidth: px,
+              borderRadius: 4,
+              backgroundColor: normalizedValue,
+              border: '1.5px solid rgba(0,0,0,0.12)',
+              flexShrink: 0,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+            }}
+            title={normalizedValue}
+          />
+          <span style={{ fontSize: 11, color: '#8E8E93', fontFamily: 'ui-monospace, monospace', letterSpacing: '0.02em' }}>
+            {normalizedValue.toUpperCase()}
+          </span>
         </div>
+
+        {/* ── Expanded: react-colorful picker + hex input ── */}
+        {showPicker && (
+          <div style={{ marginTop: 8 }}>
+            <HexColorPicker
+              color={normalizedValue}
+              onChange={onChange}
+              style={{ width: '100%' }}
+            />
+            {/* Hex input row */}
+            <div className="flex items-center gap-1.5" style={{ marginTop: 7 }}>
+              <div
+                style={{
+                  width: px, height: px, minWidth: px,
+                  borderRadius: 4,
+                  backgroundColor: normalizedValue,
+                  border: '1.5px solid rgba(0,0,0,0.12)',
+                  flexShrink: 0,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+                }}
+              />
+              <input
+                type="text"
+                placeholder={normalizedValue}
+                value={hexInput}
+                onChange={(e) => setHexInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleHexCommit();
+                  if (e.key === 'Escape') { setHexInput(''); setShowPicker(false); }
+                }}
+                onBlur={handleHexCommit}
+                maxLength={7}
+                className="flex-1 text-xs px-2 py-1 rounded-md outline-none"
+                style={{
+                  border: '1px solid rgba(0,0,0,0.10)',
+                  backgroundColor: '#F5F5F7',
+                  color: '#1C1C1E',
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 11,
+                  letterSpacing: '0.02em',
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

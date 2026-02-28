@@ -5,7 +5,8 @@
       "name": "timebox-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3005
+      "port": 3009,
+      "autoPort": true
     }
   ]
 }
