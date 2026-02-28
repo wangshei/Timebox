@@ -1,7 +1,7 @@
 import React from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
-import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
+import { getLocalDateString, isTodayLocal, getStartOfWeek } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
@@ -40,9 +40,11 @@ interface WeekViewProps {
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
   locked?: boolean;
   showDifferences?: boolean;
+  /** When true, week shows Mon–Sun; when false, Sun–Sat. */
+  weekStartsOnMonday?: boolean;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -67,14 +69,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   }, []);
 
   const weekDays = React.useMemo(() => {
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const startOfWeek = getStartOfWeek(currentDate, weekStartsOnMonday);
     return Array.from({ length: 7 }, (_, i) => {
       const day = new Date(startOfWeek);
       day.setDate(startOfWeek.getDate() + i);
       return day;
     });
-  }, [currentDate]);
+  }, [currentDate, weekStartsOnMonday]);
 
   const getBlockStyle = (block: ResolvedTimeBlock) => {
     const startMinutes = parseTimeToMins(block.start);

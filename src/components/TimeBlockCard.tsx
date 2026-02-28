@@ -589,7 +589,7 @@ function TimeBlockCardInner({
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
-              className="flex items-start h-full min-w-0"
+              className="flex items-center h-full min-w-0 w-full"
               style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px', gap: 2 }}
             >
               {isEvent && compactTier !== 'tiny' && (
@@ -599,14 +599,13 @@ function TimeBlockCardInner({
                 <div
                   className={cn(
                     isTask ? 'font-semibold' : 'font-medium',
-                    'leading-snug min-w-0',
+                    'leading-snug min-w-0 truncate',
                     titleTextClass,
                   )}
                   style={{
                     fontSize: compactTitleFontSize,
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
                     overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                   }}
                 >
                   {block.title || 'Untitled'}

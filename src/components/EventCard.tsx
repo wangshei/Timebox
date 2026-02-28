@@ -204,8 +204,8 @@ export function EventCard({
         }}
       >
         {compact ? (
-          <div className="flex flex-col h-full min-w-0 overflow-hidden" style={{ color: eventTextColor }}>
-            <div className="flex items-start min-w-0 flex-shrink-0 gap-1 overflow-hidden">
+          <div className="flex flex-col h-full min-w-0 w-full overflow-hidden" style={{ color: eventTextColor }}>
+            <div className="flex items-center min-w-0 w-full flex-shrink-0 gap-1.5 overflow-hidden">
               <span
                 className="font-medium text-sm leading-snug min-w-0 flex-1 truncate"
                 style={{
@@ -217,13 +217,13 @@ export function EventCard({
                 {event.title || 'Untitled Event'}
               </span>
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
-                <ArrowPathIcon className="flex-shrink-0 mt-0.5 opacity-60" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
+                <ArrowPathIcon className="flex-shrink-0 opacity-60" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
               )}
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full min-w-0 overflow-hidden" style={{ color: eventTextColor }}>
-            <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0 overflow-hidden">
+          <div className="flex flex-col h-full min-w-0 w-full overflow-hidden" style={{ color: eventTextColor }}>
+            <div className="flex items-center justify-between gap-2 min-w-0 w-full flex-shrink-0 overflow-hidden">
               <span
                 className="font-medium leading-snug min-w-0 flex-1 truncate"
                 style={{

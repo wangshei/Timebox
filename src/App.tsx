@@ -169,6 +169,8 @@ export default function App() {
     setCalendarContainers,
     setCategories,
     setTags,
+    weekStartsOnMonday,
+    setWeekStartsOnMonday,
     hasCompletedSetup,
     userName,
     onboardingTourComplete,
@@ -1368,6 +1370,7 @@ export default function App() {
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
+          weekStartsOnMonday={weekStartsOnMonday}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -1467,6 +1470,7 @@ export default function App() {
                 }}
                 events={events}
                 onDeleteEvent={deleteEvent}
+                weekStartsOnMonday={weekStartsOnMonday}
               />
             </div>
           </div>
@@ -1505,6 +1509,7 @@ export default function App() {
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
+          weekStartsOnMonday={weekStartsOnMonday}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -1739,6 +1744,8 @@ export default function App() {
         onAddTag={addTag}
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
+        weekStartsOnMonday={weekStartsOnMonday}
+        onWeekStartsOnMondayChange={setWeekStartsOnMonday}
       />
 
       {/* ── Onboarding tour overlay (first-time users after wizard) ── */}

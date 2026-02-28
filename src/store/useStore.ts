@@ -55,6 +55,8 @@ export interface AppState {
   selectedDate: string; // YYYY-MM-DD
   containerVisibility: CalendarContainerVisibility;
   defaultBlockMinutes: number;
+  /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
+  weekStartsOnMonday: boolean;
   // Onboarding
   hasCompletedSetup: boolean;
   userName: string;
@@ -97,6 +99,7 @@ function getInitialState(): AppState {
     selectedDate: getLocalDateString(),
     containerVisibility: visibility,
     defaultBlockMinutes: 60,
+    weekStartsOnMonday: false,
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
@@ -141,6 +144,7 @@ export interface AppActions {
   endDay: (date: string) => void;
 
   // Onboarding
+  setWeekStartsOnMonday: (val: boolean) => void;
   setHasCompletedSetup: (val: boolean) => void;
   setUserName: (name: string) => void;
   setOnboardingTourComplete: (val: boolean) => void;
@@ -415,6 +419,7 @@ export const useStore = create<AppState & AppActions>()(
     get().batchConfirmDay(date);
   },
 
+  setWeekStartsOnMonday: (val) => set({ weekStartsOnMonday: val }),
   setHasCompletedSetup: (val) => set({ hasCompletedSetup: val }),
   setUserName: (name) => set({ userName: name }),
   setOnboardingTourComplete: (val) => set({ onboardingTourComplete: val }),
@@ -679,6 +684,7 @@ type PersistedSlice = Pick<
   | 'selectedDate'
   | 'containerVisibility'
   | 'defaultBlockMinutes'
+  | 'weekStartsOnMonday'
   | 'hasCompletedSetup'
   | 'userName'
   | 'onboardingTourComplete'
@@ -720,6 +726,7 @@ export function startLocalStoragePersistence() {
       selectedDate: state.selectedDate,
       containerVisibility: state.containerVisibility,
       defaultBlockMinutes: state.defaultBlockMinutes,
+      weekStartsOnMonday: state.weekStartsOnMonday,
       hasCompletedSetup: state.hasCompletedSetup,
       userName: state.userName,
       onboardingTourComplete: state.onboardingTourComplete,

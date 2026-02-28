@@ -13,17 +13,20 @@ interface MonthViewProps {
   focusedCalendarId?: string | null;
   onSelectDate?: (dateStr: string) => void;
   events?: Event[];
+  /** When true, first column is Monday; when false, Sunday. */
+  weekStartsOnMonday?: boolean;
 }
 
 const BG_TODAY = 'rgba(141,162,134,0.08)';
 
-export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [] }: MonthViewProps) {
+export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [], weekStartsOnMonday = false }: MonthViewProps) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   // Get first day of month
   const firstDay = new Date(year, month, 1);
-  const firstDayOfWeek = firstDay.getDay();
+  // Sunday=0; for Monday start we want Monday=0 so offset: (getDay() + 6) % 7
+  const firstDayOfWeek = weekStartsOnMonday ? (firstDay.getDay() + 6) % 7 : firstDay.getDay();
 
   // Get number of days in month
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -73,7 +76,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
     return timeBlocks.filter(block => block.date === dateStr);
   };
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = weekStartsOnMonday ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6">

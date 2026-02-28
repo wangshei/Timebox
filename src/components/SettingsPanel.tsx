@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
@@ -19,9 +19,11 @@ interface SettingsPanelProps {
   onAddTag: (t: Omit<Tag, 'id'>) => void;
   onUpdateTag: (id: string, u: Partial<Tag>) => void;
   onDeleteTag: (id: string) => void;
+  weekStartsOnMonday?: boolean;
+  onWeekStartsOnMondayChange?: (value: boolean) => void;
 }
 
-type TabType = 'calendars' | 'categories' | 'tags';
+type TabType = 'calendars' | 'categories' | 'tags' | 'general';
 
 const PRIMARY = '#8DA286';
 const BG = '#FCFBF7';
@@ -45,6 +47,8 @@ export function SettingsPanel({
   onAddCalendar,
   onAddCategory,
   onAddTag,
+  weekStartsOnMonday = false,
+  onWeekStartsOnMondayChange,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -136,6 +140,7 @@ export function SettingsPanel({
   };
 
   const tabs = [
+    { id: 'general' as const, label: 'General', icon: Cog6ToothIcon },
     { id: 'calendars' as const, label: 'Calendars', icon: CalendarIcon },
     { id: 'categories' as const, label: 'Categories', icon: FolderIcon },
     { id: 'tags' as const, label: 'Tags', icon: TagIcon },
@@ -339,6 +344,40 @@ export function SettingsPanel({
               alignContent: 'start',
             }}
           >
+            {/* ── General ── */}
+            {activeTab === 'general' && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                >
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Week starts on Monday</p>
+                    <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Show Mon–Sun in week and month views</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={weekStartsOnMonday}
+                    onClick={() => onWeekStartsOnMondayChange?.(!weekStartsOnMonday)}
+                    className="relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
+                    style={{
+                      backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    <span
+                      className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition"
+                      style={{
+                        marginLeft: 2,
+                        marginTop: 2,
+                        transform: weekStartsOnMonday ? 'translateX(18px)' : 'translateX(0)',
+                      }}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── Calendars ── */}
             {activeTab === 'calendars' && calendarContainers.map((calendar) => {
               const calColor = calendar.color && /^#[0-9A-Fa-f]{6}$/.test(calendar.color) ? calendar.color : PRIMARY;

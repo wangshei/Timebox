@@ -29,6 +29,20 @@ export function isTodayLocal(dateStr: string): boolean {
 }
 
 /**
+ * Return the start of the week containing the given date.
+ * - weekStartsOnMonday: true  → Monday (ISO-style)
+ * - weekStartsOnMonday: false → Sunday (US-style)
+ */
+export function getStartOfWeek(date: Date, weekStartsOnMonday: boolean): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun, 6 = Sat
+  const daysBack = weekStartsOnMonday ? (day + 6) % 7 : day;
+  d.setDate(d.getDate() - daysBack);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
  * Return the YYYY-MM-DD strings for every day in a view window.
  * - 'day'   → [date]
  * - '3day'  → [date, date+1, date+2]

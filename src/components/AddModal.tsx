@@ -587,7 +587,7 @@ export function AddModal({
           {/* Category — pill select, with colored dot */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
-            <div className="flex gap-1.5 flex-wrap items-center">
+            <div className="flex flex-wrap gap-x-2 gap-y-3 items-center">
               {categoriesToShow
                 .filter((category) => {
                   if (!selectedCalendar) return true;
@@ -662,7 +662,7 @@ export function AddModal({
           {/* Tags — multi-select pills */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
-            <div className="flex gap-1.5 flex-wrap items-center">
+            <div className="flex flex-wrap gap-x-2 gap-y-3 items-center">
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
