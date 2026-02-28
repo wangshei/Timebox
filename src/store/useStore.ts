@@ -507,8 +507,15 @@ export const useStore = create<AppState & AppActions>()(
     set((s) => {
       const nextVisibility = { ...s.containerVisibility };
       delete nextVisibility[id];
+      const removedCategoryIds = new Set(
+        s.categories.filter((c) => c.calendarContainerId === id).map((c) => c.id),
+      );
       return {
         calendarContainers: s.calendarContainers.filter((c) => c.id !== id),
+        categories: s.categories.filter((c) => c.calendarContainerId !== id),
+        tasks: s.tasks.filter((t) => t.calendarContainerId !== id && !removedCategoryIds.has(t.categoryId ?? '')),
+        timeBlocks: s.timeBlocks.filter((b) => b.calendarContainerId !== id && !removedCategoryIds.has(b.categoryId ?? '')),
+        events: s.events.filter((e) => e.calendarContainerId !== id && !removedCategoryIds.has(e.categoryId ?? '')),
         containerVisibility: nextVisibility,
       };
     }),
@@ -525,6 +532,9 @@ export const useStore = create<AppState & AppActions>()(
   deleteCategory: (id) =>
     set((s) => ({
       categories: s.categories.filter((c) => c.id !== id),
+      tasks: s.tasks.filter((t) => t.categoryId !== id),
+      timeBlocks: s.timeBlocks.filter((b) => b.categoryId !== id),
+      events: s.events.filter((e) => e.categoryId !== id),
     })),
   addTag: (t) => {
     const id = generateId();
