@@ -15,7 +15,7 @@ interface MonthViewProps {
   events?: Event[];
 }
 
-const BG_PAST = '#ebebeb';
+const BG_PAST = 'rgba(0,0,0,0.03)';
 const BG_TODAY = 'rgba(141,162,134,0.08)';
 
 export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [] }: MonthViewProps) {

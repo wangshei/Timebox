@@ -426,58 +426,49 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         onDragLeave={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragLeave : undefined}
         onDrop={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDrop : undefined}
       >
-        {/* Grid: hour rows with warm lines; past slots slightly warmer */}
-        {hours.map((hour) => {
-          const slotEndMins = (hour + 1) * 60;
-          const isPastSlot =
-            mode === 'overall' &&
-            (selectedDate < todayStr || (selectedDate === todayStr && slotEndMins <= nowMins));
-          const isTodayFutureSlot = mode === 'overall' && selectedDate === todayStr && !isPastSlot;
-          const isHalfHour = false; // placeholder, used below
-          void isHalfHour;
-          const slotBg =
-            isPastSlot ? '#ebebeb'
-            : isTodayFutureSlot ? 'rgba(141,162,134,0.05)'
-            : 'transparent';
-          return (
+        {/* Past/today overlays: single continuous block (no gaps), 30% tint for past */}
+        {mode === 'overall' && selectedDate < todayStr && (
+          <div
+            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
+            style={{ height: GRID_HEIGHT, backgroundColor: 'rgba(0,0,0,0.03)' }}
+          />
+        )}
+        {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop > 0 && (
+          <div
+            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
+            style={{ height: currentTimeTop, backgroundColor: 'rgba(0,0,0,0.03)' }}
+          />
+        )}
+        {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (
+          <div
+            className="absolute left-14 md:left-20 right-0 pointer-events-none"
+            style={{ top: currentTimeTop, height: GRID_HEIGHT - currentTimeTop, backgroundColor: 'rgba(141,162,134,0.05)' }}
+          />
+        )}
+
+        {/* Grid: hour rows (lines only; fill is from overlays above so no gaps) */}
+        {hours.map((hour) => (
+          <div
+            key={hour}
+            className="absolute left-0 right-0 pointer-events-none"
+            style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
+          >
             <div
-              key={hour}
-              className="absolute left-0 right-0 pointer-events-none"
-              style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
+              className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
+              style={{ color: '#AEAEB2', fontSize: '10px' }}
             >
-              {/* Time label */}
-              <div
-                className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
-                style={{ color: '#AEAEB2', fontSize: '10px' }}
-              >
-                {hour === 0
-                  ? '12am'
-                  : hour === 12
-                    ? '12pm'
-                    : hour > 12
-                      ? `${hour - 12}pm`
-                      : `${hour}am`}
-              </div>
-              {/* Hour line + past/today/future slot fill */}
-              <div
-                className="absolute left-14 md:left-20 right-0 top-0"
-                style={{
-                  height: PX_PER_HOUR,
-                  borderTop: '1px solid rgba(0,0,0,0.07)',
-                  backgroundColor: slotBg,
-                }}
-              />
-              {/* Half-hour line */}
-              <div
-                className="absolute left-14 md:left-20 right-0"
-                style={{
-                  top: `${PX_PER_HOUR / 2}px`,
-                  borderTop: '1px solid rgba(0,0,0,0.035)',
-                }}
-              />
+              {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
             </div>
-          );
-        })}
+            <div
+              className="absolute left-14 md:left-20 right-0 top-0"
+              style={{ height: PX_PER_HOUR, borderTop: '1px solid rgba(0,0,0,0.07)' }}
+            />
+            <div
+              className="absolute left-14 md:left-20 right-0"
+              style={{ top: `${PX_PER_HOUR / 2}px`, borderTop: '1px solid rgba(0,0,0,0.035)' }}
+            />
+          </div>
+        ))}
 
         {/* Cards area: absolutely positioned to match the grid area, pointer-events-none
             so empty space clicks pass through to the main container. Individual cards

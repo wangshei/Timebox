@@ -353,9 +353,9 @@ export function ThreeDayView({
                       </div>
                     ))}
 
-                    {/* Past section background: full column for past days */}
+                    {/* Past section background: 30% tint, single block (no gaps) */}
                     {dateStr < todayStr && (
-                      <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: '#ebebeb' }} />
+                      <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }} />
                     )}
 
                     {/* Today bg stripe (green for today column) */}
@@ -366,9 +366,9 @@ export function ThreeDayView({
                       />
                     )}
 
-                    {/* Past overlay on today: light gray for elapsed time */}
+                    {/* Past overlay on today: 30% tint for elapsed time */}
                     {today && currentTimeTop != null && currentTimeTop > 0 && (
-                      <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ height: currentTimeTop, backgroundColor: '#ebebeb' }} />
+                      <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ height: currentTimeTop, backgroundColor: 'rgba(0,0,0,0.03)' }} />
                     )}
 
                     {/* Blocks and events */}
