@@ -252,7 +252,7 @@ export function EventCard({
               </p>
             )}
             {heightPx >= 56 && event.category && (
-              <div className="mt-auto flex items-end gap-1 pt-1 shrink-0">
+              <div className="mt-auto flex items-end gap-2 pt-1 shrink-0">
                 <Chip
                   variant="subtle"
                   color={categoryColor}

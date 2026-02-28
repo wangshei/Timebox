@@ -478,7 +478,7 @@ export function LeftSidebar({
                         {catExpanded && (
                           <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 4 }}>
                             {categoryTags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 py-1">
+                              <div className="flex flex-wrap gap-2 py-1">
                                 {categoryTags.map((tag) =>
                                   editingId === tag.id && editingType === 'tag' ? (
                                     <div key={tag.id} className="w-full">
@@ -501,7 +501,7 @@ export function LeftSidebar({
                                     <div key={tag.id} className="group/tag flex items-center gap-0.5">
                                       <span
                                         className="inline-flex items-center font-medium rounded-full cursor-default"
-                                        style={{ fontSize: 10, padding: '2px 8px', color: category.color, backgroundColor: `${category.color}14`, border: `1px solid ${category.color}28` }}
+                                        style={{ fontSize: 10, padding: '1px 6px', color: category.color, backgroundColor: `${category.color}14`, border: `1px solid ${category.color}28` }}
                                       >
                                         {tag.name}
                                       </span>
@@ -515,7 +515,7 @@ export function LeftSidebar({
                                 )}
                               </div>
                             )}
-                            <AddBtn label="Add tag" onClick={() => startAdd('tag', category.id)} hoverColor={category.color} />
+                            <div className="mt-2"><AddBtn label="Add tag" onClick={() => startAdd('tag', category.id)} hoverColor={category.color} /></div>
                             {isAdding && addingType === 'tag' && addingParentId === category.id && (
                               <div className="mt-1 rounded-lg p-2 space-y-1.5" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
                                 <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)}
@@ -535,17 +535,17 @@ export function LeftSidebar({
                   })}
 
                   {/* + Add category */}
-                  <div style={{ paddingLeft: 16, paddingRight: 8 }}>
+                  <div className="mt-1" style={{ paddingLeft: 16, paddingRight: 8 }}>
                     <AddBtn label="Add category" onClick={() => startAdd('category', calendar.id)} hoverColor={calendar.color} />
                     {isAdding && addingType === 'category' && addingParentId === calendar.id && (
                       <div className="mt-1 rounded-lg p-2.5 space-y-2" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
                         <p style={{ fontSize: 10, fontWeight: 500, color: '#636366' }}>Select existing or create new</p>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-2">
                           {categories.map((cat) => (
                             <button key={cat.id} type="button"
                               onClick={() => { setAddExistingCategoryId(cat.id); setAddName(cat.name); setAddColor(cat.color); }}
                               className="rounded-full font-medium transition-all"
-                              style={{ fontSize: 10, padding: '2px 8px', ...(addExistingCategoryId === cat.id
+                              style={{ fontSize: 10, padding: '1px 6px', ...(addExistingCategoryId === cat.id
                                 ? { backgroundColor: `${cat.color}18`, color: cat.color, border: `1.5px solid ${cat.color}` }
                                 : { backgroundColor: 'transparent', color: '#636366', border: '1px solid rgba(0,0,0,0.12)' }) }}
                             >

@@ -5,7 +5,7 @@ import { cn } from "./utils";
 import { getTextClassForBackground, hexToRgba } from "../../utils/color";
 
 const chipVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium w-fit whitespace-nowrap shrink-0 truncate max-w-[120px] transition-colors",
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium w-fit whitespace-nowrap shrink-0 truncate max-w-[120px] transition-colors",
   {
     variants: {
       variant: {
