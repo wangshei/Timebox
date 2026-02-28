@@ -821,12 +821,12 @@ export default function App() {
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
           <div className="flex-shrink-0 flex flex-col" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
-            {/* Header: My Calendars label + settings + edit icons */}
-            <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
-                {mode === 'compare' ? 'Compare' : 'My Calendars'}
-              </span>
-              {mode !== 'compare' && (
+            {/* Header: My Calendars label + settings + edit icons (hidden in compare mode — sidebar has its own header) */}
+            {mode !== 'compare' && (
+              <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+                <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
+                  My Calendars
+                </span>
                 <div className="flex items-center gap-0.5">
                   {/* Settings */}
                   <button
@@ -857,8 +857,8 @@ export default function App() {
                     {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <LeftSidebar
                 calendarContainers={calendarContainers}
