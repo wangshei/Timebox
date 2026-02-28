@@ -16,7 +16,6 @@ import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { OnboardingTour } from './components/OnboardingTour';
-import { BugReportModal } from './components/BugReportModal';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForView,
@@ -87,6 +86,8 @@ export default function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [bugText, setBugText] = useState('');
+  const [bugStatus, setBugStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const leftBarDragJustEnded = useRef(false);
@@ -727,6 +728,11 @@ export default function App() {
   // Determines which top-level view to render without any routing library.
   type AppScreen = 'landing' | 'auth' | 'setup' | 'loading' | 'app';
   const appScreen: AppScreen = (() => {
+    // Dev-only: ?page=landing|auth|setup forces a specific screen so you can preview auth flow
+    if (!import.meta.env.PROD && typeof window !== 'undefined') {
+      const forcePage = new URLSearchParams(window.location.search).get('page') as AppScreen | null;
+      if (forcePage && (['landing', 'auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
+    }
     if (!requireAuth) return 'app';                      // dev bypass
     if (session && !dataReady) return 'loading';         // waiting for Supabase load
     if (!session && !visitMode) return preAuthScreen;    // 'landing' or 'auth'
@@ -814,174 +820,43 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
-            {/* Header: profile circle + icons normally, "COMPARE" label in compare mode */}
+          <div className="flex-shrink-0 flex flex-col" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
+            {/* Header: My Calendars label + settings + edit icons */}
             <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              {mode === 'compare' ? (
-                <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8E8E93' }}>
-                  Compare
-                </span>
-              ) : (
-                <>
-                  {/* Profile circle with dropdown */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowProfileMenu((o) => !o)}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-opacity hover:opacity-80"
-                      style={{
-                        backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)',
-                        color: session ? '#5A7454' : '#8DA286',
-                      }}
-                      title={session ? session.user.email : visitMode ? 'Visit mode — click for options' : ''}
-                    >
-                      {profileLetter}
-                    </button>
-
-                    {showProfileMenu && (
-                      <>
-                        {/* Backdrop */}
-                        <div className="fixed inset-0 z-[400]" onClick={() => setShowProfileMenu(false)} />
-                        {/* Dropdown */}
-                        <div
-                          className="absolute top-full left-0 mt-1.5 rounded-xl overflow-hidden z-[401] flex flex-col"
-                          style={{
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid rgba(0,0,0,0.09)',
-                            boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
-                            minWidth: 196,
-                          }}
-                        >
-                          {/* Identity row */}
-                          <div className="px-3 py-2.5 flex items-center gap-2.5" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                            <div
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                              style={{ backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)', color: session ? '#5A7454' : '#8DA286' }}
-                            >
-                              {profileLetter}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              {userName && (
-                                <p className="text-xs font-semibold truncate" style={{ color: '#1C1C1E' }}>{userName}</p>
-                              )}
-                              <p className="text-[10px] truncate" style={{ color: '#8E8E93' }}>
-                                {session ? session.user.email : 'Visit mode · not saved'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Action */}
-                          {session ? (
-                            <button
-                              type="button"
-                              onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
-                              className="w-full text-left px-3 py-2.5 text-xs font-medium transition-colors flex items-center gap-2"
-                              style={{ color: '#636366' }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M10 8H2M2 8L5 5M2 8l3 3" />
-                                <path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
-                              </svg>
-                              Sign out
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
-                              className="w-full text-left px-3 py-2.5 text-xs font-medium transition-colors flex items-center gap-2"
-                              style={{ color: '#636366' }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M6 8h8M11 5l3 3-3 3" />
-                                <path d="M10 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
-                              </svg>
-                              Sign in to save data
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Right: action icon buttons */}
-                  <div className="flex items-center gap-0.5">
-                    {/* Bug report */}
-                    <button
-                      type="button"
-                      onClick={() => setIsBugReportOpen(true)}
-                      className="p-1.5 rounded-lg transition-colors"
-                      style={{ color: '#8E8E93' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      title="Report a bug"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="8" cy="9" r="4" />
-                        <path d="M8 5V3" />
-                        <path d="M4 9H2M14 9h-2" />
-                        <path d="M4.5 5.5 3 4M11.5 5.5 13 4" />
-                        <path d="M4.5 12.5 3 14M11.5 12.5 13 14" />
-                      </svg>
-                    </button>
-
-                    {/* Keyboard shortcuts */}
-                    <button
-                      type="button"
-                      onClick={() => setIsShortcutsOpen((o) => !o)}
-                      className="p-1.5 rounded-lg transition-colors"
-                      style={{
-                        color: isShortcutsOpen ? '#8DA286' : '#8E8E93',
-                        backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
-                      }}
-                      onMouseEnter={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                      onMouseLeave={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'transparent'; }}
-                      title="Keyboard shortcuts"
-                    >
-                      {/* Modern keyboard icon */}
-                      <svg width="14" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4">
-                        <rect x="0.7" y="0.7" width="14.6" height="10.6" rx="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <rect x="2.5" y="2.5" width="2" height="2.5" rx="0.7" />
-                        <rect x="6" y="2.5" width="2" height="2.5" rx="0.7" />
-                        <rect x="9.5" y="2.5" width="2" height="2.5" rx="0.7" />
-                        <rect x="3.5" y="7" width="9" height="2" rx="0.7" />
-                      </svg>
-                    </button>
-
-                    {/* Settings */}
-                    <button
-                      type="button"
-                      onClick={() => setIsSettingsOpen(true)}
-                      className="p-1.5 rounded-lg transition-colors"
-                      style={{ color: '#8E8E93' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      title="Settings"
-                      aria-label="Open settings"
-                    >
-                      <Cog6ToothIcon className="h-3.5 w-3.5" />
-                    </button>
-
-                    {/* Edit mode */}
-                    <button
-                      type="button"
-                      onClick={() => setIsEditMode(!isEditMode)}
-                      className="p-1.5 rounded-lg transition-colors"
-                      style={{
-                        color: isEditMode ? '#8DA286' : '#8E8E93',
-                        backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
-                      }}
-                      onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                      onMouseLeave={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent'; }}
-                      title={isEditMode ? 'Done editing' : 'Edit calendars'}
-                    >
-                      {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                </>
+              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
+                {mode === 'compare' ? 'Compare' : 'My Calendars'}
+              </span>
+              {mode !== 'compare' && (
+                <div className="flex items-center gap-0.5">
+                  {/* Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ color: '#8E8E93' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    title="Settings"
+                    aria-label="Open settings"
+                  >
+                    <Cog6ToothIcon className="h-3.5 w-3.5" />
+                  </button>
+                  {/* Edit mode */}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{
+                      color: isEditMode ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    title={isEditMode ? 'Done editing' : 'Edit calendars'}
+                  >
+                    {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               )}
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -1119,9 +994,227 @@ export default function App() {
                   );
                 })() : undefined}
                 canEditOrganization={true}
-                isShortcutsOpen={isShortcutsOpen}
-                onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
               />
+            </div>
+
+            {/* ── Bottom toolbar: profile · bug report · shortcuts ── */}
+            <div className="flex-shrink-0" style={{ position: 'relative', borderTop: '1px solid rgba(0,0,0,0.09)' }}>
+              {/* Toolbar row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
+                {/* Profile circle */}
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu((o) => !o)}
+                  style={{
+                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer', flexShrink: 0, transition: 'opacity 200ms',
+                    backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)',
+                    color: session ? '#5A7454' : '#8DA286',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  title={session ? session.user.email : visitMode ? 'Visit mode — click for options' : ''}
+                >
+                  {profileLetter}
+                </button>
+
+                {/* Right icons: bug report + keyboard shortcuts */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {/* Bug report button */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsBugReportOpen((o) => !o); setBugText(''); setBugStatus('idle'); }}
+                    style={{
+                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      color: isBugReportOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                    title="Report a bug"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="8" cy="9" r="4" /><path d="M8 5V3" /><path d="M4 9H2M14 9h-2" />
+                      <path d="M4.5 5.5 3 4M11.5 5.5 13 4" /><path d="M4.5 12.5 3 14M11.5 12.5 13 14" />
+                    </svg>
+                  </button>
+
+                  {/* Keyboard shortcuts button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsShortcutsOpen((o) => !o)}
+                    style={{
+                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      color: isShortcutsOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                    title="Keyboard shortcuts"
+                  >
+                    <svg width="14" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4">
+                      <rect x="0.7" y="0.7" width="14.6" height="10.6" rx="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <rect x="2.5" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="6" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="9.5" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="3.5" y="7" width="9" height="2" rx="0.7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Popovers (rendered at toolbar level, positioned within panel bounds) ── */}
+
+              {/* Profile dropdown */}
+              {showProfileMenu && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setShowProfileMenu(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, marginBottom: 8, zIndex: 401,
+                      minWidth: 196, borderRadius: 12, overflow: 'hidden',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 28px rgba(0,0,0,0.14)', display: 'flex', flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                      <div
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)', color: session ? '#5A7454' : '#8DA286',
+                        }}
+                      >
+                        {profileLetter}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
+                        <p style={{ fontSize: 10, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {session ? session.user.email : 'Visit mode · not saved'}
+                        </p>
+                      </div>
+                    </div>
+                    {session ? (
+                      <button
+                        type="button"
+                        onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 8H2M2 8L5 5M2 8l3 3" /><path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
+                        </svg>
+                        Sign out
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 8h8M11 5l3 3-3 3" /><path d="M10 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
+                        </svg>
+                        Sign in to save data
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Bug report popover */}
+              {isBugReportOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsBugReportOpen(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    }}
+                  >
+                    <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8E8E93', margin: 0 }}>Report a Bug</p>
+                      <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
+                    </div>
+                    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {bugStatus === 'success' ? (
+                        <div style={{ padding: '12px 0', textAlign: 'center' }}>
+                          <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
+                          <p style={{ fontSize: 10, color: '#8E8E93', margin: '2px 0 0' }}>We'll look into it soon.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <textarea
+                            value={bugText}
+                            onChange={(e) => setBugText(e.target.value)}
+                            placeholder="Describe what happened…"
+                            rows={3}
+                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                          />
+                          {bugStatus === 'error' && (
+                            <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!bugText.trim() || bugStatus === 'loading'}
+                            onClick={async () => {
+                              if (!bugText.trim()) return;
+                              setBugStatus('loading');
+                              try {
+                                if (supabase) {
+                                  const { error } = await supabase.from('bug_reports').insert([{ user_email: session?.user.email ?? 'anonymous', description: bugText.trim() }]);
+                                  if (error) throw error;
+                                }
+                                setBugStatus('success');
+                                setTimeout(() => setIsBugReportOpen(false), 2000);
+                              } catch {
+                                setBugStatus('error');
+                              }
+                            }}
+                            style={{
+                              width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms', fontFamily: 'inherit',
+                              backgroundColor: bugText.trim() ? '#8DA286' : 'rgba(0,0,0,0.06)',
+                              color: bugText.trim() ? '#FFFFFF' : '#AEAEB2',
+                            }}
+                          >
+                            {bugStatus === 'loading' ? 'Sending…' : 'Send Report'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Keyboard shortcuts popover */}
+              {isShortcutsOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsShortcutsOpen(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      borderRadius: 12, padding: '8px 12px',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                    }}
+                  >
+                    <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8E8E93', margin: '0 0 8px' }}>Shortcuts</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
+                      {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
+                        <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                          <kbd style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: '#3A3A3C' }}>{key}</kbd>
+                          <span>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1590,14 +1683,6 @@ export default function App() {
         onAddTag={addTag}
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
-      />
-
-      {/* ── Bug report modal ── */}
-      <BugReportModal
-        isOpen={isBugReportOpen}
-        onClose={() => setIsBugReportOpen(false)}
-        userEmail={session?.user.email}
-        supabase={supabase}
       />
 
       {/* ── Onboarding tour overlay (first-time users after wizard) ── */}

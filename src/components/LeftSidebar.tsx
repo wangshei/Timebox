@@ -40,9 +40,7 @@ interface LeftSidebarProps {
   isShortcutsOpen?: boolean;
   onToggleShortcuts?: () => void;
   isEditMode?: boolean;
-  /** When true, sidebar shows analytics content instead of calendar list. */
   isCompareMode?: boolean;
-  /** Called when the user clicks the back arrow in compare mode. */
   onExitCompare?: () => void;
 }
 
@@ -383,41 +381,37 @@ export function LeftSidebar({
     );
   };
 
+  // Compare mode: replace entire sidebar with analytics
+  if (isCompareMode) {
+    return (
+      <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+        {/* Compare header with back button */}
+        <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+          <button
+            type="button"
+            onClick={onExitCompare}
+            className="p-1 rounded-md transition-colors"
+            style={{ color: '#8E8E93' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#636366')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
+          >
+            <ArrowLeftIcon className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93' }}>
+            Compare
+          </span>
+        </div>
+        {/* Analytics section fills remaining space */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-2 pb-3">
+          {planVsActualSection}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
-
-      {/* Compare mode: show analytics full-height with back button */}
-      {isCompareMode && planVsActualSection && (
-        <>
-          {/* Back button header */}
-          <div
-            className="flex-shrink-0 flex items-center gap-2 px-2 py-2"
-            style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}
-          >
-            <button
-              type="button"
-              onClick={onExitCompare}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
-              style={{ color: '#636366' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            >
-              <ArrowLeftIcon className="h-3.5 w-3.5" />
-              <span>Back</span>
-            </button>
-            <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: '#8E8E93', marginLeft: 2 }}>
-              Compare
-            </span>
-          </div>
-          {/* Analytics content fills remaining space */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
-            {planVsActualSection}
-          </div>
-        </>
-      )}
-
-      {/* Normal mode: calendar list */}
-      {!isCompareMode && (
+      {/* Scrollable list */}
       <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
         {calendarContainers.map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
@@ -591,10 +585,9 @@ export function LeftSidebar({
           )}
         </div>
       </div>
-      )} {/* end !isCompareMode calendar list */}
 
-      {/* Plan vs Actual section — only in normal mode (compare mode shows it full-height above) */}
-      {!isCompareMode && planVsActualSection && (
+      {/* Plan vs Actual section */}
+      {planVsActualSection && (
         <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}>
           <div className="flex items-center justify-between gap-2 px-3 py-2">
             <span className="text-[9px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93' }}>

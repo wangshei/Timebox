@@ -558,10 +558,9 @@ function TimeBlockCardInner({
                   onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
                   className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
                   style={{
-                    width: 12,
-                    height: 12,
-                    marginTop: 2,
-                    flexShrink: 0,
+                    width: 10,
+                    height: 10,
+                    marginTop: 1,
                     opacity: confirmed ? 1 : 0.7,
                     ...(confirmed
                       ? { backgroundColor: blockColor, border: `1px solid ${blockColor}` }
@@ -583,9 +582,6 @@ function TimeBlockCardInner({
                     whiteSpace: 'normal',
                     wordBreak: 'break-word',
                     overflow: 'hidden',
-                    textDecoration: isTask && confirmed ? 'line-through' : 'none',
-                    textDecorationColor: 'rgba(28,28,30,0.4)',
-                    textDecorationSkipInk: 'none',
                   }}
                 >
                   {block.title || 'Untitled'}
@@ -604,16 +600,6 @@ function TimeBlockCardInner({
               {[1, 2, 3, 4, 5].filter((l) => l <= block.priority!).map((l) => (
                 <StarIcon key={l} style={{ width: 6, height: 6, color: blockColor, opacity: 0.65 }} />
               ))}
-            </div>
-          )}
-
-          {/* Resize handle — compact mode (tasks only, small+, not locked) */}
-          {onResizeStart && isTask && !locked && compactTier !== 'micro' && compactTier !== 'tiny' && (
-            <div
-              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
-            >
-              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.45) }} />
             </div>
           )}
         </div>
@@ -719,7 +705,7 @@ function TimeBlockCardInner({
                 onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
                 className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
                 style={{
-                  width: 12, height: 12,
+                  width: 10, height: 10,
                   opacity: confirmed ? 1 : 0.6,
                   ...(confirmed
                     ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
@@ -728,17 +714,12 @@ function TimeBlockCardInner({
                 title={confirmed ? 'Mark not done' : 'Mark done'}
                 aria-label={confirmed ? 'Mark not done' : 'Mark done'}
               >
-                {confirmed && <CheckIcon className="h-[7px] w-[7px]" style={{ color: '#FFFFFF' }} />}
+                {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
               </button>
             )}
             <span
               className={cn('font-medium truncate leading-none min-w-0', titleTextClass)}
-              style={{
-                fontSize: 10,
-                textDecoration: isTask && confirmed ? 'line-through' : 'none',
-                textDecorationColor: 'rgba(28,28,30,0.4)',
-                textDecorationSkipInk: 'none',
-              }}
+              style={{ fontSize: 10 }}
             >
               {block.title || 'Untitled'}
             </span>
@@ -754,9 +735,8 @@ function TimeBlockCardInner({
                   onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
                   className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
                   style={{
-                    width: 12, height: 12,
-                    marginTop: 2,
-                    flexShrink: 0,
+                    width: 10, height: 10,
+                    marginTop: 3,
                     opacity: confirmed ? 1 : 0.6,
                     ...(confirmed
                       ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
@@ -765,7 +745,7 @@ function TimeBlockCardInner({
                   title={confirmed ? 'Mark not done' : 'Mark done'}
                   aria-label={confirmed ? 'Mark not done' : 'Mark done'}
                 >
-                  {confirmed && <CheckIcon className="h-[7px] w-[7px]" style={{ color: '#FFFFFF' }} />}
+                  {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
                 </button>
               )}
               {/* Event skip button in compare mode actual panel */}
@@ -786,11 +766,10 @@ function TimeBlockCardInner({
                   isTask ? 'font-semibold' : 'font-medium',
                   'leading-snug min-w-0',
                   titleTextClass,
+                  isTask && confirmed && 'line-through decoration-current/40',
                 )}
                 style={{
                   fontSize: isTask ? 13 : 11,
-                  textDecoration: isTask && confirmed ? 'line-through' : 'none',
-                  textDecorationColor: 'rgba(28,28,30,0.4)',
                   textDecorationSkipInk: 'none',
                   overflow: 'hidden',
                   wordBreak: 'break-word',

@@ -36,15 +36,12 @@ interface WeekViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
-  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
-  /** When true, all block interactions are disabled (used for plan panel in compare mode). */
   locked?: boolean;
-  /** When true, show difference highlights on blocks. */
   showDifferences?: boolean;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock, locked, showDifferences }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -148,9 +145,6 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const [resizingBlock, setResizingBlock] = React.useState<{
     block: ResolvedTimeBlock; startClientY: number;
   } | null>(null);
-  const [resizingEvent, setResizingEvent] = React.useState<{
-    event: ResolvedEvent; startClientY: number;
-  } | null>(null);
 
   React.useEffect(() => {
     if (!resizingBlock || !onResizeBlock) return;
@@ -171,26 +165,6 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       window.removeEventListener('mouseup', onUp);
     };
   }, [resizingBlock, onResizeBlock]);
-
-  React.useEffect(() => {
-    if (!resizingEvent || !onResizeEvent) return;
-    const { event, startClientY } = resizingEvent;
-    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
-    const onMove = (e: MouseEvent) => {
-      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndMins = parseTimeToMins(event.end) + deltaMins;
-      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
-      newEndMins = Math.max(minEndMins, newEndMins);
-      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
-    };
-    const onUp = () => setResizingEvent(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [resizingEvent, onResizeEvent]);
 
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   const currentTimeTopRaw =
@@ -416,14 +390,14 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     onEditBlock={onEditBlock}
                                     onDeleteBlock={onDeleteBlock}
                                     onDeleteTask={onDeleteTask}
-                                    onResizeStart={onResizeBlock ? (blockId, e) => {
+                                    onResizeStart={!locked && onResizeBlock ? (blockId, e) => {
                                       const found = dayBlocks.find(b => b.id === blockId);
                                       if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                     } : undefined}
-                                    compact
-                                    view="week"
                                     locked={locked}
                                     showDifferences={showDifferences}
+                                    compact
+                                    view="week"
                                   />
                                 );
                               })}
@@ -445,12 +419,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     onSelect={() => handleSelect(`event-${event.id}`)}
                                     onDeselect={() => handleSelect(null)}
                                     onDeleteEvent={onDeleteEvent}
-                                    onDeleteEventSeries={onDeleteEventSeries}
                                     onEditEvent={onEditEvent}
                                     plannedStyle={false}
                                     draggable={!!onMoveEvent}
                                     compact={true}
-                                    onResizeStart={onResizeEvent ? (e) => { e.preventDefault(); e.stopPropagation(); setResizingEvent({ event, startClientY: e.clientY }); } : undefined}
                                   />
                                 );
                               })}

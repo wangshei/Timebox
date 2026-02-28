@@ -47,7 +47,6 @@ interface CalendarViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
-  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
 }
@@ -65,12 +64,12 @@ export function CalendarView({
   focusedCategoryId = null, focusedCalendarId = null, isMobile = false,
   onOpenAddModal, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask,
   onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onEditEvent, onEditBlock,
-  events: eventsProp = [], onDeleteEvent, onDeleteEventSeries, onMoveEvent, onResizeEvent,
+  events: eventsProp = [], onDeleteEvent, onMoveEvent, onResizeEvent,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showDifferences, setShowDifferences] = useState(false);
 
-  // Reset showDifferences when exiting compare mode
+  // Reset showDifferences when leaving compare mode
   React.useEffect(() => {
     if (mode !== 'compare') setShowDifferences(false);
   }, [mode]);
@@ -89,19 +88,19 @@ export function CalendarView({
 
   const mainViewBlocks = useMemo(() => selectMainViewBlocks(visibleBlocks), [visibleBlocks]);
 
-  // Compare mode block sets — plan side vs actual side
-  const planBlocks = useMemo(
-    () => visibleBlocks.filter((b) => isPlannedIntent(b)),
-    [visibleBlocks]
-  );
-  const actualBlocks = useMemo(
-    () => visibleBlocks.filter((b) => isRecordedBlock(b, todayStr) || b.source === 'unplanned'),
-    [visibleBlocks, todayStr]
-  );
-
   const resolvedEvents = useMemo(
     () => resolveEvents(eventsProp, categories, containers),
     [eventsProp, categories, containers]
+  );
+
+  // Compare mode: split blocks into plan vs actual
+  const planBlocks = useMemo(
+    () => visibleBlocks.filter((b) => isPlannedIntent(b as any)),
+    [visibleBlocks]
+  );
+  const actualBlocks = useMemo(
+    () => visibleBlocks.filter((b) => isRecordedBlock(b as any, todayStr) || b.source === 'unplanned'),
+    [visibleBlocks, todayStr]
   );
 
   const getHeaderTitle = () => {
@@ -215,16 +214,16 @@ export function CalendarView({
               </button>
             )}
 
-            {/* Show Difference button — only visible in compare mode */}
+            {/* Show Difference button — only in compare mode */}
             {mode === 'compare' && (
               <button
                 type="button"
                 onClick={() => setShowDifferences((v) => !v)}
                 className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
                 style={{
-                  backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent',
                   color: '#FF3B30',
-                  border: '1px solid rgba(255,59,48,0.45)',
+                  border: '1px solid #FF3B30',
+                  backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent',
                 }}
               >
                 Show Difference
@@ -260,224 +259,50 @@ export function CalendarView({
       </div>
 
       {/* Calendar Content */}
-      {view === 'day' && mode === 'compare' ? (
+      {mode === 'compare' && view === 'day' ? (
         /* Day compare: plan | actual split */
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+          {/* Plan side — locked */}
           <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
-            <div className="px-3 py-1.5 shrink-0 section-label" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}` }}>
+            <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}`, fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
               Plan
             </div>
-            <DayView
-              mode="overall"
-              timeBlocks={planBlocks}
-              events={resolvedEvents}
-              selectedDate={selectedDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-              locked
-              showDifferences={showDifferences}
-            />
+            <DayView mode="overall" timeBlocks={planBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked showDifferences={showDifferences} />
           </div>
+          {/* Actual side — editable */}
           <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ backgroundColor: BG }}>
-            <div className="px-3 py-1.5 shrink-0 section-label" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}` }}>
+            <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}`, fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
               Actual
             </div>
-            <DayView
-              mode="compare"
-              timeBlocks={actualBlocks}
-              events={resolvedEvents}
-              selectedDate={selectedDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onSkip={onSkip}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onDropTask={onDropTask}
-              onCreateBlock={onCreateBlock}
-              onMoveBlock={onMoveBlock}
-              onResizeBlock={onResizeBlock}
-              onMoveEvent={onMoveEvent}
-              onResizeEvent={onResizeEvent}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-              showDifferences={showDifferences}
-            />
+            <DayView mode="compare" timeBlocks={actualBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} showDifferences={showDifferences} />
           </div>
         </div>
-      ) : view === '3day' && mode === 'compare' ? (
-        /* 3-day compare: 3+3 split */
-        <div className="flex-1 flex overflow-hidden min-h-0">
+      ) : mode === 'compare' && view === '3day' ? (
+        /* 3-day compare: 3+3 split (plan left, actual right) */
+        <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
+          {/* Plan: left half */}
           <div className="flex-1 flex flex-col min-h-0" style={{ borderRight: `1px solid ${BORDER}` }}>
-            <div className="px-3 py-1.5 shrink-0 section-label" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}` }}>
-              Plan
-            </div>
-            <ThreeDayView
-              mode="overall"
-              timeBlocks={planBlocks}
-              currentDate={currentDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              events={resolvedEvents}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-              locked
-              showDifferences={showDifferences}
-            />
+            <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={showDifferences} />
           </div>
+          {/* Actual: right half */}
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-3 py-1.5 shrink-0 section-label" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}` }}>
-              Actual
-            </div>
-            <ThreeDayView
-              mode="compare"
-              timeBlocks={actualBlocks}
-              currentDate={currentDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onSkip={onSkip}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDropTask={onDropTask}
-              onMoveBlock={onMoveBlock}
-              onResizeBlock={onResizeBlock}
-              onMoveEvent={onMoveEvent}
-              onResizeEvent={onResizeEvent}
-              events={resolvedEvents}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onCreateBlock={onCreateBlock}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-              hideTimeGutter
-              showDifferences={showDifferences}
-            />
+            <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} hideTimeGutter panelLabel="Actual" showDifferences={showDifferences} />
           </div>
         </div>
       ) : (
-        /* Normal single-panel views (day/3day/week/month non-compare, or week/month compare) */
+        /* Normal view (or week/month compare — single view with showDifferences) */
         <div className="flex-1 overflow-y-auto min-h-0">
           {view === 'day' && (
-            <DayView
-              mode={mode}
-              timeBlocks={mainViewBlocks}
-              events={resolvedEvents}
-              selectedDate={selectedDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onSkip={onSkip}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onDropTask={onDropTask}
-              onCreateBlock={onCreateBlock}
-              onMoveBlock={onMoveBlock}
-              onResizeBlock={onResizeBlock}
-              onMoveEvent={onMoveEvent}
-              onResizeEvent={onResizeEvent}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-            />
+            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />
           )}
           {view === '3day' && (
-            <ThreeDayView
-              mode={mode}
-              timeBlocks={mainViewBlocks}
-              currentDate={currentDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onSkip={onSkip}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDropTask={onDropTask}
-              onMoveBlock={onMoveBlock}
-              onResizeBlock={onResizeBlock}
-              onMoveEvent={onMoveEvent}
-              onResizeEvent={onResizeEvent}
-              events={resolvedEvents}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onCreateBlock={onCreateBlock}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-            />
+            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} />
           )}
           {view === 'week' && (
-            <WeekView
-              mode={mode}
-              timeBlocks={mainViewBlocks}
-              currentDate={currentDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onConfirm={onConfirm}
-              onSkip={onSkip}
-              onUnconfirm={onUnconfirm}
-              onDeleteBlock={onDeleteBlock}
-              onDeleteTask={onDeleteTask}
-              onDropTask={onDropTask}
-              onMoveBlock={onMoveBlock}
-              onResizeBlock={onResizeBlock}
-              onMoveEvent={onMoveEvent}
-              onResizeEvent={onResizeEvent}
-              events={resolvedEvents}
-              onDeleteEvent={onDeleteEvent}
-              onDeleteEventSeries={onDeleteEventSeries}
-              onCreateBlock={onCreateBlock}
-              onEditEvent={onEditEvent}
-              onEditBlock={onEditBlock}
-              showDifferences={mode === 'compare' ? showDifferences : undefined}
-            />
+            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} showDifferences={mode === 'compare' ? showDifferences : undefined} />
           )}
           {view === 'month' && (
-            <MonthView
-              mode={mode}
-              timeBlocks={mainViewBlocks}
-              currentDate={currentDate}
-              selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
-              focusedCategoryId={focusedCategoryId}
-              focusedCalendarId={focusedCalendarId}
-              onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }}
-              events={eventsProp}
-            />
+            <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} />
           )}
         </div>
       )}

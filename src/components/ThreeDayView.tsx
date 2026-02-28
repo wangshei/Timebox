@@ -38,15 +38,10 @@ interface ThreeDayViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
-  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
-  /** When true, hides the left 52px time gutter column (used for right panel in 3-day compare). */
   hideTimeGutter?: boolean;
-  /** Optional label shown above day headers (e.g. "PLAN" or "ACTUAL"). */
   panelLabel?: string;
-  /** When true, all block interactions are disabled (used for plan panel in compare mode). */
   locked?: boolean;
-  /** When true, show difference highlights on blocks. */
   showDifferences?: boolean;
 }
 
@@ -61,7 +56,7 @@ export function ThreeDayView({
   focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm,
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
-  events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
+  events = [], onDeleteEvent, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
@@ -163,9 +158,6 @@ export function ThreeDayView({
   const [resizingBlock, setResizingBlock] = React.useState<{
     block: ResolvedTimeBlock; startClientY: number;
   } | null>(null);
-  const [resizingEvent, setResizingEvent] = React.useState<{
-    event: ResolvedEvent; startClientY: number;
-  } | null>(null);
 
   React.useEffect(() => {
     if (!resizingBlock || !onResizeBlock) return;
@@ -187,30 +179,10 @@ export function ThreeDayView({
     };
   }, [resizingBlock, onResizeBlock]);
 
-  React.useEffect(() => {
-    if (!resizingEvent || !onResizeEvent) return;
-    const { event, startClientY } = resizingEvent;
-    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
-    const onMove = (e: MouseEvent) => {
-      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndMins = parseTimeToMins(event.end) + deltaMins;
-      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
-      newEndMins = Math.max(minEndMins, newEndMins);
-      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
-    };
-    const onUp = () => setResizingEvent(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [resizingEvent, onResizeEvent]);
-
   return (
     <div className="flex-1 overflow-auto" style={{ backgroundColor: BG_CANVAS }}>
       <div className="flex min-w-max">
-        {/* Time column — hidden when hideTimeGutter is set (right panel in compare) */}
+        {/* Time column — hidden when hideTimeGutter is true (compare right panel) */}
         {!hideTimeGutter && (
           <div
             className="flex-shrink-0 py-2 sticky left-0 z-10"
@@ -220,16 +192,9 @@ export function ThreeDayView({
               backgroundColor: BG_CANVAS,
             }}
           >
-            {/* Spacer for day headers — shows panel label if provided */}
-            <div
-              className="flex items-center justify-center"
-              style={{ height: 48 }}
-            >
+            <div className="flex items-center justify-center" style={{ height: 48 }}>
               {panelLabel && (
-                <span
-                  className="font-bold uppercase tracking-widest"
-                  style={{ color: '#AEAEB2', fontSize: '9px', letterSpacing: '0.12em' }}
-                >
+                <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '9px', letterSpacing: '0.1em' }}>
                   {panelLabel}
                 </span>
               )}
@@ -433,14 +398,14 @@ export function ThreeDayView({
                                   onEditBlock={onEditBlock}
                                   onDeleteBlock={onDeleteBlock}
                                   onDeleteTask={onDeleteTask}
-                                  onResizeStart={onResizeBlock ? (blockId, e) => {
+                                  onResizeStart={!locked && onResizeBlock ? (blockId, e) => {
                                     const found = dayBlocks.find(b => b.id === blockId);
                                     if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                   } : undefined}
-                                  compact
-                                  view="3day"
                                   locked={locked}
                                   showDifferences={showDifferences}
+                                  compact
+                                  view="3day"
                                 />
                               );
                             })}
@@ -467,11 +432,9 @@ export function ThreeDayView({
                                   onSelect={() => handleSelect(`event-${event.id}`)}
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
-                                  onDeleteEventSeries={onDeleteEventSeries}
                                   onEditEvent={onEditEvent}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
-                                  onResizeStart={onResizeEvent ? (e) => { e.preventDefault(); e.stopPropagation(); setResizingEvent({ event, startClientY: e.clientY }); } : undefined}
                                 />
                               );
                             })}
