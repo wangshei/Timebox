@@ -38,9 +38,13 @@ interface WeekViewProps {
   onDeleteEvent?: (eventId: string) => void;
   onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
+  /** When true, all block interactions are disabled (used for plan panel in compare mode). */
+  locked?: boolean;
+  /** When true, show difference highlights on blocks. */
+  showDifferences?: boolean;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -285,9 +289,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   <div className="px-1 md:px-2">
                     <div
                       data-week-grid
-                      className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
+                      className={`relative ${!locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                       style={{ height: GRID_HEIGHT }}
-                      onDragOver={(e) => {
+                      onDragOver={locked ? undefined : (e) => {
                         const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
                         const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
                         const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
@@ -309,12 +313,12 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             : (activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : 15);
                         setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
                       }}
-                      onDragLeave={(e) => {
+                      onDragLeave={locked ? undefined : (e) => {
                         const grid = e.currentTarget as HTMLDivElement;
                         const related = e.relatedTarget as Node | null;
                         if (!related || !grid.contains(related)) setDragPreview(null);
                       }}
-                      onDrop={(e) => {
+                      onDrop={locked ? undefined : (e) => {
                         const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
                         const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
                         const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
@@ -339,7 +343,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         }
                         setDragPreview(null);
                       }}
-                      onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
+                      onMouseDown={!locked && onCreateBlock ? (e: React.MouseEvent) => {
                         if (creatingBlock) return;
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                         const offsetY = e.clientY - rect.top;
@@ -395,6 +399,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     } : undefined}
                                     compact
                                     view="week"
+                                    locked={locked}
+                                    showDifferences={showDifferences}
                                   />
                                 );
                               })}

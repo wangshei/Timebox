@@ -62,12 +62,16 @@ interface DayViewProps {
   onEditBlock?: (blockId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
   compareMatchedTaskIds?: string[];
+  /** When true, all block interactions are disabled (used for plan panel in compare mode). */
+  locked?: boolean;
+  /** When true, show difference highlights on blocks. */
+  showDifferences?: boolean;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -371,12 +375,12 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           Clicks on empty space (not caught by cards) bubble up to this element. */}
       <div
         ref={gridRef}
-        className={`relative ${onCreateBlock ? 'cursor-crosshair' : ''}`}
+        className={`relative ${!locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
-        onMouseDown={handleGridMouseDown}
-        onDragOver={onDropTask || onMoveBlock || onMoveEvent ? handleDragOver : undefined}
-        onDragLeave={onDropTask || onMoveBlock || onMoveEvent ? handleDragLeave : undefined}
-        onDrop={onDropTask || onMoveBlock || onMoveEvent ? handleDrop : undefined}
+        onMouseDown={!locked ? handleGridMouseDown : undefined}
+        onDragOver={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragOver : undefined}
+        onDragLeave={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragLeave : undefined}
+        onDrop={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDrop : undefined}
       >
         {/* Grid: hour rows with warm lines; past slots slightly warmer */}
         {hours.map((hour) => {
@@ -457,6 +461,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onEditBlock={onEditBlock}
                 onResizeStart={onResizeBlock ? handleResizeStartByBlockId : undefined}
                 compareMatchedTaskIds={compareMatchedTaskIds}
+                locked={locked}
+                showDifferences={showDifferences}
               />
             );
           })}

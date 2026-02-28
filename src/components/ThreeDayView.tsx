@@ -40,6 +40,14 @@ interface ThreeDayViewProps {
   onDeleteEvent?: (eventId: string) => void;
   onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
+  /** When true, hides the left 52px time gutter column (used for right panel in 3-day compare). */
+  hideTimeGutter?: boolean;
+  /** Optional label shown above day headers (e.g. "PLAN" or "ACTUAL"). */
+  panelLabel?: string;
+  /** When true, all block interactions are disabled (used for plan panel in compare mode). */
+  locked?: boolean;
+  /** When true, show difference highlights on blocks. */
+  showDifferences?: boolean;
 }
 
 const PRIMARY = THEME.primary;
@@ -54,6 +62,7 @@ export function ThreeDayView({
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
+  hideTimeGutter, panelLabel, locked, showDifferences,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -178,27 +187,42 @@ export function ThreeDayView({
   return (
     <div className="flex-1 overflow-auto" style={{ backgroundColor: BG_CANVAS }}>
       <div className="flex min-w-max">
-        {/* Time column */}
-        <div
-          className="flex-shrink-0 py-2 sticky left-0 z-10"
-          style={{
-            width: 52,
-            borderRight: `1px solid ${GRID_HOUR}`,
-            backgroundColor: BG_CANVAS,
-          }}
-        >
-          <div style={{ height: 48 }} /> {/* Spacer for day headers */}
-          {hours.map((hour) => (
-            <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-              <div
-                className="absolute w-full text-right font-medium"
-                style={{ right: 8, top: -7, color: '#AEAEB2', fontSize: '10px', letterSpacing: '-0.01em' }}
-              >
-                {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
-              </div>
+        {/* Time column — hidden when hideTimeGutter is set (right panel in compare) */}
+        {!hideTimeGutter && (
+          <div
+            className="flex-shrink-0 py-2 sticky left-0 z-10"
+            style={{
+              width: 52,
+              borderRight: `1px solid ${GRID_HOUR}`,
+              backgroundColor: BG_CANVAS,
+            }}
+          >
+            {/* Spacer for day headers — shows panel label if provided */}
+            <div
+              className="flex items-center justify-center"
+              style={{ height: 48 }}
+            >
+              {panelLabel && (
+                <span
+                  className="font-bold uppercase tracking-widest"
+                  style={{ color: '#AEAEB2', fontSize: '9px', letterSpacing: '0.12em' }}
+                >
+                  {panelLabel}
+                </span>
+              )}
             </div>
-          ))}
-        </div>
+            {hours.map((hour) => (
+              <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
+                <div
+                  className="absolute w-full text-right font-medium"
+                  style={{ right: 8, top: -7, color: '#AEAEB2', fontSize: '10px', letterSpacing: '-0.01em' }}
+                >
+                  {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Three day columns */}
         <div className="flex flex-1">
@@ -257,9 +281,9 @@ export function ThreeDayView({
                 <div data-3day-col={dateStr} className="px-1.5">
                   <div
                     data-3day-grid
-                    className={`relative ${onDropTask || onMoveBlock ? 'cursor-copy' : onCreateBlock ? 'cursor-crosshair' : ''}`}
+                    className={`relative ${!locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                     style={{ height: GRID_HEIGHT }}
-                    onDragOver={(e) => {
+                    onDragOver={locked ? undefined : (e) => {
                       const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
                       const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
                       const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
@@ -284,7 +308,7 @@ export function ThreeDayView({
                       setDragPreviewType(hasEvent ? 'event' : hasBlock ? 'block' : 'task');
                       setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
                     }}
-                    onDragLeave={(e) => {
+                    onDragLeave={locked ? undefined : (e) => {
                       const grid = e.currentTarget as HTMLDivElement;
                       const related = e.relatedTarget as Node | null;
                       if (!related || !grid.contains(related)) {
@@ -292,7 +316,7 @@ export function ThreeDayView({
                         setDragColor(BLOCK_PREVIEW.color);
                       }
                     }}
-                    onDrop={(e) => {
+                    onDrop={locked ? undefined : (e) => {
                       const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
                       const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
                       const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
@@ -319,7 +343,7 @@ export function ThreeDayView({
                       setDragPreview(null);
                       setDragColor(BLOCK_PREVIEW.color);
                     }}
-                    onMouseDown={onCreateBlock ? (e: React.MouseEvent) => {
+                    onMouseDown={!locked && onCreateBlock ? (e: React.MouseEvent) => {
                       if (creatingBlock) return;
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                       const offsetY = e.clientY - rect.top;
@@ -392,6 +416,8 @@ export function ThreeDayView({
                                   } : undefined}
                                   compact
                                   view="3day"
+                                  locked={locked}
+                                  showDifferences={showDifferences}
                                 />
                               );
                             })}
