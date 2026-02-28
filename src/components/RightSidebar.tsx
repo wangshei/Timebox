@@ -190,6 +190,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
   return (
     <div
+      data-tour="right-sidebar"
       className={`flex flex-col overflow-hidden min-h-0 ${
         isBottomSheet ? 'h-full' : isMobile ? 'w-full' : ''
       }`}
@@ -247,6 +248,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                 </h2>
                 {onOpenAddModal && (
                   <button
+                    data-tour="add-task-btn"
                     type="button"
                     onClick={() => onOpenAddModal('task')}
                     className="flex items-center gap-0.5 text-xs transition-colors"
