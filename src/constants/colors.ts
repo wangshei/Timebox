@@ -55,7 +55,7 @@ export const THEME = {
   muted: '#F2F2F0',              // Muted surfaces
 
   // Text colors
-  textPrimary: '#1C1C1E',        // Near-black
+  textPrimary: '#8E8E93',        // Primary gray (was near-black)
   textSecondary: '#636366',      // Medium gray
   textMuted: '#8E8E93',          // Light gray
   textPlaceholder: '#C7C7CC',    // Placeholder

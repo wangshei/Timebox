@@ -175,7 +175,7 @@ export function TaskCard({
             </div>
           )}
         </div>
-        <h3 className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{task.title}</h3>
+        <h3 className="font-semibold text-sm leading-snug" style={{ color: '#8E8E93' }}>{task.title}</h3>
         <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs" style={{ color: '#8E8E93' }}>
           <span className="flex items-center gap-1">
             <ClockIcon className="h-3 w-3" />
@@ -369,7 +369,7 @@ export function TaskCard({
                   className="font-semibold leading-snug flex-1 line-clamp-2"
                   style={{
                     fontSize: 13,
-                    color: '#1C1C1E',
+                    color: '#8E8E93',
                     wordBreak: 'break-word',
                     overflow: 'hidden',
                     textDecorationLine: isDone ? 'line-through' : 'none',
@@ -380,7 +380,7 @@ export function TaskCard({
                 </span>
                 <span
                   className="shrink-0 tabular-nums"
-                  style={{ fontSize: 10, color: '#1C1C1E', opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
+                  style={{ fontSize: 10, color: '#8E8E93', opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
                 >
                   {fmtMins(estimatedMins)}
                 </span>
@@ -392,7 +392,7 @@ export function TaskCard({
               {cardHeight >= 65 && task.dueDate && (
                 <div
                   className="mt-auto flex items-center gap-0.5"
-                  style={{ fontSize: 10, color: '#1C1C1E', opacity: 0.5 }}
+                  style={{ fontSize: 10, color: '#8E8E93', opacity: 0.5 }}
                 >
                   <CalendarIcon className="h-2.5 w-2.5 flex-shrink-0" />
                   <span className="truncate">{task.dueDate}</span>

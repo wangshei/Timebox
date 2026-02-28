@@ -221,14 +221,14 @@ export function LeftSidebar({
           if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
         }}
         className="w-full px-2 py-1.5 text-xs rounded-md focus:outline-none"
-        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#1C1C1E' }}
+        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#8E8E93' }}
         autoFocus
       />
       {showColor && <ColorPicker value={color} onChange={setColor} swatchSize="sm" />}
       <div className="flex gap-1.5">
         <button type="button" onClick={onSave}
           className="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors"
-          style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>
+          style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}>
           Save
         </button>
         <button type="button" onClick={onCancel}
@@ -296,7 +296,7 @@ export function LeftSidebar({
           style={{
             fontSize: depth === 0 ? 14 : 13,
             fontWeight: depth === 0 ? 500 : 400,
-            color: muted ? '#AEAEB2' : depth === 0 ? '#1C1C1E' : '#3A3A3C',
+            color: muted ? '#AEAEB2' : depth === 0 ? '#8E8E93' : '#3A3A3C',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -488,11 +488,11 @@ export function LeftSidebar({
                                           onChange={(e) => setEditName(e.target.value)}
                                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); } }}
                                           className="w-full px-2 py-1 text-xs rounded-md focus:outline-none"
-                                          style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#1C1C1E' }}
+                                          style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#8E8E93' }}
                                           autoFocus
                                         />
                                         <div className="flex gap-1">
-                                          <button type="button" onClick={saveEdit} className="flex-1 px-2 py-0.5 text-xs font-medium rounded-md" style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>Save</button>
+                                          <button type="button" onClick={saveEdit} className="flex-1 px-2 py-0.5 text-xs font-medium rounded-md" style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}>Save</button>
                                           <button type="button" onClick={cancelEdit} className="px-2 py-0.5 text-xs rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                         </div>
                                       </div>
@@ -521,9 +521,9 @@ export function LeftSidebar({
                                 <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveAdd(); } if (e.key === 'Escape') { e.preventDefault(); cancelAdd(); } }}
                                   placeholder="Tag name" className="w-full px-2 py-1 text-xs rounded-md focus:outline-none"
-                                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#1C1C1E' }} autoFocus />
+                                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#8E8E93' }} autoFocus />
                                 <div className="flex gap-1">
-                                  <button type="button" onClick={saveAdd} className="flex-1 px-2 py-0.5 text-xs font-medium rounded-md" style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}>Add</button>
+                                <button type="button" onClick={saveAdd} className="flex-1 px-2 py-0.5 text-xs font-medium rounded-md" style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}>Add</button>
                                   <button type="button" onClick={cancelAdd} className="px-2 py-0.5 text-xs rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>×</button>
                                 </div>
                               </div>

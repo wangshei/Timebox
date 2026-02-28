@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "timebox-loving",
+      "name": "timebox-main",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "3006"],
-      "port": 3006
+      "runtimeArgs": ["vite", "--port", "3005"],
+      "port": 3005
     }
   ]
 }

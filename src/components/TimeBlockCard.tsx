@@ -393,7 +393,7 @@ function TimeBlockCardInner({
       const color = getBlockColor();
       ghost.style.cssText = `position:absolute;top:-9999px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;`;
       ghost.textContent = block.title || 'Block';
-      ghost.style.color = '#1C1C1E';
+      ghost.style.color = '#8E8E93';
       ghost.style.backgroundColor = hexToRgba(color, 0.15);
       ghost.style.border = `2px solid ${color}`;
       document.body.appendChild(ghost);
@@ -411,7 +411,7 @@ function TimeBlockCardInner({
         onMouseDown={handlePopoverDragStart}
       >
         <div className="flex items-start gap-2">
-          <span className="font-semibold text-sm leading-snug" style={{ color: '#1C1C1E' }}>{block.title || 'Untitled'}</span>
+          <span className="font-semibold text-sm leading-snug" style={{ color: '#8E8E93' }}>{block.title || 'Untitled'}</span>
         </div>
       </div>
 
@@ -763,7 +763,7 @@ function TimeBlockCardInner({
                   title="Mark as not done"
                   aria-label="Mark as not done"
                 >
-                  <XMarkIcon className="h-[7px] w-[7px]" style={{ color: '#1C1C1E' }} />
+                  <XMarkIcon className="h-[7px] w-[7px]" style={{ color: '#8E8E93' }} />
                 </button>
               )}
               <span
@@ -800,7 +800,7 @@ function TimeBlockCardInner({
                 {(isEvent || view !== 'day') && (
                   <span
                     className="text-[10px] tabular-nums shrink-0"
-                    style={{ color: '#1C1C1E', opacity: 0.5 }}
+                    style={{ color: '#8E8E93', opacity: 0.5 }}
                   >
                     {fmtShort(block.start)}–{fmtShort(block.end)}
                   </span>

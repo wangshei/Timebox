@@ -510,7 +510,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                       }}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E', lineHeight: 1.3 }}>{event.title}</div>
+                        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93', lineHeight: 1.3 }}>{event.title}</div>
                         <div className="mt-1 truncate" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
                       </div>
                       {onDeleteEvent && (

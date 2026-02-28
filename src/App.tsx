@@ -818,7 +818,7 @@ export default function App() {
             {/* Header: My Calendars label + settings + edit icons (hidden in compare mode — sidebar has its own header) */}
             {mode !== 'compare' && (
               <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-                <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
+                <span className="text-[16px] font-semibold" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
                   My Calendars
                 </span>
                 <div className="flex items-center gap-0.5">
@@ -929,7 +929,7 @@ export default function App() {
                                 {/* Name + delta */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                                   <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: row.color, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 500, color: '#8E8E93', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
                                     {row.name}
                                   </span>
                                   <span style={{ fontSize: 10, fontWeight: 600, color: deltaColor, flexShrink: 0, letterSpacing: '-0.01em' }}>
@@ -952,7 +952,7 @@ export default function App() {
                                   <div style={{ flex: 1, height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
                                     <div style={{ height: '100%', width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.85, borderRadius: 99 }} />
                                   </div>
-                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: '#1C1C1E', fontWeight: 500, flexShrink: 0 }}>
+                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: '#8E8E93', fontWeight: 500, flexShrink: 0 }}>
                                     {row.recordedHours.toFixed(1)}h
                                   </span>
                                 </div>
@@ -963,7 +963,7 @@ export default function App() {
                           <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 8, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: 10, color: '#8E8E93' }}>Total recorded</span>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: '#1C1C1E', letterSpacing: '-0.01em' }}>{totalRecorded.toFixed(1)}h</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#8E8E93', letterSpacing: '-0.01em' }}>{totalRecorded.toFixed(1)}h</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: 10, color: '#AEAEB2' }}>Total planned</span>
@@ -1082,7 +1082,7 @@ export default function App() {
                         {profileLetter}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
+                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
                         <p style={{ fontSize: 10, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {session ? session.user.email : 'Visit mode · not saved'}
                         </p>
@@ -1093,7 +1093,7 @@ export default function App() {
                         type="button"
                         onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
                         style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#8E8E93'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                       >
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1106,7 +1106,7 @@ export default function App() {
                         type="button"
                         onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
                         style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#8E8E93'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                       >
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1148,7 +1148,7 @@ export default function App() {
                             onChange={(e) => setBugText(e.target.value)}
                             placeholder="Describe what happened…"
                             rows={3}
-                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#8E8E93', fontFamily: 'inherit', boxSizing: 'border-box' }}
                           />
                           {bugStatus === 'error' && (
                             <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
@@ -1493,7 +1493,7 @@ export default function App() {
             onClick={() => setRecurrenceEditScopePending(null)}
           />
           <div className="relative rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4" style={{ backgroundColor: '#FFFFFF' }}>
-            <h3 className="font-semibold text-sm mb-0.5" style={{ color: '#1C1C1E' }}>Edit recurring event</h3>
+            <h3 className="font-semibold text-sm mb-0.5" style={{ color: '#8E8E93' }}>Edit recurring event</h3>
             <p className="text-xs mb-4" style={{ color: '#636366' }}>Which events do you want to change?</p>
             <div className="flex flex-col gap-2">
               {([
@@ -1505,7 +1505,7 @@ export default function App() {
                   key={scope}
                   type="button"
                   className="text-left px-4 py-3 rounded-xl transition-all"
-                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: '#1C1C1E', backgroundColor: 'transparent' }}
+                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: '#8E8E93', backgroundColor: 'transparent' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; }}
                   onClick={() => {
@@ -1644,13 +1644,13 @@ export default function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                 </div>
-                <h3 className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Overlapping Recording</h3>
+                <h3 className="text-sm font-semibold" style={{ color: '#8E8E93' }}>Overlapping Recording</h3>
               </div>
               <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
               <button
                 type="button"
                 className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-                style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+                style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
                 onClick={() => setRecordingOverlapWarning(null)}
@@ -1720,7 +1720,7 @@ export default function App() {
           >
             {/* Header */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#8E8E93', margin: 0 }}>
                 Templates are here
               </h2>
               <p style={{ fontSize: 13, lineHeight: 1.6, color: '#636366', margin: 0 }}>
@@ -1800,7 +1800,7 @@ export default function App() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
-                  e.currentTarget.style.color = '#1C1C1E';
+                  e.currentTarget.style.color = '#8E8E93';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
