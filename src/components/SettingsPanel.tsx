@@ -223,7 +223,7 @@ export function SettingsPanel({
   }) => (
     <div
       className="flex items-center gap-2 rounded-lg group"
-      style={{ backgroundColor: `${color}10`, border: `1px solid ${color}28`, padding: '7px 8px 7px 12px' }}
+      style={{ backgroundColor: `${color}10`, border: `1px solid ${color}28`, padding: '8px 10px 8px 12px' }}
     >
       {Icon
         ? <Icon className="h-3 w-3 flex-shrink-0" style={{ color }} />
@@ -297,7 +297,7 @@ export function SettingsPanel({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 pt-2.5 pb-0 flex-shrink-0" style={{ paddingLeft: 16, paddingRight: 16 }}>
+        <div className="flex gap-2 pt-3 pb-2 flex-shrink-0" style={{ paddingLeft: 16, paddingRight: 16 }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -305,7 +305,7 @@ export function SettingsPanel({
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setEditingId(null); setIsAdding(false); }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all"
                 style={{
                   fontSize: 11,
                   fontWeight: active ? 600 : 400,
@@ -322,15 +322,15 @@ export function SettingsPanel({
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, backgroundColor: BORDER, margin: '10px 16px 0' }} />
+        <div style={{ height: 1, backgroundColor: BORDER, margin: '12px 16px 0' }} />
 
         {/* Scrollable content — 2-column grid */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-3">
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4">
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: 6,
+              gap: 8,
               alignContent: 'start',
             }}
           >

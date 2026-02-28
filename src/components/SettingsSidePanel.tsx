@@ -74,12 +74,12 @@ export function SettingsSidePanel({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
-        <p className="text-base font-semibold text-neutral-800 mb-3 pl-0.5">Organization</p>
+      <div className="flex-1 overflow-y-auto px-3 py-4 min-h-0">
+        <p className="text-base font-semibold text-neutral-800 mb-4 pl-0.5">Organization</p>
 
         {/* Calendars */}
-        <section className="mb-4">
-          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Calendars</p>
+        <section className="mb-5 px-0.5">
+          <p className="text-sm font-medium text-neutral-500 mb-2 pl-0.5">Calendars</p>
           <form onSubmit={handleAddCalendar} className="flex gap-1.5 mb-2">
             <input
               type="text"
@@ -92,11 +92,11 @@ export function SettingsSidePanel({
               <PlusIcon className="h-3.5 w-3.5" />
             </button>
           </form>
-          <div className="space-y-0.5">
+          <div className="space-y-1.5">
             {calendarContainers.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-1.5 py-1.5 px-2 rounded-md border-l-[3px] group hover:bg-neutral-50/80"
+                className="flex items-center gap-1.5 py-2 px-2 rounded-md border-l-[3px] group hover:bg-neutral-50/80"
                 style={{ borderLeftColor: c.color, backgroundColor: `${c.color}08` }}
               >
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{c.name}</span>
@@ -112,8 +112,8 @@ export function SettingsSidePanel({
         </section>
 
         {/* Categories */}
-        <section className="mb-4">
-          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Categories</p>
+        <section className="mb-5 px-0.5">
+          <p className="text-sm font-medium text-neutral-500 mb-2 pl-0.5">Categories</p>
           <form onSubmit={handleAddCategory} className="flex gap-1.5 mb-2">
             <input
               type="text"
@@ -139,11 +139,11 @@ export function SettingsSidePanel({
             </select>
           )}
           <ColorPicker value={newCategory.color} onChange={(color) => setNewCategory((p) => ({ ...p, color }))} label="" />
-          <div className="space-y-0.5 mt-2">
+          <div className="space-y-1.5 mt-2">
             {categories.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-1.5 py-1.5 px-2 rounded-md border-l-[3px] group hover:bg-neutral-50/80"
+                className="flex items-center gap-1.5 py-2 px-2 rounded-md border-l-[3px] group hover:bg-neutral-50/80"
                 style={{ borderLeftColor: c.color, backgroundColor: `${c.color}08` }}
               >
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{c.name}</span>
@@ -159,8 +159,8 @@ export function SettingsSidePanel({
         </section>
 
         {/* Tags */}
-        <section className="mb-2">
-          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Tags</p>
+        <section className="mb-4 px-0.5">
+          <p className="text-sm font-medium text-neutral-500 mb-2 pl-0.5">Tags</p>
           <form onSubmit={handleAddTag} className="flex flex-wrap gap-1.5 mb-2">
             <input
               type="text"
@@ -185,9 +185,9 @@ export function SettingsSidePanel({
               <PlusIcon className="h-3.5 w-3.5" />
             </button>
           </form>
-          <div className="space-y-0.5">
+          <div className="space-y-1.5">
             {tags.map((t) => (
-              <div key={t.id} className="flex items-center gap-1.5 py-1.5 px-2 rounded-md group hover:bg-neutral-50/80">
+              <div key={t.id} className="flex items-center gap-1.5 py-2 px-2 rounded-md group hover:bg-neutral-50/80">
                 <span className="flex-1 text-sm text-neutral-800 truncate min-w-0">{t.name}</span>
                 {t.type && <span className="text-[10px] text-neutral-400">{t.type}</span>}
                 <button type="button" onClick={() => setEditingTagId(t.id)} className="p-1 rounded text-neutral-400 hover:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">
@@ -203,7 +203,7 @@ export function SettingsSidePanel({
       </div>
 
       {/* Save / Revert at bottom */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-neutral-100 bg-white flex gap-2">
+      <div className="flex-shrink-0 px-3 py-4 border-t border-neutral-100 bg-white flex gap-2">
         <button
           type="button"
           onClick={onRevert}
