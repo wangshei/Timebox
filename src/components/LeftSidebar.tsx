@@ -377,7 +377,7 @@ export function LeftSidebar({
   // Compare mode: replace entire sidebar with analytics
   if (isCompareMode) {
     return (
-      <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+      <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
         {/* Compare header — just back arrow, no title (outer header already shows "Compare") */}
         <div className="flex items-center px-2 py-2 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
           <button
@@ -401,9 +401,9 @@ export function LeftSidebar({
   }
 
   return (
-    <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
-      {/* Scrollable list */}
-      <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto px-1.5 pt-1 pb-2">
+    <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+      {/* Scrollable list — calendars, categories, tags */}
+      <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 pt-1 pb-2">
         {calendarContainers.map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
           const isExpanded = expandedCalendars.has(calendar.id);

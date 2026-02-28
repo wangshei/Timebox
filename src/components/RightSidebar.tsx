@@ -3,12 +3,23 @@ import { Task, Category, Tag } from '../App';
 import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
-import type { TimeBlock, Event } from '../types';
+import type { TimeBlock, Event, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
 
 const BORDER = 'rgba(0,0,0,0.08)';
 const BG_PANEL = '#FCFBF7';
+
+function recurrencePatternLabel(pattern: RecurrencePattern | undefined): string {
+  switch (pattern) {
+    case 'daily': return 'day';
+    case 'every_other_day': return 'other day';
+    case 'weekly': return 'week';
+    case 'monthly': return 'month';
+    case 'custom': return 'custom';
+    default: return '';
+  }
+}
 
 interface RightSidebarProps {
   tasks: Task[];
@@ -95,6 +106,29 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     return s;
   }, [selectedDate, overviewRange]);
 
+  /** When Today/Week is selected, only show events in that date range. */
+  const upcomingEventsInRange = useMemo(() => {
+    if (overviewRange === 'month') return upcomingEvents;
+    return upcomingEvents.filter((e) => dateSet.has(e.date));
+  }, [upcomingEvents, dateSet, overviewRange]);
+
+  /** Recurring events: show one row per series with "Recurring every __". Non-recurring: show as-is. */
+  const upcomingEventsDisplay = useMemo(() => {
+    const seenSeries = new Set<string | null>();
+    const result: Array<{ event: Event; isRecurringSummary: boolean }> = [];
+    for (const e of upcomingEventsInRange) {
+      const seriesId = e.recurring ? (e.recurrenceSeriesId ?? e.id) : null;
+      if (seriesId !== null) {
+        if (seenSeries.has(seriesId)) continue;
+        seenSeries.add(seriesId);
+        result.push({ event: e, isRecurringSummary: true });
+      } else {
+        result.push({ event: e, isRecurringSummary: false });
+      }
+    }
+    return result;
+  }, [upcomingEventsInRange]);
+
   const taskIdsInRange = useMemo(() => {
     const set = new Set<string>();
     (timeBlocks ?? []).forEach((b) => {
@@ -103,15 +137,16 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     return set;
   }, [timeBlocks, dateSet]);
 
+  /** When Today/Week filter is on, only show tasks that have blocks in that range (both overview and plan). */
   const filteredPartially = useMemo(() => {
-    if (viewMode !== 'overview' || !timeBlocks) return partiallyCompletedTasks;
+    if (overviewRange === 'month' || !timeBlocks) return partiallyCompletedTasks;
     return partiallyCompletedTasks.filter((t) => taskIdsInRange.has(t.id));
-  }, [partiallyCompletedTasks, taskIdsInRange, timeBlocks, viewMode]);
+  }, [partiallyCompletedTasks, taskIdsInRange, timeBlocks, overviewRange]);
 
   const filteredFixed = useMemo(() => {
-    if (viewMode !== 'overview' || !timeBlocks) return fixedMissedTasks;
+    if (overviewRange === 'month' || !timeBlocks) return fixedMissedTasks;
     return fixedMissedTasks.filter((t) => taskIdsInRange.has(t.id));
-  }, [fixedMissedTasks, taskIdsInRange, timeBlocks, viewMode]);
+  }, [fixedMissedTasks, taskIdsInRange, timeBlocks, overviewRange]);
 
   /** Done tasks sorted by earliest recorded block date (most recent first) */
   const doneSorted = useMemo(() => {
@@ -124,6 +159,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       return minB.localeCompare(minA);
     });
   }, [doneTasks, timeBlocks]);
+
+  /** When Today/Week filter is on, only show done tasks that have blocks in that range. */
+  const filteredDoneSorted = useMemo(() => {
+    if (overviewRange === 'month' || !timeBlocks) return doneSorted;
+    return doneSorted.filter((t) => taskIdsInRange.has(t.id));
+  }, [doneSorted, taskIdsInRange, overviewRange, timeBlocks]);
 
   const getPriority = (t: Task): number | null =>
     typeof t.priority === 'number' && t.priority >= 1 && t.priority <= 5
@@ -234,7 +275,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 overflow-y-auto ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
         {viewMode === 'overview' ? (
           <>
             {/* All tasks — sorted by priority then due date, excludes done */}
@@ -288,7 +329,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             </div>
 
             {/* Done section — collapsible, chevron on right */}
-            {doneSorted.length > 0 && (
+            {filteredDoneSorted.length > 0 && (
               <div>
                 <button
                   type="button"
@@ -296,7 +337,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   className="flex items-center justify-between w-full text-left px-1 mb-1.5"
                 >
                   <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
-                    Done ({doneSorted.length})
+                    Done ({filteredDoneSorted.length})
                   </h2>
                   {doneSectionOpen
                     ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
@@ -305,7 +346,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                 </button>
                 {doneSectionOpen && (
                   <div>
-                    {doneSorted.map((task) => (
+                    {filteredDoneSorted.map((task) => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -457,7 +498,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             )}
 
             {/* Done — collapsible, sorted by date */}
-            {doneSorted.length > 0 && (
+            {filteredDoneSorted.length > 0 && (
               <div>
                 <button
                   type="button"
@@ -465,7 +506,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   className="flex items-center justify-between w-full text-left px-1 mb-2"
                 >
                   <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
-                    Done ({doneSorted.length})
+                    Done ({filteredDoneSorted.length})
                   </h2>
                   {doneSectionOpen
                     ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
@@ -474,7 +515,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                 </button>
                 {doneSectionOpen && (
                   <div className="space-y-2">
-                    {doneSorted.map((task) => (
+                    {filteredDoneSorted.map((task) => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -494,12 +535,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               </div>
             )}
 
-            {/* Events */}
-            {upcomingEvents.length > 0 && (
+            {/* Events — recurring shown once as "Recurring every __", filtered by Today/Week when active */}
+            {upcomingEventsDisplay.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Upcoming events</h2>
                 <div className="space-y-2">
-                  {upcomingEvents.map((event) => (
+                  {upcomingEventsDisplay.map(({ event, isRecurringSummary }) => (
                     <div
                       key={event.id}
                       className="flex items-center gap-2 px-3 py-3 rounded-xl group"
@@ -511,7 +552,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                     >
                       <div className="flex-1 min-w-0">
                         <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: THEME.textPrimary, lineHeight: 1.3 }}>{event.title}</div>
-                        <div className="mt-1 truncate" style={{ fontSize: 11, color: THEME.textPrimary, lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
+                        <div className="mt-1 truncate" style={{ fontSize: 11, color: THEME.textPrimary, lineHeight: 1.4 }}>
+                          {event.start} – {event.end}
+                          {isRecurringSummary
+                            ? ` · ${recurrencePatternLabel(event.recurrencePattern) ? `Recurring every ${recurrencePatternLabel(event.recurrencePattern)}` : 'Recurring'}`
+                            : ` · ${event.date}`}
+                        </div>
                       </div>
                       {onDeleteEvent && (
                         <button
