@@ -51,7 +51,7 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
         marginLeft: 0,
       }}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: '#8E8E93' }}>Add calendar</p>
+      <p className="text-sm font-semibold mb-2.5" style={{ color: '#1C1C1E' }}>Add calendar</p>
       <form onSubmit={handleSubmit} className="space-y-2.5">
         <input
           type="text"

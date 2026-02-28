@@ -53,16 +53,16 @@ Use a single hierarchy so the same level of content has the same size everywhere
 
 | Level | Use case | Tailwind | Notes |
 |-------|----------|----------|--------|
-| **Page/section title** | Modal title, panel heading | `text-base font-semibold text-neutral-900` or `text-lg font-medium` | One per modal or major section |
+| **Page/section title** | Modal title, panel heading | `text-base font-semibold text-neutral-900` or `text-lg font-medium` | One per modal or major section (e.g. Calendars, Tasks). **Never all-caps.** |
 | **Section heading** | "Calendars", "Categories", "Unscheduled Tasks" | `text-sm font-medium text-neutral-700` or `text-neutral-500` | Section labels in sidebars and forms |
 | **Body / list** | List items, card text, form value | `text-sm text-neutral-700` or `text-neutral-800` | Default readable size |
 | **Label** | Form labels (Name, Color, Date) | `text-sm font-medium text-neutral-700` | Same as section heading when inline with inputs |
 | **Caption / secondary** | Hints, range labels, "Overview" | `text-xs text-neutral-500` or `text-neutral-600` | Smaller than body |
-| **Overline / category** | "ORGANIZATION", small caps | `text-[10px] font-medium text-neutral-500 uppercase tracking-wide` | Sparingly for grouping |
+| **Overline / category** | Tiny meta labels | `text-[10px] font-medium text-neutral-500 uppercase tracking-wide` | Sparingly for subtle grouping (e.g. calendar grid day labels). **Do not use for primary titles or sidebar section headers.** |
 
 Rules:
 - **Modals:** Title = `text-base font-semibold`; form labels = `text-sm font-medium text-neutral-700`; body/inputs = `text-sm`.
-- **Sidebars:** Section headings = `text-sm font-medium text-neutral-500`; list items = `text-sm text-neutral-700`; overline = `text-[10px] uppercase`.
+- **Sidebars:** Panel titles (e.g. Calendars, Tasks) = `text-base font-semibold text-neutral-900` (16px, normal case). Section headings (e.g. Calendars, Categories, Tags, All tasks) = `text-sm font-medium text-neutral-500/700`. Reserve overline (`text-[10px] uppercase`) only for subtle meta labels, not for main titles.
 - **Buttons:** Primary action text = `text-sm font-medium`; secondary/cancel = `text-sm font-medium` or `text-xs` for compact.
 - **Toggles (Day/Week/Month, Today/Week/Month):** Use `text-xs font-medium` so they match across calendar and Tasks panel.
 

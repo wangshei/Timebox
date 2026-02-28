@@ -75,11 +75,11 @@ export function SettingsSidePanel({
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
-        <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide mb-3 pl-0.5">Organization</p>
+        <p className="text-base font-semibold text-neutral-900 mb-3 pl-0.5">Organization</p>
 
         {/* Calendars */}
         <section className="mb-4">
-          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Calendars</p>
+          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Calendars</p>
           <form onSubmit={handleAddCalendar} className="flex gap-1.5 mb-2">
             <input
               type="text"
@@ -113,7 +113,7 @@ export function SettingsSidePanel({
 
         {/* Categories */}
         <section className="mb-4">
-          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Categories</p>
+          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Categories</p>
           <form onSubmit={handleAddCategory} className="flex gap-1.5 mb-2">
             <input
               type="text"
@@ -160,7 +160,7 @@ export function SettingsSidePanel({
 
         {/* Tags */}
         <section className="mb-2">
-          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1.5 pl-0.5">Tags</p>
+          <p className="text-sm font-medium text-neutral-500 mb-1.5 pl-0.5">Tags</p>
           <form onSubmit={handleAddTag} className="flex flex-wrap gap-1.5 mb-2">
             <input
               type="text"

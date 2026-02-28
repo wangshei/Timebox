@@ -241,8 +241,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5 px-1">
                 <h2
-                  className="uppercase tracking-widest"
-                  style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}
+                  className="text-sm font-semibold"
+                  style={{ fontSize: '14px', color: MUTED }}
                 >
                   All tasks {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
                 </h2>
@@ -295,7 +295,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onClick={() => setDoneSectionOpen(!doneSectionOpen)}
                   className="flex items-center justify-between w-full text-left px-1 mb-1.5"
                 >
-                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>
+                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: MUTED }}>
                     Done ({doneSorted.length})
                   </h2>
                   {doneSectionOpen
@@ -332,8 +332,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {priorityTasks.length > 0 && (
               <div>
                 <h2
-                  className="uppercase tracking-widest mb-2 px-1"
-                  style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}
+                  className="text-sm font-semibold mb-2 px-1"
+                  style={{ fontSize: '14px', color: MUTED }}
                 >
                   Priority
                 </h2>
@@ -359,7 +359,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
             {/* Unscheduled Tasks */}
             <div>
-              <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Unscheduled</h2>
+              <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Unscheduled</h2>
               {onOpenAddModal && (
                 <button
                   type="button"
@@ -411,7 +411,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Partially Completed */}
             {partiallyCompletedTasks.length > 0 && (
               <div>
-                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>In Progress</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>In progress</h2>
                 <div className="space-y-2">
                   {filteredPartially.map((task) => (
                     <TaskCard
@@ -435,7 +435,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Fixed / Missed */}
             {fixedMissedTasks.length > 0 && (
               <div>
-                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Fixed / Missed</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Fixed / missed</h2>
                 <div className="space-y-2">
                   {filteredFixed.map((task) => (
                     <TaskCard
@@ -464,7 +464,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onClick={() => setDoneSectionOpen(!doneSectionOpen)}
                   className="flex items-center justify-between w-full text-left px-1 mb-2"
                 >
-                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>
+                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: MUTED }}>
                     Done ({doneSorted.length})
                   </h2>
                   {doneSectionOpen
@@ -497,7 +497,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Events */}
             {upcomingEvents.length > 0 && (
               <div>
-                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Upcoming Events</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Upcoming events</h2>
                 <div className="space-y-2">
                   {upcomingEvents.map((event) => (
                     <div

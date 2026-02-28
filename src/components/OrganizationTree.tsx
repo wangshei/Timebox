@@ -153,7 +153,7 @@ export function OrganizationTree({
       })}
       {ungroupedCategories.length > 0 && (
         <div className="pt-2 mt-1 border-t border-neutral-100">
-          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1 pl-1">Ungrouped</p>
+          <p className="text-sm font-medium text-neutral-500 mb-1 pl-1">Ungrouped</p>
           <div className="space-y-0.5 pl-0.5">
             {ungroupedCategories.map((cat) => (
               <button
@@ -174,7 +174,7 @@ export function OrganizationTree({
       )}
       {ungroupedTags.length > 0 && (
         <div className="pt-1.5 mt-1 border-t border-neutral-100">
-          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide mb-1 pl-1">Ungrouped tags</p>
+          <p className="text-sm font-medium text-neutral-500 mb-1 pl-1">Ungrouped tags</p>
           <div className="space-y-0.5 pl-0.5">
             {ungroupedTags.map((tag) => (
               <div key={tag.id} className="flex items-center justify-start gap-2 pl-1.5 py-1 text-sm text-neutral-700 min-w-0">
