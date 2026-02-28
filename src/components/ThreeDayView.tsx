@@ -163,6 +163,9 @@ export function ThreeDayView({
   const [resizingBlock, setResizingBlock] = React.useState<{
     block: ResolvedTimeBlock; startClientY: number;
   } | null>(null);
+  const [resizingEvent, setResizingEvent] = React.useState<{
+    event: ResolvedEvent; startClientY: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!resizingBlock || !onResizeBlock) return;
@@ -183,6 +186,26 @@ export function ThreeDayView({
       window.removeEventListener('mouseup', onUp);
     };
   }, [resizingBlock, onResizeBlock]);
+
+  React.useEffect(() => {
+    if (!resizingEvent || !onResizeEvent) return;
+    const { event, startClientY } = resizingEvent;
+    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTimeToMins(event.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
+    };
+    const onUp = () => setResizingEvent(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingEvent, onResizeEvent]);
 
   return (
     <div className="flex-1 overflow-auto" style={{ backgroundColor: BG_CANVAS }}>
@@ -448,6 +471,7 @@ export function ThreeDayView({
                                   onEditEvent={onEditEvent}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
+                                  onResizeStart={onResizeEvent ? (e) => { e.preventDefault(); e.stopPropagation(); setResizingEvent({ event, startClientY: e.clientY }); } : undefined}
                                 />
                               );
                             })}

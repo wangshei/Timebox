@@ -606,6 +606,16 @@ function TimeBlockCardInner({
               ))}
             </div>
           )}
+
+          {/* Resize handle — compact mode (tasks only, small+, not locked) */}
+          {onResizeStart && isTask && !locked && compactTier !== 'micro' && compactTier !== 'tiny' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 hover:opacity-100 transition-opacity"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
+            >
+              <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.45) }} />
+            </div>
+          )}
         </div>
 
         {/* Compact popover */}
