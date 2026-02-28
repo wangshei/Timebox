@@ -33,7 +33,7 @@ import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
-import { loadSupabaseState, startSupabasePersistence } from './supabasePersistence';
+import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase } from './supabasePersistence';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { THEME } from './constants/colors';
 
@@ -103,7 +103,7 @@ export default function App() {
   const [visitMode, setVisitMode] = useState(_urlMode === 'visitor');
   const [dataReady, setDataReady] = useState(false);
   // Pre-auth navigation: always show auth screen (landing page lives in the separate landing site)
-  const [preAuthScreen] = useState<'auth'>('auth');
+  const [preAuthScreen, setPreAuthScreen] = useState<'auth'>('auth');
   const [authMode, setAuthMode] = useState<'signup' | 'login'>(
     _urlMode === 'login' ? 'login' : 'signup'
   );
@@ -768,6 +768,7 @@ export default function App() {
     if (choice === 'template') applyTemplate();
     else applyBlankSetup();
     setHasCompletedSetup(true);
+    void persistOnboardingToSupabase(true);
     if (doShowTour) setShowTour(true);
   };
 
@@ -1763,7 +1764,7 @@ export default function App() {
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
-                onClick={() => { mergeTemplate(); setHasCompletedSetup(true); }}
+                onClick={() => { mergeTemplate(); setHasCompletedSetup(true); void persistOnboardingToSupabase(true); }}
                 style={{
                   width: '100%',
                   padding: '10px 0',
@@ -1790,7 +1791,7 @@ export default function App() {
                 Add template to my setup
               </button>
               <button
-                onClick={() => setHasCompletedSetup(true)}
+                onClick={() => { setHasCompletedSetup(true); void persistOnboardingToSupabase(true); }}
                 style={{
                   width: '100%',
                   padding: '8px 0',

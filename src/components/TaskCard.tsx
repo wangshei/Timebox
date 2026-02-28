@@ -205,7 +205,7 @@ export function TaskCard({
 
       {/* Tags */}
       {task.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2.5">
+        <div className="flex flex-wrap gap-x-1 gap-y-2 mb-2.5">
           {task.tags.map(tag => (
             <span key={tag.id} className="text-xs px-1.5 py-0.5 rounded-full"
               style={{ backgroundColor: hexRgba(catColor, 0.08), color: catColor, border: `1px solid ${hexRgba(catColor, 0.18)}` }}>
@@ -238,7 +238,7 @@ export function TaskCard({
           {onBreakIntoChunks && (
             <div className="mb-1.5">
               <div className="text-xs mb-1.5" style={{ color: THEME.textPrimary }}>Break into blocks</div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-x-1 gap-y-2">
                 {[30, 60, 90].map((mins) => (
                   <button key={mins} type="button"
                     onClick={() => { onBreakIntoChunks(task.id, mins); setShowPopover(false); }}
@@ -255,7 +255,7 @@ export function TaskCard({
           {onSplitTask && (
             <div>
               <div className="text-xs mb-1.5" style={{ color: THEME.textPrimary }}>Get a block</div>
-              <div className="flex flex-wrap gap-1 mb-2">
+              <div className="flex flex-wrap gap-x-1 gap-y-2 mb-2">
                 {SPLIT_BLOCK_OPTIONS.map((mins) => (
                   <button key={mins} type="button"
                     onClick={() => setSplitBlockMinutes(mins)}

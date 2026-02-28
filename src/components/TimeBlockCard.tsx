@@ -782,7 +782,7 @@ function TimeBlockCardInner({
 
             {/* Tags — rich only */}
             {showTags && (
-              <div className="flex flex-wrap gap-2 mt-1 overflow-hidden" style={{ maxHeight: '28px' }}>
+              <div className="flex flex-wrap gap-x-2 gap-y-2 mt-1 overflow-hidden" style={{ maxHeight: '36px' }}>
                 {block.tags.slice(0, 4).map((tag) => (
                   <Chip
                     key={tag.id}

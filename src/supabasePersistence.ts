@@ -51,7 +51,7 @@ export async function loadSupabaseState() {
     supabase.from('tasks').select('*').eq('user_id', userId),
     supabase.from('time_blocks').select('*').eq('user_id', userId),
     supabase.from('events').select('*').eq('user_id', userId),
-    supabase.from('user_settings').select('timezone').eq('user_id', userId).maybeSingle(),
+    supabase.from('user_settings').select('timezone, has_completed_setup').eq('user_id', userId).maybeSingle(),
   ]);
 
   const hasError =
@@ -90,8 +90,9 @@ export async function loadSupabaseState() {
   });
 
   // Ensure user timezone is stored; use browser timezone if missing (table may not exist yet)
-  const settings = settingsRes.data as { timezone?: string } | null;
+  const settings = settingsRes.data as { timezone?: string; has_completed_setup?: boolean } | null;
   const timezone = (settings?.timezone?.trim() || getLocalTimeZone());
+  const hasCompletedSetupFromDb = settings?.has_completed_setup === true;
   const upsertRes = await supabase.from('user_settings').upsert(
     { user_id: userId, timezone },
     { onConflict: 'user_id' }
@@ -135,6 +136,7 @@ export async function loadSupabaseState() {
         : prev.containerVisibility;
     return {
       ...prev,
+      hasCompletedSetup: hasCompletedSetupFromDb ? true : prev.hasCompletedSetup,
       calendarContainers,
       containerVisibility: visibility,
       categories: categories.map(
@@ -427,6 +429,21 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       timeBlocks: state.timeBlocks.length,
       events: state.events.length,
     });
+  }
+}
+
+/** Persist hasCompletedSetup to Supabase so it survives refresh and different devices. */
+export async function persistOnboardingToSupabase(hasCompletedSetup: boolean) {
+  if (!supabase) return;
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  const { error } = await supabase
+    .from('user_settings')
+    .update({ has_completed_setup: hasCompletedSetup })
+    .eq('user_id', userId);
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[supabasePersistence] persistOnboardingToSupabase failed (column may not exist yet):', error);
   }
 }
 

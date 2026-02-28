@@ -118,10 +118,12 @@ create table if not exists events (
 -- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
 create table if not exists user_settings (
   user_id uuid primary key references auth.users (id) on delete cascade,
-  timezone text not null default 'UTC'
+  timezone text not null default 'UTC',
+  has_completed_setup boolean not null default false
 );
 
 comment on column user_settings.timezone is 'IANA timezone e.g. America/Los_Angeles; used for date/time display and "today" logic';
+comment on column user_settings.has_completed_setup is 'Whether the user has completed onboarding (template/migration modal); prevents "new template" modal on every refresh.';
 ```
 
 > **Note:** The app generates IDs with `crypto.randomUUID()`, which is compatible with `uuid` columns.
@@ -151,6 +153,9 @@ alter table time_blocks add column if not exists link text;
 alter table time_blocks add column if not exists description text;
 alter table events add column if not exists link text;
 alter table events add column if not exists description text;
+
+-- User settings: onboarding completed (stops "new template" modal on refresh)
+alter table user_settings add column if not exists has_completed_setup boolean not null default false;
 ```
 
 **Categories on multiple calendars:** To let a category appear on more than one calendar, ensure the `categories` table has the column `calendar_container_ids`. Run this in the Supabase SQL Editor if you haven’t already:

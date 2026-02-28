@@ -754,7 +754,7 @@ export function AddModal({
                 {mode === 'event' && (
                   <div>
                     <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Repeat</label>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-x-1.5 gap-y-2">
                       {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
                         <button
                           key={p}
@@ -770,7 +770,7 @@ export function AddModal({
                       ))}
                     </div>
                     {recurrencePattern === 'custom' && (
-                      <div className="mt-2 flex flex-wrap gap-1">
+                      <div className="mt-2 flex flex-wrap gap-x-1 gap-y-2">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
                           <button
                             key={day}

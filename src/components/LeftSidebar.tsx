@@ -478,7 +478,7 @@ export function LeftSidebar({
                         {catExpanded && (
                           <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 4 }}>
                             {categoryTags.length > 0 && (
-                              <div className="flex flex-wrap gap-2 py-1">
+                              <div className="flex flex-wrap gap-x-2 gap-y-2.5 py-1">
                                 {categoryTags.map((tag) =>
                                   editingId === tag.id && editingType === 'tag' ? (
                                     <div key={tag.id} className="w-full">
@@ -540,7 +540,7 @@ export function LeftSidebar({
                     {isAdding && addingType === 'category' && addingParentId === calendar.id && (
                       <div className="mt-1 rounded-lg p-2.5 space-y-2" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
                         <p style={{ fontSize: 10, fontWeight: 500, color: '#636366' }}>Select existing or create new</p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-x-2 gap-y-2.5">
                           {categories.map((cat) => (
                             <button key={cat.id} type="button"
                               onClick={() => { setAddExistingCategoryId(cat.id); setAddName(cat.name); setAddColor(cat.color); }}

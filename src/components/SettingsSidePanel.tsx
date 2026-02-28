@@ -161,7 +161,7 @@ export function SettingsSidePanel({
         {/* Tags */}
         <section className="mb-4 px-0.5">
           <p className="text-sm font-medium text-neutral-500 mb-2 pl-0.5">Tags</p>
-          <form onSubmit={handleAddTag} className="flex flex-wrap gap-1.5 mb-2">
+          <form onSubmit={handleAddTag} className="flex flex-wrap gap-x-1.5 gap-y-2 mb-2">
             <input
               type="text"
               value={newTag.name}

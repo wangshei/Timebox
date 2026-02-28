@@ -166,7 +166,7 @@ export function SettingsPanel({
       {activeTab === 'categories' && (
         <div>
           <span className="block mb-1" style={{ fontSize: 10, fontWeight: 500, color: TEXT_MUTED }}>Show on calendars</span>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-1 gap-y-2">
             {calendarContainers.map((cal) => {
               const checked = editCalendarIds.includes(cal.id);
               return (
