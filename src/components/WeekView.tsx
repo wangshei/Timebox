@@ -36,12 +36,13 @@ interface WeekViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
+  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: { date: string; startTime: string; endTime: string }) => string | undefined;
   locked?: boolean;
   showDifferences?: boolean;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onCreateBlock, locked, showDifferences }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -419,6 +420,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     onSelect={() => handleSelect(`event-${event.id}`)}
                                     onDeselect={() => handleSelect(null)}
                                     onDeleteEvent={onDeleteEvent}
+                                    onDeleteEventSeries={onDeleteEventSeries}
                                     onEditEvent={onEditEvent}
                                     plannedStyle={false}
                                     draggable={!!onMoveEvent}

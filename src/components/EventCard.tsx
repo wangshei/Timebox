@@ -280,7 +280,7 @@ export function EventCard({
       {showPopover && isSelected && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[9998]"
             onClick={(e) => {
               e.stopPropagation();
               setShowPopover(false);
@@ -291,7 +291,7 @@ export function EventCard({
           />
           <div
             ref={popoverRef}
-            className="absolute z-20 rounded-xl p-3 min-w-56"
+            className="absolute z-[9999] rounded-xl p-3 min-w-56"
             style={{
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',
@@ -344,6 +344,11 @@ export function EventCard({
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
                 </div>
               )}
+              {event.notes && (
+                <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
+                  {event.notes}
+                </div>
+              )}
               {event.description && (
                 <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{event.description}</div>
               )}
@@ -356,39 +361,52 @@ export function EventCard({
               )}
               <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
               {deleteConfirmState === 'confirm' ? (
-                <div className="flex flex-col gap-1">
-                  <div className="text-xs font-medium mb-0.5" style={{ color: THEME.textSecondary }}>Delete:</div>
-                  <div className="flex gap-1">
-                    {(['this', 'all', 'all_after'] as const).map((scope) => (
-                      <button
-                        key={scope}
-                        type="button"
-                        className="flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                        style={{ color: '#B85050' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteEventSeries?.(event.id, scope);
-                          setShowPopover(false);
-                          setDeleteConfirmState(null);
-                          onDeselect();
-                        }}
-                      >
-                        {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  <div className="text-xs font-medium mb-0.5" style={{ color: THEME.textSecondary }}>Which events to delete?</div>
+                  {([
+                    { scope: 'this' as const, label: 'This event', desc: 'Only this occurrence' },
+                    { scope: 'all_after' as const, label: 'This and all after', desc: 'From this date forward' },
+                    { scope: 'all' as const, label: 'All events', desc: 'Every event in the series' },
+                  ]).map(({ scope, label, desc }) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      className="text-left px-3 py-2 rounded-xl transition-all"
+                      style={{ border: '1.5px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteEventSeries?.(event.id, scope);
+                        setShowPopover(false);
+                        setDeleteConfirmState(null);
+                        onDeselect();
+                      }}
+                    >
+                      <div className="text-xs font-medium">{label}</div>
+                      <div className="text-xs mt-0.5 opacity-70">{desc}</div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="mt-0.5 w-full py-1.5 text-xs font-medium rounded-xl transition-colors"
+                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               ) : (
-                <div className="flex gap-1">
+                <div className="flex gap-1.5">
                   {onEditEvent && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-                      style={{ color: THEME.textSecondary }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+                      style={{ color: THEME.textSecondary, border: '1.5px solid rgba(0,0,0,0.09)', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.18)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEditEvent(event.id);
@@ -396,17 +414,17 @@ export function EventCard({
                         onDeselect();
                       }}
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <PencilIcon className="h-3.5 w-3.5" />
                       Edit
                     </button>
                   )}
                   {(onDeleteEvent || onDeleteEventSeries) && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-                      style={{ color: '#B85050' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+                      style={{ color: '#B85050', border: '1.5px solid rgba(184,80,80,0.18)', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.recurring && event.recurrenceSeriesId && onDeleteEventSeries) {
@@ -418,7 +436,7 @@ export function EventCard({
                         }
                       }}
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="h-3.5 w-3.5" />
                       Delete
                     </button>
                   )}
