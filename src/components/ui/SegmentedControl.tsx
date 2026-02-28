@@ -1,4 +1,5 @@
 import React from 'react';
+import { THEME } from '../../constants/colors';
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
@@ -56,7 +57,7 @@ export function SegmentedControl<T extends string>({
               whiteSpace: 'nowrap',
               transition: 'all 0.15s ease',
               backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-              color: isActive ? '#1C1C1E' : '#636366',
+              color: isActive ? THEME.textPrimary : THEME.textSecondary,
               boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.04)' : 'none',
             }}
           >

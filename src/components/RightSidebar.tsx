@@ -5,8 +5,8 @@ import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { THEME } from '../constants/colors';
 
-const MUTED = '#8E8E93';
 const BORDER = 'rgba(0,0,0,0.08)';
 const BG_PANEL = '#FCFBF7';
 
@@ -242,7 +242,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <div className="flex items-center justify-between mb-1.5 px-1">
                 <h2
                   className="text-sm font-semibold"
-                  style={{ fontSize: '14px', color: MUTED }}
+                  style={{ fontSize: '14px', color: THEME.textPrimary }}
                 >
                   All tasks {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
                 </h2>
@@ -252,9 +252,9 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                     type="button"
                     onClick={() => onOpenAddModal('task')}
                     className="flex items-center gap-0.5 text-xs transition-colors"
-                    style={{ color: MUTED }}
+                    style={{ color: THEME.textPrimary }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#8DA286')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = THEME.textPrimary)}
                     title="Add task"
                   >
                     <PlusIcon className="h-3.5 w-3.5" />
@@ -295,12 +295,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onClick={() => setDoneSectionOpen(!doneSectionOpen)}
                   className="flex items-center justify-between w-full text-left px-1 mb-1.5"
                 >
-                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: MUTED }}>
+                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
                     Done ({doneSorted.length})
                   </h2>
                   {doneSectionOpen
-                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
-                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
                   }
                 </button>
                 {doneSectionOpen && (
@@ -333,7 +333,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               <div>
                 <h2
                   className="text-sm font-semibold mb-2 px-1"
-                  style={{ fontSize: '14px', color: MUTED }}
+                  style={{ fontSize: '14px', color: THEME.textPrimary }}
                 >
                   Priority
                 </h2>
@@ -359,7 +359,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
             {/* Unscheduled Tasks */}
             <div>
-              <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Unscheduled</h2>
+              <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Unscheduled</h2>
               {onOpenAddModal && (
                 <button
                   type="button"
@@ -411,7 +411,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Partially Completed */}
             {partiallyCompletedTasks.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>In progress</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>In progress</h2>
                 <div className="space-y-2">
                   {filteredPartially.map((task) => (
                     <TaskCard
@@ -435,7 +435,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Fixed / Missed */}
             {fixedMissedTasks.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Fixed / missed</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Fixed / missed</h2>
                 <div className="space-y-2">
                   {filteredFixed.map((task) => (
                     <TaskCard
@@ -464,12 +464,12 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                   onClick={() => setDoneSectionOpen(!doneSectionOpen)}
                   className="flex items-center justify-between w-full text-left px-1 mb-2"
                 >
-                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: MUTED }}>
+                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
                     Done ({doneSorted.length})
                   </h2>
                   {doneSectionOpen
-                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
-                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
                   }
                 </button>
                 {doneSectionOpen && (
@@ -497,7 +497,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             {/* Events */}
             {upcomingEvents.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: MUTED }}>Upcoming events</h2>
+                <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Upcoming events</h2>
                 <div className="space-y-2">
                   {upcomingEvents.map((event) => (
                     <div
@@ -510,14 +510,14 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
                       }}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93', lineHeight: 1.3 }}>{event.title}</div>
-                        <div className="mt-1 truncate" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
+                        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: THEME.textPrimary, lineHeight: 1.3 }}>{event.title}</div>
+                        <div className="mt-1 truncate" style={{ fontSize: 11, color: THEME.textPrimary, lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
                       </div>
                       {onDeleteEvent && (
                         <button
                           className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
                           style={{ color: '#AEAEB2' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = THEME.textPrimary; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
                           onClick={() => onDeleteEvent(event.id)}
                           title="Delete event"

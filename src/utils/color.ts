@@ -3,6 +3,8 @@
  * Use getLuminance and getTextClassForBackground for any component with dynamic bg color.
  */
 
+import { THEME } from '../constants/colors';
+
 export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!m) return null;
@@ -33,6 +35,44 @@ export function getLuminance(hex: string): number {
  */
 export function getTextClassForBackground(hex: string): 'text-white' | 'text-neutral-900' {
   return getLuminance(hex) < 0.5 ? 'text-white' : 'text-neutral-900';
+}
+
+const DEFAULT_CANVAS = '#FDFDFB';
+
+/**
+ * Blend a color with alpha over a background. Returns the resulting hex.
+ */
+export function blendOver(hex: string, alpha: number, backgroundHex: string = DEFAULT_CANVAS): string {
+  const fg = hexToRgb(hex);
+  const bg = hexToRgb(backgroundHex);
+  if (!fg || !bg) return hex;
+  const r = Math.round(fg.r * alpha + bg.r * (1 - alpha));
+  const g = Math.round(fg.g * alpha + bg.g * (1 - alpha));
+  const b = Math.round(fg.b * alpha + bg.b * (1 - alpha));
+  const toHex = (v: number) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * Returns whether contrast text on this background should be white (true) or dark (false).
+ * Use for event/block cards when the background is a solid hex or an rgba overlay on the canvas.
+ */
+export function isDarkBackground(hex: string, alpha?: number, backgroundHex: string = DEFAULT_CANVAS): boolean {
+  const effectiveHex = alpha != null ? blendOver(hex, alpha, backgroundHex) : hex;
+  return getLuminance(effectiveHex) < 0.5;
+}
+
+/**
+ * Returns the contrast text color for a dynamic background: white when the background is dark, otherwise dark gray.
+ * Use for event blocks and any block with a colored background.
+ * hex: the foreground (category/block) color; alpha: if set, the background is hex at this alpha over backgroundHex.
+ */
+export function getContrastTextColor(
+  hex: string,
+  alpha?: number,
+  backgroundHex: string = DEFAULT_CANVAS
+): string {
+  return isDarkBackground(hex, alpha, backgroundHex) ? '#FFFFFF' : THEME.textPrimary;
 }
 
 export function hexToRgba(hex: string, alpha: number): string {

@@ -3,7 +3,7 @@ import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon } from '@
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
 import { cn } from './ui/utils';
-import { getTextClassForBackground, hexToRgba, desaturate, lighten } from '../utils/color';
+import { getTextClassForBackground, getContrastTextColor, hexToRgba, desaturate, lighten } from '../utils/color';
 import { getLocalDateString } from '../utils/dateTime';
 import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
@@ -89,7 +89,11 @@ export function EventCard({
       ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
       : hexToRgba(categoryColor, 0.65);
   const opacity = 1; // Applied via rgba background, not container — text stays fully opaque
-  const textClass = plannedStyle ? 'text-neutral-900' : 'text-[#1C1C1E]'; // Always dark — bg is semi-transparent
+  // White text when background is dark (current events with 0.65 alpha); otherwise use theme primary
+  const eventTextColor =
+    plannedStyle || isPast
+      ? THEME.textPrimary
+      : getContrastTextColor(categoryColor, 0.65);
   const borderStyle = plannedStyle
     ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
     : isPast
@@ -201,7 +205,7 @@ export function EventCard({
         }}
       >
         {compact ? (
-          <div className={cn('flex flex-col h-full min-w-0', textClass)}>
+          <div className="flex flex-col h-full min-w-0" style={{ color: eventTextColor }}>
             <div className="flex items-start min-w-0 flex-shrink-0 gap-1">
               <span
                 className="font-medium text-sm leading-snug min-w-0 flex-1"
@@ -215,12 +219,12 @@ export function EventCard({
                 {event.title || 'Untitled Event'}
               </span>
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
-                <ArrowPathIcon className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 opacity-60" />
+                <ArrowPathIcon className="flex-shrink-0 mt-0.5 opacity-60" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
               )}
             </div>
           </div>
         ) : (
-          <div className={cn('flex flex-col h-full min-w-0', textClass)}>
+          <div className="flex flex-col h-full min-w-0" style={{ color: eventTextColor }}>
             <div className="flex items-start justify-between gap-2 min-w-0 flex-shrink-0">
               <span
                 className="font-medium leading-snug min-w-0"
@@ -235,7 +239,7 @@ export function EventCard({
               </span>
               <div className="flex items-center gap-1 shrink-0">
                 {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
-                  <ArrowPathIcon className="w-3 h-3 opacity-60 flex-shrink-0" />
+                  <ArrowPathIcon className="opacity-60 flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
                 )}
                 <span className="text-xs whitespace-nowrap opacity-90">
                   {getDuration()}
@@ -309,11 +313,11 @@ export function EventCard({
             </div>
             <div className="pt-2">
               <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
+                <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
               <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
+                <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
                 <span>{event.date}</span>
               </div>
               {event.category && (
@@ -336,7 +340,7 @@ export function EventCard({
               )}
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
                 <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                  <ArrowPathIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
+                  <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
                 </div>
               )}

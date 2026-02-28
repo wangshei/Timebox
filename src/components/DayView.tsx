@@ -29,6 +29,8 @@ export interface CreateBlockParams {
   date: string;
   startTime: string;
   endTime: string;
+  /** When true, block was created from the actual/recorded panel in compare mode. */
+  isRecordedPanel?: boolean;
 }
 
 interface DayViewProps {
@@ -66,12 +68,14 @@ interface DayViewProps {
   locked?: boolean;
   /** When true, show difference highlights on blocks. */
   showDifferences?: boolean;
+  /** Show a sticky date header at the top of the scroll area. */
+  showDateHeader?: boolean;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -371,6 +375,46 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
       style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(0,0,0,0.025)' } : undefined}
     >
+      {/* Sticky date header — matches ThreeDayView's sticky day headers */}
+      {showDateHeader && (() => {
+        const dateObj = (() => { const [y, m, d] = selectedDate.split('-').map(Number); return new Date(y, m - 1, d); })();
+        const dayAbbrev = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateNumber = dateObj.getDate();
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        return (
+          <div
+            className="sticky top-0 z-20 flex items-center gap-3 px-3"
+            style={{
+              height: 48,
+              borderBottom: '1px solid rgba(0,0,0,0.07)',
+              backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FDFDFB',
+            }}
+          >
+            <div className="flex flex-col">
+              <div
+                className="font-semibold uppercase"
+                style={{
+                  color: isViewingToday ? '#8DA286' : isWeekend ? '#AEAEB2' : '#C7C7CC',
+                  fontSize: '10px',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                {dayAbbrev}
+              </div>
+              <div
+                className="font-bold leading-none"
+                style={{
+                  color: isViewingToday ? '#8DA286' : isWeekend ? '#8E8E93' : '#3A3A3C',
+                  fontSize: isViewingToday ? 20 : 17,
+                }}
+              >
+                {dateNumber}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Main grid container: ALL mouse/drag handlers live here.
           Clicks on empty space (not caught by cards) bubble up to this element. */}
       <div

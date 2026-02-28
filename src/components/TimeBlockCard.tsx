@@ -148,8 +148,49 @@ function TimeBlockCardInner({
 
   const handleCircleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirmed) onUnconfirm?.(block.id);
-    else onConfirm?.(block.id);
+    if (confirmed) {
+      // Events: skip (didn't happen); Tasks: unconfirm (revert to pending)
+      if (isEvent) onSkip?.(block.id);
+      else onUnconfirm?.(block.id);
+    } else {
+      onConfirm?.(block.id);
+    }
+  };
+
+  /** Renders the confirmation status circle for past blocks (top-right corner).
+   *  Shows for all past blocks (events + tasks). Clickable unless locked. */
+  const renderStatusCircle = (size: number) => {
+    if (!isPast && !isCompareMode) return null;
+    const circleSize = size;
+    const iconSize = Math.max(6, size - 4);
+    const isClickable = !locked && (onConfirm || onUnconfirm || onSkip);
+
+    return (
+      <button
+        type="button"
+        onClick={isClickable ? handleCircleClick : undefined}
+        className={cn(
+          'absolute flex items-center justify-center rounded-full transition-all z-10',
+          isClickable ? 'cursor-pointer' : 'cursor-default pointer-events-none',
+        )}
+        style={{
+          top: 2,
+          right: 2,
+          width: circleSize,
+          height: circleSize,
+          ...(confirmed
+            ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
+            : skipped
+              ? { backgroundColor: 'rgba(0,0,0,0.12)', border: '1.5px solid rgba(0,0,0,0.15)' }
+              : { backgroundColor: 'transparent', border: `1.5px dashed ${hexToRgba(blockColor, 0.5)}` }),
+        }}
+        title={confirmed ? 'Mark as not done' : skipped ? 'Mark as done' : 'Mark as done'}
+        aria-label={confirmed ? 'Mark as not done' : 'Mark as done'}
+      >
+        {confirmed && <CheckIcon style={{ width: iconSize, height: iconSize, color: '#FFFFFF' }} />}
+        {skipped && <XMarkIcon style={{ width: iconSize, height: iconSize, color: '#636366' }} />}
+      </button>
+    );
   };
 
   const getBaseOpacity = () => {
@@ -309,15 +350,11 @@ function TimeBlockCardInner({
   };
 
   const getTitleColor = (): string => {
-    if (isEvent) {
-      if (blockVisualState === 'ghost') return 'text-[#AEAEB2]';
-      return 'text-[#1C1C1E]';
-    }
-    // Tasks now have lighter tinted backgrounds — use dark text always
-    return 'text-[#1C1C1E]';
+    if (isEvent && blockVisualState === 'ghost') return '#AEAEB2';
+    return THEME.textPrimary;
   };
 
-  const titleTextClass = getTitleColor();
+  const titleTextClass = ''; // color applied via style now
 
   const getTimeRange = () => {
     const fmt = (t: string) => {
@@ -393,7 +430,7 @@ function TimeBlockCardInner({
       const color = getBlockColor();
       ghost.style.cssText = `position:absolute;top:-9999px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;`;
       ghost.textContent = block.title || 'Block';
-      ghost.style.color = '#8E8E93';
+      ghost.style.color = THEME.textPrimary;
       ghost.style.backgroundColor = hexToRgba(color, 0.15);
       ghost.style.border = `2px solid ${color}`;
       document.body.appendChild(ghost);
@@ -411,16 +448,16 @@ function TimeBlockCardInner({
         onMouseDown={handlePopoverDragStart}
       >
         <div className="flex items-start gap-2">
-          <span className="font-semibold text-sm leading-snug" style={{ color: '#8E8E93' }}>{block.title || 'Untitled'}</span>
+          <span className="font-semibold text-sm leading-snug" style={{ color: THEME.textPrimary }}>{block.title || 'Untitled'}</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
-        <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
+        <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: blockColor }} />
         <span>{getTimeRange()} · {getDuration()}</span>
       </div>
       <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
-        <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: blockColor }} />
+        <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: blockColor }} />
         <span>{block.date}</span>
       </div>
       {block.category && (
@@ -460,7 +497,7 @@ function TimeBlockCardInner({
               doDeselect();
             }}
           >
-            <CheckIcon className="h-3.5 w-3.5" />
+            <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             {confirmed ? 'Mark as not done' : 'Mark as done'}
           </button>
         )}
@@ -474,7 +511,7 @@ function TimeBlockCardInner({
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
-              <PencilIcon className="h-3.5 w-3.5" /> Edit
+              <PencilIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} /> Edit
             </button>
           )}
           {onDeleteBlock && (
@@ -486,7 +523,7 @@ function TimeBlockCardInner({
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
-              <TrashIcon className="h-3.5 w-3.5" /> Delete
+              <TrashIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} /> Delete
             </button>
           )}
         </div>
@@ -544,9 +581,11 @@ function TimeBlockCardInner({
           {locked && (
             <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
               style={{ backgroundColor: 'rgba(0,0,0,0.06)' }}>
-              <LockClosedIcon className="h-2.5 w-2.5" style={{ color: '#636366' }} />
+              <LockClosedIcon className="flex-shrink-0" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10, color: '#636366' }} />
             </div>
           )}
+          {/* Status circle — top-right, all past blocks */}
+          {renderStatusCircle(10)}
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
@@ -555,25 +594,6 @@ function TimeBlockCardInner({
             >
               {isEvent && compactTier !== 'tiny' && (
                 <LockClosedIcon className="flex-shrink-0 h-1.5 w-1.5 opacity-40" style={{ color: blockColor }} />
-              )}
-              {/* Confirm circle — inline before title (tasks only, not locked) */}
-              {isTask && !locked && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
-                  className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
-                  style={{
-                    width: 10,
-                    height: 10,
-                    marginTop: 1,
-                    opacity: confirmed ? 1 : 0.7,
-                    ...(confirmed
-                      ? { backgroundColor: blockColor, border: `1px solid ${blockColor}` }
-                      : { backgroundColor: 'transparent', border: `1px solid ${hexToRgba(blockColor, 0.6)}` }),
-                  }}
-                  title={confirmed ? 'Mark not done' : 'Mark done'}
-                  aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-                />
               )}
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div
@@ -692,9 +712,11 @@ function TimeBlockCardInner({
         {locked && (
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
             style={{ backgroundColor: 'rgba(0,0,0,0.06)' }}>
-            <LockClosedIcon className="h-3 w-3" style={{ color: '#636366' }} />
+            <LockClosedIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12, color: '#636366' }} />
           </div>
         )}
+        {/* Status circle — top-right, all past blocks */}
+        {renderStatusCircle(12)}
         {sizeTier === 'micro' ? (
           /* micro: just a colored sliver — no text */
           <div className="h-full w-full" />
@@ -703,24 +725,6 @@ function TimeBlockCardInner({
           <div className="flex items-center h-full min-w-0" style={{ padding: fullPadding, gap: 2 }}>
             {isEvent && !locked && (
               <LockClosedIcon className="flex-shrink-0 opacity-35" style={{ width: 8, height: 8, color: blockColor }} />
-            )}
-            {isTask && !locked && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
-                className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
-                style={{
-                  width: 10, height: 10,
-                  opacity: confirmed ? 1 : 0.6,
-                  ...(confirmed
-                    ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
-                    : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.5)}` }),
-                }}
-                title={confirmed ? 'Mark not done' : 'Mark done'}
-                aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-              >
-                {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
-              </button>
             )}
             <span
               className={cn('font-medium truncate leading-none min-w-0', titleTextClass)}
@@ -732,49 +736,17 @@ function TimeBlockCardInner({
         ) : (
           /* small+: title at top, meta + tags below */
           <div className="flex flex-col justify-between h-full min-w-0" style={{ padding: fullPadding }}>
-            {/* Title row — confirm circle (tasks only, not locked) + title */}
+            {/* Title row */}
             <div className="flex items-start" style={{ gap: 2 }}>
-              {isTask && !locked && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleCircleClick(e); }}
-                  className="flex-shrink-0 flex items-center justify-center rounded-full transition-all"
-                  style={{
-                    width: 10, height: 10,
-                    marginTop: 3,
-                    opacity: confirmed ? 1 : 0.6,
-                    ...(confirmed
-                      ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
-                      : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.5)}` }),
-                  }}
-                  title={confirmed ? 'Mark not done' : 'Mark done'}
-                  aria-label={confirmed ? 'Mark not done' : 'Mark done'}
-                >
-                  {confirmed && <CheckIcon className="h-[6px] w-[6px]" style={{ color: '#FFFFFF' }} />}
-                </button>
-              )}
-              {/* Event skip button in compare mode actual panel */}
-              {isEvent && isCompareMode && !locked && onSkip && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onSkip(block.id); }}
-                  className="absolute top-1 right-1 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity"
-                  style={{ width: 10, height: 10, backgroundColor: 'rgba(0,0,0,0.15)' }}
-                  title="Mark as not done"
-                  aria-label="Mark as not done"
-                >
-                  <XMarkIcon className="h-[7px] w-[7px]" style={{ color: '#8E8E93' }} />
-                </button>
-              )}
               <span
                 className={cn(
                   isTask ? 'font-semibold' : 'font-medium',
                   'leading-snug min-w-0',
-                  titleTextClass,
                   isTask && confirmed && 'line-through decoration-current/40',
                 )}
                 style={{
                   fontSize: isTask ? 13 : 11,
+                  color: getTitleColor(),
                   textDecorationSkipInk: 'none',
                   overflow: 'hidden',
                   wordBreak: 'break-word',
@@ -800,7 +772,7 @@ function TimeBlockCardInner({
                 {(isEvent || view !== 'day') && (
                   <span
                     className="text-[10px] tabular-nums shrink-0"
-                    style={{ color: '#8E8E93', opacity: 0.5 }}
+                    style={{ color: THEME.textPrimary, opacity: 0.5 }}
                   >
                     {fmtShort(block.start)}–{fmtShort(block.end)}
                   </span>

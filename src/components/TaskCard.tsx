@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { activeDrag } from '../utils/dragState';
+import { THEME } from '../constants/colors';
 
 interface TaskCardProps {
   /** React key (not used by component, but included to satisfy some typecheckers). */
@@ -175,15 +176,15 @@ export function TaskCard({
             </div>
           )}
         </div>
-        <h3 className="font-semibold text-sm leading-snug" style={{ color: '#8E8E93' }}>{task.title}</h3>
-        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs" style={{ color: '#8E8E93' }}>
+        <h3 className="font-semibold text-sm leading-snug" style={{ color: THEME.textPrimary }}>{task.title}</h3>
+        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs" style={{ color: THEME.textPrimary }}>
           <span className="flex items-center gap-1">
-            <ClockIcon className="h-3 w-3" />
+            <ClockIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
             {fmtMins(estimatedMins)}
           </span>
           {'dueDate' in task && task.dueDate && (
             <span className="flex items-center gap-1">
-              <CalendarIcon className="h-3 w-3" />
+              <CalendarIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
               Due {task.dueDate}
             </span>
           )}
@@ -196,7 +197,7 @@ export function TaskCard({
           <div className="w-full rounded-full h-1.5 overflow-hidden mb-1" style={{ backgroundColor: hexRgba(catColor, 0.12) }}>
             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }} />
           </div>
-          <div className="text-xs" style={{ color: '#8E8E93' }}>
+          <div className="text-xs" style={{ color: THEME.textPrimary }}>
             {fmtMins(recordedMins)} done · {fmtMins(remainingMins)} left
           </div>
         </div>
@@ -232,7 +233,7 @@ export function TaskCard({
         <div className="mb-2 -mx-3 px-3 py-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)', backgroundColor: 'rgba(0,0,0,0.02)' }}>
           {onBreakIntoChunks && (
             <div className="mb-1.5">
-              <div className="text-xs mb-1.5" style={{ color: '#8E8E93' }}>Break into blocks</div>
+              <div className="text-xs mb-1.5" style={{ color: THEME.textPrimary }}>Break into blocks</div>
               <div className="flex flex-wrap gap-1">
                 {[30, 60, 90].map((mins) => (
                   <button key={mins} type="button"
@@ -249,7 +250,7 @@ export function TaskCard({
           )}
           {onSplitTask && (
             <div>
-              <div className="text-xs mb-1.5" style={{ color: '#8E8E93' }}>Get a block</div>
+              <div className="text-xs mb-1.5" style={{ color: THEME.textPrimary }}>Get a block</div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {SPLIT_BLOCK_OPTIONS.map((mins) => (
                   <button key={mins} type="button"
@@ -283,18 +284,18 @@ export function TaskCard({
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onScheduleTask?.(); setShowPopover(false); }}>
-          <CalendarIcon className="h-3.5 w-3.5 flex-shrink-0" />
+          <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           {recordedMins > 0 ? 'Schedule again' : 'Schedule task'}
         </button>
 
         {onMarkTaskDone && (
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-            style={{ color: isDone ? '#8E8E93' : '#6A8C5A' }}
+            style={{ color: isDone ? THEME.textPrimary : '#6A8C5A' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             onClick={() => { onMarkTaskDone(); setShowPopover(false); }}>
-            <CheckIcon className="h-3.5 w-3.5 flex-shrink-0" />
+            <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             {isDone ? 'Mark as not done' : 'Mark as done'}
           </button>
         )}
@@ -305,7 +306,7 @@ export function TaskCard({
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onEditTask?.(); setShowPopover(false); }}>
-          <PencilIcon className="h-3.5 w-3.5 flex-shrink-0" />
+          <PencilIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Edit details
         </button>
 
@@ -315,7 +316,7 @@ export function TaskCard({
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onDeleteTask?.(); setShowPopover(false); }}>
-          <XMarkIcon className="h-3.5 w-3.5 flex-shrink-0" />
+          <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Delete task
         </button>
       </div>
@@ -369,7 +370,7 @@ export function TaskCard({
                   className="font-semibold leading-snug flex-1 line-clamp-2"
                   style={{
                     fontSize: 13,
-                    color: '#8E8E93',
+                    color: THEME.textPrimary,
                     wordBreak: 'break-word',
                     overflow: 'hidden',
                     textDecorationLine: isDone ? 'line-through' : 'none',
@@ -380,7 +381,7 @@ export function TaskCard({
                 </span>
                 <span
                   className="shrink-0 tabular-nums"
-                  style={{ fontSize: 10, color: '#8E8E93', opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
+                  style={{ fontSize: 10, color: THEME.textPrimary, opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
                 >
                   {fmtMins(estimatedMins)}
                 </span>
@@ -392,9 +393,9 @@ export function TaskCard({
               {cardHeight >= 65 && task.dueDate && (
                 <div
                   className="mt-auto flex items-center gap-0.5"
-                  style={{ fontSize: 10, color: '#8E8E93', opacity: 0.5 }}
+                  style={{ fontSize: 10, color: THEME.textPrimary, opacity: 0.5 }}
                 >
-                  <CalendarIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                  <CalendarIcon className="flex-shrink-0" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
                   <span className="truncate">{task.dueDate}</span>
                 </div>
               )}
@@ -524,7 +525,7 @@ export function TaskCard({
               <span
                 className="text-sm font-medium leading-snug flex-1 min-w-0"
                 style={{
-                  color: isDone ? '#AEAEB2' : '#1C1C1E',
+                  color: isDone ? '#AEAEB2' : THEME.textPrimary,
                   textDecorationLine: isDone ? 'line-through' : 'none',
                   textDecorationColor: 'rgba(0,0,0,0.3)',
                   wordBreak: 'break-word',
@@ -571,7 +572,7 @@ export function TaskCard({
 
             {/* Due date */}
             {'dueDate' in task && task.dueDate && !isDone && (
-              <div className="mt-0.5" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>
+              <div className="mt-0.5" style={{ fontSize: 11, color: THEME.textPrimary, lineHeight: 1.4 }}>
                 Due {task.dueDate}
               </div>
             )}
@@ -585,7 +586,7 @@ export function TaskCard({
                     style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }}
                   />
                 </div>
-                <div className="text-xs" style={{ color: '#8E8E93' }}>
+                <div className="text-xs" style={{ color: THEME.textPrimary }}>
                   {recordedMins > 0
                     ? `${fmtMins(recordedMins)} done · `
                     : ''}{task.blockCount} {task.blockCount === 1 ? 'block' : 'blocks'} · {fmtMins(estimatedMins)} total

@@ -54,10 +54,10 @@ export const THEME = {
   card: '#FFFFFF',               // Pure white cards / modals
   muted: '#F2F2F0',              // Muted surfaces
 
-  // Text colors
-  textPrimary: '#8E8E93',        // Primary gray (was near-black)
+  // Text colors — single source for body/heading text; change here to update app-wide
+  textPrimary: '#5F615F',        // Primary text (dark gray)
   textSecondary: '#636366',      // Medium gray
-  textMuted: '#8E8E93',          // Light gray
+  textMuted: '#5F615F',          // Muted text (same as primary for consistency)
   textPlaceholder: '#C7C7CC',    // Placeholder
 
   // Border colors

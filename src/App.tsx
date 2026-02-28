@@ -35,6 +35,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence } from './supabasePersistence';
 import { SegmentedControl } from './components/ui/SegmentedControl';
+import { THEME } from './constants/colors';
 
 // Re-export for components that still import from App
 export type Mode = StoreMode;
@@ -555,7 +556,7 @@ export default function App() {
     return false;
   }, [timeBlocks]);
 
-  const handleCreateBlock = (params: { date: string; startTime: string; endTime: string }) => {
+  const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; isRecordedPanel?: boolean }) => {
     let containerId = calendarContainers[0]?.id;
     if (!containerId) {
       // Should not normally happen, but create a default calendar as a fallback.
@@ -575,6 +576,8 @@ export default function App() {
     const [eh, em] = params.endTime.split(':').map(Number);
     const endMins = (eh ?? 0) * 60 + (em ?? 0);
     const isPastSlot = params.date < todayStr || (params.date === todayStr && endMins <= nowMins);
+    // Blocks from actual/recorded panel or past slots are unplanned actual entries
+    const isActual = isPastSlot || !!params.isRecordedPanel;
     const id = addTimeBlock({
       title: '',
       calendarContainerId: containerId,
@@ -584,9 +587,8 @@ export default function App() {
       end: params.endTime,
       date: params.date,
       mode: 'planned',
-      // Blocks created in past slots are immediately recorded (unplanned actual entries)
-      source: isPastSlot ? 'unplanned' : 'manual',
-      confirmationStatus: isPastSlot ? 'confirmed' : undefined,
+      source: isActual ? 'unplanned' : 'manual',
+      confirmationStatus: isActual ? 'confirmed' : undefined,
     });
     // Immediately open the Add Event popup to fill in details; delete draft on cancel.
     setEditingTaskId(null);
@@ -818,7 +820,7 @@ export default function App() {
             {/* Header: My Calendars label + settings + edit icons (hidden in compare mode — sidebar has its own header) */}
             {mode !== 'compare' && (
               <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-                <span className="text-[16px] font-semibold" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
+                <span className="text-[16px] font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.12em' }}>
                   My Calendars
                 </span>
                 <div className="flex items-center gap-0.5">
@@ -827,7 +829,7 @@ export default function App() {
                     type="button"
                     onClick={() => setIsSettingsOpen(true)}
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ color: '#8E8E93' }}
+                    style={{ color: THEME.textPrimary }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     title="Settings"
@@ -841,7 +843,7 @@ export default function App() {
                     onClick={() => setIsEditMode(!isEditMode)}
                     className="p-1.5 rounded-lg transition-colors"
                     style={{
-                      color: isEditMode ? '#8DA286' : '#8E8E93',
+                      color: isEditMode ? '#8DA286' : THEME.textPrimary,
                       backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
                     }}
                     onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
@@ -922,14 +924,14 @@ export default function App() {
                             const pctP = (row.plannedHours / maxH) * 100;
                             const pctR = (row.recordedHours / maxH) * 100;
                             const delta = row.deltaHours;
-                            const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF453A' : '#8E8E93';
+                            const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF453A' : THEME.textPrimary;
                             const deltaLabel = delta > 0.05 ? `+${delta.toFixed(1)}h` : delta < -0.05 ? `${delta.toFixed(1)}h` : '–';
                             return (
                               <div key={row.id}>
                                 {/* Name + delta */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                                   <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: row.color, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 12, fontWeight: 500, color: '#8E8E93', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 500, color: THEME.textPrimary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
                                     {row.name}
                                   </span>
                                   <span style={{ fontSize: 10, fontWeight: 600, color: deltaColor, flexShrink: 0, letterSpacing: '-0.01em' }}>
@@ -948,11 +950,11 @@ export default function App() {
                                 </div>
                                 {/* Actual bar */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <span style={{ fontSize: 9, width: 32, textAlign: 'right', color: '#8E8E93', flexShrink: 0, letterSpacing: '0.02em' }}>actual</span>
+                                  <span style={{ fontSize: 9, width: 32, textAlign: 'right', color: THEME.textPrimary, flexShrink: 0, letterSpacing: '0.02em' }}>actual</span>
                                   <div style={{ flex: 1, height: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
                                     <div style={{ height: '100%', width: `${Math.min(100, pctR)}%`, backgroundColor: row.color, opacity: 0.85, borderRadius: 99 }} />
                                   </div>
-                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: '#8E8E93', fontWeight: 500, flexShrink: 0 }}>
+                                  <span style={{ fontSize: 10, width: 26, textAlign: 'right', color: THEME.textPrimary, fontWeight: 500, flexShrink: 0 }}>
                                     {row.recordedHours.toFixed(1)}h
                                   </span>
                                 </div>
@@ -962,8 +964,8 @@ export default function App() {
                           {/* Totals footer */}
                           <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 8, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: 10, color: '#8E8E93' }}>Total recorded</span>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: '#8E8E93', letterSpacing: '-0.01em' }}>{totalRecorded.toFixed(1)}h</span>
+                              <span style={{ fontSize: 10, color: THEME.textPrimary }}>Total recorded</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, letterSpacing: '-0.01em' }}>{totalRecorded.toFixed(1)}h</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: 10, color: '#AEAEB2' }}>Total planned</span>
@@ -1020,7 +1022,7 @@ export default function App() {
                     onClick={() => { setIsBugReportOpen((o) => !o); setBugText(''); setBugStatus('idle'); }}
                     style={{
                       padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
-                      color: isBugReportOpen ? '#8DA286' : '#8E8E93',
+                      color: isBugReportOpen ? '#8DA286' : THEME.textPrimary,
                       backgroundColor: isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
                     }}
                     onMouseEnter={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
@@ -1039,7 +1041,7 @@ export default function App() {
                     onClick={() => setIsShortcutsOpen((o) => !o)}
                     style={{
                       padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
-                      color: isShortcutsOpen ? '#8DA286' : '#8E8E93',
+                      color: isShortcutsOpen ? '#8DA286' : THEME.textPrimary,
                       backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
                     }}
                     onMouseEnter={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
@@ -1082,8 +1084,8 @@ export default function App() {
                         {profileLetter}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
-                        <p style={{ fontSize: 10, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
+                        <p style={{ fontSize: 10, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {session ? session.user.email : 'Visit mode · not saved'}
                         </p>
                       </div>
@@ -1093,7 +1095,7 @@ export default function App() {
                         type="button"
                         onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
                         style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#8E8E93'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                       >
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1106,7 +1108,7 @@ export default function App() {
                         type="button"
                         onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
                         style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#8E8E93'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                       >
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1132,14 +1134,14 @@ export default function App() {
                     }}
                   >
                     <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0', color: '#3A3A3C', margin: 0 }}>Report a bug</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0', color: THEME.textPrimary, margin: 0 }}>Report a bug</p>
                       <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
                     </div>
                     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {bugStatus === 'success' ? (
                         <div style={{ padding: '12px 0', textAlign: 'center' }}>
                           <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
-                          <p style={{ fontSize: 10, color: '#8E8E93', margin: '2px 0 0' }}>We'll look into it soon.</p>
+                          <p style={{ fontSize: 10, color: THEME.textPrimary, margin: '2px 0 0' }}>We'll look into it soon.</p>
                         </div>
                       ) : (
                         <>
@@ -1148,7 +1150,7 @@ export default function App() {
                             onChange={(e) => setBugText(e.target.value)}
                             placeholder="Describe what happened…"
                             rows={3}
-                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#8E8E93', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary, fontFamily: 'inherit', boxSizing: 'border-box' }}
                           />
                           {bugStatus === 'error' && (
                             <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
@@ -1197,11 +1199,11 @@ export default function App() {
                       boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
                     }}
                   >
-                    <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: '#3A3A3C', margin: '0 0 8px' }}>Shortcuts</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: THEME.textPrimary, margin: '0 0 8px' }}>Shortcuts</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
                       {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                         <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                          <kbd style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: '#3A3A3C' }}>{key}</kbd>
+                          <kbd style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary }}>{key}</kbd>
                           <span>{label}</span>
                         </div>
                       ))}
@@ -1222,7 +1224,7 @@ export default function App() {
               border: '1px solid rgba(0,0,0,0.09)',
               borderLeft: 'none',
               borderRadius: '0 6px 6px 0',
-              color: '#8E8E93',
+              color: THEME.textPrimary,
             }}
             title="Show panel"
           >
@@ -1365,7 +1367,7 @@ export default function App() {
               border: '1px solid rgba(0,0,0,0.09)',
               borderRight: 'none',
               borderRadius: '6px 0 0 6px',
-              color: '#8E8E93',
+              color: THEME.textPrimary,
             }}
             title="Show tasks"
           >
@@ -1377,7 +1379,7 @@ export default function App() {
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: '#3A3A3C' }}>Tasks</span>
+              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -1493,7 +1495,7 @@ export default function App() {
             onClick={() => setRecurrenceEditScopePending(null)}
           />
           <div className="relative rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4" style={{ backgroundColor: '#FFFFFF' }}>
-            <h3 className="font-semibold text-sm mb-0.5" style={{ color: '#8E8E93' }}>Edit recurring event</h3>
+            <h3 className="font-semibold text-sm mb-0.5" style={{ color: THEME.textPrimary }}>Edit recurring event</h3>
             <p className="text-xs mb-4" style={{ color: '#636366' }}>Which events do you want to change?</p>
             <div className="flex flex-col gap-2">
               {([
@@ -1505,7 +1507,7 @@ export default function App() {
                   key={scope}
                   type="button"
                   className="text-left px-4 py-3 rounded-xl transition-all"
-                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: '#8E8E93', backgroundColor: 'transparent' }}
+                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: THEME.textPrimary, backgroundColor: 'transparent' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; }}
                   onClick={() => {
@@ -1644,13 +1646,13 @@ export default function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                 </div>
-                <h3 className="text-sm font-semibold" style={{ color: '#8E8E93' }}>Overlapping Recording</h3>
+                <h3 className="text-sm font-semibold" style={{ color: THEME.textPrimary }}>Overlapping Recording</h3>
               </div>
               <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
               <button
                 type="button"
                 className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-                style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}
+                style={{ backgroundColor: '#8DA286', color: THEME.textPrimary }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
                 onClick={() => setRecordingOverlapWarning(null)}
@@ -1720,7 +1722,7 @@ export default function App() {
           >
             {/* Header */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#8E8E93', margin: 0 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
                 Templates are here
               </h2>
               <p style={{ fontSize: 13, lineHeight: 1.6, color: '#636366', margin: 0 }}>
@@ -1800,7 +1802,7 @@ export default function App() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
-                  e.currentTarget.style.color = '#8E8E93';
+                  e.currentTarget.style.color = THEME.textPrimary;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
