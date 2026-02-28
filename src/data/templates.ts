@@ -30,7 +30,7 @@ export interface Template {
 export const GENERAL_CATEGORY_COLOR = '#DBE4D7'; // Mist — the --muted/--secondary surface color
 
 /** Color used for the Personal calendar in Blank setup. */
-export const BLANK_PERSONAL_COLOR = '#A4C7A6'; // Fern — DEFAULT_PALETTE_COLOR
+export const BLANK_PERSONAL_COLOR = '#8DA387'; // Forest — sage green
 
 export const DEFAULT_TEMPLATE: Template = {
   calendars: [

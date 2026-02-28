@@ -60,8 +60,9 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
-        className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
+        className="w-full rounded-2xl flex flex-col overflow-hidden"
         style={{
+          maxWidth: '24rem',
           backgroundColor: '#FFFFFF',
           border: '1px solid rgba(0,0,0,0.07)',
           boxShadow: '0 16px 48px rgba(0,0,0,0.18)',

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { CalendarIcon } from '@heroicons/react/24/solid';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 type AuthMode = 'signup' | 'login';
@@ -8,11 +7,11 @@ interface AuthPageProps {
   supabase: SupabaseClient | null;
   mode?: AuthMode;
   onVisitMode: () => void;
-  onBack: () => void;
 }
 
-export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, onBack }: AuthPageProps) {
+export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,11 +51,11 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             setMessage({ text: error.message, isError: true });
           }
         } else if (data.session) {
-          setMessage({ text: 'Account created! Setting up your workspace…', isError: false });
+          setMessage({ text: 'Account created! Setting up your workspace\u2026', isError: false });
         } else {
           setAwaitingConfirmation(true);
           setMessage({
-            text: 'Check your inbox — we sent a confirmation link. Once confirmed, come back and log in.',
+            text: 'Check your inbox \u2014 we sent a confirmation link. Once confirmed, come back and log in.',
             isError: false,
           });
         }
@@ -65,7 +64,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         if (error) {
           if (error.message.toLowerCase().includes('email not confirmed')) {
             setMessage({
-              text: 'Please confirm your email first — check your inbox for the confirmation link.',
+              text: 'Please confirm your email first \u2014 check your inbox for the confirmation link.',
               isError: true,
             });
           } else if (
@@ -87,81 +86,86 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
 
   const noBackend = !supabase;
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 48,
+    padding: '0 14px',
+    fontSize: 15,
+    borderRadius: 10,
+    outline: 'none',
+    backgroundColor: '#F5F4F0',
+    color: '#1C1C1E',
+    border: '1.5px solid transparent',
+    transition: 'all 200ms',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box' as const,
+    opacity: (noBackend || loading) ? 0.5 : 1,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 500,
+    color: '#636366',
+    display: 'block',
+    marginBottom: 8,
+  };
+
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.border = '1.5px solid rgba(141,162,134,0.65)';
+    e.currentTarget.style.backgroundColor = '#FFFFFF';
+  };
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.border = '1.5px solid transparent';
+    e.currentTarget.style.backgroundColor = '#F5F4F0';
+  };
+
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-12"
-      style={{ backgroundColor: '#FDFDFB', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 24px',
+        backgroundColor: '#F8F7F4',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
     >
-      {/* Back link */}
-      <button
-        onClick={onBack}
-        className="absolute top-5 left-5 text-xs flex items-center gap-1.5 font-medium transition-colors"
-        style={{ color: '#8E8E93' }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
-      >
-        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-          <path d="M11 5H1M1 5L5 1M1 5L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Back
-      </button>
-
-      <div
-        className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid rgba(0,0,0,0.07)',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-        }}
-      >
-        {/* Brand header */}
-        <div
-          className="px-6 pt-6 pb-5"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}
-            >
-              <CalendarIcon className="w-4 h-4" style={{ color: '#8DA286' }} />
-            </div>
-            <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Timebox</span>
-          </div>
-          <p className="text-xs" style={{ color: '#8E8E93' }}>
+      <div style={{ width: 576, maxWidth: '100%' }}>
+        {/* Title — outside card */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', margin: '0 0 8px' }}>
+            Timebox
+          </h1>
+          <p style={{ fontSize: 15, color: '#8E8E93', margin: 0 }}>
             {mode === 'signup' ? 'Create an account to save your calendar.' : 'Welcome back.'}
           </p>
         </div>
 
-        <div className="px-6 py-5 flex flex-col gap-4">
-          {/* Tab toggle */}
-          <div
-            className="flex rounded-xl p-0.5"
-            style={{ backgroundColor: '#F0EFE9' }}
-          >
-            {(['signup', 'login'] as AuthMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className="flex-1 py-1.5 rounded-[10px] text-xs font-semibold transition-all"
-                style={{
-                  backgroundColor: mode === m ? '#FFFFFF' : 'transparent',
-                  color: mode === m ? '#1C1C1E' : '#8E8E93',
-                  boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.09)' : 'none',
-                }}
-              >
-                {m === 'signup' ? 'Sign up' : 'Log in'}
-              </button>
-            ))}
-          </div>
-
+        {/* Auth card */}
+        <div
+          style={{
+            width: '100%',
+            borderRadius: 16,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            padding: 32,
+          }}
+        >
           {noBackend && (
             <div
-              className="text-xs px-3 py-2 rounded-lg"
               style={{
+                fontSize: 13,
+                padding: '10px 14px',
+                borderRadius: 10,
                 backgroundColor: 'rgba(255,59,48,0.06)',
                 color: '#B85050',
                 border: '1px solid rgba(255,59,48,0.12)',
+                marginBottom: 24,
+                lineHeight: 1.5,
               }}
             >
               Backend not configured — set <code>VITE_SUPABASE_URL</code> and{' '}
@@ -171,18 +175,27 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
 
           {/* Confirmation screen */}
           {awaitingConfirmation ? (
-            <div className="flex flex-col gap-3 py-3 text-center">
-              <div className="text-3xl">📬</div>
-              <p className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 36 }}>📬</div>
+              <p style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
                 Confirm your email
               </p>
-              <p className="text-xs leading-relaxed" style={{ color: '#636366' }}>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0 }}>
                 {message?.text}
               </p>
               <button
                 onClick={() => switchMode('login')}
-                className="text-xs font-semibold mt-1 transition-colors"
-                style={{ color: '#8DA286' }}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#8DA286',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  marginTop: 8,
+                  transition: 'color 200ms',
+                  fontFamily: 'inherit',
+                }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
               >
@@ -190,11 +203,28 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="auth-email" className="text-xs font-medium" style={{ color: '#636366' }}>
-                  Email address
-                </label>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {/* Name field — signup only */}
+              {mode === 'signup' && (
+                <div style={{ marginBottom: 24 }}>
+                  <label htmlFor="auth-name" style={labelStyle}>Name</label>
+                  <input
+                    id="auth-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    disabled={noBackend || loading}
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                  />
+                </div>
+              )}
+
+              {/* Email field */}
+              <div style={{ marginBottom: 24 }}>
+                <label htmlFor="auth-email" style={labelStyle}>Email address</label>
                 <input
                   id="auth-email"
                   type="email"
@@ -203,26 +233,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   placeholder="you@example.com"
                   disabled={noBackend || loading}
                   required
-                  className="px-3 py-2.5 text-sm rounded-xl outline-none transition-all disabled:opacity-50"
-                  style={{
-                    backgroundColor: '#F5F4F0',
-                    color: '#1C1C1E',
-                    border: '1.5px solid transparent',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = '1.5px solid rgba(141,162,134,0.65)';
-                    e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = '1.5px solid transparent';
-                    e.currentTarget.style.backgroundColor = '#F5F4F0';
-                  }}
+                  style={inputStyle}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
                   autoFocus
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="auth-password" className="text-xs font-medium" style={{ color: '#636366' }}>
+              {/* Password field */}
+              <div style={{ marginBottom: 24 }}>
+                <label htmlFor="auth-password" style={labelStyle}>
                   Password{mode === 'signup' ? ' (min 6 characters)' : ''}
                 </label>
                 <input
@@ -234,27 +254,21 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   disabled={noBackend || loading}
                   required
                   minLength={mode === 'signup' ? 6 : undefined}
-                  className="px-3 py-2.5 text-sm rounded-xl outline-none transition-all disabled:opacity-50"
-                  style={{
-                    backgroundColor: '#F5F4F0',
-                    color: '#1C1C1E',
-                    border: '1.5px solid transparent',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = '1.5px solid rgba(141,162,134,0.65)';
-                    e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = '1.5px solid transparent';
-                    e.currentTarget.style.backgroundColor = '#F5F4F0';
-                  }}
+                  style={inputStyle}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
                 />
               </div>
 
+              {/* Error/success message */}
               {message && !awaitingConfirmation && (
                 <div
-                  className="text-xs px-3 py-2.5 rounded-xl leading-relaxed"
                   style={{
+                    fontSize: 13,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    lineHeight: 1.6,
+                    marginBottom: 16,
                     backgroundColor: message.isError ? 'rgba(255,59,48,0.06)' : 'rgba(141,162,134,0.10)',
                     color: message.isError ? '#B85050' : '#4A7A44',
                     border: `1px solid ${message.isError ? 'rgba(255,59,48,0.12)' : 'rgba(141,162,134,0.22)'}`,
@@ -265,7 +279,17 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     <button
                       type="button"
                       onClick={() => switchMode('login')}
-                      className="ml-1 underline font-semibold"
+                      style={{
+                        marginLeft: 4,
+                        textDecoration: 'underline',
+                        fontWeight: 600,
+                        background: 'none',
+                        border: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        fontSize: 'inherit',
+                        fontFamily: 'inherit',
+                      }}
                     >
                       Log in
                     </button>
@@ -273,59 +297,87 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 </div>
               )}
 
+              {/* Primary action button */}
               <button
                 type="submit"
                 disabled={noBackend || loading}
-                className="py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
                 style={{
-                  backgroundColor: '#8DA286',
-                  color: '#1C1C1E',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 4px 12px rgba(141,162,134,0.22)',
+                  width: '100%',
+                  height: 48,
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: (noBackend || loading) ? 'default' : 'pointer',
+                  transition: 'all 200ms',
+                  backgroundColor: '#8DA387',
+                  color: '#FFFFFF',
+                  opacity: (noBackend || loading) ? 0.4 : 1,
+                  fontFamily: 'inherit',
                 }}
                 onMouseEnter={(e) => {
-                  if (!loading && !noBackend) {
-                    e.currentTarget.style.backgroundColor = '#7A9278';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }
+                  if (!loading && !noBackend) e.currentTarget.style.backgroundColor = '#7A9076';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#8DA286';
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.backgroundColor = '#8DA387';
                 }}
               >
-                {loading ? '…' : mode === 'signup' ? 'Create account' : 'Log in'}
+                {loading ? '...' : mode === 'signup' ? 'Sign up' : 'Log in'}
               </button>
             </form>
           )}
 
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
-            <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: '#C7C7CC' }}>or</span>
-            <div className="flex-1" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
+          {/* Or divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
+            <span style={{ fontSize: 14, color: '#C7C7CC' }}>or</span>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
           </div>
 
+          {/* Secondary action — toggle mode */}
           <button
             type="button"
-            onClick={onVisitMode}
-            className="py-2.5 rounded-xl text-sm font-medium transition-all"
-            style={{ border: '1px solid rgba(0,0,0,0.09)', color: '#636366' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
-              e.currentTarget.style.color = '#1C1C1E';
+            onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')}
+            style={{
+              width: '100%',
+              height: 48,
+              borderRadius: 10,
+              fontSize: 15,
+              fontWeight: 600,
+              border: '1px solid rgba(0,0,0,0.12)',
+              backgroundColor: 'transparent',
+              color: '#1C1C1E',
+              cursor: 'pointer',
+              transition: 'all 200ms',
+              fontFamily: 'inherit',
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#636366';
-            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            Try without signing in
+            {mode === 'signup' ? 'Log in' : 'Sign up'}
           </button>
         </div>
 
-        <p className="text-center text-xs pb-5 px-6" style={{ color: '#C7C7CC' }}>
-          No account needed to explore. Data won't be saved in visit mode.
-        </p>
+        {/* Try without signing in — outside card */}
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <button
+            onClick={onVisitMode}
+            style={{
+              fontSize: 14,
+              color: '#8E8E93',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              transition: 'color 200ms',
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+          >
+            Try Without Signing In
+          </button>
+        </div>
       </div>
     </div>
   );

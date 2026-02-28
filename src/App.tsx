@@ -12,7 +12,6 @@ import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { LeftSidebar } from './components/LeftSidebar';
 import { SettingsPanel } from './components/SettingsPanel';
-import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { OnboardingTour } from './components/OnboardingTour';
@@ -96,11 +95,17 @@ export default function App() {
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [visitMode, setVisitMode] = useState(false);
+  // Check URL params for deep-links from the landing site (e.g. ?mode=signup|login|visitor)
+  const _urlMode = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('mode')
+    : null;
+  const [visitMode, setVisitMode] = useState(_urlMode === 'visitor');
   const [dataReady, setDataReady] = useState(false);
-  // Pre-auth navigation: which screen to show before the user is logged in
-  const [preAuthScreen, setPreAuthScreen] = useState<'landing' | 'auth'>('landing');
-  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+  // Pre-auth navigation: always show auth screen (landing page lives in the separate landing site)
+  const [preAuthScreen] = useState<'auth'>('auth');
+  const [authMode, setAuthMode] = useState<'signup' | 'login'>(
+    _urlMode === 'login' ? 'login' : 'signup'
+  );
   // Onboarding tour: show after wizard completion
   const [showTour, setShowTour] = useState(false);
 
@@ -554,7 +559,7 @@ export default function App() {
     let containerId = calendarContainers[0]?.id;
     if (!containerId) {
       // Should not normally happen, but create a default calendar as a fallback.
-      addCalendarContainer({ name: 'Personal', color: '#0044A8' });
+      addCalendarContainer({ name: 'Personal', color: '#8DA387' });
       containerId = useStore.getState().calendarContainers[0]?.id;
       if (!containerId) return undefined;
     }
@@ -726,16 +731,16 @@ export default function App() {
 
   // ── Derived screen ────────────────────────────────────────────────────────
   // Determines which top-level view to render without any routing library.
-  type AppScreen = 'landing' | 'auth' | 'setup' | 'loading' | 'app';
+  type AppScreen = 'auth' | 'setup' | 'loading' | 'app';
   const appScreen: AppScreen = (() => {
-    // Dev-only: ?page=landing|auth|setup forces a specific screen so you can preview auth flow
+    // Dev-only: ?page=auth|setup forces a specific screen so you can preview auth flow
     if (!import.meta.env.PROD && typeof window !== 'undefined') {
       const forcePage = new URLSearchParams(window.location.search).get('page') as AppScreen | null;
-      if (forcePage && (['landing', 'auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
+      if (forcePage && (['auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
     }
     if (!requireAuth) return 'app';                      // dev bypass
     if (session && !dataReady) return 'loading';         // waiting for Supabase load
-    if (!session && !visitMode) return preAuthScreen;    // 'landing' or 'auth'
+    if (!session && !visitMode) return preAuthScreen;    // always 'auth'
     // Visitor or logged-in: check setup state
     if (!hasCompletedSetup) {
       // Existing user with meaningful data → show app + one-time migration modal
@@ -769,23 +774,12 @@ export default function App() {
     );
   }
 
-  if (appScreen === 'landing') {
-    return (
-      <LandingPage
-        onGetStarted={() => { setAuthMode('signup'); setPreAuthScreen('auth'); }}
-        onLogIn={() => { setAuthMode('login'); setPreAuthScreen('auth'); }}
-        onTryItOut={() => setVisitMode(true)}
-      />
-    );
-  }
-
   if (appScreen === 'auth') {
     return (
       <AuthPage
         supabase={supabase}
         mode={authMode}
         onVisitMode={() => setVisitMode(true)}
-        onBack={() => setPreAuthScreen('landing')}
       />
     );
   }
@@ -1698,23 +1692,38 @@ export default function App() {
       {/* ── One-time migration modal for existing users (pre-onboarding) ── */}
       {!hasCompletedSetup && session && (
         <div
-          className="fixed inset-0 z-[9990] flex items-center justify-center px-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9990,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 16px',
+            backgroundColor: 'rgba(0,0,0,0.35)',
+          }}
         >
           <div
-            className="w-full max-w-md rounded-2xl flex flex-col gap-4 p-6"
             style={{
+              width: '100%',
+              maxWidth: 420,
+              borderRadius: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              padding: 24,
               backgroundColor: '#FFFFFF',
               boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
               border: '1px solid rgba(0,0,0,0.08)',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
             }}
           >
             {/* Header */}
-            <div className="flex flex-col gap-1">
-              <h2 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
-                ✨ Templates are here
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
+                Templates are here
               </h2>
-              <p className="text-xs leading-relaxed" style={{ color: '#636366' }}>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: '#636366', margin: 0 }}>
                 We added a starter template with calendars and categories for personal, growth,
                 school, and relationships. Want to add it to your existing setup? Your current
                 data won't be changed.
@@ -1722,37 +1731,81 @@ export default function App() {
             </div>
 
             {/* Template preview strip */}
-            <div className="flex flex-wrap gap-2 py-2 px-3 rounded-xl" style={{ backgroundColor: '#F7F6F2' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 12,
+                padding: '10px 14px',
+                borderRadius: 12,
+                backgroundColor: '#F7F6F2',
+              }}
+            >
               {[
                 { name: 'Personal', color: '#5B718C' },
                 { name: 'Growth', color: '#8DA387' },
                 { name: 'School', color: '#B3B46D' },
                 { name: 'Relationships', color: '#DE8D91' },
               ].map((cal) => (
-                <div key={cal.name} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cal.color }} />
-                  <span className="text-xs" style={{ color: '#636366' }}>{cal.name}</span>
+                <div key={cal.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: cal.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: '#636366' }}>{cal.name}</span>
                 </div>
               ))}
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col gap-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
                 onClick={() => { mergeTemplate(); setHasCompletedSetup(true); }}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
+                style={{
+                  width: '100%',
+                  padding: '10px 0',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                  backgroundColor: '#4A6741',
+                  color: '#FFFFFF',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 4px 12px rgba(74,103,65,0.25)',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3D5736';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4A6741';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
                 Add template to my setup
               </button>
               <button
                 onClick={() => setHasCompletedSetup(true)}
-                className="w-full py-2 rounded-xl text-sm font-medium transition-colors"
-                style={{ border: '1px solid rgba(0,0,0,0.10)', color: '#636366' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                style={{
+                  width: '100%',
+                  padding: '8px 0',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  border: '1px solid rgba(0,0,0,0.10)',
+                  backgroundColor: 'transparent',
+                  color: '#636366',
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
+                  e.currentTarget.style.color = '#1C1C1E';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#636366';
+                }}
               >
                 No thanks, keep my current setup
               </button>

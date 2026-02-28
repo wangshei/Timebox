@@ -122,6 +122,17 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     else onComplete();
   };
 
+  // Keyboard navigation: Escape = skip, Enter/→ = next
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onComplete(); }
+      else if (e.key === 'Enter' || e.key === 'ArrowRight') { handleNext(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIndex]);
+
   const isLast = stepIndex === STEPS.length - 1;
 
   const highlightStyle: React.CSSProperties | null = targetRect
@@ -142,6 +153,15 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
   return (
     <>
+      {/* Backdrop to prevent interaction with underlying UI */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9997,
+          background: 'transparent',
+        }}
+      />
       {highlightStyle && <div style={highlightStyle} />}
 
       <div
@@ -196,31 +216,34 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
           <button
             onClick={onComplete}
             className="text-xs font-medium transition-colors"
-            style={{ color: '#C7C7CC' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#8E8E93')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#C7C7CC')}
+            style={{ color: '#8E8E93' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
           >
             Skip tour
           </button>
-          <button
-            onClick={handleNext}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
-            style={{
-              backgroundColor: '#8DA286',
-              color: '#1C1C1E',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#7A9278';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#8DA286';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            {isLast ? 'Done ✓' : 'Next →'}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px]" style={{ color: '#C7C7CC' }}>↵ or →</span>
+            <button
+              onClick={handleNext}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                backgroundColor: '#4A6741',
+                color: '#FFFFFF',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#3D5736';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#4A6741';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              {isLast ? 'Finish' : 'Next'}
+            </button>
+          </div>
         </div>
       </div>
     </>
