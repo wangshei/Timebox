@@ -46,6 +46,7 @@ interface DayViewProps {
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   onDeleteEvent?: (eventId: string) => void;
+  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onDropTask?: (taskId: string, params: DropTaskParams) => void;
   /** Create a time block by drag on empty grid. */
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
@@ -66,7 +67,7 @@ interface DayViewProps {
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -484,6 +485,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onSelect={() => onSelectBlock(`event-${event.id}`)}
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
+                onDeleteEventSeries={onDeleteEventSeries}
                 onEditEvent={onEditEvent}
                 plannedStyle={false}
                 draggable={!!onMoveEvent}

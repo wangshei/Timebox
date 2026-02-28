@@ -38,6 +38,7 @@ interface ThreeDayViewProps {
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
+  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onCreateBlock?: (params: CreateBlockParams) => string | undefined;
 }
 
@@ -52,7 +53,7 @@ export function ThreeDayView({
   focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm,
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
-  events = [], onDeleteEvent, onCreateBlock,
+  events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -417,6 +418,7 @@ export function ThreeDayView({
                                   onSelect={() => handleSelect(`event-${event.id}`)}
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
+                                  onDeleteEventSeries={onDeleteEventSeries}
                                   onEditEvent={onEditEvent}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}

@@ -316,6 +316,26 @@ After this runs successfully: **refresh the app** (or sign out and sign back in)
 
 ---
 
+## 4. Enable Realtime (for multi-window sync)
+
+The app uses Supabase Realtime to detect changes made in other browser windows or devices and reload automatically. Run this in the Supabase **SQL Editor** to add the tables to the `supabase_realtime` publication:
+
+```sql
+-- Run in Supabase SQL Editor (Dashboard → SQL Editor)
+alter publication supabase_realtime add table calendar_containers;
+alter publication supabase_realtime add table categories;
+alter publication supabase_realtime add table tags;
+alter publication supabase_realtime add table tasks;
+alter publication supabase_realtime add table time_blocks;
+alter publication supabase_realtime add table events;
+alter publication supabase_realtime add table user_settings;
+```
+
+> **Note:** If the publication already includes a table you'll get an "already a member" error — that's fine, skip it.
+> After adding tables, the app will detect remote changes within ~1 second and reload silently.
+
+---
+
 ## 3. How the app talks to Supabase (Phase 2)
 
 - `src/supabaseClient.ts` creates a single client using `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
+import type { RecurrencePattern } from '../types';
 import { cn } from './ui/utils';
 import { getTextClassForBackground, hexToRgba, desaturate, lighten } from '../utils/color';
 import { getLocalDateString } from '../utils/dateTime';
@@ -12,6 +13,17 @@ const POPOVER_WIDTH = 224;
 const POPOVER_MAX_HEIGHT = 420;
 const GAP = 8;
 
+function patternLabel(pattern: RecurrencePattern | undefined): string {
+  switch (pattern) {
+    case 'daily': return 'Daily';
+    case 'every_other_day': return 'Every other day';
+    case 'weekly': return 'Weekly';
+    case 'monthly': return 'Monthly';
+    case 'custom': return 'Custom days';
+    default: return 'Recurring';
+  }
+}
+
 interface EventCardProps {
   key?: React.Key;
   event: ResolvedEvent;
@@ -20,6 +32,7 @@ interface EventCardProps {
   onSelect: () => void;
   onDeselect: () => void;
   onDeleteEvent?: (eventId: string) => void;
+  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditEvent?: (eventId: string) => void;
   /** When true, use same transparent + border style as planned time blocks */
   plannedStyle?: boolean;
@@ -38,6 +51,7 @@ export function EventCard({
   onSelect,
   onDeselect,
   onDeleteEvent,
+  onDeleteEventSeries,
   onEditEvent,
   plannedStyle = false,
   draggable = false,
@@ -45,6 +59,7 @@ export function EventCard({
   compact = false,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [now, setNow] = useState(() => new Date());
@@ -187,9 +202,9 @@ export function EventCard({
       >
         {compact ? (
           <div className={cn('flex flex-col h-full min-w-0', textClass)}>
-            <div className="flex items-start min-w-0 flex-shrink-0">
+            <div className="flex items-start min-w-0 flex-shrink-0 gap-1">
               <span
-                className="font-medium text-sm leading-snug min-w-0"
+                className="font-medium text-sm leading-snug min-w-0 flex-1"
                 style={{
                   fontSize: 12,
                   whiteSpace: 'normal',
@@ -199,6 +214,9 @@ export function EventCard({
               >
                 {event.title || 'Untitled Event'}
               </span>
+              {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
+                <ArrowPathIcon className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 opacity-60" />
+              )}
             </div>
           </div>
         ) : (
@@ -215,9 +233,14 @@ export function EventCard({
               >
                 {event.title || 'Untitled Event'}
               </span>
-              <span className="text-xs whitespace-nowrap opacity-90 shrink-0">
-                {getDuration()}
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
+                  <ArrowPathIcon className="w-3 h-3 opacity-60 flex-shrink-0" />
+                )}
+                <span className="text-xs whitespace-nowrap opacity-90">
+                  {getDuration()}
+                </span>
+              </div>
             </div>
             {heightPx >= 72 && event.description && (
               <p className="mt-1 text-xs opacity-90 line-clamp-2 min-w-0 flex-shrink-0">
@@ -257,6 +280,7 @@ export function EventCard({
             onClick={(e) => {
               e.stopPropagation();
               setShowPopover(false);
+              setDeleteConfirmState(null);
               setPopoverDragOffset({ x: 0, y: 0 });
               onDeselect();
             }}
@@ -310,6 +334,12 @@ export function EventCard({
                   <span>{event.calendarContainer.name}</span>
                 </div>
               )}
+              {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
+                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+                  <ArrowPathIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: THEME.textMuted }} />
+                  <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
+                </div>
+              )}
               {event.description && (
                 <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{event.description}</div>
               )}
@@ -321,44 +351,75 @@ export function EventCard({
                 </div>
               )}
               <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
-              <div className="flex gap-1">
-                {onEditEvent && (
-                  <button
-                    type="button"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-                    style={{ color: THEME.textSecondary }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditEvent(event.id);
-                      setShowPopover(false);
-                      onDeselect();
-                    }}
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                    Edit
-                  </button>
-                )}
-                {onDeleteEvent && (
-                  <button
-                    type="button"
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-                    style={{ color: '#B85050' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteEvent(event.id);
-                      setShowPopover(false);
-                      onDeselect();
-                    }}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
-                  </button>
-                )}
-              </div>
+              {deleteConfirmState === 'confirm' ? (
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-medium mb-0.5" style={{ color: THEME.textSecondary }}>Delete:</div>
+                  <div className="flex gap-1">
+                    {(['this', 'all', 'all_after'] as const).map((scope) => (
+                      <button
+                        key={scope}
+                        type="button"
+                        className="flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                        style={{ color: '#B85050' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteEventSeries?.(event.id, scope);
+                          setShowPopover(false);
+                          setDeleteConfirmState(null);
+                          onDeselect();
+                        }}
+                      >
+                        {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-1">
+                  {onEditEvent && (
+                    <button
+                      type="button"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+                      style={{ color: THEME.textSecondary }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditEvent(event.id);
+                        setShowPopover(false);
+                        onDeselect();
+                      }}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      Edit
+                    </button>
+                  )}
+                  {(onDeleteEvent || onDeleteEventSeries) && (
+                    <button
+                      type="button"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
+                      style={{ color: '#B85050' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (event.recurring && event.recurrenceSeriesId && onDeleteEventSeries) {
+                          setDeleteConfirmState('confirm');
+                        } else {
+                          onDeleteEvent?.(event.id);
+                          setShowPopover(false);
+                          onDeselect();
+                        }
+                      }}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>

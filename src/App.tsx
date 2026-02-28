@@ -26,6 +26,7 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { getLocalDateString, getViewDateRange } from './utils/dateTime';
+import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -144,6 +145,9 @@ export default function App() {
     updateEvent,
     deleteEvent,
     convertTimeBlockToEvent,
+    addEvents,
+    updateEvents,
+    deleteEvents,
     setCalendarContainers,
     setCategories,
     setTags,
@@ -254,15 +258,27 @@ export default function App() {
     const coreTask = tasks.find((t) => t.id === taskId);
     if (!coreTask) return;
 
-    // Toggle behaviour: if already marked done, clear the explicit done status.
-    // This button ONLY flips status; it does NOT create additional recorded time.
+    const taskBlocks = timeBlocks.filter((b) => b.taskId === taskId);
+
+    // Toggle behaviour: if already marked done, clear status and unconfirm all blocks.
     if (coreTask.status === 'done') {
       updateTask(taskId, { status: undefined });
+      // Unconfirm all confirmed blocks so calendar cards reflect "not done"
+      taskBlocks.forEach((b) => {
+        if (b.confirmationStatus === 'confirmed') {
+          updateTimeBlock(b.id, { confirmationStatus: undefined });
+        }
+      });
       return;
     }
 
-    // Persist explicit "done" status on the task itself (used by Supabase via supabasePersistence).
+    // Mark done: persist status and confirm all planned blocks so calendar cards update too.
     updateTask(taskId, { status: 'done' });
+    taskBlocks.forEach((b) => {
+      if (b.confirmationStatus !== 'confirmed') {
+        confirmBlock(b.id);
+      }
+    });
   };
 
   const handleAddTask = (taskData: {
@@ -317,12 +333,25 @@ export default function App() {
       link: eventData.link ?? undefined,
       description: eventData.description ?? undefined,
     };
+    const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
+
     // If we were editing a draft timeBlock (from drag-to-create),
-    // atomically convert it to an event in a single state change.
+    // atomically convert it to an event (or series) in a single state change.
     if (isDraftTimeBlock && editingTimeBlockId) {
-      convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+      if (isRecurring) {
+        const seriesId = crypto.randomUUID();
+        const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+        deleteTimeBlock(editingTimeBlockId);
+        addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
+      } else {
+        convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+      }
       setEditingTimeBlockId(null);
       setIsDraftTimeBlock(false);
+    } else if (isRecurring) {
+      const seriesId = crypto.randomUUID();
+      const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+      addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
     } else {
       addEvent(eventPayload);
     }
@@ -578,6 +607,22 @@ export default function App() {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
     updateEvent(eventId, { date: params.date, end: params.endTime });
+  };
+
+  const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+    if (scope === 'this' || !event.recurrenceSeriesId) {
+      deleteEvent(id);
+    } else if (scope === 'all') {
+      deleteEvents(events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId).map((e) => e.id));
+    } else if (scope === 'all_after') {
+      deleteEvents(
+        events
+          .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
+          .map((e) => e.id)
+      );
+    }
   };
 
   // Supabase auth session + persistence
@@ -1101,6 +1146,7 @@ export default function App() {
           onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
+          onDeleteEventSeries={handleDeleteEventSeries}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -1237,6 +1283,7 @@ export default function App() {
           onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
+          onDeleteEventSeries={handleDeleteEventSeries}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -1304,9 +1351,25 @@ export default function App() {
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
         onUpdateEvent={(id, updates) => {
-          const { recurrenceEditScope: _scope, ...rest } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
-          updateEvent(id, rest);
-          // TODO: handle _scope 'all' / 'all_after' to update series when store supports it
+          const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
+          const event = events.find((e) => e.id === id);
+          if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
+            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            updateEvents(
+              events
+                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId)
+                .map((e) => ({ id: e.id, changes: sharedUpdates }))
+            );
+          } else if (recurrenceEditScope === 'all_after' && event?.recurrenceSeriesId) {
+            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            updateEvents(
+              events
+                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
+                .map((e) => ({ id: e.id, changes: sharedUpdates }))
+            );
+          } else {
+            updateEvent(id, eventUpdates);
+          }
         }}
         onUpdateTimeBlock={(id, updates) => {
           // If this is a draft block being finalized in event mode,
@@ -1316,17 +1379,30 @@ export default function App() {
           if (isDraftTimeBlock && id === editingTimeBlockId) {
             const block = timeBlocks.find((b) => b.id === id);
             if (block) {
-              convertTimeBlockToEvent(id, {
+              const u = updates as typeof updates & { recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+              const isRecurring = u.recurring && u.recurrencePattern && u.recurrencePattern !== 'none';
+              const eventDate = updates.date ?? block.date;
+              const eventBase = {
                 title: updates.title ?? block.title ?? '',
                 calendarContainerId: updates.calendarContainerId ?? block.calendarContainerId,
                 categoryId: updates.categoryId ?? block.categoryId,
                 start: updates.start ?? block.start,
                 end: updates.end ?? block.end,
-                date: updates.date ?? block.date,
-                recurring: false,
+                date: eventDate,
+                recurring: u.recurring ?? false,
+                recurrencePattern: u.recurrencePattern,
+                recurrenceDays: u.recurrenceDays,
                 link: updates.link ?? block.link ?? undefined,
                 description: updates.description ?? block.description ?? undefined,
-              });
+              };
+              if (isRecurring) {
+                const seriesId = crypto.randomUUID();
+                const dates = generateRecurrenceDates(eventDate, u.recurrencePattern!, u.recurrenceDays);
+                deleteTimeBlock(id);
+                addEvents(dates.map((date) => ({ ...eventBase, date, recurrenceSeriesId: seriesId })));
+              } else {
+                convertTimeBlockToEvent(id, { ...eventBase, recurrenceSeriesId: null });
+              }
               setEditingTimeBlockId(null);
               setIsDraftTimeBlock(false);
               return;

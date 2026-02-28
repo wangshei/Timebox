@@ -435,6 +435,7 @@ export function startSupabasePersistence() {
 
   let saving = false;
   let pendingSlice: PersistableState | null = null;
+  let lastSaveCompletedAt = 0;
 
   async function flush(slice: PersistableState) {
     if (!supabaseLoaded) {
@@ -454,6 +455,7 @@ export function startSupabasePersistence() {
     console.log('[supabasePersistence] Saving...', { tasks: slice.tasks.length, timeBlocks: slice.timeBlocks.length, events: slice.events.length });
     try {
       await saveSupabaseStateForUser(userId, slice);
+      lastSaveCompletedAt = Date.now();
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[supabasePersistence] Save error', e);
@@ -469,7 +471,7 @@ export function startSupabasePersistence() {
     }
   }
 
-  const unsubscribe = useStore.subscribe<PersistableState>(
+  const unsubscribeStore = useStore.subscribe<PersistableState>(
     (state) => ({
       tasks: state.tasks,
       timeBlocks: state.timeBlocks,
@@ -491,6 +493,37 @@ export function startSupabasePersistence() {
     }
   );
 
-  return unsubscribe;
+  // Realtime: reload state when another client makes a change
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleReload() {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(async () => {
+      // Skip if our own save just completed (self-echo guard, 3s window)
+      if (Date.now() - lastSaveCompletedAt < 3000) return;
+      // Skip if currently saving (our save will overwrite anyway)
+      if (saving) return;
+      // eslint-disable-next-line no-console
+      console.log('[supabasePersistence] Remote change detected, reloading...');
+      try { await loadSupabaseState(); } catch (e) { console.error(e); }
+    }, 500);
+  }
+
+  const channel = supabase
+    .channel('timebox-db-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'time_blocks' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_containers' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, scheduleReload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, scheduleReload)
+    .subscribe();
+
+  return () => {
+    unsubscribeStore();
+    void supabase!.removeChannel(channel);
+    if (reloadTimer) clearTimeout(reloadTimer);
+  };
 }
 

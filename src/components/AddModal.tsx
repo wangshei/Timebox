@@ -287,6 +287,10 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
+        // Pass recurrence fields so draft-block→recurring-event conversion works
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
       } as any);
     } else if (mode === 'task') {
       onAddTask({

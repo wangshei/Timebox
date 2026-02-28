@@ -400,6 +400,26 @@ export function TaskCard({
               )}
             </div>
 
+            {/* Done circle — top-right corner, direct action without popup */}
+            {onMarkTaskDone && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
+                className="absolute flex items-center justify-center rounded-full transition-all"
+                style={{
+                  top: 5, right: 5,
+                  width: 14, height: 14,
+                  border: `1.5px solid ${isDone ? catColor : hexRgba(catColor, 0.45)}`,
+                  backgroundColor: isDone ? catColor : 'transparent',
+                  opacity: isDone ? 1 : 0.7,
+                  flexShrink: 0,
+                }}
+                title={isDone ? 'Mark as not done' : 'Mark as done'}
+              >
+                {isDone && <CheckIcon style={{ width: 8, height: 8, color: '#FFFFFF' }} />}
+              </button>
+            )}
+
             {/* Priority stars — bottom-right corner, category color */}
             {priority > 0 && cardHeight >= 36 && (
               <div
@@ -556,8 +576,8 @@ export function TaskCard({
               </div>
             )}
 
-            {/* Progress bar — only when task is split into multiple blocks */}
-            {task.blockCount > 1 && (
+            {/* Progress bar — show when task has scheduled blocks */}
+            {task.blockCount >= 1 && !isDone && (
               <div className="mt-1.5 space-y-0.5">
                 <div className="w-full rounded-full overflow-hidden" style={{ height: 3, backgroundColor: hexRgba(catColor, 0.12) }}>
                   <div
@@ -566,7 +586,9 @@ export function TaskCard({
                   />
                 </div>
                 <div className="text-xs" style={{ color: '#8E8E93' }}>
-                  {fmtMins(recordedMins)} done · {fmtMins(estimatedMins)} total
+                  {recordedMins > 0
+                    ? `${fmtMins(recordedMins)} done · `
+                    : ''}{task.blockCount} {task.blockCount === 1 ? 'block' : 'blocks'} · {fmtMins(estimatedMins)} total
                 </div>
               </div>
             )}

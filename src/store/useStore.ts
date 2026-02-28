@@ -129,6 +129,13 @@ export interface AppActions {
   /** Atomically delete a time block and create an event in a single state update. */
   convertTimeBlockToEvent: (blockId: string, event: Omit<Event, 'id'>) => string;
 
+  /** Add multiple events in a single state update. Returns array of new IDs. */
+  addEvents: (events: Omit<Event, 'id'>[]) => string[];
+  /** Update multiple events in a single state update. */
+  updateEvents: (updates: Array<{ id: string; changes: Partial<Event> }>) => void;
+  /** Delete multiple events in a single state update. */
+  deleteEvents: (ids: string[]) => void;
+
   /** Replace organization data (for Revert in settings). */
   setCalendarContainers: (containers: CalendarContainer[]) => void;
   setCategories: (categories: Category[]) => void;
@@ -429,6 +436,23 @@ export const useStore = create<AppState & AppActions>()(
     }));
     return eventId;
   },
+
+  addEvents: (events) => {
+    const newEvents = events.map((e) => ({ ...e, id: generateId() }));
+    set((s) => ({ events: [...s.events, ...newEvents] }));
+    return newEvents.map((e) => e.id);
+  },
+  updateEvents: (updates) =>
+    set((s) => ({
+      events: s.events.map((e) => {
+        const u = updates.find((u) => u.id === e.id);
+        return u ? { ...e, ...u.changes } : e;
+      }),
+    })),
+  deleteEvents: (ids) =>
+    set((s) => ({
+      events: s.events.filter((e) => !ids.includes(e.id)),
+    })),
 
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),
   setCategories: (categories) => set({ categories }),
