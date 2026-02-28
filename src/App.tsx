@@ -12,6 +12,10 @@ import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { LeftSidebar } from './components/LeftSidebar';
 import { SettingsPanel } from './components/SettingsPanel';
+import { LandingPage } from './components/LandingPage';
+import { AuthPage } from './components/AuthPage';
+import { OnboardingWizard } from './components/OnboardingWizard';
+import { OnboardingTour } from './components/OnboardingTour';
 import { useStore } from './store/useStore';
 import {
   selectTimeBlocksForView,
@@ -26,6 +30,7 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { getLocalDateString, getViewDateRange } from './utils/dateTime';
+import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -73,10 +78,16 @@ export default function App() {
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
+  const [recurrenceEditScopePending, setRecurrenceEditScopePending] = useState<string | null>(null);
+  const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [bugText, setBugText] = useState('');
+  const [bugStatus, setBugStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const leftBarDragJustEnded = useRef(false);
@@ -85,11 +96,13 @@ export default function App() {
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authMessage, setAuthMessage] = useState<string | null>(null);
-  const [authErrorFromUrl, setAuthErrorFromUrl] = useState<string | null>(null);
   const [visitMode, setVisitMode] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+  // Pre-auth navigation: which screen to show before the user is logged in
+  const [preAuthScreen, setPreAuthScreen] = useState<'landing' | 'auth'>('landing');
+  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+  // Onboarding tour: show after wizard completion
+  const [showTour, setShowTour] = useState(false);
 
   // Local dev: if not signed in, auto-enter visit mode so you don't have to log in every time.
   // Sign in once when you want to test backend; session persists (Supabase persistSession).
@@ -144,9 +157,21 @@ export default function App() {
     updateEvent,
     deleteEvent,
     convertTimeBlockToEvent,
+    addEvents,
+    updateEvents,
+    deleteEvents,
     setCalendarContainers,
     setCategories,
     setTags,
+    hasCompletedSetup,
+    userName,
+    onboardingTourComplete,
+    setHasCompletedSetup,
+    setUserName,
+    setOnboardingTourComplete,
+    applyTemplate,
+    mergeTemplate,
+    applyBlankSetup,
   } = useStore();
 
   const visibleTimeBlocks = useMemo(
@@ -254,15 +279,27 @@ export default function App() {
     const coreTask = tasks.find((t) => t.id === taskId);
     if (!coreTask) return;
 
-    // Toggle behaviour: if already marked done, clear the explicit done status.
-    // This button ONLY flips status; it does NOT create additional recorded time.
+    const taskBlocks = timeBlocks.filter((b) => b.taskId === taskId);
+
+    // Toggle behaviour: if already marked done, clear status and unconfirm all blocks.
     if (coreTask.status === 'done') {
       updateTask(taskId, { status: undefined });
+      // Unconfirm all confirmed blocks so calendar cards reflect "not done"
+      taskBlocks.forEach((b) => {
+        if (b.confirmationStatus === 'confirmed') {
+          updateTimeBlock(b.id, { confirmationStatus: undefined });
+        }
+      });
       return;
     }
 
-    // Persist explicit "done" status on the task itself (used by Supabase via supabasePersistence).
+    // Mark done: persist status and confirm all planned blocks so calendar cards update too.
     updateTask(taskId, { status: 'done' });
+    taskBlocks.forEach((b) => {
+      if (b.confirmationStatus !== 'confirmed') {
+        confirmBlock(b.id);
+      }
+    });
   };
 
   const handleAddTask = (taskData: {
@@ -286,7 +323,7 @@ export default function App() {
       dueDate: taskData.dueDate ?? undefined,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
-      priority: typeof taskData.priority === 'number' ? taskData.priority : 3,
+      priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
     });
   };
 
@@ -317,12 +354,25 @@ export default function App() {
       link: eventData.link ?? undefined,
       description: eventData.description ?? undefined,
     };
+    const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
+
     // If we were editing a draft timeBlock (from drag-to-create),
-    // atomically convert it to an event in a single state change.
+    // atomically convert it to an event (or series) in a single state change.
     if (isDraftTimeBlock && editingTimeBlockId) {
-      convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+      if (isRecurring) {
+        const seriesId = crypto.randomUUID();
+        const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+        deleteTimeBlock(editingTimeBlockId);
+        addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
+      } else {
+        convertTimeBlockToEvent(editingTimeBlockId, eventPayload);
+      }
       setEditingTimeBlockId(null);
       setIsDraftTimeBlock(false);
+    } else if (isRecurring) {
+      const seriesId = crypto.randomUUID();
+      const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+      addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
     } else {
       addEvent(eventPayload);
     }
@@ -386,6 +436,13 @@ export default function App() {
   };
 
   const handleEditEvent = (id: string) => {
+    const ev = events.find((e) => e.id === id);
+    if (ev?.recurring && ev.recurrenceSeriesId) {
+      // Show scope picker first
+      setRecurrenceEditScopePending(id);
+      return;
+    }
+    setPendingRecurrenceEditScope('this');
     setEditingTaskId(null);
     setEditingTimeBlockId(null);
     setEditingEventId(id);
@@ -513,10 +570,6 @@ export default function App() {
     const [eh, em] = params.endTime.split(':').map(Number);
     const endMins = (eh ?? 0) * 60 + (em ?? 0);
     const isPastSlot = params.date < todayStr || (params.date === todayStr && endMins <= nowMins);
-    const blockMode = isPastSlot ? 'recorded' : 'planned';
-    if (blockMode === 'recorded' && checkRecordingOverlap(params.date, params.startTime, params.endTime)) {
-      return undefined;
-    }
     const id = addTimeBlock({
       title: '',
       calendarContainerId: containerId,
@@ -525,8 +578,10 @@ export default function App() {
       start: params.startTime,
       end: params.endTime,
       date: params.date,
-      mode: blockMode,
-      source: 'manual',
+      mode: 'planned',
+      // Blocks created in past slots are immediately recorded (unplanned actual entries)
+      source: isPastSlot ? 'unplanned' : 'manual',
+      confirmationStatus: isPastSlot ? 'confirmed' : undefined,
     });
     // Immediately open the Add Event popup to fill in details; delete draft on cancel.
     setEditingTaskId(null);
@@ -580,6 +635,22 @@ export default function App() {
     updateEvent(eventId, { date: params.date, end: params.endTime });
   };
 
+  const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+    if (scope === 'this' || !event.recurrenceSeriesId) {
+      deleteEvent(id);
+    } else if (scope === 'all') {
+      deleteEvents(events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId).map((e) => e.id));
+    } else if (scope === 'all_after') {
+      deleteEvents(
+        events
+          .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
+          .map((e) => e.id)
+      );
+    }
+  };
+
   // Supabase auth session + persistence
   useEffect(() => {
     if (!supabase) {
@@ -613,30 +684,11 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data }) => {
       void setupForSession(data.session);
-      // After Supabase has had a chance to use the URL, parse auth errors (from hash or query).
-      // PKCE uses query params; implicit uses hash. Only clear and show message on error.
-      if (typeof window === 'undefined') return;
-      const hash = window.location.hash;
-      const search = window.location.search;
-      const params = new URLSearchParams(hash ? hash.slice(1) : search.slice(1));
-      const error = params.get('error');
-      if (!error) return;
-      const errorCode = params.get('error_code');
-      const description = (params.get('error_description') ?? '').replace(/\+/g, ' ');
-      if (error === 'access_denied' && (errorCode === 'otp_expired' || description.toLowerCase().includes('expired'))) {
-        setAuthErrorFromUrl('That sign-in link has expired or was already used. Request a new one below.');
-      } else if (description.toLowerCase().includes('redirect') || description.toLowerCase().includes('url')) {
-        const siteUrl = window.location.origin + window.location.pathname;
-        setAuthErrorFromUrl(`Redirect URL not allowed. In Supabase: Auth → URL Configuration → add "${siteUrl}" to Redirect URLs.`);
-      } else {
-        setAuthErrorFromUrl(description || 'Sign-in failed. Try again.');
-      }
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       void setupForSession(nextSession);
-      // Clear code/hash from URL after successful sign-in so tokens don't stay in the bar
+      // Clear code/hash from URL after successful sign-in
       if (nextSession && typeof window !== 'undefined' && (window.location.hash || window.location.search.includes('code='))) {
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -666,126 +718,84 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode, setView, setViewMode, setAllCalendarsVisible]);
 
-  const getRedirectUrl = () => {
-    const fromEnv = import.meta.env.VITE_SITE_URL as string | undefined;
-    if (fromEnv && typeof fromEnv === 'string' && fromEnv.startsWith('http')) {
-      return fromEnv.replace(/\/$/, '') + (window.location.pathname || '/');
-    }
-    return window.location.origin + window.location.pathname;
-  };
-
-  const handleSendMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !authEmail.trim()) return;
-    setAuthMessage(null);
-    setAuthErrorFromUrl(null);
-    const redirectTo = getRedirectUrl();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: authEmail.trim(),
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    });
-    if (error) {
-      setAuthMessage(error.message);
-    } else {
-      setAuthMessage('Check your email for a magic link.');
-    }
-  };
-
   // Auth gate: require sign-in only in production. In dev you get visit mode by default; sign in once to test backend (session persists).
   const requireAuth = !!supabase && import.meta.env.PROD;
 
-  if (requireAuth && session && !dataReady) {
+  // Profile display letter: prefer userName, fall back to email initial
+  const profileLetter = (userName || session?.user.email || '?')[0]?.toUpperCase() ?? '?';
+
+  // ── Derived screen ────────────────────────────────────────────────────────
+  // Determines which top-level view to render without any routing library.
+  type AppScreen = 'landing' | 'auth' | 'setup' | 'loading' | 'app';
+  const appScreen: AppScreen = (() => {
+    // Dev-only: ?page=landing|auth|setup forces a specific screen so you can preview auth flow
+    if (!import.meta.env.PROD && typeof window !== 'undefined') {
+      const forcePage = new URLSearchParams(window.location.search).get('page') as AppScreen | null;
+      if (forcePage && (['landing', 'auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
+    }
+    if (!requireAuth) return 'app';                      // dev bypass
+    if (session && !dataReady) return 'loading';         // waiting for Supabase load
+    if (!session && !visitMode) return preAuthScreen;    // 'landing' or 'auth'
+    // Visitor or logged-in: check setup state
+    if (!hasCompletedSetup) {
+      // Existing user with meaningful data → show app + one-time migration modal
+      if (session && (tasks.length > 0 || categories.length > 0 || calendarContainers.length > 1)) {
+        return 'app';
+      }
+      return 'setup';                                    // new user (logged-in or visitor)
+    }
+    return 'app';
+  })();
+
+  // ── Onboarding wizard handler ─────────────────────────────────────────────
+  const handleWizardComplete = ({ name, choice, showTour: doShowTour }: {
+    name: string;
+    choice: 'template' | 'blank';
+    showTour: boolean;
+  }) => {
+    setUserName(name);
+    if (choice === 'template') applyTemplate();
+    else applyBlankSetup();
+    setHasCompletedSetup(true);
+    if (doShowTour) setShowTour(true);
+  };
+
+  // ── Pre-app screens ───────────────────────────────────────────────────────
+  if (appScreen === 'loading') {
     return (
       <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#FDFDFB' }}>
-        <div className="text-sm" style={{ color: '#636366' }}>Loading your data...</div>
+        <div className="text-sm" style={{ color: '#636366' }}>Loading your data…</div>
       </div>
     );
   }
 
-  if (requireAuth && !session && !visitMode) {
+  if (appScreen === 'landing') {
     return (
-      <div className="h-screen w-full flex items-center justify-center px-4 py-8" style={{ backgroundColor: '#FDFDFB' }}>
-        <div className="w-full max-w-xs rounded-lg">
-          <div className="rounded-2xl shadow-xl flex flex-col px-5 py-4 h-fit" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
-            <div className="pt-5 pb-3 px-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-              <div className="flex items-center gap-2 mb-0.5">
-                <CalendarIcon className="h-5 w-5" style={{ color: '#8DA286' }} />
-                <h1 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Timebox</h1>
-              </div>
-              <p className="text-xs" style={{ color: '#8E8E93' }}>Sign in to sync your tasks and calendar</p>
-            </div>
+      <LandingPage
+        onGetStarted={() => { setAuthMode('signup'); setPreAuthScreen('auth'); }}
+        onLogIn={() => { setAuthMode('login'); setPreAuthScreen('auth'); }}
+        onTryItOut={() => setVisitMode(true)}
+      />
+    );
+  }
 
-            <div className="py-4 px-4">
-              {!supabase && (
-                <div className="mb-3 text-xs px-2.5 py-1.5 rounded-lg" style={{ color: '#B85050', backgroundColor: 'rgba(184,80,80,0.08)', border: '1px solid rgba(184,80,80,0.2)' }}>
-                  Backend not configured. Set <code className="font-mono">VITE_SUPABASE_URL</code> and <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
-                </div>
-              )}
+  if (appScreen === 'auth') {
+    return (
+      <AuthPage
+        supabase={supabase}
+        mode={authMode}
+        onVisitMode={() => setVisitMode(true)}
+        onBack={() => setPreAuthScreen('landing')}
+      />
+    );
+  }
 
-              {authErrorFromUrl && (
-                <div className="mb-3 text-xs px-2.5 py-1.5 rounded-lg" style={{ color: '#7A5C30', backgroundColor: 'rgba(196,154,80,0.1)', border: '1px solid rgba(196,154,80,0.25)' }}>
-                  {authErrorFromUrl}
-                  {typeof window !== 'undefined' && (
-                    <p className="mt-2" style={{ color: '#636366' }}>
-                      In Supabase: Auth → URL Configuration set <strong>Site URL</strong> to your app (e.g. <code className="font-mono break-all">{window.location.origin}</code>) and add it to <strong>Redirect URLs</strong>.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <form onSubmit={handleSendMagicLink} className="space-y-3">
-                <div>
-                  <label htmlFor="auth-email" className="block text-xs font-medium mb-1" style={{ color: '#636366' }}>
-                    Email address
-                  </label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    disabled={!supabase}
-                    className="w-full px-3 py-1.5 text-sm rounded-lg focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: '#1C1C1E', backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.12)' }}
-                    autoFocus
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={!supabase}
-                  className="w-full py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
-                >
-                  Send magic link
-                </button>
-                {authMessage && (
-                  <p className="text-xs text-center pt-0.5" style={{ color: '#8E8E93' }}>{authMessage}</p>
-                )}
-              </form>
-
-              <div className="relative my-3">
-                <div className="absolute inset-0 flex items-center"><div className="w-full" style={{ borderTop: '1px solid rgba(0,0,0,0.09)' }} /></div>
-                <div className="relative flex justify-center py-3"><span className="px-2 text-xs uppercase tracking-wide" style={{ backgroundColor: '#FFFFFF', color: '#8E8E93' }}>or</span></div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setVisitMode(true)}
-                className="w-full py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#636366', backgroundColor: 'transparent' }}
-              >
-                Try without signing in
-              </button>
-            </div>
-
-            <p className="text-xs text-center leading-relaxed" style={{ color: '#8E8E93' }}>
-              Sign in to save across sessions. Visit mode resets on refresh.
-            </p>
-          </div>
-        </div>
-      </div>
+  if (appScreen === 'setup') {
+    return (
+      <OnboardingWizard
+        initialName={userName}
+        onComplete={handleWizardComplete}
+      />
     );
   }
 
@@ -795,11 +805,11 @@ export default function App() {
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
           <span className="text-amber-800 font-medium">
-            Visit Mode — nothing will be saved. Sign in to keep your data.
+            Visit Mode — nothing will be saved.{userName ? ` Hey ${userName}!` : ''} Sign in to keep your data.
           </span>
           <button
             type="button"
-            onClick={() => setVisitMode(false)}
+            onClick={() => { setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('signup'); }}
             className="px-2 py-1 rounded border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 transition-colors"
           >
             Sign in
@@ -807,65 +817,47 @@ export default function App() {
         </div>
       )}
 
-      {/* Supabase auth bar */}
-      {session && (
-        <div className="w-full px-4 py-1.5 flex items-center justify-end gap-3 text-xs" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FCFBF7' }}>
-          <span style={{ color: '#8E8E93' }}>
-            Signed in as <span className="font-medium" style={{ color: '#1C1C1E' }}>{session.user.email}</span>
-            <span className="ml-1.5" style={{ color: '#8E8E93' }}>· synced</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => supabase?.auth.signOut()}
-            className="px-2 py-1 rounded-lg transition-colors"
-            style={{ border: '1px solid rgba(0,0,0,0.09)', color: '#636366' }}
-          >
-            Sign out
-          </button>
-        </div>
-      )}
-
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
-            {/* Header: Organization heading + settings + edit */}
-            <div className="flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8E8E93' }}>
-                My Calendars
+          <div className="flex-shrink-0 flex flex-col" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
+            {/* Header: My Calendars label + settings + edit icons */}
+            <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+              <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#8E8E93', letterSpacing: '0.12em' }}>
+                {mode === 'compare' ? 'Compare' : 'My Calendars'}
               </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: '#8E8E93' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                  title="Settings"
-                  aria-label="Open settings"
-                >
-                  <Cog6ToothIcon className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{
-                    color: isEditMode ? '#8DA286' : '#8E8E93',
-                    backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                  title={isEditMode ? 'Done editing' : 'Edit organization'}
-                >
-                  {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
-                </button>
-              </div>
+              {mode !== 'compare' && (
+                <div className="flex items-center gap-0.5">
+                  {/* Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ color: '#8E8E93' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    title="Settings"
+                    aria-label="Open settings"
+                  >
+                    <Cog6ToothIcon className="h-3.5 w-3.5" />
+                  </button>
+                  {/* Edit mode */}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{
+                      color: isEditMode ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    title={isEditMode ? 'Done editing' : 'Edit calendars'}
+                  >
+                    {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <LeftSidebar
@@ -888,6 +880,8 @@ export default function App() {
                 focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                 isEditMode={isEditMode}
+                isCompareMode={mode === 'compare'}
+                onExitCompare={() => setViewMode('overall')}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -1000,9 +994,227 @@ export default function App() {
                   );
                 })() : undefined}
                 canEditOrganization={true}
-                isShortcutsOpen={isShortcutsOpen}
-                onToggleShortcuts={() => setIsShortcutsOpen((o) => !o)}
               />
+            </div>
+
+            {/* ── Bottom toolbar: profile · bug report · shortcuts ── */}
+            <div className="flex-shrink-0" style={{ position: 'relative', borderTop: '1px solid rgba(0,0,0,0.09)' }}>
+              {/* Toolbar row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
+                {/* Profile circle */}
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu((o) => !o)}
+                  style={{
+                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer', flexShrink: 0, transition: 'opacity 200ms',
+                    backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)',
+                    color: session ? '#5A7454' : '#8DA286',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  title={session ? session.user.email : visitMode ? 'Visit mode — click for options' : ''}
+                >
+                  {profileLetter}
+                </button>
+
+                {/* Right icons: bug report + keyboard shortcuts */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {/* Bug report button */}
+                  <button
+                    type="button"
+                    onClick={() => { setIsBugReportOpen((o) => !o); setBugText(''); setBugStatus('idle'); }}
+                    style={{
+                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      color: isBugReportOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                    title="Report a bug"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="8" cy="9" r="4" /><path d="M8 5V3" /><path d="M4 9H2M14 9h-2" />
+                      <path d="M4.5 5.5 3 4M11.5 5.5 13 4" /><path d="M4.5 12.5 3 14M11.5 12.5 13 14" />
+                    </svg>
+                  </button>
+
+                  {/* Keyboard shortcuts button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsShortcutsOpen((o) => !o)}
+                    style={{
+                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      color: isShortcutsOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                    title="Keyboard shortcuts"
+                  >
+                    <svg width="14" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4">
+                      <rect x="0.7" y="0.7" width="14.6" height="10.6" rx="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <rect x="2.5" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="6" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="9.5" y="2.5" width="2" height="2.5" rx="0.7" />
+                      <rect x="3.5" y="7" width="9" height="2" rx="0.7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Popovers (rendered at toolbar level, positioned within panel bounds) ── */}
+
+              {/* Profile dropdown */}
+              {showProfileMenu && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setShowProfileMenu(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, marginBottom: 8, zIndex: 401,
+                      minWidth: 196, borderRadius: 12, overflow: 'hidden',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 28px rgba(0,0,0,0.14)', display: 'flex', flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                      <div
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)', color: session ? '#5A7454' : '#8DA286',
+                        }}
+                      >
+                        {profileLetter}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        {userName && <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>}
+                        <p style={{ fontSize: 10, color: '#8E8E93', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {session ? session.user.email : 'Visit mode · not saved'}
+                        </p>
+                      </div>
+                    </div>
+                    {session ? (
+                      <button
+                        type="button"
+                        onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 8H2M2 8L5 5M2 8l3 3" /><path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
+                        </svg>
+                        Sign out
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 8h8M11 5l3 3-3 3" /><path d="M10 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
+                        </svg>
+                        Sign in to save data
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Bug report popover */}
+              {isBugReportOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsBugReportOpen(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    }}
+                  >
+                    <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8E8E93', margin: 0 }}>Report a Bug</p>
+                      <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
+                    </div>
+                    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {bugStatus === 'success' ? (
+                        <div style={{ padding: '12px 0', textAlign: 'center' }}>
+                          <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
+                          <p style={{ fontSize: 10, color: '#8E8E93', margin: '2px 0 0' }}>We'll look into it soon.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <textarea
+                            value={bugText}
+                            onChange={(e) => setBugText(e.target.value)}
+                            placeholder="Describe what happened…"
+                            rows={3}
+                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                          />
+                          {bugStatus === 'error' && (
+                            <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!bugText.trim() || bugStatus === 'loading'}
+                            onClick={async () => {
+                              if (!bugText.trim()) return;
+                              setBugStatus('loading');
+                              try {
+                                if (supabase) {
+                                  const { error } = await supabase.from('bug_reports').insert([{ user_email: session?.user.email ?? 'anonymous', description: bugText.trim() }]);
+                                  if (error) throw error;
+                                }
+                                setBugStatus('success');
+                                setTimeout(() => setIsBugReportOpen(false), 2000);
+                              } catch {
+                                setBugStatus('error');
+                              }
+                            }}
+                            style={{
+                              width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms', fontFamily: 'inherit',
+                              backgroundColor: bugText.trim() ? '#8DA286' : 'rgba(0,0,0,0.06)',
+                              color: bugText.trim() ? '#FFFFFF' : '#AEAEB2',
+                            }}
+                          >
+                            {bugStatus === 'loading' ? 'Sending…' : 'Send Report'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Keyboard shortcuts popover */}
+              {isShortcutsOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsShortcutsOpen(false)} />
+                  <div
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      borderRadius: 12, padding: '8px 12px',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                    }}
+                  >
+                    <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8E8E93', margin: '0 0 8px' }}>Shortcuts</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
+                      {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
+                        <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                          <kbd style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: '#3A3A3C' }}>{key}</kbd>
+                          <span>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1101,6 +1313,7 @@ export default function App() {
           onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
+          onDeleteEventSeries={handleDeleteEventSeries}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -1193,8 +1406,9 @@ export default function App() {
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
                 onTogglePin={(taskId) => {
-                  const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
-                  const next = current >= 5 ? 1 : current + 1;
+                  const current = tasks.find((t) => t.id === taskId)?.priority;
+                  // Cycle: none → 1 → 2 → 3 → 4 → 5 → none
+                  const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
                   updateTask(taskId, { priority: next });
                 }}
                 events={events}
@@ -1236,6 +1450,7 @@ export default function App() {
           onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
+          onDeleteEventSeries={handleDeleteEventSeries}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -1257,8 +1472,9 @@ export default function App() {
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
           onTogglePin={(taskId) => {
-            const current = tasks.find((t) => t.id === taskId)?.priority ?? 3;
-            const next = current >= 5 ? 1 : current + 1;
+            const current = tasks.find((t) => t.id === taskId)?.priority;
+            // Cycle: none → 1 → 2 → 3 → 4 → 5 → none
+            const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
             updateTask(taskId, { priority: next });
           }}
         />
@@ -1273,6 +1489,59 @@ export default function App() {
         onSchedule={handleScheduleSubmit}
         onClose={() => setSchedulingTaskId(null)}
       />
+
+      {/* Recurrence edit scope picker — shown before AddModal for recurring events */}
+      {recurrenceEditScopePending && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+            onClick={() => setRecurrenceEditScopePending(null)}
+          />
+          <div className="relative rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4" style={{ backgroundColor: '#FFFFFF' }}>
+            <h3 className="font-semibold text-sm mb-0.5" style={{ color: '#1C1C1E' }}>Edit recurring event</h3>
+            <p className="text-xs mb-4" style={{ color: '#636366' }}>Which events do you want to change?</p>
+            <div className="flex flex-col gap-2">
+              {([
+                { scope: 'this' as const, label: 'This event', desc: 'Only edit this occurrence' },
+                { scope: 'all_after' as const, label: 'This and all after', desc: 'Edit from this date forward' },
+                { scope: 'all' as const, label: 'All events', desc: 'Edit every event in the series' },
+              ]).map(({ scope, label, desc }) => (
+                <button
+                  key={scope}
+                  type="button"
+                  className="text-left px-4 py-3 rounded-xl transition-all"
+                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: '#1C1C1E', backgroundColor: 'transparent' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; }}
+                  onClick={() => {
+                    const eventId = recurrenceEditScopePending;
+                    setRecurrenceEditScopePending(null);
+                    setPendingRecurrenceEditScope(scope);
+                    setEditingTaskId(null);
+                    setEditingTimeBlockId(null);
+                    setEditingEventId(eventId);
+                    setIsDraftTimeBlock(false);
+                    setAddModalMode('event');
+                    setIsAddModalOpen(true);
+                  }}
+                >
+                  <div className="text-sm font-medium">{label}</div>
+                  <div className="text-xs mt-0.5" style={{ color: '#636366' }}>{desc}</div>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="mt-3 w-full py-2 text-xs font-medium rounded-xl transition-colors"
+              style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)' }}
+              onClick={() => setRecurrenceEditScopePending(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <AddModal
         isOpen={isAddModalOpen}
@@ -1291,6 +1560,7 @@ export default function App() {
           setEditingTimeBlockId(null);
           setEditingEventId(null);
           setIsDraftTimeBlock(false);
+          setPendingRecurrenceEditScope('this');
         }}
         categories={categories}
         tags={tags}
@@ -1299,12 +1569,29 @@ export default function App() {
         editingTask={editingTask}
         editingTimeBlock={editingTimeBlock}
         editingEvent={editingEvent}
+        initialRecurrenceEditScope={pendingRecurrenceEditScope}
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
         onUpdateEvent={(id, updates) => {
-          const { recurrenceEditScope: _scope, ...rest } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
-          updateEvent(id, rest);
-          // TODO: handle _scope 'all' / 'all_after' to update series when store supports it
+          const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
+          const event = events.find((e) => e.id === id);
+          if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
+            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            updateEvents(
+              events
+                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId)
+                .map((e) => ({ id: e.id, changes: sharedUpdates }))
+            );
+          } else if (recurrenceEditScope === 'all_after' && event?.recurrenceSeriesId) {
+            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            updateEvents(
+              events
+                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
+                .map((e) => ({ id: e.id, changes: sharedUpdates }))
+            );
+          } else {
+            updateEvent(id, eventUpdates);
+          }
         }}
         onUpdateTimeBlock={(id, updates) => {
           // If this is a draft block being finalized in event mode,
@@ -1314,17 +1601,30 @@ export default function App() {
           if (isDraftTimeBlock && id === editingTimeBlockId) {
             const block = timeBlocks.find((b) => b.id === id);
             if (block) {
-              convertTimeBlockToEvent(id, {
+              const u = updates as typeof updates & { recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+              const isRecurring = u.recurring && u.recurrencePattern && u.recurrencePattern !== 'none';
+              const eventDate = updates.date ?? block.date;
+              const eventBase = {
                 title: updates.title ?? block.title ?? '',
                 calendarContainerId: updates.calendarContainerId ?? block.calendarContainerId,
                 categoryId: updates.categoryId ?? block.categoryId,
                 start: updates.start ?? block.start,
                 end: updates.end ?? block.end,
-                date: updates.date ?? block.date,
-                recurring: false,
+                date: eventDate,
+                recurring: u.recurring ?? false,
+                recurrencePattern: u.recurrencePattern,
+                recurrenceDays: u.recurrenceDays,
                 link: updates.link ?? block.link ?? undefined,
                 description: updates.description ?? block.description ?? undefined,
-              });
+              };
+              if (isRecurring) {
+                const seriesId = crypto.randomUUID();
+                const dates = generateRecurrenceDates(eventDate, u.recurrencePattern!, u.recurrenceDays);
+                deleteTimeBlock(id);
+                addEvents(dates.map((date) => ({ ...eventBase, date, recurrenceSeriesId: seriesId })));
+              } else {
+                convertTimeBlockToEvent(id, { ...eventBase, recurrenceSeriesId: null });
+              }
               setEditingTimeBlockId(null);
               setIsDraftTimeBlock(false);
               return;
@@ -1384,6 +1684,82 @@ export default function App() {
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
       />
+
+      {/* ── Onboarding tour overlay (first-time users after wizard) ── */}
+      {showTour && !onboardingTourComplete && (
+        <OnboardingTour
+          onComplete={() => {
+            setOnboardingTourComplete(true);
+            setShowTour(false);
+          }}
+        />
+      )}
+
+      {/* ── One-time migration modal for existing users (pre-onboarding) ── */}
+      {!hasCompletedSetup && session && (
+        <div
+          className="fixed inset-0 z-[9990] flex items-center justify-center px-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl flex flex-col gap-4 p-6"
+            style={{
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
+              border: '1px solid rgba(0,0,0,0.08)',
+            }}
+          >
+            {/* Header */}
+            <div className="flex flex-col gap-1">
+              <h2 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
+                ✨ Templates are here
+              </h2>
+              <p className="text-xs leading-relaxed" style={{ color: '#636366' }}>
+                We added a starter template with calendars and categories for personal, growth,
+                school, and relationships. Want to add it to your existing setup? Your current
+                data won't be changed.
+              </p>
+            </div>
+
+            {/* Template preview strip */}
+            <div className="flex flex-wrap gap-2 py-2 px-3 rounded-xl" style={{ backgroundColor: '#F7F6F2' }}>
+              {[
+                { name: 'Personal', color: '#5B718C' },
+                { name: 'Growth', color: '#8DA387' },
+                { name: 'School', color: '#B3B46D' },
+                { name: 'Relationships', color: '#DE8D91' },
+              ].map((cal) => (
+                <div key={cal.name} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cal.color }} />
+                  <span className="text-xs" style={{ color: '#636366' }}>{cal.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { mergeTemplate(); setHasCompletedSetup(true); }}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
+              >
+                Add template to my setup
+              </button>
+              <button
+                onClick={() => setHasCompletedSetup(true)}
+                className="w-full py-2 rounded-xl text-sm font-medium transition-colors"
+                style={{ border: '1px solid rgba(0,0,0,0.10)', color: '#636366' }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                No thanks, keep my current setup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div >
   );

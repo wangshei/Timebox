@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
@@ -6,9 +6,7 @@ import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } fro
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 
-const PRIMARY = '#8DA286';
 const MUTED = '#8E8E93';
-const TEXT = '#1C1C1E';
 const BORDER = 'rgba(0,0,0,0.08)';
 const BG_PANEL = '#FCFBF7';
 
@@ -57,6 +55,13 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   const [doneSectionOpen, setDoneSectionOpen] = useState(false);
+
+  // Auto-open done section when done tasks become available
+  useEffect(() => {
+    if (doneTasks.length > 0 && !doneSectionOpen) {
+      setDoneSectionOpen(true);
+    }
+  }, [doneTasks.length]);
 
   const upcomingEvents = useMemo(() => {
     const today = getLocalDateString();
@@ -125,13 +130,21 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       ? t.priority
       : null;
 
-  const sortByPriority = (a: Task, b: Task) => {
+  /** Sort: priority desc, then due date asc, then title */
+  const sortByPriorityAndDueDate = (a: Task, b: Task) => {
     const pa = getPriority(a);
     const pb = getPriority(b);
-    if (pa === null && pb === null) return a.title.localeCompare(b.title);
-    if (pa === null) return 1; // a has no priority → after b
-    if (pb === null) return -1; // b has no priority → after a
-    return pb - pa || a.title.localeCompare(b.title);
+    if (pa !== pb) {
+      if (pa === null) return 1;
+      if (pb === null) return -1;
+      return pb - pa;
+    }
+    const da = (a as any).dueDate as string | null | undefined;
+    const db = (b as any).dueDate as string | null | undefined;
+    if (da && db) return da.localeCompare(db);
+    if (da) return -1;
+    if (db) return 1;
+    return a.title.localeCompare(b.title);
   };
 
   /** High-priority tasks (rating ≥ 4), shown above Unscheduled (plan view only). */
@@ -139,23 +152,25 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     () => tasks.filter((t) => {
       const p = getPriority(t);
       return p !== null && p >= 4;
-    }).sort(sortByPriority),
+    }).sort(sortByPriorityAndDueDate),
     [tasks]
   );
 
+  // Done task ID set for exclusion from "All tasks"
+  const doneIdSet = useMemo(() => new Set(doneTasks.map((t) => t.id)), [doneTasks]);
+
+  /** All non-done tasks sorted by priority then due date for overview. */
   const allTasksSorted = useMemo(() => {
-    // Filter by time range for Overview: today/week limit to tasks with blocks in range,
-    // month shows all; unscheduled tasks (no blocks) are always included.
-    let base = tasks;
+    let base = tasks.filter((t) => !doneIdSet.has(t.id));
     if (overviewRange !== 'month' && timeBlocks) {
-      base = tasks.filter((t) => {
+      base = base.filter((t) => {
         const hasBlocksInRange = taskIdsInRange.has(t.id);
         const hasAnyBlocks = (t as any).blockCount && (t as any).blockCount > 0;
         return hasBlocksInRange || !hasAnyBlocks;
       });
     }
-    return [...base].sort(sortByPriority);
-  }, [tasks, overviewRange, timeBlocks, taskIdsInRange]);
+    return [...base].sort(sortByPriorityAndDueDate);
+  }, [tasks, overviewRange, timeBlocks, taskIdsInRange, doneIdSet]);
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
@@ -175,6 +190,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
 
   return (
     <div
+      data-tour="right-sidebar"
       className={`flex flex-col overflow-hidden min-h-0 ${
         isBottomSheet ? 'h-full' : isMobile ? 'w-full' : ''
       }`}
@@ -218,62 +234,91 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 overflow-y-auto space-y-4 ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
         {viewMode === 'overview' ? (
           <>
-            <div>
-              <h2
-                className="uppercase tracking-widest mb-2"
-                style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}
-              >
-                All tasks
-              </h2>
-              <div className="space-y-2">
-                {allTasksSorted.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    viewMode={viewMode}
-                    popoverSide="left"
-                    onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
-                    onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
-                    onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                    onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
-                    onBreakIntoChunks={onBreakIntoChunks}
-                    onSplitTask={onSplitTask}
-                    onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-                  />
-                ))}
+            {/* All tasks — sorted by priority then due date, excludes done */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <h2
+                  className="uppercase tracking-widest"
+                  style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}
+                >
+                  All tasks {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
+                </h2>
+                {onOpenAddModal && (
+                  <button
+                    data-tour="add-task-btn"
+                    type="button"
+                    onClick={() => onOpenAddModal('task')}
+                    className="flex items-center gap-0.5 text-xs transition-colors"
+                    style={{ color: MUTED }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#8DA286')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = MUTED)}
+                    title="Add task"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
+
+              {allTasksSorted.length === 0 ? (
+                <div className="text-xs text-center py-4 px-2" style={{ color: '#AEAEB2' }}>
+                  {doneTasks.length > 0 ? 'All tasks are done!' : 'No tasks yet'}
+                </div>
+              ) : (
+                <div>
+                  {allTasksSorted.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="overview"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Done summary below, if available */}
+            {/* Done section — collapsible, chevron on right */}
             {doneSorted.length > 0 && (
               <div>
                 <button
                   type="button"
                   onClick={() => setDoneSectionOpen(!doneSectionOpen)}
-                  className="flex items-center gap-1.5 w-full text-left mb-2"
+                  className="flex items-center justify-between w-full text-left px-1 mb-1.5"
                 >
-                  {doneSectionOpen ? (
-                    <ChevronDownIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
-                  ) : (
-                    <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
-                  )}
-                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
+                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>
+                    Done ({doneSorted.length})
+                  </h2>
+                  {doneSectionOpen
+                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                  }
                 </button>
                 {doneSectionOpen && (
-                  <div className="space-y-1.5">
+                  <div>
                     {doneSorted.map((task) => (
-                      <div
+                      <TaskCard
                         key={task.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
-                      >
-                        <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#34C759' }} />
-                        <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#636366' }}>{task.title}</span>
-                        <span className="text-xs shrink-0" style={{ color: '#8E8E93' }}>{task.recordedHours}h</span>
-                      </div>
+                        task={task}
+                        viewMode="overview"
+                        popoverSide="left"
+                        onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                        onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                        onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                        onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                        onBreakIntoChunks={onBreakIntoChunks}
+                        onSplitTask={onSplitTask}
+                        onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                      />
                     ))}
                   </div>
                 )}
@@ -281,205 +326,211 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
             )}
           </>
         ) : (
-          <>
-        {/* Priority Tasks */}
-        {priorityTasks.length > 0 && (
-          <div>
-            <h2
-              className="uppercase tracking-widest mb-2"
-              style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}
-            >
-              Priority
-            </h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {priorityTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  viewMode={viewMode}
-                  popoverSide="left"
-                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
-                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
-                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
-                  onBreakIntoChunks={onBreakIntoChunks}
-                  onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Unscheduled Tasks */}
-        <div>
-          <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Unscheduled</h2>
-          {onOpenAddModal && (
-            <button
-              type="button"
-              onClick={() => onOpenAddModal('task')}
-              className="w-full py-2 px-3 mb-3 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
-              style={{
-                border: '1.5px dashed rgba(0,0,0,0.15)',
-                color: '#636366',
-                backgroundColor: 'transparent',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                e.currentTarget.style.borderColor = 'rgba(141,162,134,0.50)';
-                e.currentTarget.style.color = '#8DA286';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
-                e.currentTarget.style.color = '#636366';
-              }}
-            >
-              <PlusIcon className="h-3.5 w-3.5" />
-              Add task
-            </button>
-          )}
-          <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-            {unscheduledTasks.length === 0 ? (
-              <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
-            ) : (
-              unscheduledTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  viewMode={viewMode}
-                  popoverSide="left"
-                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
-                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
-                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
-                  onBreakIntoChunks={onBreakIntoChunks}
-                  onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-                />
-              ))
+          /* ─── PLAN VIEW ─── */
+          <div className="space-y-4">
+            {/* Priority Tasks */}
+            {priorityTasks.length > 0 && (
+              <div>
+                <h2
+                  className="uppercase tracking-widest mb-2 px-1"
+                  style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}
+                >
+                  Priority
+                </h2>
+                <div className="space-y-2">
+                  {priorityTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="plan"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
-        </div>
 
-        {/* Partially Completed */}
-        {partiallyCompletedTasks.length > 0 && (
-          <div>
-            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>In Progress</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {filteredPartially.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  viewMode={viewMode}
-                  popoverSide="left"
-                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
-                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
-                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
-                  onBreakIntoChunks={onBreakIntoChunks}
-                  onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Fixed / Missed */}
-        {fixedMissedTasks.length > 0 && (
-          <div>
-            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Fixed / Missed</h2>
-            <div className={viewMode === 'overview' ? 'space-y-2' : 'space-y-3'}>
-              {filteredFixed.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  viewMode={viewMode}
-                  popoverSide="left"
-                  onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
-                  onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
-                  onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
-                  onBreakIntoChunks={onBreakIntoChunks}
-                  onSplitTask={onSplitTask}
-                  onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Done — collapsible, sorted by date */}
-        {doneSorted.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setDoneSectionOpen(!doneSectionOpen)}
-              className="flex items-center gap-1.5 w-full text-left mb-2"
-            >
-              {doneSectionOpen ? (
-                <ChevronDownIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
-              ) : (
-                <ChevronRightIcon className="h-3 w-3" style={{ color: '#8E8E93' }} />
+            {/* Unscheduled Tasks */}
+            <div>
+              <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Unscheduled</h2>
+              {onOpenAddModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenAddModal('task')}
+                  className="w-full py-2 px-3 mb-3 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                  style={{
+                    border: '1.5px dashed rgba(0,0,0,0.15)',
+                    color: '#636366',
+                    backgroundColor: 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(141,162,134,0.50)';
+                    e.currentTarget.style.color = '#8DA286';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
+                    e.currentTarget.style.color = '#636366';
+                  }}
+                >
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  Add task
+                </button>
               )}
-              <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Done</h2>
-            </button>
-            {doneSectionOpen && (
-              <div className="space-y-1.5">
-                {doneSorted.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}
-                  >
-                    <CheckIcon className="h-3.5 w-3.5 shrink-0" style={{ color: '#34C759' }} />
-                    <span className="flex-1 min-w-0 text-xs line-through truncate" style={{ color: '#636366' }}>{task.title}</span>
-                    <span className="text-xs shrink-0" style={{ color: '#8E8E93' }}>{task.recordedHours}h</span>
+              <div className="space-y-2">
+                {unscheduledTasks.length === 0 ? (
+                  <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
+                ) : (
+                  unscheduledTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="plan"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Partially Completed */}
+            {partiallyCompletedTasks.length > 0 && (
+              <div>
+                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>In Progress</h2>
+                <div className="space-y-2">
+                  {filteredPartially.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="plan"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fixed / Missed */}
+            {fixedMissedTasks.length > 0 && (
+              <div>
+                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Fixed / Missed</h2>
+                <div className="space-y-2">
+                  {filteredFixed.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="plan"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Done — collapsible, sorted by date */}
+            {doneSorted.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setDoneSectionOpen(!doneSectionOpen)}
+                  className="flex items-center justify-between w-full text-left px-1 mb-2"
+                >
+                  <h2 className="uppercase tracking-widest" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>
+                    Done ({doneSorted.length})
+                  </h2>
+                  {doneSectionOpen
+                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: MUTED }} />
+                  }
+                </button>
+                {doneSectionOpen && (
+                  <div className="space-y-2">
+                    {doneSorted.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        viewMode="plan"
+                        popoverSide="left"
+                        onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                        onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                        onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                        onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                        onBreakIntoChunks={onBreakIntoChunks}
+                        onSplitTask={onSplitTask}
+                        onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                      />
+                    ))}
                   </div>
-                ))}
+                )}
+              </div>
+            )}
+
+            {/* Events */}
+            {upcomingEvents.length > 0 && (
+              <div>
+                <h2 className="uppercase tracking-widest mb-2 px-1" style={{ fontSize: '10px', fontWeight: 600, color: MUTED, letterSpacing: '0.09em' }}>Upcoming Events</h2>
+                <div className="space-y-2">
+                  {upcomingEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center gap-2 px-3 py-3 rounded-xl group"
+                      style={{
+                        backgroundColor: 'rgba(0,0,0,0.04)',
+                        border: '1px solid rgba(0,0,0,0.06)',
+                        borderLeft: '3px solid #8DA286',
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E', lineHeight: 1.3 }}>{event.title}</div>
+                        <div className="mt-1 truncate" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
+                      </div>
+                      {onDeleteEvent && (
+                        <button
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
+                          style={{ color: '#AEAEB2' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = '#1C1C1E'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
+                          onClick={() => onDeleteEvent(event.id)}
+                          title="Delete event"
+                        >
+                          <XMarkIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* Events */}
-        {upcomingEvents.length > 0 && (
-          <div>
-            <h2 className="uppercase tracking-widest mb-2" style={{ fontSize: '10px', fontWeight: 600, color: '#8E8E93', letterSpacing: '0.09em' }}>Upcoming Events</h2>
-            <div className="space-y-2">
-              {upcomingEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center gap-2 px-3 py-3 rounded-xl group"
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.04)',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    borderLeft: '3px solid #8DA286',
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E', lineHeight: 1.3 }}>{event.title}</div>
-                    <div className="mt-1 truncate" style={{ fontSize: 11, color: '#8E8E93', lineHeight: 1.4 }}>{event.start} – {event.end} · {event.date}</div>
-                  </div>
-                  {onDeleteEvent && (
-                    <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
-                      style={{ color: '#AEAEB2' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = '#1C1C1E'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
-                      onClick={() => onDeleteEvent(event.id)}
-                      title="Delete event"
-                    >
-                      <XMarkIcon className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        </>
         )}
       </div>
     </div>

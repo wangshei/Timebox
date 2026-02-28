@@ -10,7 +10,7 @@ interface SettingsPanelProps {
   calendarContainers: CalendarContainer[];
   categories: Category[];
   tags: Tag[];
-  onAddCalendar: (c: Omit<CalendarContainer, 'id'>) => void;
+  onAddCalendar: (c: Omit<CalendarContainer, 'id'>, opts?: { skipAutoGeneral?: boolean }) => string;
   onUpdateCalendar: (id: string, u: Partial<CalendarContainer>) => void;
   onDeleteCalendar: (id: string) => void;
   onAddCategory: (c: Omit<Category, 'id'>) => void;
@@ -166,9 +166,8 @@ export function SettingsPanel({
           borderRadius: 14,
           boxShadow: '0 24px 64px rgba(0,0,0,0.14)',
           border: `1px solid ${BORDER}`,
-          width: '44%',
-          minWidth: 380,
-          maxWidth: 580,
+          width: 440,
+          maxWidth: '92vw',
           maxHeight: '80vh',
         }}
       >

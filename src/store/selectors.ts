@@ -196,16 +196,21 @@ export function selectRecordedSummaryByCategory(
  * True if this block represents the original planned intent.
  * Excludes retroactively-added unplanned blocks (they have no plan counterpart).
  */
-function isPlannedIntent(b: TimeBlock): boolean {
+export function isPlannedIntent(b: TimeBlock): boolean {
   return b.mode === 'planned' && b.source !== 'unplanned';
 }
 
 /**
  * True if this block counts as "recorded" / actually done.
  * Covers both the new confirmation model and legacy mode='recorded' blocks.
+ * Event blocks (no taskId) auto-confirm in the past unless explicitly skipped.
  */
-function isRecordedBlock(b: TimeBlock): boolean {
-  return b.confirmationStatus === 'confirmed' || b.mode === 'recorded';
+export function isRecordedBlock(b: TimeBlock, todayStr?: string): boolean {
+  if (b.confirmationStatus === 'skipped') return false;
+  if (b.confirmationStatus === 'confirmed' || b.mode === 'recorded') return true;
+  // Events (no taskId) are auto-confirmed in the past
+  if (!b.taskId && todayStr && b.date < todayStr) return true;
+  return false;
 }
 
 /** Minutes to use for recorded time — actual if set, else planned. */
@@ -222,7 +227,8 @@ function recordedMins(b: TimeBlock): number {
 export function selectPlanVsActualByCategory(
   timeBlocks: TimeBlock[],
   dates: string[],
-  categories: Category[]
+  categories: Category[],
+  todayStr?: string
 ): SummaryRow[] {
   const dateSet = new Set(dates);
   const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
@@ -238,7 +244,7 @@ export function selectPlanVsActualByCategory(
       const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
       byCategory.set(cat.id, { ...prev, plannedMins: prev.plannedMins + mins });
     }
-    if (isRecordedBlock(b)) {
+    if (isRecordedBlock(b, todayStr)) {
       byCategory.set(cat.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
     }
   }
@@ -258,7 +264,8 @@ export function selectPlanVsActualByCategory(
 export function selectPlanVsActualByContainer(
   timeBlocks: TimeBlock[],
   dates: string[],
-  containers: CalendarContainer[]
+  containers: CalendarContainer[],
+  todayStr?: string
 ): SummaryRow[] {
   const dateSet = new Set(dates);
   const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
@@ -274,7 +281,7 @@ export function selectPlanVsActualByContainer(
       const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
       byContainer.set(container.id, { ...prev, plannedMins: prev.plannedMins + mins });
     }
-    if (isRecordedBlock(b)) {
+    if (isRecordedBlock(b, todayStr)) {
       byContainer.set(container.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
     }
   }
@@ -294,7 +301,8 @@ export function selectPlanVsActualByContainer(
 export function selectPlanVsActualByTag(
   timeBlocks: TimeBlock[],
   dates: string[],
-  tags: Tag[]
+  tags: Tag[],
+  todayStr?: string
 ): SummaryRow[] {
   const dateSet = new Set(dates);
   const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
@@ -311,7 +319,7 @@ export function selectPlanVsActualByTag(
         const mins = parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start);
         byTag.set(tag.id, { ...prev, plannedMins: prev.plannedMins + mins });
       }
-      if (isRecordedBlock(b)) {
+      if (isRecordedBlock(b, todayStr)) {
         byTag.set(tag.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
       }
     }

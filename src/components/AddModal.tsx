@@ -24,6 +24,8 @@ interface AddModalProps {
   editingTimeBlock?: TimeBlock | null;
   /** When set, modal edits an existing event (from events table). */
   editingEvent?: Event | null;
+  /** Pre-selected scope for editing a recurring event (passed from the scope picker popup). */
+  initialRecurrenceEditScope?: 'this' | 'all' | 'all_after';
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -73,6 +75,7 @@ export function AddModal({
   editingTask = null,
   editingTimeBlock = null,
   editingEvent = null,
+  initialRecurrenceEditScope,
   onAddTask,
   onUpdateTask,
   onUpdateTimeBlock,
@@ -134,14 +137,18 @@ export function AddModal({
     }
   }, [isOpen]);
 
-  // Reset recurrence when modal closes so a new event doesn't keep previous recurrence
+  // Reset recurrence when modal closes; apply initial scope when opening
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      if (initialRecurrenceEditScope) {
+        setRecurrenceEditScope(initialRecurrenceEditScope);
+      }
+    } else {
       setRecurrencePattern('none');
       setRecurrenceDays([]);
       setRecurrenceEditScope('this');
     }
-  }, [isOpen]);
+  }, [isOpen, initialRecurrenceEditScope]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -287,6 +294,10 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
+        // Pass recurrence fields so draft-block→recurring-event conversion works
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
       } as any);
     } else if (mode === 'task') {
       onAddTask({
@@ -332,7 +343,7 @@ export function AddModal({
     setTagInput('');
     setSelectedCalendar(calendars[0]?.id ?? 'personal');
     setPinned(false);
-    setPriority(3);
+    setPriority(undefined);
     onClose();
   };
 
@@ -767,23 +778,10 @@ export function AddModal({
                       </div>
                     )}
                     {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
-                      <div className="mt-2">
-                        <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Edit scope</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(['this', 'all', 'all_after'] as const).map((scope) => (
-                            <button
-                              key={scope}
-                              type="button"
-                              onClick={() => setRecurrenceEditScope(scope)}
-                              className="px-2 py-1.5 text-xs font-medium rounded-full transition-all"
-                              style={recurrenceEditScope === scope
-                                ? { backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1.5px solid #8DA286' }
-                                : { backgroundColor: 'transparent', color: '#636366', border: '1.5px solid rgba(0,0,0,0.12)' }}
-                            >
-                              {scope === 'this' ? 'This event' : scope === 'all' ? 'All events' : 'All after'}
-                            </button>
-                          ))}
-                        </div>
+                      <div className="mt-2 px-3 py-2 rounded-lg text-xs" style={{ backgroundColor: 'rgba(141,162,134,0.08)', color: '#636366' }}>
+                        Editing: <span className="font-medium" style={{ color: '#8DA286' }}>
+                          {recurrenceEditScope === 'this' ? 'this event only' : recurrenceEditScope === 'all' ? 'all events in series' : 'this and all future events'}
+                        </span>
                       </div>
                     )}
                   </div>
