@@ -263,9 +263,7 @@ export function CalendarView({
               {!isMobile && view === 'day' ? (
                 <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
                   <span>{(headerTitle as any).dayName}</span>
-                  <span className="font-normal ml-1.5" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>
-                    {(headerTitle as any).dateStr}
-                  </span>
+                  <span className="font-normal ml-1" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>, {(headerTitle as any).dateStr}</span>
                 </h1>
               ) : (
                 <h1
