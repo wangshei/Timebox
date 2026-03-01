@@ -44,6 +44,8 @@ interface ThreeDayViewProps {
   panelLabel?: string;
   locked?: boolean;
   showDifferences?: boolean;
+  /** When true, columns shrink to fit (no min-w-max, reduced column minWidth). Used in compare split. */
+  compact?: boolean;
 }
 
 const PRIMARY = THEME.primary;
@@ -58,7 +60,7 @@ export function ThreeDayView({
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
-  hideTimeGutter, panelLabel, locked, showDifferences,
+  hideTimeGutter, panelLabel, locked, showDifferences, compact,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -181,14 +183,14 @@ export function ThreeDayView({
   }, [resizingBlock, onResizeBlock]);
 
   return (
-    <div className="flex-1 overflow-auto" style={{ backgroundColor: BG_CANVAS }}>
-      <div className="flex min-w-max">
+    <div className={`flex-1 overflow-auto ${compact ? 'min-w-0' : ''}`} style={{ backgroundColor: BG_CANVAS }}>
+      <div className={`flex ${compact ? 'min-w-0 w-full' : 'min-w-max'}`}>
         {/* Time column — hidden when hideTimeGutter is true (compare right panel) */}
         {!hideTimeGutter && (
           <div
             className="flex-shrink-0 py-2 sticky left-0 z-10"
             style={{
-              width: 52,
+              width: compact ? 40 : 52,
               borderRight: `1px solid ${GRID_HOUR}`,
               backgroundColor: BG_CANVAS,
             }}
@@ -228,7 +230,7 @@ export function ThreeDayView({
                 key={dayIndex}
                 className="flex-1 relative"
                 style={{
-                  minWidth: 160,
+                  minWidth: compact ? 0 : 160,
                   borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
                 }}
               >

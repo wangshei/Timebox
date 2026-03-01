@@ -34,7 +34,7 @@ const features = [
   {
     Icon: ArrowPathIcon,
     title: 'Recurring events',
-    body: 'Lock in your routines — gym, classes, deep work — and let Timebox keep them on the calendar automatically.',
+    body: 'Lock in your routines — gym, classes, deep work — and let Timeboxing Club keep them on the calendar automatically.',
   },
 ];
 
@@ -85,7 +85,7 @@ function AppPreview() {
       >
         <div className="flex items-center gap-1.5">
           <CalendarIcon className="w-3.5 h-3.5" style={{ color: '#8DA286' }} />
-          <span className="text-xs font-semibold" style={{ color: '#1C1C1E' }}>Timebox</span>
+          <span className="text-xs font-semibold" style={{ color: '#1C1C1E' }}>Timeboxing Club</span>
         </div>
         <div className="flex items-center gap-1.5">
           {CALENDAR_COLORS.map((c) => (
@@ -202,7 +202,7 @@ export function LandingPage({ onGetStarted, onLogIn, onTryItOut }: LandingPagePr
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-4 h-4" style={{ color: '#8DA286' }} />
           <span className="text-sm font-semibold tracking-tight" style={{ color: '#1C1C1E' }}>
-            Timebox
+            Timeboxing Club
           </span>
         </div>
         <button
@@ -407,7 +407,7 @@ export function LandingPage({ onGetStarted, onLogIn, onTryItOut }: LandingPagePr
       {/* ── Footer ── */}
       <footer className="py-5 px-6 text-center">
         <p className="text-xs" style={{ color: '#C7C7CC' }}>
-          © {new Date().getFullYear()} Timebox · Your data stays yours.
+          © {new Date().getFullYear()} Timeboxing Club · Your data stays yours.
         </p>
       </footer>
     </div>

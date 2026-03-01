@@ -1,4 +1,4 @@
-# Timebox — Task List (unfinished work)
+# Timeboxing Club — Task List (unfinished work)
 
 Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./ENGINEERING_LEAD.md) (checkpoints, flowcharts, function inventory).
 

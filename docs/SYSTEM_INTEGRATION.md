@@ -1,4 +1,4 @@
-# Timebox — System Integration
+# Timeboxing Club — System Integration
 
 How the app fits together: state, UI, persistence, and (when added) Supabase. Use this so changes in one layer don’t break another without you knowing.
 

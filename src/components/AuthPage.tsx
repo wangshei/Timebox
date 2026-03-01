@@ -199,7 +199,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         {/* Title — outside card */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', margin: '0 0 8px' }}>
-            Timebox
+            Timeboxing Club
           </h1>
           <p style={{ fontSize: 15, color: '#8E8E93', margin: 0 }}>
             {subtitle}

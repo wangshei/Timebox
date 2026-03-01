@@ -1,4 +1,4 @@
-# Timebox — Project Standards
+# Timeboxing Club — Project Standards
 
 Code style, testing, commits, and definition of done so the project runs smoothly without excessive manual checking. Every engineer should follow these.
 

@@ -379,12 +379,12 @@ export function CalendarView({
           /* Wide 3-day compare: 3+3 split (plan left, actual right) */
           <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
             {/* Plan: left half */}
-            <div className="flex-1 flex flex-col min-h-0" style={{ borderRight: `1px solid ${BORDER}` }}>
-              <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} />
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}` }}>
+              <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} compact />
             </div>
             {/* Actual: right half */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} />
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+              <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} compact />
             </div>
           </div>
         )

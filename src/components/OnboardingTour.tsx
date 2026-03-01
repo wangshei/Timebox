@@ -29,7 +29,7 @@ const STEPS: TourStep[] = [
   {
     target: 'add-task-btn',
     title: 'Drag to schedule',
-    body: 'Drag any task card from this panel and drop it onto a time slot in the calendar. Timebox creates a time block automatically.',
+    body: 'Drag any task card from this panel and drop it onto a time slot in the calendar. Timeboxing Club creates a time block automatically.',
     placement: 'left',
   },
 ];
