@@ -194,22 +194,6 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     [tasks]
   );
 
-  // Done task ID set for exclusion from "All tasks"
-  const doneIdSet = useMemo(() => new Set(doneTasks.map((t) => t.id)), [doneTasks]);
-
-  /** All non-done tasks sorted by priority then due date for overview. */
-  const allTasksSorted = useMemo(() => {
-    let base = tasks.filter((t) => !doneIdSet.has(t.id));
-    if (overviewRange !== 'month' && timeBlocks) {
-      base = base.filter((t) => {
-        const hasBlocksInRange = taskIdsInRange.has(t.id);
-        const hasAnyBlocks = (t as any).blockCount && (t as any).blockCount > 0;
-        return hasBlocksInRange || !hasAnyBlocks;
-      });
-    }
-    return [...base].sort(sortByPriorityAndDueDate);
-  }, [tasks, overviewRange, timeBlocks, taskIdsInRange, doneIdSet]);
-
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
     e.preventDefault();

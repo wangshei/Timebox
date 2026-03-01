@@ -1,4 +1,5 @@
-import React, { useState, useRef, useLayoutEffect, memo } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -81,6 +82,7 @@ function TimeBlockCardInner({
   const [showPopover, setShowPopover] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
+  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +95,36 @@ function TimeBlockCardInner({
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const spaceBelow = viewportH - rect.bottom;
     setPopoverPosition(spaceBelow < POPOVER_MAX_H + GAP ? 'top-right' : 'bottom-left');
+  }, [showPopover, isSelected]);
+
+  useLayoutEffect(() => {
+    if (!showPopover || !isSelected || !blockRef.current) {
+      setPopoverRect(null);
+      return;
+    }
+    const el = blockRef.current;
+    const rect = el.getBoundingClientRect();
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const spaceBelow = viewportH - rect.bottom;
+    const preferBelow = spaceBelow >= POPOVER_MAX_H + GAP;
+    const top = preferBelow ? rect.bottom + GAP : rect.top - POPOVER_MAX_H - GAP;
+    const left = Math.max(GAP, Math.min(rect.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 280 - GAP));
+    setPopoverRect({ top, left });
+    const update = () => {
+      if (!el.isConnected) return;
+      const r = el.getBoundingClientRect();
+      const sb = (typeof window !== 'undefined' ? window.innerHeight : 800) - r.bottom;
+      setPopoverRect({
+        top: sb >= POPOVER_MAX_H + GAP ? r.bottom + GAP : r.top - POPOVER_MAX_H - GAP,
+        left: Math.max(GAP, Math.min(r.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 280 - GAP)),
+      });
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
   }, [showPopover, isSelected]);
 
   const handlePopoverDragStart = (e: React.MouseEvent) => {
@@ -560,6 +592,7 @@ function TimeBlockCardInner({
 
     return (
       <div
+        ref={blockRef}
         className={cn('absolute overflow-hidden pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
@@ -589,23 +622,23 @@ function TimeBlockCardInner({
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
-              className="flex items-center h-full min-w-0 w-full"
-              style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px', gap: 2 }}
+              className="flex items-start h-full min-w-0 w-full gap-1.5"
+              style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px' }}
             >
               {isEvent && compactTier !== 'tiny' && (
-                <LockClosedIcon className="flex-shrink-0 h-1.5 w-1.5 opacity-40" style={{ color: blockColor }} />
+                <LockClosedIcon className="flex-shrink-0 mt-0.5 h-1.5 w-1.5 opacity-40" style={{ color: blockColor }} />
               )}
-              <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="min-w-0 flex-1 overflow-hidden flex flex-col">
                 <div
                   className={cn(
                     isTask ? 'font-semibold' : 'font-medium',
-                    'leading-snug min-w-0 truncate',
+                    'leading-snug min-w-0 break-words',
                     titleTextClass,
                   )}
                   style={{
                     fontSize: compactTitleFontSize,
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {block.title || 'Untitled'}
@@ -628,8 +661,8 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Compact popover */}
-        {showPopover && isSelected && (
+        {/* Compact popover — portaled so it isn't clipped by grid overflow */}
+        {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <>
             <div
               className="fixed inset-0 z-[9998]"
@@ -641,18 +674,22 @@ function TimeBlockCardInner({
               }}
               aria-hidden
             />
-            <div
-              ref={popoverRef}
-              className="absolute z-[9999] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
-              style={{
-                top: '100%', left: 0, marginTop: 6,
-                backgroundColor: '#FFFFFF',
-                borderColor: 'rgba(0,0,0,0.09)',
-              }}
-            >
-              <PopoverContent />
-            </div>
-          </>
+            {popoverRect && (
+              <div
+                ref={popoverRef}
+                className="fixed z-[9999] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
+                style={{
+                  top: popoverRect.top,
+                  left: popoverRect.left + popoverDragOffset.x,
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'rgba(0,0,0,0.09)',
+                }}
+              >
+                <PopoverContent />
+              </div>
+            )}
+          </>,
+          document.body
         )}
       </div>
     );
@@ -735,12 +772,12 @@ function TimeBlockCardInner({
         ) : (
           /* small+: title at top, meta + tags below */
           <div className="flex flex-col justify-between h-full min-w-0 overflow-hidden" style={{ padding: fullPadding }}>
-            {/* Title row */}
-            <div className="flex items-start min-w-0 overflow-hidden" style={{ gap: 2 }}>
+            {/* Title row — wraps to fill block */}
+            <div className="flex items-start min-w-0 overflow-hidden flex-1 min-h-0" style={{ gap: 2 }}>
               <span
                 className={cn(
                   isTask ? 'font-semibold' : 'font-medium',
-                  'leading-snug min-w-0 truncate',
+                  'leading-snug min-w-0 break-words',
                   isTask && confirmed && 'line-through decoration-current/40',
                 )}
                 style={{
@@ -748,7 +785,6 @@ function TimeBlockCardInner({
                   color: getTitleColor(),
                   textDecorationSkipInk: 'none',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   wordBreak: 'break-word',
                 }}
               >
@@ -834,8 +870,8 @@ function TimeBlockCardInner({
         )}
       </div>
 
-      {/* Full popover */}
-      {showPopover && isSelected && (
+      {/* Full popover — portaled so it isn't clipped by grid overflow */}
+      {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
         <>
           <div
             className="fixed inset-0 z-[9998]"
@@ -847,21 +883,22 @@ function TimeBlockCardInner({
               doDeselect();
             }}
           />
-          <div
-            ref={popoverRef}
-            className="absolute z-[9999] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
-            style={{
-              ...(popoverPosition === 'bottom-left'
-                ? { top: '100%', left: 0, marginTop: 8 }
-                : { bottom: '100%', right: 0, marginBottom: 8 }),
-              transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
-              backgroundColor: '#FFFFFF',
-              borderColor: 'rgba(0,0,0,0.09)',
-            }}
-          >
-            <PopoverContent />
-          </div>
-        </>
+          {popoverRect && (
+            <div
+              ref={popoverRef}
+              className="fixed z-[9999] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
+              style={{
+                top: popoverRect.top + popoverDragOffset.y,
+                left: popoverRect.left + popoverDragOffset.x,
+                backgroundColor: '#FFFFFF',
+                borderColor: 'rgba(0,0,0,0.09)',
+              }}
+            >
+              <PopoverContent />
+            </div>
+          )}
+        </>,
+        document.body
       )}
     </div>
   );
