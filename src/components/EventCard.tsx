@@ -1,5 +1,4 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
@@ -63,45 +62,16 @@ export function EventCard({
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
-  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [now, setNow] = useState(() => new Date());
   const cardRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const POPOVER_MARGIN = 6;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
-
-  useLayoutEffect(() => {
-    if (!showPopover || !isSelected || !cardRef.current) {
-      setPopoverRect(null);
-      return;
-    }
-    const el = cardRef.current;
-    const rect = el.getBoundingClientRect();
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const spaceBelow = viewportH - rect.bottom;
-    const preferBelow = spaceBelow >= POPOVER_MAX_HEIGHT + GAP;
-    const top = preferBelow ? rect.bottom + GAP : rect.top - POPOVER_MAX_HEIGHT - GAP;
-    const left = Math.max(GAP, Math.min(rect.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - POPOVER_WIDTH - GAP));
-    setPopoverRect({ top, left });
-    const update = () => {
-      if (!el.isConnected) return;
-      const r = el.getBoundingClientRect();
-      const sb = (typeof window !== 'undefined' ? window.innerHeight : 800) - r.bottom;
-      setPopoverRect({
-        top: sb >= POPOVER_MAX_HEIGHT + GAP ? r.bottom + GAP : r.top - POPOVER_MAX_HEIGHT - GAP,
-        left: Math.max(GAP, Math.min(r.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - POPOVER_WIDTH - GAP)),
-      });
-    };
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-    };
-  }, [showPopover, isSelected]);
 
   const todayStr = getLocalDateString(now);
   const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -209,7 +179,8 @@ export function EventCard({
     <div
       ref={cardRef}
       className={cn(
-        'absolute w-full min-w-0 overflow-hidden pointer-events-auto group',
+        'absolute w-full min-w-0 pointer-events-auto group',
+        showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       )}
       style={style}
@@ -305,26 +276,16 @@ export function EventCard({
         </div>
       )}
 
-      {/* Detail popover — portaled so it isn't clipped by grid overflow */}
-      {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[9998]"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPopover(false);
-              setDeleteConfirmState(null);
-              setPopoverDragOffset({ x: 0, y: 0 });
-              onDeselect();
-            }}
-          />
-          {popoverRect && (
+      {/* Detail popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
+      {showPopover && isSelected && (
           <div
             ref={popoverRef}
-            className="fixed z-[9999] rounded-xl p-3 min-w-56"
+            className="absolute z-50 rounded-xl p-3 min-w-56"
             style={{
-              top: popoverRect.top + popoverDragOffset.y,
-              left: popoverRect.left + popoverDragOffset.x,
+              bottom: '100%',
+              left: 0,
+              marginBottom: POPOVER_MARGIN,
+              transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',
               boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
@@ -472,9 +433,6 @@ export function EventCard({
               )}
             </div>
           </div>
-          )}
-        </>,
-        document.body
       )}
     </div>
   );

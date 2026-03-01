@@ -1,5 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useRef, useLayoutEffect, memo } from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -82,49 +81,17 @@ function TimeBlockCardInner({
   const [showPopover, setShowPopover] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
-  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const POPOVER_MAX_H = 440;
-  const GAP = 8;
+  const POPOVER_MARGIN = 6;
 
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !blockRef.current || !popoverRef.current) return;
     const rect = blockRef.current.getBoundingClientRect();
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
     const spaceBelow = viewportH - rect.bottom;
-    setPopoverPosition(spaceBelow < POPOVER_MAX_H + GAP ? 'top-right' : 'bottom-left');
-  }, [showPopover, isSelected]);
-
-  useLayoutEffect(() => {
-    if (!showPopover || !isSelected || !blockRef.current) {
-      setPopoverRect(null);
-      return;
-    }
-    const el = blockRef.current;
-    const rect = el.getBoundingClientRect();
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const spaceBelow = viewportH - rect.bottom;
-    const preferBelow = spaceBelow >= POPOVER_MAX_H + GAP;
-    const top = preferBelow ? rect.bottom + GAP : rect.top - POPOVER_MAX_H - GAP;
-    const left = Math.max(GAP, Math.min(rect.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 280 - GAP));
-    setPopoverRect({ top, left });
-    const update = () => {
-      if (!el.isConnected) return;
-      const r = el.getBoundingClientRect();
-      const sb = (typeof window !== 'undefined' ? window.innerHeight : 800) - r.bottom;
-      setPopoverRect({
-        top: sb >= POPOVER_MAX_H + GAP ? r.bottom + GAP : r.top - POPOVER_MAX_H - GAP,
-        left: Math.max(GAP, Math.min(r.left, (typeof window !== 'undefined' ? window.innerWidth : 400) - 280 - GAP)),
-      });
-    };
-    window.addEventListener('scroll', update, true);
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('scroll', update, true);
-      window.removeEventListener('resize', update);
-    };
+    setPopoverPosition(spaceBelow < 300 ? 'top-right' : 'bottom-left');
   }, [showPopover, isSelected]);
 
   const handlePopoverDragStart = (e: React.MouseEvent) => {
@@ -471,96 +438,107 @@ function TimeBlockCardInner({
     }
   };
 
-  // Shared popover content
+  // Shared popover content — same layout as EventCard detail popup
   const PopoverContent = () => (
-    <div className="space-y-1">
+    <>
       <div
-        className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl mb-2"
+        className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl"
         style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         onMouseDown={handlePopoverDragStart}
       >
-        <div className="flex items-start gap-2">
-          <span className="font-semibold text-sm leading-snug" style={{ color: THEME.textPrimary }}>{block.title || 'Untitled'}</span>
-        </div>
+        <div className="font-semibold text-sm truncate" style={{ color: THEME.textPrimary }}>{block.title || 'Untitled'}</div>
       </div>
-
-      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
-        <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: blockColor }} />
-        <span>{getTimeRange()} · {getDuration()}</span>
-      </div>
-      <div className="flex items-center gap-2 text-xs py-0.5" style={{ color: '#636366' }}>
-        <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: blockColor }} />
-        <span>{block.date}</span>
-      </div>
-      {block.category && (
-        <div className="flex items-center gap-2 py-0.5">
-          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
-          <span className="text-xs" style={{ color: '#636366' }}>{block.category.name}</span>
+      <div className="pt-2">
+        <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+          <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
+          <span>{getTimeRange()} – {getDuration()}</span>
         </div>
-      )}
-      {block.calendarContainer && (
-        <div className="flex items-center gap-2 py-0.5">
-          <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: hexToRgba(block.calendarContainer.color, 0.3), border: `2px solid ${block.calendarContainer.color}` }} />
-          <span className="text-xs" style={{ color: '#636366' }}>{block.calendarContainer.name}</span>
+        <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+          <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
+          <span>{block.date}</span>
         </div>
-      )}
-      {(block as any).notes && (
-        <div className="mt-1 pt-1 text-xs italic" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: '#636366' }}>
-          {(block as any).notes}
-        </div>
-      )}
-      <div className="flex flex-col gap-1 pt-2" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginTop: 6 }}>
-        {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-            style={{ color: confirmed ? '#636366' : blockColor }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.05)' : `${hexToRgba(blockColor, 0.1)}`; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-            onClick={() => {
-              if (confirmed) {
-                // For events: skip = didn't happen; for tasks: unconfirm = revert to pending
-                if (isEvent) onSkip?.(block.id);
-                else onUnconfirm?.(block.id);
-              } else {
-                onConfirm?.(block.id);
-              }
-              setShowPopover(false);
-              doDeselect();
-            }}
-          >
-            <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
-            {confirmed ? 'Mark as not done' : 'Mark as done'}
-          </button>
+        {block.category && (
+          <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
+            <span>{block.category.name}</span>
+          </div>
         )}
-        <div className="flex gap-1">
+        {block.calendarContainer && (
+          <div className="flex items-center gap-2 text-xs mb-3" style={{ color: THEME.textSecondary }}>
+            <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: hexToRgba(block.calendarContainer.color, 0.25), border: `2px solid ${block.calendarContainer.color}` }} />
+            <span>{block.calendarContainer.name}</span>
+          </div>
+        )}
+        {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
+          <div className="mb-2">
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+              style={{ color: confirmed ? THEME.textSecondary : blockColor, backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.04)' : hexToRgba(blockColor, 0.1); }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              onClick={() => {
+                if (confirmed) {
+                  if (isEvent) onSkip?.(block.id);
+                  else onUnconfirm?.(block.id);
+                } else {
+                  onConfirm?.(block.id);
+                }
+                setShowPopover(false);
+                doDeselect();
+              }}
+            >
+              <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+              {confirmed ? 'Mark as not done' : 'Mark as done'}
+            </button>
+          </div>
+        )}
+        {(block as any).notes && (
+          <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
+            {(block as any).notes}
+          </div>
+        )}
+        {(block as any).description && (
+          <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{(block as any).description}</div>
+        )}
+        {(block as any).link && (
+          <div className="mb-2">
+            <a href={(block as any).link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
+              {(block as any).link}
+            </a>
+          </div>
+        )}
+        <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
+        <div className="flex gap-1.5">
           {onEditBlock && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-              style={{ color: '#636366' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+              style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              onClick={() => { onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
+              onClick={(e) => { e.stopPropagation(); onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
-              <PencilIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} /> Edit
+              <PencilIcon className="h-3.5 w-3.5" />
+              Edit
             </button>
           )}
           {onDeleteBlock && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors"
-              style={{ color: '#B85050' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.08)'; }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+              style={{ color: '#B85050', backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              onClick={() => { onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
+              onClick={(e) => { e.stopPropagation(); onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
-              <TrashIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} /> Delete
+              <TrashIcon className="h-3.5 w-3.5" />
+              Delete
             </button>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 
   // ─── Compact mode (week view) ───────────────────────────────────────────
@@ -593,7 +571,7 @@ function TimeBlockCardInner({
     return (
       <div
         ref={blockRef}
-        className={cn('absolute overflow-hidden pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+        className={cn('absolute pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
@@ -661,35 +639,23 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Compact popover — portaled so it isn't clipped by grid overflow */}
-        {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
-          <>
-            <div
-              className="fixed inset-0 z-[9998]"
-              style={{ pointerEvents: 'auto' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPopover(false);
-                doDeselect();
-              }}
-              aria-hidden
-            />
-            {popoverRect && (
-              <div
-                ref={popoverRef}
-                className="fixed z-[9999] rounded-xl shadow-xl border p-3 min-w-56 max-w-xs"
-                style={{
-                  top: popoverRect.top,
-                  left: popoverRect.left + popoverDragOffset.x,
-                  backgroundColor: '#FFFFFF',
-                  borderColor: 'rgba(0,0,0,0.09)',
-                }}
-              >
-                <PopoverContent />
-              </div>
-            )}
-          </>,
-          document.body
+        {/* Compact popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
+        {showPopover && isSelected && (
+          <div
+            ref={popoverRef}
+            className="absolute z-50 rounded-xl p-3 min-w-56"
+            style={{
+              bottom: '100%',
+              left: 0,
+              marginBottom: POPOVER_MARGIN,
+              transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0,0,0,0.09)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+            }}
+          >
+            <PopoverContent />
+          </div>
         )}
       </div>
     );
@@ -727,7 +693,7 @@ function TimeBlockCardInner({
   return (
     <div
       ref={blockRef}
-      className={cn('absolute overflow-hidden group pointer-events-auto', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+      className={cn('absolute group pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
@@ -870,35 +836,23 @@ function TimeBlockCardInner({
         )}
       </div>
 
-      {/* Full popover — portaled so it isn't clipped by grid overflow */}
-      {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[9998]"
-            style={{ pointerEvents: 'auto' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPopover(false);
-              setPopoverDragOffset({ x: 0, y: 0 });
-              doDeselect();
-            }}
-          />
-          {popoverRect && (
-            <div
-              ref={popoverRef}
-              className="fixed z-[9999] rounded-xl shadow-xl border p-3 min-w-60 max-w-xs"
-              style={{
-                top: popoverRect.top + popoverDragOffset.y,
-                left: popoverRect.left + popoverDragOffset.x,
-                backgroundColor: '#FFFFFF',
-                borderColor: 'rgba(0,0,0,0.09)',
-              }}
-            >
-              <PopoverContent />
-            </div>
-          )}
-        </>,
-        document.body
+      {/* Full popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
+      {showPopover && isSelected && (
+        <div
+          ref={popoverRef}
+          className="absolute z-50 rounded-xl p-3 min-w-56"
+          style={{
+            ...(popoverPosition === 'bottom-left'
+              ? { bottom: '100%', left: 0, marginBottom: POPOVER_MARGIN }
+              : { top: '100%', left: 0, marginTop: POPOVER_MARGIN }),
+            transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.09)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+          }}
+        >
+          <PopoverContent />
+        </div>
       )}
     </div>
   );

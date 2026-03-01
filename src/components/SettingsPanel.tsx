@@ -347,34 +347,41 @@ export function SettingsPanel({
             {/* ── General ── */}
             {activeTab === 'general' && (
               <div style={{ gridColumn: '1 / -1' }}>
-                <div
-                  className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg"
+                <label
+                  htmlFor="week-starts-monday-toggle"
+                  className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg cursor-pointer"
                   style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Week starts on Monday</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Show Mon–Sun in week and month views</p>
                   </div>
                   <button
+                    id="week-starts-monday-toggle"
                     type="button"
                     role="switch"
                     aria-checked={weekStartsOnMonday}
-                    onClick={() => onWeekStartsOnMondayChange?.(!weekStartsOnMonday)}
-                    className="relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onWeekStartsOnMondayChange?.(!weekStartsOnMonday);
+                    }}
+                    className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
                     style={{
-                      backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.15)',
+                      backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.2)',
+                      minWidth: 44,
+                      minHeight: 24,
                     }}
                   >
                     <span
-                      className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition"
+                      className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
                       style={{
                         marginLeft: 2,
                         marginTop: 2,
-                        transform: weekStartsOnMonday ? 'translateX(18px)' : 'translateX(0)',
+                        transform: weekStartsOnMonday ? 'translateX(20px)' : 'translateX(0)',
                       }}
                     />
                   </button>
-                </div>
+                </label>
               </div>
             )}
 
@@ -446,8 +453,8 @@ export function SettingsPanel({
               );
             })}
 
-            {/* ── Add new form ── */}
-            {isAdding ? (
+            {/* ── Add new form (calendars, categories, tags only) ── */}
+            {activeTab !== 'general' && (isAdding ? (
               <div
                 className="space-y-2 p-3 rounded-xl"
                 style={{ gridColumn: '1 / -1', border: `1.5px dashed ${PRIMARY}50`, backgroundColor: `${PRIMARY}06` }}
@@ -514,7 +521,7 @@ export function SettingsPanel({
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add {activeTab.slice(0, -1)}
               </button>
-            )}
+            ))}
           </div>
         </div>
 
