@@ -202,7 +202,7 @@ export function LandingPage({ onGetStarted, onLogIn, onTryItOut }: LandingPagePr
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-4 h-4" style={{ color: '#8DA286' }} />
           <span className="text-sm font-semibold tracking-tight" style={{ color: '#1C1C1E' }}>
-            Timeboxing Club
+            The Timeboxing Club
           </span>
         </div>
         <button
