@@ -183,7 +183,7 @@ export function ThreeDayView({
   }, [resizingBlock, onResizeBlock]);
 
   return (
-    <div className={`flex-1 overflow-auto ${compact ? 'min-w-0' : ''}`} style={{ backgroundColor: BG_CANVAS }}>
+    <div className={`flex-1 ${compact ? 'overflow-y-auto overflow-x-hidden min-w-0' : 'overflow-auto'}`} style={{ backgroundColor: BG_CANVAS }}>
       <div className={`flex ${compact ? 'min-w-0 w-full' : 'min-w-max'}`}>
         {/* Time column — hidden when hideTimeGutter is true (compare right panel) */}
         {!hideTimeGutter && (
@@ -216,7 +216,7 @@ export function ThreeDayView({
         )}
 
         {/* Three day columns */}
-        <div className="flex flex-1">
+        <div className={`flex flex-1 ${compact ? 'min-w-0' : ''}`}>
           {threeDays.map((day, dayIndex) => {
             const dateStr = formatDate(day);
             const dayBlocks = timeBlocks.filter(b => b.date === dateStr);
