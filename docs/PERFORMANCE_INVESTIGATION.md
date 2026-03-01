@@ -1,7 +1,7 @@
 # Calendar Performance Regression — Investigation Report
 
 **Status:** Root causes identified; no logic changed.  
-**Scope:** Timebox calendar load and render performance.
+**Scope:** The Timeboxing Club calendar load and render performance.
 
 ---
 

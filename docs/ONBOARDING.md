@@ -1,4 +1,4 @@
-# Timebox — Onboarding for Engineers
+# The Timeboxing Club — Onboarding for Engineers
 
 **Start here.** This doc tells you what to read, how to run the app, and where everything lives so you can work without constant manual check-ins.
 
@@ -19,7 +19,7 @@
 ## 2. Repo layout
 
 ```
-Timebox/
+The Timeboxing Club/
 ├── docs/                    # All project docs (you are in docs/)
 │   ├── ONBOARDING.md        # This file
 │   ├── ENGINEERING_LEAD.md  # Checkpoints, flowcharts, function inventory

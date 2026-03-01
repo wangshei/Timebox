@@ -1,12 +1,12 @@
-# Timebox — Project Overview
+# The Timeboxing Club — Project Overview
 
-A short description of what Timebox is and the main ideas that drive it. Use this for onboarding, product context, or explaining the app to stakeholders.
+A short description of what The Timeboxing Club is and the main ideas that drive it. Use this for onboarding, product context, or explaining the app to stakeholders.
 
 ---
 
-## What Timebox Is
+## What The Timeboxing Club Is
 
-**Timebox** is a calendar and task app that helps you **plan** your time (what you intend to do) and **record** what actually happened. You manage **tasks** (with estimates), **time blocks** (scheduled slices of time), and **events** (fixed appointments) on a shared calendar. The app supports comparing planned vs recorded time and keeps a task backlog (Unscheduled, In Progress, Missed, Done) so you can see what’s left to do.
+**The Timeboxing Club** is a calendar and task app that helps you **plan** your time (what you intend to do) and **record** what actually happened. You manage **tasks** (with estimates), **time blocks** (scheduled slices of time), and **events** (fixed appointments) on a shared calendar. The app supports comparing planned vs recorded time and keeps a task backlog (Unscheduled, In Progress, Missed, Done) so you can see what’s left to do.
 
 ---
 

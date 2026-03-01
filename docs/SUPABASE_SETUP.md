@@ -447,7 +447,7 @@ Supabase’s built-in email is limited to **30 emails/hour** — fine for develo
 | Minimum interval | `0` seconds (Resend has its own rate limiting) |
 | Username | `resend` |
 | Password | Your Resend **API key** (starts with `re_`) |
-| Sender name | `Timeboxing Club` |
+| Sender name | `The Timeboxing Club` |
 | Sender email | `noreply@yourdomain.com` (or `onboarding@resend.dev` before domain verification) |
 
 4. **Save** and send a test email from Supabase to confirm delivery.
@@ -464,7 +464,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 
 ### 7a. Confirm signup
 
-**Subject:** `Confirm your Timeboxing Club account`
+**Subject:** `Confirm your Timeboxing account`
 
 ```html
 <!DOCTYPE html>
@@ -472,7 +472,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Confirm your Timeboxing Club account</title>
+  <title>Confirm your Timeboxing account</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
@@ -482,13 +482,13 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
           <!-- Logo / App name -->
           <tr>
             <td align="center" style="padding-bottom:32px;">
-              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timeboxing Club</span>
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">The Timeboxing Club</span>
             </td>
           </tr>
           <!-- Card -->
           <tr>
             <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
-              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Welcome to Timeboxing Club!</p>
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Welcome to The Timeboxing Club!</p>
               <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
                 Tap the button below to confirm your email address and activate your account.
               </p>
@@ -504,14 +504,14 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
                 </tr>
               </table>
               <p style="margin:28px 0 0;font-size:13px;line-height:1.6;color:#AEAEB2;">
-                If you didn’t create a Timeboxing Club account, you can safely ignore this email.
+                If you didn’t create a Timeboxing account, you can safely ignore this email.
               </p>
             </td>
           </tr>
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timeboxing Club — plan your day, own your time.</p>
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">The Timeboxing Club — plan your day, own your time.</p>
             </td>
           </tr>
         </table>
@@ -524,7 +524,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 
 ### 7b. Reset password
 
-**Subject:** `Reset your Timeboxing Club password`
+**Subject:** `Reset your Timeboxing password`
 
 ```html
 <!DOCTYPE html>
@@ -532,7 +532,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reset your Timeboxing Club password</title>
+  <title>Reset your Timeboxing password</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
@@ -542,7 +542,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
           <!-- Logo / App name -->
           <tr>
             <td align="center" style="padding-bottom:32px;">
-              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timeboxing Club</span>
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">The Timeboxing Club</span>
             </td>
           </tr>
           <!-- Card -->
@@ -550,7 +550,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
             <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
               <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Reset your password</p>
               <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
-                We received a request to reset the password for your Timeboxing Club account. Tap the button below to choose a new one.
+                We received a request to reset the password for your Timeboxing account. Tap the button below to choose a new one.
               </p>
               <!-- CTA Button -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -571,7 +571,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timeboxing Club — plan your day, own your time.</p>
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">The Timeboxing Club — plan your day, own your time.</p>
             </td>
           </tr>
         </table>
@@ -584,7 +584,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 
 ### 7c. Magic link
 
-**Subject:** `Your Timeboxing Club login link`
+**Subject:** `Your Timeboxing login link`
 
 ```html
 <!DOCTYPE html>
@@ -592,7 +592,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Your Timeboxing Club login link</title>
+  <title>Your Timeboxing login link</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
@@ -602,15 +602,15 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
           <!-- Logo / App name -->
           <tr>
             <td align="center" style="padding-bottom:32px;">
-              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timeboxing Club</span>
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">The Timeboxing Club</span>
             </td>
           </tr>
           <!-- Card -->
           <tr>
             <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
-              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Sign in to Timeboxing Club</p>
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Sign in to Timeboxing</p>
               <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
-                Tap the button below to sign in to your Timeboxing Club account. This link expires in 1 hour.
+                Tap the button below to sign in to your Timeboxing account. This link expires in 1 hour.
               </p>
               <!-- CTA Button -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -631,7 +631,7 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timeboxing Club — plan your day, own your time.</p>
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">The Timeboxing Club — plan your day, own your time.</p>
             </td>
           </tr>
         </table>

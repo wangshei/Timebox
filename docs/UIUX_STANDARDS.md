@@ -1,4 +1,4 @@
-# Timebox — UI/UX Standards
+# The Timeboxing Club — UI/UX Standards
 
 Principles for calendar interaction and UI so the app stays intuitive and consistent. Use this before changing layout or interaction patterns; ask "is this the most intuitive way to interact with a calendar?" and align with these standards.
 

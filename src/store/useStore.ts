@@ -1,5 +1,5 @@
 /**
- * Single source of truth for Timebox app state.
+ * Single source of truth for The Timeboxing Club app state.
  * See docs/SYSTEM_INTEGRATION.md and docs/ENGINEERING_LEAD.md.
  */
 

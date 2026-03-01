@@ -1,5 +1,5 @@
 /**
- * Derived state (selectors) for Timebox.
+ * Derived state (selectors) for The Timeboxing Club.
  * Pure functions from store state; used by UI for backlog and analytics.
  */
 

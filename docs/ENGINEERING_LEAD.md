@@ -1,4 +1,4 @@
-# Timebox — Engineering Lead Document
+# The Timeboxing Club — Engineering Lead Document
 
 Reference for progression, checkpoints, and how the app works. Use this to add/manage functionalities and onboard engineers.
 

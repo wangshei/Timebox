@@ -1,4 +1,4 @@
-# Timebox (Minimal Calendar Web App)
+# The Timeboxing Club (Minimal Calendar Web App)
 
 Task-first timeboxing calendar: plan vs record, backlog, calendar containers, and analytics. Original Figma: [Minimal Calendar Web App](https://www.figma.com/design/yWPeLxdwzpWW647RVzXHVa/Minimal-Calendar-Web-App).
 

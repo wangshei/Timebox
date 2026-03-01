@@ -1,6 +1,6 @@
-# Timebox — PM / UIUX Feature Design Overview
+# The Timeboxing Club — PM / UIUX Feature Design Overview
 
-Product-level overview of all UI/UX feature designs in Timebox, organized by **feature umbrellas** and **variations**. Use this for product planning, design handoff, and feature inventory.
+Product-level overview of all UI/UX feature designs in The Timeboxing Club, organized by **feature umbrellas** and **variations**. Use this for product planning, design handoff, and feature inventory.
 
 ---
 
@@ -382,4 +382,4 @@ Product-level overview of all UI/UX feature designs in Timebox, organized by **f
 
 ---
 
-*Source: Timebox codebase and [UIUX_STANDARDS.md](./UIUX_STANDARDS.md). Update this doc when adding or changing UI/UX features.*
+*Source: The Timeboxing Club codebase and [UIUX_STANDARDS.md](./UIUX_STANDARDS.md). Update this doc when adding or changing UI/UX features.*

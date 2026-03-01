@@ -1,4 +1,4 @@
-# Timebox Onboarding — Reference Doc
+# The Timeboxing Club Onboarding — Reference Doc
 
 ## Navigation Flow
 
