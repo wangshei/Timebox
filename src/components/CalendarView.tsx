@@ -347,16 +347,16 @@ export function CalendarView({
           </div>
         ) : (
           /* Wide day compare: plan | actual split */
-          <div className="flex-1 flex overflow-hidden min-h-0 min-w-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <div className="flex-1 flex overflow-hidden min-h-0" style={{ borderTop: `1px solid ${BORDER}`, width: '100%' }}>
             {/* Plan side — locked */}
-            <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
+            <div className="w-1/2 min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
               <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}`, ...panelLabelStyle }}>
                 Plan
               </div>
               {renderPlanDay()}
             </div>
             {/* Actual side — editable */}
-            <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ backgroundColor: BG }}>
+            <div className="w-1/2 min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: BG }}>
               <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}`, ...panelLabelStyle }}>
                 Actual
               </div>
@@ -377,13 +377,13 @@ export function CalendarView({
           </div>
         ) : (
           /* Wide 3-day compare: 3+3 split (plan left, actual right) */
-          <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-            {/* Plan: left half */}
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}` }}>
+          <div className="flex-1 flex overflow-hidden min-h-0" style={{ width: '100%' }}>
+            {/* Plan: left half — explicit 50% so content can't push wider */}
+            <div className="w-1/2 flex flex-col min-h-0 min-w-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}` }}>
               <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} compact />
             </div>
             {/* Actual: right half */}
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+            <div className="w-1/2 flex flex-col min-h-0 min-w-0 overflow-hidden">
               <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} compact />
             </div>
           </div>
