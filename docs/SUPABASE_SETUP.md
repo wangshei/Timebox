@@ -426,3 +426,220 @@ create index if not exists idx_tags_user on tags (user_id);
   - `startSupabasePersistence()` subscribes to store changes and mirrors the current state into Supabase for that user.
 
 When you **edit the calendar or tasks in the UI while signed in**, the store updates, and Supabase is kept in sync automatically. The store uses Zustand’s `subscribeWithSelector` middleware so the persistence subscription runs only when the persisted slice changes. When **not signed in**, changes are stored in the browser (localStorage) only and do not sync to Supabase until you sign in.
+
+---
+
+## 6. Custom SMTP (Resend)
+
+Supabase’s built-in email is limited to **30 emails/hour** — fine for development but not production. Use [Resend](https://resend.com) as a custom SMTP provider to remove that limit.
+
+### Setup steps
+
+1. **Create a Resend account** at https://resend.com and generate an API key.
+2. **(Recommended) Verify your domain** in Resend → Domains so emails come from `noreply@yourdomain.com` instead of `onboarding@resend.dev`.
+3. **Configure SMTP in Supabase Dashboard** → Authentication → SMTP Settings:
+
+| Setting | Value |
+|---------|-------|
+| Enable Custom SMTP | ✅ On |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Minimum interval | `0` seconds (Resend has its own rate limiting) |
+| Username | `resend` |
+| Password | Your Resend **API key** (starts with `re_`) |
+| Sender name | `Timebox` |
+| Sender email | `noreply@yourdomain.com` (or `onboarding@resend.dev` before domain verification) |
+
+4. **Save** and send a test email from Supabase to confirm delivery.
+
+> **Note:** Resend’s free tier includes 3,000 emails/month and 100 emails/day — more than enough for most apps. Upgrade if needed.
+
+---
+
+## 7. Email Templates
+
+Supabase lets you customize the HTML for transactional emails. Go to **Authentication → Email Templates** in the Supabase Dashboard and paste the templates below for each type.
+
+All templates share the same branded shell: warm background (`#F8F7F4`), white card, sage-green CTA button (`#8DA387`), system-ui font.
+
+### 7a. Confirm signup
+
+**Subject:** `Confirm your Timebox account`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Confirm your Timebox account</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+    <tr>
+      <td align="center" style="padding:48px 24px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+          <!-- Logo / App name -->
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timebox</span>
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Welcome to Timebox!</p>
+              <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
+                Tap the button below to confirm your email address and activate your account.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank"
+                       style="display:inline-block;padding:14px 32px;background-color:#8DA387;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;line-height:1;">
+                      Confirm Email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:28px 0 0;font-size:13px;line-height:1.6;color:#AEAEB2;">
+                If you didn’t create a Timebox account, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timebox — plan your day, own your time.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
+
+### 7b. Reset password
+
+**Subject:** `Reset your Timebox password`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reset your Timebox password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+    <tr>
+      <td align="center" style="padding:48px 24px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+          <!-- Logo / App name -->
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timebox</span>
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Reset your password</p>
+              <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
+                We received a request to reset the password for your Timebox account. Tap the button below to choose a new one.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank"
+                       style="display:inline-block;padding:14px 32px;background-color:#8DA387;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;line-height:1;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:28px 0 0;font-size:13px;line-height:1.6;color:#AEAEB2;">
+                If you didn’t request a password reset, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timebox — plan your day, own your time.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
+
+### 7c. Magic link
+
+**Subject:** `Your Timebox login link`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Timebox login link</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,’Segoe UI’,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+    <tr>
+      <td align="center" style="padding:48px 24px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+          <!-- Logo / App name -->
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">Timebox</span>
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1C1C1E;">Sign in to Timebox</p>
+              <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#636366;">
+                Tap the button below to sign in to your Timebox account. This link expires in 1 hour.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank"
+                       style="display:inline-block;padding:14px 32px;background-color:#8DA387;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;line-height:1;">
+                      Sign In
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:28px 0 0;font-size:13px;line-height:1.6;color:#AEAEB2;">
+                If you didn’t request this link, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0;font-size:12px;color:#C7C7CC;">Timebox — plan your day, own your time.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
+
+> **How to apply:** In the Supabase Dashboard → Authentication → Email Templates, select the template type (Confirm signup, Reset password, Magic Link), replace the subject and body with the HTML above, and save.

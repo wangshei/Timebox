@@ -1,26 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-type AuthMode = 'signup' | 'login';
+type AuthMode = 'signup' | 'login' | 'forgot' | 'reset';
 
 interface AuthPageProps {
   supabase: SupabaseClient | null;
-  mode?: AuthMode;
+  mode?: 'signup' | 'login';
   onVisitMode: () => void;
+  isPasswordRecovery?: boolean;
+  onPasswordResetComplete?: () => void;
 }
 
-export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }: AuthPageProps) {
+export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, isPasswordRecovery, onPasswordResetComplete }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
+  // If parent signals password recovery, switch to reset mode
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setMode('reset');
+      setMessage(null);
+    }
+  }, [isPasswordRecovery]);
+
   const resetForm = () => {
     setMessage(null);
     setPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
     setAwaitingConfirmation(false);
   };
 
@@ -32,40 +46,78 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
-    if (!email.trim() || !password) return;
 
     setLoading(true);
     setMessage(null);
 
     try {
-      if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (mode === 'forgot') {
+        if (!email.trim()) return;
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        });
+        if (error) {
+          setMessage({ text: error.message, isError: true });
+        } else {
+          setAwaitingConfirmation(true);
+          setMessage({
+            text: 'If an account exists for that email, we sent a password reset link. Check your inbox.',
+            isError: false,
+          });
+        }
+      } else if (mode === 'reset') {
+        if (!newPassword || !confirmPassword) return;
+        if (newPassword !== confirmPassword) {
+          setMessage({ text: 'Passwords do not match.', isError: true });
+          setLoading(false);
+          return;
+        }
+        if (newPassword.length < 6) {
+          setMessage({ text: 'Password must be at least 6 characters.', isError: true });
+          setLoading(false);
+          return;
+        }
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+          setMessage({ text: error.message, isError: true });
+        } else {
+          setMessage({ text: 'Password updated! Signing you in…', isError: false });
+          onPasswordResetComplete?.();
+        }
+      } else if (mode === 'signup') {
+        if (!email.trim() || !password) return;
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
         if (error) {
           if (
             error.message.toLowerCase().includes('already registered') ||
             error.message.toLowerCase().includes('already exists') ||
             error.message.toLowerCase().includes('user already')
           ) {
-            // Generic message to prevent account enumeration
             setMessage({ text: 'If this email isn\'t already registered, we\'ll send a confirmation link. Otherwise, try logging in.', isError: true });
           } else {
             setMessage({ text: error.message, isError: true });
           }
         } else if (data.session) {
-          setMessage({ text: 'Account created! Setting up your workspace\u2026', isError: false });
+          setMessage({ text: 'Account created! Setting up your workspace…', isError: false });
         } else {
           setAwaitingConfirmation(true);
           setMessage({
-            text: 'Check your inbox \u2014 we sent a confirmation link. Once confirmed, come back and log in.',
+            text: 'Check your inbox — we sent a confirmation link. Once confirmed, come back and log in.',
             isError: false,
           });
         }
       } else {
+        // login
+        if (!email.trim() || !password) return;
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) {
           if (error.message.toLowerCase().includes('email not confirmed')) {
             setMessage({
-              text: 'Please confirm your email first \u2014 check your inbox for the confirmation link.',
+              text: 'Please confirm your email first — check your inbox for the confirmation link.',
               isError: true,
             });
           } else if (
@@ -121,6 +173,15 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
     e.currentTarget.style.backgroundColor = '#F5F4F0';
   };
 
+  const subtitle = (() => {
+    if (mode === 'forgot') return 'Enter your email to receive a reset link.';
+    if (mode === 'reset') return 'Choose a new password.';
+    if (mode === 'signup') return 'Create an account to save your calendar.';
+    return 'Welcome back.';
+  })();
+
+  const isForgotOrReset = mode === 'forgot' || mode === 'reset';
+
   return (
     <div
       style={{
@@ -141,7 +202,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
             Timebox
           </h1>
           <p style={{ fontSize: 15, color: '#8E8E93', margin: 0 }}>
-            {mode === 'signup' ? 'Create an account to save your calendar.' : 'Welcome back.'}
+            {subtitle}
           </p>
         </div>
 
@@ -174,12 +235,12 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
             </div>
           )}
 
-          {/* Confirmation screen */}
+          {/* Confirmation screen (signup email sent OR forgot password email sent) */}
           {awaitingConfirmation ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 36 }}>📬</div>
+              <div style={{ fontSize: 36 }}>{mode === 'forgot' ? '📧' : '📬'}</div>
               <p style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
-                Confirm your email
+                {mode === 'forgot' ? 'Check your email' : 'Confirm your email'}
               </p>
               <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0 }}>
                 {message?.text}
@@ -223,43 +284,110 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
                 </div>
               )}
 
-              {/* Email field */}
-              <div style={{ marginBottom: 24 }}>
-                <label htmlFor="auth-email" style={labelStyle}>Email address</label>
-                <input
-                  id="auth-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  disabled={noBackend || loading}
-                  required
-                  style={inputStyle}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                  autoFocus
-                />
-              </div>
+              {/* Email field — signup, login, forgot (not reset) */}
+              {mode !== 'reset' && (
+                <div style={{ marginBottom: 24 }}>
+                  <label htmlFor="auth-email" style={labelStyle}>Email address</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    disabled={noBackend || loading}
+                    required
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    autoFocus
+                  />
+                </div>
+              )}
 
-              {/* Password field */}
-              <div style={{ marginBottom: 24 }}>
-                <label htmlFor="auth-password" style={labelStyle}>
-                  Password{mode === 'signup' ? ' (min 6 characters)' : ''}
-                </label>
-                <input
-                  id="auth-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={noBackend || loading}
-                  required
-                  minLength={mode === 'signup' ? 6 : undefined}
-                  style={inputStyle}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                />
-              </div>
+              {/* Password field — signup and login only */}
+              {(mode === 'signup' || mode === 'login') && (
+                <div style={{ marginBottom: mode === 'login' ? 8 : 24 }}>
+                  <label htmlFor="auth-password" style={labelStyle}>
+                    Password{mode === 'signup' ? ' (min 6 characters)' : ''}
+                  </label>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={noBackend || loading}
+                    required
+                    minLength={mode === 'signup' ? 6 : undefined}
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                  />
+                </div>
+              )}
+
+              {/* Forgot password link — login only */}
+              {mode === 'login' && (
+                <div style={{ marginBottom: 16, textAlign: 'right' }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot')}
+                    style={{
+                      fontSize: 13,
+                      color: '#8DA286',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      padding: 0,
+                      transition: 'color 200ms',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9076')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+
+              {/* New password fields — reset mode */}
+              {mode === 'reset' && (
+                <>
+                  <div style={{ marginBottom: 24 }}>
+                    <label htmlFor="auth-new-password" style={labelStyle}>New password (min 6 characters)</label>
+                    <input
+                      id="auth-new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      disabled={noBackend || loading}
+                      required
+                      minLength={6}
+                      style={inputStyle}
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{ marginBottom: 24 }}>
+                    <label htmlFor="auth-confirm-password" style={labelStyle}>Confirm password</label>
+                    <input
+                      id="auth-confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      disabled={noBackend || loading}
+                      required
+                      minLength={6}
+                      style={inputStyle}
+                      onFocus={handleInputFocus}
+                      onBlur={handleInputBlur}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Error/success message */}
               {message && !awaitingConfirmation && (
@@ -323,62 +451,99 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode }
                   e.currentTarget.style.backgroundColor = '#8DA387';
                 }}
               >
-                {loading ? '...' : mode === 'signup' ? 'Sign up' : 'Log in'}
+                {loading
+                  ? '...'
+                  : mode === 'signup'
+                    ? 'Sign up'
+                    : mode === 'login'
+                      ? 'Log in'
+                      : mode === 'forgot'
+                        ? 'Send reset link'
+                        : 'Update password'}
               </button>
             </form>
           )}
 
-          {/* Or divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
-            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
-            <span style={{ fontSize: 14, color: '#C7C7CC' }}>or</span>
-            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
+          {/* Or divider + secondary action — hide in forgot/reset modes */}
+          {!isForgotOrReset && !awaitingConfirmation && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
+                <span style={{ fontSize: 14, color: '#C7C7CC' }}>or</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')}
+                style={{
+                  width: '100%',
+                  height: 48,
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  border: '1px solid rgba(0,0,0,0.12)',
+                  backgroundColor: 'transparent',
+                  color: '#1C1C1E',
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                {mode === 'signup' ? 'Log in' : 'Sign up'}
+              </button>
+            </>
+          )}
+
+          {/* Back to log in — forgot/reset modes only */}
+          {isForgotOrReset && !awaitingConfirmation && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#8DA286',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'color 200ms',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+              >
+                ← Back to log in
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Try without signing in — outside card, hide in reset mode */}
+        {mode !== 'reset' && (
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <button
+              onClick={onVisitMode}
+              style={{
+                fontSize: 14,
+                color: '#8E8E93',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                transition: 'color 200ms',
+                fontFamily: 'inherit',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+            >
+              Try Without Signing In
+            </button>
           </div>
-
-          {/* Secondary action — toggle mode */}
-          <button
-            type="button"
-            onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')}
-            style={{
-              width: '100%',
-              height: 48,
-              borderRadius: 10,
-              fontSize: 15,
-              fontWeight: 600,
-              border: '1px solid rgba(0,0,0,0.12)',
-              backgroundColor: 'transparent',
-              color: '#1C1C1E',
-              cursor: 'pointer',
-              transition: 'all 200ms',
-              fontFamily: 'inherit',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            {mode === 'signup' ? 'Log in' : 'Sign up'}
-          </button>
-        </div>
-
-        {/* Try without signing in — outside card */}
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <button
-            onClick={onVisitMode}
-            style={{
-              fontSize: 14,
-              color: '#8E8E93',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              transition: 'color 200ms',
-              fontFamily: 'inherit',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
-          >
-            Try Without Signing In
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

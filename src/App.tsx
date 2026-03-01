@@ -96,6 +96,8 @@ export default function App() {
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const isPasswordRecoveryRef = useRef(false);
   // Check URL params for deep-links from the landing site (e.g. ?mode=signup|login|visitor)
   const _urlMode = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('mode')
@@ -718,7 +720,23 @@ export default function App() {
       void setupForSession(data.session);
     });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // Password recovery: show reset form instead of entering the app
+      if (event === 'PASSWORD_RECOVERY') {
+        setSession(nextSession);
+        setIsPasswordRecovery(true);
+        isPasswordRecoveryRef.current = true;
+        setDataReady(true);
+        // Clean URL but don't run setupForSession — we want to stay on auth screen
+        if (typeof window !== 'undefined' && (window.location.hash || window.location.search.includes('code='))) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        return;
+      }
+      // Supabase fires SIGNED_IN right after PASSWORD_RECOVERY — skip it
+      if (isPasswordRecoveryRef.current && event === 'SIGNED_IN') {
+        return;
+      }
       void setupForSession(nextSession);
       // Clear code/hash from URL after successful sign-in
       if (nextSession && typeof window !== 'undefined' && (window.location.hash || window.location.search.includes('code='))) {
@@ -760,6 +778,8 @@ export default function App() {
   // Determines which top-level view to render without any routing library.
   type AppScreen = 'auth' | 'setup' | 'loading' | 'app';
   const appScreen: AppScreen = (() => {
+    // Password recovery flow: always show auth screen with reset form
+    if (isPasswordRecovery) return 'auth';
     // Dev-only: ?page=auth|setup forces a specific screen so you can preview auth flow
     if (!import.meta.env.PROD && typeof window !== 'undefined') {
       const forcePage = new URLSearchParams(window.location.search).get('page') as AppScreen | null;
@@ -808,6 +828,15 @@ export default function App() {
         supabase={supabase}
         mode={authMode}
         onVisitMode={() => setVisitMode(true)}
+        isPasswordRecovery={isPasswordRecovery}
+        onPasswordResetComplete={() => {
+          // Clear recovery flags so the normal auth flow resumes
+          setIsPasswordRecovery(false);
+          isPasswordRecoveryRef.current = false;
+          // Refresh the session — this fires onAuthStateChange with SIGNED_IN,
+          // which (with recovery flag cleared) runs setupForSession normally.
+          supabase?.auth.refreshSession();
+        }}
       />
     );
   }
