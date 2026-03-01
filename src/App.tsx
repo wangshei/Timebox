@@ -905,7 +905,7 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
+          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
             {/* Header: My Calendars label + settings + edit icons (hidden in compare mode — sidebar has its own header) */}
             {mode !== 'compare' && (
               <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>

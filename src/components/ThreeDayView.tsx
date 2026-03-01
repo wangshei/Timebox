@@ -46,6 +46,8 @@ interface ThreeDayViewProps {
   showDifferences?: boolean;
   /** When true, columns shrink to fit (no min-w-max, reduced column minWidth). Used in compare split. */
   compact?: boolean;
+  /** When true, ThreeDayView doesn't scroll internally — parent handles scrolling. */
+  disableScroll?: boolean;
 }
 
 const PRIMARY = THEME.primary;
@@ -60,7 +62,7 @@ export function ThreeDayView({
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
-  hideTimeGutter, panelLabel, locked, showDifferences, compact,
+  hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -183,7 +185,7 @@ export function ThreeDayView({
   }, [resizingBlock, onResizeBlock]);
 
   return (
-    <div className={`flex-1 ${compact ? 'overflow-y-auto overflow-x-hidden min-w-0' : 'overflow-auto'}`} style={{ backgroundColor: BG_CANVAS }}>
+    <div className={`flex-1 ${disableScroll ? 'min-w-0' : compact ? 'overflow-y-auto overflow-x-hidden min-w-0' : 'overflow-auto'}`} style={{ backgroundColor: BG_CANVAS }}>
       <div className={`flex ${compact ? 'min-w-0 w-full' : 'min-w-max'}`}>
         {/* Time column — hidden when hideTimeGutter is true (compare right panel) */}
         {!hideTimeGutter && (

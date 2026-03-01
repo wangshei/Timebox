@@ -9,6 +9,7 @@ import { ThreeDayView } from './ThreeDayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { PX_PER_HOUR } from '../utils/gridUtils';
 
 const PRIMARY = '#8DA286';
 const BG = '#FDFDFB';
@@ -79,6 +80,7 @@ export function CalendarView({
 
   // Track container width for responsive compare layout
   const containerRef = useRef<HTMLDivElement>(null);
+  const compareScrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
 
   useEffect(() => {
@@ -103,6 +105,14 @@ export function CalendarView({
       setCompareTab('actual');
     }
   }, [mode]);
+
+  // Scroll compare panels to ~7am when entering compare or changing date/view
+  useEffect(() => {
+    if (mode === 'compare' && compareScrollRef.current) {
+      const scrollTo7AM = 7 * PX_PER_HOUR;
+      compareScrollRef.current.scrollTop = scrollTo7AM;
+    }
+  }, [mode, selectedDate, view]);
 
   const todayStr = getLocalDateString();
 
@@ -219,13 +229,13 @@ export function CalendarView({
   const effectiveShowDifferences = showDifferences || (mode === 'compare' && isNarrow);
 
   // Render Plan DayView (shared between narrow/wide)
-  const renderPlanDay = () => (
-    <DayView mode="overall" timeBlocks={planBlocks} events={planEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked showDifferences={effectiveShowDifferences} />
+  const renderPlanDay = (disableScroll?: boolean) => (
+    <DayView mode="overall" timeBlocks={planBlocks} events={planEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked showDifferences={effectiveShowDifferences} disableScroll={disableScroll} />
   );
 
   // Render Actual DayView (shared between narrow/wide)
-  const renderActualDay = () => (
-    <DayView mode="compare" timeBlocks={actualBlocks} events={actualEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={handleActualCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} showDifferences={effectiveShowDifferences} />
+  const renderActualDay = (disableScroll?: boolean) => (
+    <DayView mode="compare" timeBlocks={actualBlocks} events={actualEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDropTask={onDropTask} onCreateBlock={handleActualCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} showDifferences={effectiveShowDifferences} disableScroll={disableScroll} />
   );
 
   return (
@@ -346,21 +356,27 @@ export function CalendarView({
             {compareTab === 'plan' ? renderPlanDay() : renderActualDay()}
           </div>
         ) : (
-          /* Wide day compare: plan | actual split */
-          <div className="flex-1 grid grid-cols-2 min-h-0" style={{ borderTop: `1px solid ${BORDER}` }}>
-            {/* Plan side — locked */}
-            <div className="min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
-              <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}`, ...panelLabelStyle }}>
+          /* Wide day compare: plan | actual split with shared scroll */
+          <div className="flex-1 flex flex-col min-h-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+            {/* Sticky labels row */}
+            <div className="grid grid-cols-2 shrink-0">
+              <div className="px-3 py-1.5" style={{ backgroundColor: 'rgba(0,0,0,0.03)', borderBottom: `1px solid ${BORDER}`, borderRight: `1px solid ${BORDER}`, ...panelLabelStyle }}>
                 Plan
               </div>
-              {renderPlanDay()}
-            </div>
-            {/* Actual side — editable */}
-            <div className="min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ backgroundColor: BG }}>
-              <div className="px-3 py-1.5 shrink-0" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}`, ...panelLabelStyle }}>
+              <div className="px-3 py-1.5" style={{ backgroundColor: 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${BORDER}`, ...panelLabelStyle }}>
                 Actual
               </div>
-              {renderActualDay()}
+            </div>
+            {/* Shared scroll container — both panels scroll together */}
+            <div ref={compareScrollRef} className="flex-1 overflow-y-auto min-h-0">
+              <div className="grid grid-cols-2">
+                <div className="min-w-0" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
+                  {renderPlanDay(true)}
+                </div>
+                <div className="min-w-0" style={{ backgroundColor: BG }}>
+                  {renderActualDay(true)}
+                </div>
+              </div>
             </div>
           </div>
         )
@@ -376,15 +392,18 @@ export function CalendarView({
             )}
           </div>
         ) : (
-          /* Wide 3-day compare: 3+3 split (plan left, actual right) */
-          <div className="flex-1 grid grid-cols-2 min-h-0">
-            {/* Plan: left half */}
-            <div className="min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ borderRight: `1px solid ${BORDER}` }}>
-              <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} compact />
-            </div>
-            {/* Actual: right half */}
-            <div className="min-w-0 flex flex-col min-h-0 overflow-hidden">
-              <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} compact />
+          /* Wide 3-day compare: 3+3 split (plan left, actual right) with shared scroll */
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Shared scroll container — both panels scroll together */}
+            <div ref={compareScrollRef} className="flex-1 overflow-y-auto min-h-0">
+              <div className="grid grid-cols-2">
+                <div className="min-w-0 overflow-x-hidden" style={{ borderRight: `1px solid ${BORDER}` }}>
+                  <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} compact disableScroll />
+                </div>
+                <div className="min-w-0 overflow-x-hidden">
+                  <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} compact disableScroll />
+                </div>
+              </div>
             </div>
           </div>
         )

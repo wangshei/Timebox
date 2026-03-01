@@ -219,9 +219,6 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
-                  <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </div>
                   <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
                     {day.getDate()}
                   </div>

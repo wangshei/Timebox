@@ -70,12 +70,14 @@ interface DayViewProps {
   showDifferences?: boolean;
   /** Show a sticky date header at the top of the scroll area. */
   showDateHeader?: boolean;
+  /** When true, DayView doesn't scroll internally — parent handles scrolling. */
+  disableScroll?: boolean;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -328,13 +330,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const currentTimeTop =
     currentTimeTopRaw != null ? Math.max(0, Math.min(currentTimeTopRaw, GRID_HEIGHT - 2)) : null;
 
-  // Scroll to ~7 AM on first paint
+  // Scroll to ~7 AM on first paint (skip when parent handles scrolling)
   React.useEffect(() => {
-    if (outerRef.current) {
+    if (outerRef.current && !disableScroll) {
       const scrollTo7AM = 7 * PX_PER_HOUR;
       outerRef.current.scrollTop = scrollTo7AM;
     }
-  }, []);
+  }, [disableScroll]);
 
   // Compare mode helper
   const selectedIsPast =
@@ -372,7 +374,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   return (
     <div
       ref={outerRef}
-      className={`flex-1 min-w-0 overflow-y-auto ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
+      className={`flex-1 min-w-0 ${disableScroll ? '' : 'overflow-y-auto'} ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
       style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(0,0,0,0.025)' } : undefined}
     >
       {/* Sticky date header — matches ThreeDayView's sticky day headers */}
