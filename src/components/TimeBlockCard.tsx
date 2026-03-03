@@ -197,8 +197,10 @@ function TimeBlockCardInner({
   const URGENT_BG = 'rgba(255, 59, 48, 0.07)';
   const URGENT_BORDER = 'rgba(255, 59, 48, 0.25)';
 
-  // Past + not done task blocks can't be dragged but ARE clickable (popover, confirm circle).
-  const isLockedPast = !locked && isPast && !confirmed && !skipped && isTask;
+  // Past planned blocks are frozen — the plan is history. Only actuals can change.
+  // This prevents dragging/resizing. Confirm/skip/popover still work.
+  const isPastPlanned = isPast && block.mode === 'planned';
+  const isLockedPast = !locked && isPastPlanned;
 
   const handleCircleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -625,6 +627,7 @@ function TimeBlockCardInner({
           </div>
         )}
         <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
+        {!isPastPlanned && (
         <div className="flex gap-1.5">
           {onEditBlock && (
             <button
@@ -662,6 +665,7 @@ function TimeBlockCardInner({
             </button>
           )}
         </div>
+        )}
       </div>
     </>
   );

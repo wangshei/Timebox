@@ -319,24 +319,32 @@ export default function App() {
     const taskBlocks = timeBlocks.filter((b) => b.taskId === taskId);
 
     // Toggle behaviour: if already marked done, clear status and unconfirm all blocks.
+    // Use a single atomic setState so the task doesn't flash in both done+undone sections.
     if (coreTask.status === 'done') {
-      updateTask(taskId, { status: undefined });
-      // Unconfirm all confirmed blocks so calendar cards reflect "not done"
-      taskBlocks.forEach((b) => {
-        if (b.confirmationStatus === 'confirmed') {
-          updateTimeBlock(b.id, { confirmationStatus: undefined });
-        }
-      });
+      const blockIdsToUnconfirm = new Set(
+        taskBlocks.filter((b) => b.confirmationStatus === 'confirmed').map((b) => b.id)
+      );
+      useStore.setState((s) => ({
+        tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, status: undefined } : t)),
+        timeBlocks: s.timeBlocks.map((b) =>
+          blockIdsToUnconfirm.has(b.id) ? { ...b, confirmationStatus: undefined } : b
+        ),
+      }));
       return;
     }
 
     // Mark done: persist status and confirm all planned blocks so calendar cards update too.
-    updateTask(taskId, { status: 'done' });
-    taskBlocks.forEach((b) => {
-      if (b.confirmationStatus !== 'confirmed') {
-        confirmBlock(b.id);
-      }
-    });
+    const blockIdsToConfirm = new Set(
+      taskBlocks.filter((b) => b.confirmationStatus !== 'confirmed').map((b) => b.id)
+    );
+    useStore.setState((s) => ({
+      tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, status: 'done' as const } : t)),
+      timeBlocks: s.timeBlocks.map((b) =>
+        blockIdsToConfirm.has(b.id)
+          ? { ...b, confirmationStatus: 'confirmed' as const, recordedStart: b.recordedStart ?? null, recordedEnd: b.recordedEnd ?? null }
+          : b
+      ),
+    }));
   };
 
   /** Confirm a block on the calendar AND sync the parent task's done status. */
@@ -355,13 +363,17 @@ export default function App() {
 
   /** Unconfirm a block on the calendar AND clear the parent task's done status. */
   const handleUnconfirmBlock = (blockId: string) => {
-    updateTimeBlock(blockId, { confirmationStatus: undefined });
     const block = timeBlocks.find((b) => b.id === blockId);
-    if (!block?.taskId) return;
-    const coreTask = tasks.find((t) => t.id === block.taskId);
-    if (coreTask?.status === 'done') {
-      updateTask(block.taskId, { status: undefined });
-    }
+    const shouldClearDone = block?.taskId && tasks.find((t) => t.id === block.taskId)?.status === 'done';
+    // Atomic update: unconfirm block + clear task done in one setState
+    useStore.setState((s) => ({
+      timeBlocks: s.timeBlocks.map((b) =>
+        b.id === blockId ? { ...b, confirmationStatus: undefined } : b
+      ),
+      ...(shouldClearDone
+        ? { tasks: s.tasks.map((t) => (t.id === block!.taskId ? { ...t, status: undefined } : t)) }
+        : {}),
+    }));
   };
 
   const handleAddTask = (taskData: {
@@ -570,6 +582,7 @@ export default function App() {
 
   const handleEditBlock = (blockId: string) => {
     const block = timeBlocks.find((b) => b.id === blockId);
+    if (block && isPastPlannedBlock(block)) return; // plan is frozen once past
     if (block?.taskId) {
       // Task-linked block: edit the task, not the block
       setEditingTaskId(block.taskId);
@@ -641,75 +654,103 @@ export default function App() {
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    // Check current time is before sleep time
-    if (parseTimeToMinutes(nowTime) >= parseTimeToMinutes(sleepTime)) return;
+    const durationMins = Math.max(15, defaultBlockMinutes);
 
-    const durationMins = Math.max(15, task.estimatedMinutes || defaultBlockMinutes);
-
-    const slot = findNextAvailableSlot(
-      timeBlocks,
-      events,
-      today,
-      durationMins,
-      nowTime,
-      sleepTime,
+    // Identify past pending blocks for this task (will be skipped, so exclude from occupied)
+    const pastPendingIds = new Set(
+      timeBlocks
+        .filter(
+          (b) =>
+            b.taskId === taskId &&
+            b.date === today &&
+            b.mode === 'planned' &&
+            (!b.confirmationStatus || b.confirmationStatus === 'pending') &&
+            parseTimeToMinutes(b.end) <= parseTimeToMinutes(nowTime),
+        )
+        .map((b) => b.id),
     );
+    const availableBlocks = timeBlocks.filter((b) => !pastPendingIds.has(b.id));
+
+    // Try today first (if there's still time)
+    let targetDate = today;
+    let afterTime = nowTime;
+    let slot: { start: string; end: string } | null = null;
+
+    if (parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime)) {
+      slot = findNextAvailableSlot(availableBlocks, events, today, durationMins, afterTime, sleepTime);
+    }
+
+    // If no slot today, try subsequent days (up to 7 days ahead)
+    if (!slot) {
+      const d = new Date(now);
+      for (let i = 1; i <= 7; i++) {
+        d.setDate(d.getDate() + 1);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        slot = findNextAvailableSlot(timeBlocks, events, dateStr, durationMins, wakeTime, sleepTime);
+        if (slot) {
+          targetDate = dateStr;
+          break;
+        }
+      }
+    }
 
     if (!slot) return;
 
     // Skip old past pending blocks for this task on today
-    const todayPastPending = timeBlocks.filter(
-      (b) =>
-        b.taskId === taskId &&
-        b.date === today &&
-        b.mode === 'planned' &&
-        (!b.confirmationStatus || b.confirmationStatus === 'pending') &&
-        parseTimeToMinutes(b.end) <= parseTimeToMinutes(nowTime),
-    );
-    for (const b of todayPastPending) {
-      skipBlock(b.id);
+    for (const id of pastPendingIds) {
+      skipBlock(id);
     }
 
     // Create a new planned block in the found slot
     createPlannedBlocksFromTask(taskId, {
-      date: today,
+      date: targetDate,
       startTime: slot.start,
       blockMinutes: durationMins,
       singleBlock: true,
     });
-  }, [tasks, timeBlocks, events, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask]);
+  }, [tasks, timeBlocks, events, wakeTime, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask]);
 
-  /** Reschedule a calendar block to the next available open slot later today. */
+  /** Reschedule a calendar block to the next available open slot later today, or next day. */
   const handleRescheduleBlockLater = useCallback((blockId: string) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block || !block.taskId) return;
 
     const today = getLocalDateString();
-    if (block.date !== today) return; // only reschedule today's blocks
-
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    if (parseTimeToMinutes(nowTime) >= parseTimeToMinutes(sleepTime)) return;
 
     const blockDuration = parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
     const durationMins = Math.max(15, blockDuration);
 
     // Exclude this block from occupied list so its time slot is considered free
     const otherBlocks = timeBlocks.filter((b) => b.id !== blockId);
-    const slot = findNextAvailableSlot(
-      otherBlocks,
-      events,
-      today,
-      durationMins,
-      nowTime,
-      sleepTime,
-    );
+
+    // Try today first
+    let targetDate = today;
+    let slot: { start: string; end: string } | null = null;
+
+    if (parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime)) {
+      slot = findNextAvailableSlot(otherBlocks, events, today, durationMins, nowTime, sleepTime);
+    }
+
+    // If no slot today, try subsequent days (up to 7 days ahead)
+    if (!slot) {
+      const d = new Date(now);
+      for (let i = 1; i <= 7; i++) {
+        d.setDate(d.getDate() + 1);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        slot = findNextAvailableSlot(otherBlocks, events, dateStr, durationMins, wakeTime, sleepTime);
+        if (slot) {
+          targetDate = dateStr;
+          break;
+        }
+      }
+    }
 
     if (!slot) return;
 
-    updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: today });
-  }, [timeBlocks, events, sleepTime, updateTimeBlock]);
+    updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: targetDate });
+  }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock]);
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
@@ -817,9 +858,24 @@ export default function App() {
   const minsToTime = (mins: number) =>
     `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
+  // A planned block whose end time is in the past should be frozen (the "plan" is history).
+  // Only actual/recorded data (confirm, skip, truncate actuals) may change.
+  const isPastPlannedBlock = (block: import('./types').TimeBlock) => {
+    if (block.mode !== 'planned') return false;
+    const today = getLocalDateString();
+    if (block.date < today) return true;
+    if (block.date === today) {
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      return parseTimeToMins(block.end) <= nowMins;
+    }
+    return false;
+  };
+
   const handleMoveBlock = (blockId: string, params: { date: string; startTime: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
+    if (isPastPlannedBlock(block)) return; // plan is frozen once past
     if (!(block.title ?? '').trim() && !block.taskId) {
       setEditingTaskId(null);
       setEditingTimeBlockId(blockId);
@@ -837,11 +893,18 @@ export default function App() {
   const handleResizeBlock = (blockId: string, params: { date: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
+    if (isPastPlannedBlock(block)) return; // plan is frozen once past
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(block.start)) return;
     if (block.mode === 'recorded') {
       if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
     }
     updateTimeBlock(blockId, { date: params.date, end: params.endTime });
+  };
+
+  const handleDeleteBlock = (blockId: string) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (block && isPastPlannedBlock(block)) return; // plan is frozen once past
+    deleteTimeBlock(blockId);
   };
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
@@ -1728,7 +1791,7 @@ export default function App() {
           onConfirm={handleConfirmBlock}
           onSkip={skipBlock}
           onUnconfirm={handleUnconfirmBlock}
-          onDeleteBlock={deleteTimeBlock}
+          onDeleteBlock={handleDeleteBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
@@ -1832,7 +1895,7 @@ export default function App() {
                 onDeleteTask={deleteTask}
                 onMarkTaskDone={handleMarkTaskDone}
                 onOpenAddModal={handleOpenAddModal}
-                onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
+                onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
                 onTogglePin={(taskId) => {
@@ -1871,7 +1934,7 @@ export default function App() {
           onConfirm={handleConfirmBlock}
           onSkip={skipBlock}
           onUnconfirm={handleUnconfirmBlock}
-          onDeleteBlock={deleteTimeBlock}
+          onDeleteBlock={handleDeleteBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
@@ -1904,7 +1967,7 @@ export default function App() {
           onDeleteTask={deleteTask}
           onMarkTaskDone={handleMarkTaskDone}
           onOpenAddModal={handleOpenAddModal}
-          onDropBlock={mode === 'overall' ? deleteTimeBlock : undefined}
+          onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
           onBreakIntoChunks={handleBreakIntoChunks}
           onSplitTask={handleSplitTask}
           onTogglePin={(taskId) => {
