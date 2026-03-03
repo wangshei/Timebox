@@ -108,6 +108,7 @@ export default function App() {
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
   const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const sessionRef = useRef<Session | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const isPasswordRecoveryRef = useRef(false);
   // Check URL params for deep-links from the landing site (e.g. ?mode=signup|login|visitor)
@@ -511,12 +512,24 @@ export default function App() {
   };
 
   const handleEditBlock = (blockId: string) => {
-    setEditingTaskId(null);
-    setEditingTimeBlockId(blockId);
-    setEditingEventId(null);
-    setIsDraftTimeBlock(false);
-    setAddModalMode('event');
-    setIsAddModalOpen(true);
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (block?.taskId) {
+      // Task-linked block: edit the task, not the block
+      setEditingTaskId(block.taskId);
+      setEditingTimeBlockId(null);
+      setEditingEventId(null);
+      setIsDraftTimeBlock(false);
+      setAddModalMode('task');
+      setIsAddModalOpen(true);
+    } else {
+      // Standalone block: edit as event
+      setEditingTaskId(null);
+      setEditingTimeBlockId(blockId);
+      setEditingEventId(null);
+      setIsDraftTimeBlock(false);
+      setAddModalMode('event');
+      setIsAddModalOpen(true);
+    }
   };
 
   const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
@@ -545,8 +558,12 @@ export default function App() {
       const [h, m] = t.split(':').map(Number);
       return (h ?? 0) * 60 + (m ?? 0);
     };
+    const todayLocal = getLocalDateString();
+    // Only count future planned blocks toward the budget (past unconfirmed blocks
+    // are effectively "returned" to the backlog and shouldn't block re-scheduling)
     const planned = timeBlocks
-      .filter((b) => b.taskId === taskId && b.mode === 'planned')
+      .filter((b) => b.taskId === taskId && b.mode === 'planned' &&
+        (b.date > todayLocal || b.confirmationStatus === 'confirmed'))
       .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
     const recorded = timeBlocks
       .filter((b) => b.taskId === taskId && b.mode === 'recorded')
@@ -699,6 +716,7 @@ export default function App() {
 
     const setupForSession = async (next: Session | null) => {
       setSession(next);
+      sessionRef.current = next;
       setDataReady(false);
       if (unsubscribePersistence) {
         unsubscribePersistence();
@@ -764,10 +782,11 @@ export default function App() {
       if (isPasswordRecoveryRef.current && event === 'SIGNED_IN') {
         return;
       }
-      // TOKEN_REFRESHED fires on tab switch — just update the session reference
-      // without reloading all data, to avoid a full app reload on every tab switch.
-      if (event === 'TOKEN_REFRESHED') {
+      // TOKEN_REFRESHED and SIGNED_IN fire on tab switch when Supabase refreshes
+      // the JWT. Just update the session reference without reloading all data.
+      if (event === 'TOKEN_REFRESHED' || (event === 'SIGNED_IN' && sessionRef.current)) {
         setSession(nextSession);
+        sessionRef.current = nextSession;
         return;
       }
       void setupForSession(nextSession);

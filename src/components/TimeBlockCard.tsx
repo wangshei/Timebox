@@ -574,14 +574,23 @@ function TimeBlockCardInner({
               Edit
             </button>
           )}
-          {onDeleteBlock && (
+          {(onDeleteBlock || (onDeleteTask && block.taskId)) && (
             <button
               type="button"
               className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
               style={{ color: '#B85050', backgroundColor: 'transparent' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-              onClick={(e) => { e.stopPropagation(); onDeleteBlock(block.id); setShowPopover(false); doDeselect(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (block.taskId && onDeleteTask) {
+                  onDeleteTask(block.taskId);
+                } else {
+                  onDeleteBlock?.(block.id);
+                }
+                setShowPopover(false);
+                doDeselect();
+              }}
             >
               <TrashIcon className="h-3.5 w-3.5" />
               Delete

@@ -14,6 +14,7 @@ import {
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { activeDrag } from '../utils/dragState';
+import { useStore } from '../store/useStore';
 
 export { SNAP_MINUTES_UTIL as SNAP_MINUTES };
 const DEFAULT_DROP_MINUTES = 15;
@@ -380,7 +381,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   return (
     <div
       ref={outerRef}
-      className={`flex-1 min-w-0 ${disableScroll ? '' : 'overflow-y-auto'} ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
+      className={`flex-1 min-w-0 ${disableScroll || showDateHeader ? '' : 'overflow-y-auto'} ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
       style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(0,0,0,0.025)' } : undefined}
     >
       {/* Sticky date header — matches ThreeDayView's sticky day headers */}

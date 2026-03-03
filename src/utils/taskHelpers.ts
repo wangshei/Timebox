@@ -104,9 +104,11 @@ export function getUnscheduledTasks(tasks: Task[], timeBlocks: TimeBlock[]): Tas
     // This catches tasks that were marked done then unmarked, so they reappear in backlog.
     if (recorded === 0 && task.status !== 'done') {
       const taskBlocks = timeBlocks.filter(b => b.taskId === task.id && b.mode === 'planned');
-      const allPastOrToday = taskBlocks.length > 0 && taskBlocks.every(b => b.date <= today);
+      // Only treat blocks as expired if they're strictly before today.
+      // Today's blocks are still active and shouldn't return to the backlog.
+      const allPast = taskBlocks.length > 0 && taskBlocks.every(b => b.date < today);
       const noneConfirmed = taskBlocks.every(b => b.confirmationStatus !== 'confirmed');
-      if (allPastOrToday && noneConfirmed) return true;
+      if (allPast && noneConfirmed) return true;
     }
     return false;
   });
