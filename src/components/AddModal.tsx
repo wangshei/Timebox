@@ -418,19 +418,19 @@ export function AddModal({
 
   const maxH = typeof window !== 'undefined' ? (window.innerHeight * PANEL_MAX_HEIGHT) / 100 : 560;
 
+  const isMobileModal = typeof window !== 'undefined' && window.innerWidth < 1024;
+
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
       {/* Light backdrop — click to close, calendar stays visible */}
       <div className="absolute inset-0 bg-black/15 pointer-events-auto" onClick={onClose} aria-hidden />
 
-      {/* Draggable panel — Monet warm canvas theme */}
+      {/* Draggable panel — Monet warm canvas theme; centered on mobile */}
       <div
-        className="absolute pointer-events-auto flex flex-col overflow-hidden"
+        className={`pointer-events-auto flex flex-col overflow-hidden ${isMobileModal ? 'fixed inset-x-4 top-[8vh]' : 'absolute'}`}
         style={{
-          left: panelPos.x,
-          top: panelPos.y,
-          width: `${PANEL_WIDTH}px`,
-          maxWidth: 'calc(100vw - 32px)',
+          ...(isMobileModal ? {} : { left: panelPos.x, top: panelPos.y, width: `${PANEL_WIDTH}px` }),
+          maxWidth: isMobileModal ? undefined : 'calc(100vw - 32px)',
           maxHeight: maxH,
           backgroundColor: '#FFFFFF',
           borderRadius: '16px',
@@ -438,11 +438,12 @@ export function AddModal({
           boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05)',
         }}
       >
-        {/* Drag header */}
+        {/* Drag header (drag disabled on mobile) */}
         <div
           className="flex items-center gap-2 px-4 py-2.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
+            if (isMobileModal) return;
             if ((e.target as HTMLElement).closest('button')) return;
             setIsDragging(true);
             dragStart.current = { x: e.clientX, y: e.clientY, left: panelPos.x, top: panelPos.y };

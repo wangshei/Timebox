@@ -105,6 +105,13 @@ export function CalendarView({
 
   const isNarrow = containerWidth < NARROW_BREAKPOINT;
 
+  // If mobile and stuck on week view (e.g. resized window), auto-switch to day
+  useEffect(() => {
+    if (isMobile && view === 'week') {
+      onViewChange('day');
+    }
+  }, [isMobile, view, onViewChange]);
+
   // Reset state when leaving compare mode
   useEffect(() => {
     if (mode !== 'compare') {
@@ -336,22 +343,20 @@ export function CalendarView({
 
           {/* Right: today + view selector */}
           <div className="flex items-center gap-2">
-            {!isMobile && (
-              <button
-                onClick={navigateToday}
-                className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1 font-medium"
-                style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
-              >
-                <CalendarIcon className="h-3.5 w-3.5" />
-                Today
-              </button>
-            )}
+            <button
+              onClick={navigateToday}
+              className={`${isMobile ? 'px-2 py-1.5 text-[11px]' : 'px-3 py-1.5 text-xs'} rounded-lg transition-colors flex items-center gap-1 font-medium touch-manipulation`}
+              style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
+            >
+              {!isMobile && <CalendarIcon className="h-3.5 w-3.5" />}
+              Today
+            </button>
 
             <SegmentedControl
               options={isMobile
-                ? VIEW_OPTIONS.map(o => ({ ...o, label: o.shortLabel ?? o.label }))
+                ? VIEW_OPTIONS.filter(o => o.value !== 'week').map(o => ({ ...o, label: o.shortLabel ?? o.label }))
                 : VIEW_OPTIONS}
               value={view}
               onChange={onViewChange}

@@ -447,7 +447,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     <option value="producthunt">Product Hunt</option>
                     <option value="friend">Friend or colleague</option>
                     <option value="search">Google / search</option>
-                    <option value="youtube">YouTube</option>
+                    <option value="youtube">LinkedIn</option>
+                    <option value="youtube">Substack</option>
                     <option value="tiktok">TikTok</option>
                     <option value="other">Other</option>
                   </select>
