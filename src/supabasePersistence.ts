@@ -4,6 +4,16 @@ import { DEFAULT_PALETTE_COLOR } from './constants/colors';
 import { getLocalTimeZone } from './utils/dateTime';
 import type { Task, TimeBlock, CalendarContainer, Category, Tag, Event } from './types';
 
+/** Delete the current user's account via the database function.
+ *  Requires the `delete_own_account` RPC (see docs/SUPABASE_SETUP.md). */
+export async function deleteOwnAccount(): Promise<{ error: string | null }> {
+  if (!supabase) return { error: 'Supabase not configured' };
+  const { error } = await supabase.rpc('delete_own_account');
+  if (error) return { error: error.message };
+  await supabase.auth.signOut();
+  return { error: null };
+}
+
 function generateId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 9);
@@ -136,7 +146,7 @@ export async function loadSupabaseState() {
         : prev.containerVisibility;
     return {
       ...prev,
-      hasCompletedSetup: hasCompletedSetupFromDb ? true : prev.hasCompletedSetup,
+      hasCompletedSetup: hasCompletedSetupFromDb,
       calendarContainers,
       containerVisibility: visibility,
       categories: categories.map(
@@ -471,8 +481,10 @@ export function startSupabasePersistence() {
     const userId = await getCurrentUserId();
     if (!userId) {
       // eslint-disable-next-line no-console
-      console.warn('[supabasePersistence] Skipping save — not signed in.');
+      console.warn('[supabasePersistence] Skipping save — user deleted or not signed in. Forcing sign-out.');
       useStore.getState().setSessionExpired(true);
+      // Force sign-out so stale JWT is cleared and UI shows auth screen
+      void supabase!.auth.signOut();
       saving = false;
       return;
     }

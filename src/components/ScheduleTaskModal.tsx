@@ -65,7 +65,7 @@ export function ScheduleTaskModal({
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         >
           <h2 className="text-base font-semibold" style={{ color: '#1C1C1E' }}>
-            Schedule{taskTitle ? `: ${taskTitle}` : ' task'}
+            Schedule{taskTitle ? `: ${taskTitle}` : ' todo'}
           </h2>
           <button
             type="button"
@@ -130,7 +130,7 @@ export function ScheduleTaskModal({
             <button
               type="submit"
               className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+              style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
             >

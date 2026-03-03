@@ -289,7 +289,7 @@ export function TaskCard({
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onScheduleTask?.(); setShowPopover(false); }}>
           <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
-          {recordedMins > 0 ? 'Schedule again' : 'Schedule task'}
+          {recordedMins > 0 ? 'Schedule again' : 'Schedule todo'}
         </button>
 
         {onMarkTaskDone && (
@@ -321,7 +321,7 @@ export function TaskCard({
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onDeleteTask?.(); setShowPopover(false); }}>
           <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
-          Delete task
+          Delete todo
         </button>
       </div>
     </div>

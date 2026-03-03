@@ -121,7 +121,8 @@ create table if not exists events (
   recurrence_series_id uuid,  -- for "all after" edits: id of first event in series
   link text,
   description text,
-  notes text            -- quick inline notes
+  notes text,           -- quick inline notes
+  source text           -- 'manual' | 'unplanned'
 );
 
 -- User settings (one row per user); timezone is IANA e.g. America/Los_Angeles
@@ -188,8 +189,9 @@ alter table time_blocks add column if not exists recorded_start text;
 alter table time_blocks add column if not exists recorded_end text;
 alter table time_blocks add column if not exists notes text;
 
--- Events: notes
+-- Events: notes + source
 alter table events add column if not exists notes text;
+alter table events add column if not exists source text;
 
 -- Bug reports table (if not created with base schema)
 create table if not exists bug_reports (
@@ -411,6 +413,25 @@ create index if not exists idx_tasks_user on tasks (user_id);
 create index if not exists idx_categories_user on categories (user_id);
 create index if not exists idx_tags_user on tags (user_id);
 ```
+
+---
+
+## 6. Account deletion (self-service)
+
+The app allows users to delete their own account from the profile menu. This requires a database function with `security definer` so it can delete from `auth.users`. Run this in the **SQL Editor**:
+
+```sql
+create or replace function delete_own_account()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+```
+
+All user data is cascade-deleted automatically (every table has `on delete cascade` on the `user_id` foreign key). The app calls this via `supabase.rpc('delete_own_account')` then signs out.
 
 ---
 

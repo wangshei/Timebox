@@ -128,7 +128,7 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
               <button
                 onClick={handleClose}
                 className="mt-1 px-6 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+                style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
               >
@@ -220,7 +220,7 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
                   type="submit"
                   disabled={!description.trim() || status === 'submitting'}
                   className="px-5 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-                  style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+                  style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
                   onMouseEnter={(e) => {
                     if (description.trim() && status !== 'submitting') {
                       e.currentTarget.style.backgroundColor = '#7A9278';

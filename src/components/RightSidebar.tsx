@@ -230,7 +230,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold" style={{ color: THEME.textPrimary }}>
-            Task view
+            Todo view
           </span>
           <div className="flex gap-1">
             {(['today', 'week'] as const).map((range) => (

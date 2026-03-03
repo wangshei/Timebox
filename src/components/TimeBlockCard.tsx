@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, memo } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -85,6 +85,19 @@ function TimeBlockCardInner({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const POPOVER_MARGIN = 6;
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!showPopover || !isSelected) return;
+    const close = (e: PointerEvent) => {
+      if (blockRef.current?.contains(e.target as Node)) return;
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      setShowPopover(false);
+      doDeselect();
+    };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [showPopover, isSelected]);
 
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !blockRef.current || !popoverRef.current) return;

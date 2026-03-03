@@ -26,6 +26,10 @@ interface AddModalProps {
   editingEvent?: Event | null;
   /** Pre-selected scope for editing a recurring event (passed from the scope picker popup). */
   initialRecurrenceEditScope?: 'this' | 'all' | 'all_after';
+  /** Pre-fill date/time from drag-to-create (used when adding, not editing). */
+  initialDate?: string | null;
+  initialStartTime?: string | null;
+  initialEndTime?: string | null;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -86,6 +90,9 @@ export function AddModal({
   onRequireCalendar,
   onAddCategory,
   onAddTag,
+  initialDate = null,
+  initialStartTime = null,
+  initialEndTime = null,
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -236,14 +243,17 @@ export function AddModal({
     }
   }, [isOpen, editingEvent?.id]); // categories intentionally omitted to avoid form reset on add
 
-  // Reset add mode when modal opens (unless editing).
+  // Reset add mode when modal opens (unless editing). Prefill date/time from drag-to-create.
   useEffect(() => {
     if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(initialMode);
       setPinned(false);
       setPriority(undefined);
+      if (initialDate) setDate(initialDate);
+      if (initialStartTime) setStartTime(initialStartTime);
+      if (initialEndTime) setEndTime(initialEndTime);
     }
-  }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent]);
+  }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent, initialDate, initialStartTime, initialEndTime]);
 
   // Keep category in sync with selected calendar: when opening for new event/task, or when user changes calendar, use first category for that calendar.
   useEffect(() => {
@@ -437,7 +447,7 @@ export function AddModal({
             <div style={{ display: 'flex' }}>
               <SegmentedControl
                 options={[
-                  { value: 'task' as AddMode, label: 'Task' },
+                  { value: 'task' as AddMode, label: 'Todo' },
                   { value: 'event' as AddMode, label: 'Event' },
                 ]}
                 value={mode}
@@ -447,7 +457,7 @@ export function AddModal({
             </div>
             <p className="text-[10px] px-1" style={{ color: '#8E8E93' }}>
               {mode === 'task'
-                ? 'Tasks are flexible — schedule them anytime'
+                ? 'Todos are flexible — schedule them anytime'
                 : 'Events are fixed — they happen at a set time'}
             </p>
           </div>
@@ -460,7 +470,7 @@ export function AddModal({
         >
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Task Title' : 'Event Title'}</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Todo Title' : 'Event Title'}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} autoFocus />
           </div>
 
@@ -829,10 +839,10 @@ export function AddModal({
               type="submit"
               disabled={!title.trim() || (!selectedCategory && !categoryInput.trim())}
               className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-              style={{ backgroundColor: '#8DA286', color: '#1C1C1E' }}
+              style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save Task' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Task' : 'Event'}`}
+              {mode === 'task' && editingTask ? 'Save Todo' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Todo' : 'Event'}`}
             </button>
           </div>
         </form>

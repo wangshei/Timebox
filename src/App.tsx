@@ -33,7 +33,7 @@ import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
-import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase } from './supabasePersistence';
+import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, deleteOwnAccount } from './supabasePersistence';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { THEME } from './constants/colors';
 
@@ -74,6 +74,9 @@ export interface TimeBlock {
 export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
+  const [addModalInitialDate, setAddModalInitialDate] = useState<string | null>(null);
+  const [addModalInitialStart, setAddModalInitialStart] = useState<string | null>(null);
+  const [addModalInitialEnd, setAddModalInitialEnd] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -86,6 +89,9 @@ export default function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [bugText, setBugText] = useState('');
   const [bugStatus, setBugStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -573,51 +579,17 @@ export default function App() {
   }, [timeBlocks]);
 
   const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; isRecordedPanel?: boolean }) => {
-    let containerId = calendarContainers[0]?.id;
-    if (!containerId) {
-      // Should not normally happen, but create a default calendar as a fallback.
-      addCalendarContainer({ name: 'Personal', color: '#8DA387' });
-      containerId = useStore.getState().calendarContainers[0]?.id;
-      if (!containerId) return undefined;
-    }
-    const categoriesForContainer = categories.filter(
-      (c) =>
-        c.calendarContainerId === containerId ||
-        (c.calendarContainerIds && c.calendarContainerIds.length > 0 && c.calendarContainerIds.includes(containerId))
-    );
-    let categoryId = categoriesForContainer[0]?.id ?? categories[0]?.id;
-    if (!categoryId) {
-      // No categories exist — create a default one so drag-to-create works.
-      const newCat = addCategory({ name: 'General', color: '#6b7280', calendarContainerId: containerId, calendarContainerIds: [containerId] });
-      categoryId = newCat.id;
-    }
-    if (!categoryId) return undefined;
-    const todayStr = getLocalDateString();
-    const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
-    const [eh, em] = params.endTime.split(':').map(Number);
-    const endMins = (eh ?? 0) * 60 + (em ?? 0);
-    const isPastSlot = params.date < todayStr || (params.date === todayStr && endMins <= nowMins);
-    // Blocks from actual/recorded panel or past slots are unplanned actual entries
-    const isActual = isPastSlot || !!params.isRecordedPanel;
-    const id = addTimeBlock({
-      title: '',
-      calendarContainerId: containerId,
-      categoryId,
-      tagIds: [],
-      start: params.startTime,
-      end: params.endTime,
-      date: params.date,
-      mode: 'planned',
-      source: isActual ? 'unplanned' : 'manual',
-      confirmationStatus: isActual ? 'confirmed' : undefined,
-    });
-    // Immediately open the Add Event popup to fill in details; delete draft on cancel.
+    // Open the Add modal (with Task/Event toggle) pre-filled with the dragged time slot.
     setEditingTaskId(null);
-    setEditingTimeBlockId(id);
-    setIsDraftTimeBlock(true);
+    setEditingTimeBlockId(null);
+    setEditingEventId(null);
+    setIsDraftTimeBlock(false);
+    setAddModalInitialDate(params.date);
+    setAddModalInitialStart(params.startTime);
+    setAddModalInitialEnd(params.endTime);
     setAddModalMode('event');
     setIsAddModalOpen(true);
-    return id;
+    return undefined;
   };
 
   const parseTimeToMins = (t: string) => {
@@ -697,6 +669,15 @@ export default function App() {
         unsubscribePersistence();
         unsubscribePersistence = undefined;
       }
+      if (!next) {
+        // Signed out: reset onboarding flags so a new user on this browser
+        // doesn't inherit the previous user's completed-setup state.
+        useStore.setState({ hasCompletedSetup: false, userName: '', onboardingTourComplete: false });
+        // The persistence subscription was already unsubscribed above, so the
+        // state reset above won't be written to localStorage automatically.
+        // Clear localStorage directly so the next sign-in starts fresh.
+        try { window.localStorage.removeItem('timebox-state-v2'); } catch { /* ignore */ }
+      }
       if (next) {
         // Clear stale error flags on fresh sign-in
         setSessionExpired(false);
@@ -716,8 +697,19 @@ export default function App() {
       setDataReady(true);
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      void setupForSession(data.session);
+    // Validate the session server-side (getUser hits the API, unlike getSession
+    // which only reads the cached JWT). This ensures deleted users are signed out.
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error || !data.user) {
+        // Token is invalid or user was deleted — clear the stale session
+        void supabase!.auth.signOut();
+        void setupForSession(null);
+      } else {
+        // User is valid — get the full session object
+        supabase!.auth.getSession().then(({ data: sessionData }) => {
+          void setupForSession(sessionData.session);
+        });
+      }
     });
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
@@ -735,6 +727,12 @@ export default function App() {
       }
       // Supabase fires SIGNED_IN right after PASSWORD_RECOVERY — skip it
       if (isPasswordRecoveryRef.current && event === 'SIGNED_IN') {
+        return;
+      }
+      // TOKEN_REFRESHED fires on tab switch — just update the session reference
+      // without reloading all data, to avoid a full app reload on every tab switch.
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(nextSession);
         return;
       }
       void setupForSession(nextSession);
@@ -791,7 +789,8 @@ export default function App() {
     // Visitor or logged-in: check setup state
     if (!hasCompletedSetup) {
       // Existing user with meaningful data → show app + one-time migration modal
-      if (session && (tasks.length > 0 || categories.length > 0 || calendarContainers.length > 1)) {
+      // (don't count the auto-bootstrapped default calendar/category)
+      if (session && (tasks.length > 0 || categories.length > 1 || calendarContainers.length > 1)) {
         return 'app';
       }
       return 'setup';                                    // new user (logged-in or visitor)
@@ -1180,18 +1179,32 @@ export default function App() {
                       </div>
                     </div>
                     {session ? (
-                      <button
-                        type="button"
-                        onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
-                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M10 8H2M2 8L5 5M2 8l3 3" /><path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
-                        </svg>
-                        Sign out
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
+                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 8H2M2 8L5 5M2 8l3 3" /><path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
+                          </svg>
+                          Sign out
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowProfileMenu(false); setShowDeleteAccount(true); setDeleteConfirmText(''); setDeleteStatus('idle'); }}
+                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#B85050', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit', borderTop: '1px solid rgba(0,0,0,0.07)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.05)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 0 1 1.34-1.34h2.66a1.33 1.33 0 0 1 1.34 1.34V4M12 5.33v8a1.33 1.33 0 0 1-1.33 1.34H5.33A1.33 1.33 0 0 1 4 13.33v-8" />
+                          </svg>
+                          Delete account
+                        </button>
+                      </>
                     ) : (
                       <button
                         type="button"
@@ -1206,6 +1219,97 @@ export default function App() {
                         Sign in to save data
                       </button>
                     )}
+                  </div>
+                </>
+              )}
+
+              {/* Delete account confirmation dialog */}
+              {showDeleteAccount && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 500, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onClick={() => { if (deleteStatus !== 'loading') { setShowDeleteAccount(false); } }}
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        width: 400, maxWidth: 'calc(100vw - 48px)', borderRadius: 16, backgroundColor: '#FFFFFF',
+                        border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
+                        padding: 28, display: 'flex', flexDirection: 'column', gap: 16,
+                      }}
+                    >
+                      <div>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#B85050', margin: '0 0 6px' }}>Delete your account?</h3>
+                        <p style={{ fontSize: 13, color: '#636366', margin: 0, lineHeight: 1.6 }}>
+                          This will permanently delete your account and all your data. This action cannot be undone.
+                        </p>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 500, color: '#8E8E93', display: 'block', marginBottom: 8 }}>
+                          Type <span style={{ fontWeight: 700, color: '#1C1C1E' }}>I want to delete my account permanently</span> to confirm
+                        </label>
+                        <input
+                          type="text"
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          disabled={deleteStatus === 'loading'}
+                          placeholder="Type the phrase above"
+                          style={{
+                            width: '100%', height: 40, padding: '0 12px', fontSize: 13, borderRadius: 8,
+                            border: '1.5px solid rgba(0,0,0,0.12)', outline: 'none', fontFamily: 'inherit',
+                            backgroundColor: deleteStatus === 'loading' ? '#F5F4F0' : '#FFFFFF',
+                            boxSizing: 'border-box' as const,
+                          }}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(184,80,80,0.5)'; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                          autoFocus
+                        />
+                      </div>
+                      {deleteStatus === 'error' && (
+                        <p style={{ fontSize: 12, color: '#B85050', margin: 0, padding: '6px 10px', borderRadius: 8, backgroundColor: 'rgba(255,59,48,0.06)' }}>
+                          Failed to delete account. Please try again or contact support.
+                        </p>
+                      )}
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteAccount(false)}
+                          disabled={deleteStatus === 'loading'}
+                          style={{
+                            padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8,
+                            border: '1px solid rgba(0,0,0,0.12)', backgroundColor: 'transparent', color: '#636366',
+                            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 200ms',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={deleteConfirmText !== 'I want to delete my account permanently' || deleteStatus === 'loading'}
+                          onClick={async () => {
+                            setDeleteStatus('loading');
+                            const { error } = await deleteOwnAccount();
+                            if (error) {
+                              setDeleteStatus('error');
+                            } else {
+                              setShowDeleteAccount(false);
+                              setSession(null);
+                            }
+                          }}
+                          style={{
+                            padding: '8px 16px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                            border: 'none', cursor: deleteConfirmText === 'I want to delete my account permanently' && deleteStatus !== 'loading' ? 'pointer' : 'default',
+                            fontFamily: 'inherit', transition: 'all 200ms',
+                            backgroundColor: deleteConfirmText === 'I want to delete my account permanently' ? '#D32F2F' : '#E0E0E0',
+                            color: deleteConfirmText === 'I want to delete my account permanently' ? '#FFFFFF' : '#9E9E9E',
+                            opacity: deleteStatus === 'loading' ? 0.6 : 1,
+                          }}
+                        >
+                          {deleteStatus === 'loading' ? 'Deleting...' : 'Delete my account'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -1649,6 +1753,9 @@ export default function App() {
           setEditingEventId(null);
           setIsDraftTimeBlock(false);
           setPendingRecurrenceEditScope('this');
+          setAddModalInitialDate(null);
+          setAddModalInitialStart(null);
+          setAddModalInitialEnd(null);
         }}
         categories={categories}
         tags={tags}
@@ -1658,6 +1765,9 @@ export default function App() {
         editingTimeBlock={editingTimeBlock}
         editingEvent={editingEvent}
         initialRecurrenceEditScope={pendingRecurrenceEditScope}
+        initialDate={addModalInitialDate}
+        initialStartTime={addModalInitialStart}
+        initialEndTime={addModalInitialEnd}
         onAddTask={handleAddTask}
         onUpdateTask={updateTask}
         onUpdateEvent={(id, updates) => {
@@ -1678,7 +1788,21 @@ export default function App() {
                 .map((e) => ({ id: e.id, changes: sharedUpdates }))
             );
           } else {
-            updateEvent(id, eventUpdates);
+            // Check if a singular event is becoming recurring
+            const eu = eventUpdates as typeof eventUpdates & { recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+            const isBecomingRecurring = eu.recurring && eu.recurrencePattern && eu.recurrencePattern !== 'none' && !event?.recurrenceSeriesId;
+            if (isBecomingRecurring && event) {
+              const seriesId = crypto.randomUUID();
+              const eventDate = (eventUpdates as any).date ?? event.date;
+              const dates = generateRecurrenceDates(eventDate, eu.recurrencePattern!, eu.recurrenceDays);
+              // Update the original event with series ID
+              updateEvent(id, { ...eventUpdates, recurrenceSeriesId: seriesId });
+              // Add new events for the remaining dates
+              const { id: _id, ...baseWithoutId } = { ...event, ...eventUpdates, recurrenceSeriesId: seriesId };
+              addEvents(dates.filter((d) => d !== eventDate).map((date) => ({ ...baseWithoutId, date })));
+            } else {
+              updateEvent(id, eventUpdates);
+            }
           }
         }}
         onUpdateTimeBlock={(id, updates) => {
@@ -1746,7 +1870,7 @@ export default function App() {
               <button
                 type="button"
                 className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-                style={{ backgroundColor: '#8DA286', color: THEME.textPrimary }}
+                style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
                 onClick={() => setRecordingOverlapWarning(null)}
