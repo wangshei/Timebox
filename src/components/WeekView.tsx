@@ -52,23 +52,6 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
-  // Refs for scroll-sync between the fixed time column and the scrollable grid
-  const gridRef = React.useRef<HTMLDivElement>(null);
-  const timeColInnerRef = React.useRef<HTMLDivElement>(null);
-  const headerInnerRef = React.useRef<HTMLDivElement>(null);
-
-  const handleGridScroll = React.useCallback(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    // Sync time column vertical position via transform (overflow:hidden wrapper)
-    if (timeColInnerRef.current) {
-      timeColInnerRef.current.style.transform = `translateY(-${grid.scrollTop}px)`;
-    }
-    // Sync date header horizontal position via transform
-    if (headerInnerRef.current) {
-      headerInnerRef.current.style.transform = `translateX(-${grid.scrollLeft}px)`;
-    }
-  }, []);
 
   const weekDays = React.useMemo(() => {
     const startOfWeek = getStartOfWeek(currentDate, weekStartsOnMonday);
@@ -230,16 +213,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: '#FDFDFB' }}>
-      {/* Fixed header row: time gutter + date cells (sticks to top of calendar panel) */}
+    <div style={{ backgroundColor: '#FDFDFB' }}>
+      {/* Sticky header row — stays pinned at top while parent scrolls */}
       <div
-        className="flex flex-shrink-0"
+        className="flex sticky top-0 z-20"
         style={{
           borderBottom: '1px solid rgba(0,0,0,0.07)',
           backgroundColor: '#FDFDFB',
-          zIndex: 20,
-          position: 'sticky',
-          top: 0,
         }}
       >
         {/* Time gutter spacer (matches time column width) */}
@@ -250,23 +230,22 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
             borderRight: '1px solid rgba(0,0,0,0.07)',
           }}
         />
-        {/* Day headers — overflow hidden so transform-based horizontal sync doesn't leak */}
-        <div className="flex-1 overflow-hidden">
-          <div ref={headerInnerRef} className="flex" style={{ minWidth: 'max-content' }}>
+        {/* Date headers */}
+        <div className="flex flex-1">
             {weekDays.map((day, dayIndex) => {
               const today = isToday(day);
               return (
                 <div
                   key={dayIndex}
-                  className="min-w-[90px] md:min-w-0 h-9 md:h-10 px-1.5 md:px-2 py-1.5 flex flex-col justify-center gap-1"
+                  className="flex-1 flex flex-col px-1.5 md:px-2"
                   style={{
-                    width: `${100 / 7}%`,
+                    height: 48,
                     minWidth: 90,
                     borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
                     backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
                   }}
                 >
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 pt-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
                         {day.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -288,22 +267,20 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 </div>
               );
             })}
-          </div>
         </div>
       </div>
 
-      {/* Body: fixed time column (left) + scrollable day grid (right) */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Time column — fixed left, does not scroll; inner div translates vertically in sync with grid */}
+      {/* Body: time column + day grids (scrolls with parent) */}
+      <div className="flex">
+        {/* Time column */}
         <div
-          className="flex-shrink-0 overflow-hidden"
+          className="flex-shrink-0 py-2"
           style={{
             width: 52,
             borderRight: '1px solid rgba(0,0,0,0.07)',
             backgroundColor: '#FDFDFB',
           }}
         >
-          <div ref={timeColInnerRef} className="py-2" style={{ willChange: 'transform' }}>
             {hours.map((hour) => (
               <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
                 <div
@@ -320,19 +297,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 </div>
               </div>
             ))}
-          </div>
         </div>
 
-        {/* Scrollable day grid */}
-        <div
-          ref={gridRef}
-          className="flex-1 overflow-auto"
-          style={{ backgroundColor: '#FDFDFB' }}
-          onScroll={handleGridScroll}
-        >
-          <div className="flex min-w-max">
-          {/* Day columns */}
-          <div className="flex flex-1">
+        {/* Day columns */}
+        <div className="flex flex-1">
             {weekDays.map((day, dayIndex) => {
               const dateStr = formatDate(day);
               const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
@@ -549,10 +517,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 </div>
               );
             })}
-          </div>
         </div>
       </div>
     </div>
-  </div>
   );
 }

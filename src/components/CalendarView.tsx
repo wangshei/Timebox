@@ -355,7 +355,11 @@ export function CalendarView({
           /* Narrow/mobile day compare: tabbed layout */
           <div className="flex-1 flex flex-col min-h-0">
             <CompareTabBar />
-            {compareTab === 'plan' ? renderPlanDay() : renderActualDay()}
+            <div className="flex-1 relative min-h-0">
+              <div ref={compareScrollRef} className="absolute inset-0 overflow-y-auto">
+                {compareTab === 'plan' ? renderPlanDay(true) : renderActualDay(true)}
+              </div>
+            </div>
           </div>
         ) : (
           /* Wide day compare: plan | actual split with shared scroll */
@@ -369,14 +373,16 @@ export function CalendarView({
                 Actual
               </div>
             </div>
-            {/* Shared scroll container — both panels scroll together */}
-            <div ref={compareScrollRef} className="flex-1 overflow-y-auto min-h-0">
-              <div className="grid grid-cols-2">
-                <div className="min-w-0" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
-                  {renderPlanDay(true)}
-                </div>
-                <div className="min-w-0" style={{ backgroundColor: BG }}>
-                  {renderActualDay(true)}
+            {/* Shared scroll container — absolute positioned for reliable height constraint */}
+            <div className="flex-1 relative min-h-0">
+              <div ref={compareScrollRef} className="absolute inset-0 overflow-y-auto">
+                <div className="grid grid-cols-2">
+                  <div className="min-w-0" style={{ borderRight: `1px solid ${BORDER}`, backgroundColor: '#FFFFFF' }}>
+                    {renderPlanDay(true)}
+                  </div>
+                  <div className="min-w-0" style={{ backgroundColor: BG }}>
+                    {renderActualDay(true)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -387,19 +393,21 @@ export function CalendarView({
           /* Narrow/mobile 3-day compare: tabbed layout */
           <div className="flex-1 flex flex-col min-h-0">
             <CompareTabBar />
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {compareTab === 'plan' ? (
-                <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} />
-              ) : (
-                <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} />
-              )}
+            <div className="flex-1 relative min-h-0">
+              <div ref={compareScrollRef} className="absolute inset-0 overflow-y-auto">
+                {compareTab === 'plan' ? (
+                  <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} />
+                ) : (
+                  <ThreeDayView mode="compare" timeBlocks={actualBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={actualEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={handleActualCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} panelLabel="Actual" showDifferences={effectiveShowDifferences} />
+                )}
+              </div>
             </div>
           </div>
         ) : (
           /* Wide 3-day compare: 3+3 split (plan left, actual right) with shared scroll */
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Shared scroll container — both panels scroll together */}
-            <div ref={compareScrollRef} className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 relative min-h-0">
+            {/* Shared scroll container — absolute positioned for reliable height constraint */}
+            <div ref={compareScrollRef} className="absolute inset-0 overflow-y-auto">
               <div className="grid grid-cols-2">
                 <div className="min-w-0" style={{ borderRight: `1px solid ${BORDER}` }}>
                   <ThreeDayView mode="overall" timeBlocks={planBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} events={planEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onEditEvent={onEditEvent} onEditBlock={onEditBlock} locked panelLabel="Plan" showDifferences={effectiveShowDifferences} compact disableScroll />
