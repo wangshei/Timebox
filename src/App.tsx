@@ -16,6 +16,7 @@ import { AuthPage } from './components/AuthPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { OnboardingTour } from './components/OnboardingTour';
 import { useStore } from './store/useStore';
+import { useHistoryStore } from './store/useHistoryStore';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -205,6 +206,8 @@ export default function App() {
     setSaveError,
     setSessionExpired,
   } = useStore();
+
+  const { saveSnapshot } = useHistoryStore();
 
   const visibleTimeBlocks = useMemo(
     () =>
@@ -608,6 +611,7 @@ export default function App() {
   const schedulingTask = schedulingTaskId ? tasks.find((t) => t.id === schedulingTaskId) ?? null : null;
 
   const handleAutoSchedule = useCallback((taskIds: string[]) => {
+    saveSnapshot();
     const today = getLocalDateString();
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
