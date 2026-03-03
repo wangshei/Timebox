@@ -365,8 +365,9 @@ export default function App() {
     description?: string | null;
     notes?: string | null;
     priority?: number;
+    scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => {
-    addTask({
+    const taskId = addTask({
       title: taskData.title,
       estimatedMinutes: taskData.estimatedHours * 60,
       calendarContainerId: taskData.calendar,
@@ -379,6 +380,27 @@ export default function App() {
       notes: taskData.notes ?? undefined,
       priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
     });
+    // If created from a calendar drag, also schedule the task at that time slot
+    if (taskData.scheduleAt && taskId) {
+      const slot = taskData.scheduleAt;
+      const todayStr = getLocalDateString();
+      const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); };
+      const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+      const endMins = parseT(slot.endTime);
+      const isPastSlot = slot.date < todayStr || (slot.date === todayStr && endMins <= nowMins);
+      addTimeBlock({
+        taskId,
+        title: taskData.title,
+        calendarContainerId: taskData.calendar,
+        categoryId: taskData.category.id,
+        tagIds: taskData.tags.map((t) => t.id),
+        start: slot.startTime,
+        end: slot.endTime,
+        date: slot.date,
+        mode: isPastSlot ? 'recorded' : 'planned',
+        source: 'manual',
+      });
+    }
   };
 
   const handleAddEvent = (eventData: {
@@ -559,11 +581,11 @@ export default function App() {
       return (h ?? 0) * 60 + (m ?? 0);
     };
     const todayLocal = getLocalDateString();
-    // Only count future planned blocks toward the budget (past unconfirmed blocks
-    // are effectively "returned" to the backlog and shouldn't block re-scheduling)
+    // Count today-or-future planned blocks + confirmed past blocks toward the budget.
+    // Past unconfirmed blocks are effectively "returned" to the backlog.
     const planned = timeBlocks
       .filter((b) => b.taskId === taskId && b.mode === 'planned' &&
-        (b.date > todayLocal || b.confirmationStatus === 'confirmed'))
+        (b.date >= todayLocal || b.confirmationStatus === 'confirmed'))
       .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
     const recorded = timeBlocks
       .filter((b) => b.taskId === taskId && b.mode === 'recorded')

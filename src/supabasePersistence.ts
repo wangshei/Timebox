@@ -533,23 +533,39 @@ export function startSupabasePersistence() {
     }
   );
 
-  // Realtime: reload state when another client makes a change
+  // Realtime: reload state when another client makes a change.
+  // Queue changes while the tab is hidden and do ONE reload when it becomes visible.
   let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingRemoteChange = false;
+
+  async function doReload() {
+    if (Date.now() - lastSaveCompletedAt < 3000) return;
+    if (saving) return;
+    // eslint-disable-next-line no-console
+    console.log('[supabasePersistence] Remote change detected, reloading...');
+    try { await loadSupabaseState(); } catch (e) { console.error(e); }
+  }
 
   function scheduleReload() {
+    // If the tab is hidden, just note that a remote change happened.
+    // We'll do one single reload when the user returns to the tab.
+    if (document.hidden) {
+      pendingRemoteChange = true;
+      return;
+    }
     if (reloadTimer) clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(async () => {
-      // Skip reload while tab is hidden — avoids jarring refreshes on tab switch
-      if (document.hidden) return;
-      // Skip if our own save just completed (self-echo guard, 3s window)
-      if (Date.now() - lastSaveCompletedAt < 3000) return;
-      // Skip if currently saving (our save will overwrite anyway)
-      if (saving) return;
-      // eslint-disable-next-line no-console
-      console.log('[supabasePersistence] Remote change detected, reloading...');
-      try { await loadSupabaseState(); } catch (e) { console.error(e); }
-    }, 500);
+    reloadTimer = setTimeout(doReload, 500);
   }
+
+  const handleVisibilityChange = () => {
+    if (!document.hidden && pendingRemoteChange) {
+      pendingRemoteChange = false;
+      // Debounce slightly so multiple queued events collapse into one reload
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(doReload, 600);
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   const channel = supabase
     .channel('timebox-db-changes')
@@ -564,6 +580,7 @@ export function startSupabasePersistence() {
 
   return () => {
     unsubscribeStore();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
     void supabase!.removeChannel(channel);
     if (reloadTimer) clearTimeout(reloadTimer);
   };

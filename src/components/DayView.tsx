@@ -92,6 +92,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const [resizingEvent, setResizingEvent] = React.useState<{ event: ResolvedEvent; startClientY: number; endMins: number } | null>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
   const outerRef = React.useRef<HTMLDivElement>(null);
+  // Tasks due on this date
+  const allTasks = useStore((s) => s.tasks);
+  const dueTasks = React.useMemo(
+    () => allTasks.filter((t) => t.dueDate === selectedDate && t.status !== 'done' && t.status !== 'archived'),
+    [allTasks, selectedDate],
+  );
+
   // Normalize: use same format for both sides; trim selectedDate in case of whitespace
   const todayStr = getLocalDateString(now);
   const isViewingToday =
@@ -420,6 +427,14 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 {dateNumber}
               </div>
             </div>
+            {dueTasks.length > 0 && (
+              <div className="flex items-center gap-1.5 ml-auto" style={{ fontSize: '11px', color: '#8E8E93' }}>
+                <span style={{ fontSize: '10px' }}>📋</span>
+                <span className="truncate" style={{ maxWidth: 200 }}>
+                  {dueTasks.length === 1 ? dueTasks[0].title : `${dueTasks.length} tasks`} due
+                </span>
+              </div>
+            )}
           </div>
         );
       })()}

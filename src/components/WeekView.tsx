@@ -13,6 +13,7 @@ import {
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { activeDrag } from '../utils/dragState';
+import { useStore } from '../store/useStore';
 
 interface WeekViewProps {
   mode: Mode;
@@ -77,6 +78,17 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       return day;
     });
   }, [currentDate, weekStartsOnMonday]);
+
+  // Tasks due on visible dates
+  const allTasks = useStore((s) => s.tasks);
+  const dueTasksByDate = React.useMemo(() => {
+    const map: Record<string, { title: string }[]> = {};
+    for (const day of weekDays) {
+      const ds = getLocalDateString(day);
+      map[ds] = allTasks.filter((t) => t.dueDate === ds && t.status !== 'done' && t.status !== 'archived');
+    }
+    return map;
+  }, [allTasks, weekDays]);
 
   const getBlockStyle = (block: ResolvedTimeBlock) => {
     const startMinutes = parseTimeToMins(block.start);
@@ -254,11 +266,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
                   }}
                 >
-                  <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </div>
-                  <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
-                    {day.getDate()}
+                  <div className="flex items-center gap-1">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
+                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
+                        {day.getDate()}
+                      </div>
+                    </div>
+                    {(() => {
+                      const ds = getLocalDateString(day);
+                      const due = dueTasksByDate[ds] || [];
+                      return due.length > 0 ? (
+                        <div className="ml-auto" style={{ fontSize: '9px', color: '#8E8E93' }} title={due.map(t => t.title).join(', ')}>
+                          {due.length} due
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               );

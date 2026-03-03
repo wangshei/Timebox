@@ -117,7 +117,7 @@ export interface AppActions {
   toggleContainerVisibility: (containerId: string) => void;
   setAllCalendarsVisible: () => void;
 
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id'>) => string | undefined;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
 
@@ -223,11 +223,13 @@ export const useStore = create<AppState & AppActions>()(
     const s = get();
     if (s.tasks.length >= ENTITY_LIMITS.tasks) {
       console.warn(`[useStore] Task limit (${ENTITY_LIMITS.tasks}) reached`);
-      return;
+      return undefined;
     }
+    const id = generateId();
     set((s) => ({
-      tasks: [...s.tasks, { ...task, id: generateId() }],
+      tasks: [...s.tasks, { ...task, id }],
     }));
+    return id;
   },
   updateTask: (id, updates) =>
     set((s) => ({

@@ -40,6 +40,8 @@ interface AddModalProps {
     link?: string | null;
     description?: string | null;
     notes?: string | null;
+    /** When created from a calendar drag, schedule the task at this slot. */
+    scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
@@ -343,6 +345,9 @@ export function AddModal({
         description: description.trim() || null,
         notes: notes.trim() || null,
         priority,
+        scheduleAt: initialDate && initialStartTime && initialEndTime
+          ? { date: initialDate, startTime: initialStartTime, endTime: initialEndTime }
+          : null,
       });
     } else {
       onAddEvent({

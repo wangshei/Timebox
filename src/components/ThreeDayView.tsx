@@ -14,6 +14,7 @@ import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { activeDrag } from '../utils/dragState';
+import { useStore } from '../store/useStore';
 
 interface ThreeDayViewProps {
   mode: Mode;
@@ -91,6 +92,17 @@ export function ThreeDayView({
 
   const todayStr = getLocalDateString(now);
   const nowMins = now.getHours() * 60 + now.getMinutes();
+
+  // Tasks due on visible dates
+  const allTasks = useStore((s) => s.tasks);
+  const dueTasksByDate = React.useMemo(() => {
+    const map: Record<string, { title: string }[]> = {};
+    for (const day of threeDays) {
+      const ds = getLocalDateString(day);
+      map[ds] = allTasks.filter((t) => t.dueDate === ds && t.status !== 'done' && t.status !== 'archived');
+    }
+    return map;
+  }, [allTasks, threeDays]);
 
   const START_HOUR = 0;
   const GRID_HEIGHT = 24 * PX_PER_HOUR;
@@ -289,6 +301,15 @@ export function ThreeDayView({
                       {day.getDate()}
                     </div>
                   </div>
+                  {(() => {
+                    const ds = getLocalDateString(day);
+                    const due = dueTasksByDate[ds] || [];
+                    return due.length > 0 ? (
+                      <div className="ml-auto truncate" style={{ fontSize: '10px', color: '#8E8E93', maxWidth: 100 }}>
+                        {due.length === 1 ? due[0].title : `${due.length} due`}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             );
