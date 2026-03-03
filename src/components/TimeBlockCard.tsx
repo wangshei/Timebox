@@ -274,9 +274,12 @@ function TimeBlockCardInner({
   };
 
   // Diff status for "Show Differences" mode
-  const getDiffStatus = (): 'missing' | 'timing' | 'unplanned' | null => {
+  const getDiffStatus = (): 'missing' | 'timing' | 'unplanned' | 'skipped' | null => {
     if (!showDifferences) return null;
     if (block.source === 'unplanned') return 'unplanned';
+    // Skipped = planned but explicitly marked "didn't do it"
+    if (isPast && skipped && block.mode === 'planned' && block.source !== 'unplanned') return 'skipped';
+    // Missing = planned but not yet confirmed/skipped (didn't happen)
     if (isPast && !confirmed && !skipped && block.mode === 'planned' && block.source !== 'unplanned') return 'missing';
     if (confirmed && block.recordedStart && block.recordedEnd &&
         (block.recordedStart !== block.start || block.recordedEnd !== block.end)) return 'timing';
@@ -288,6 +291,8 @@ function TimeBlockCardInner({
     // When showDifferences is on, fade "same" (no-diff) past items so different ones stand out.
     // Future blocks haven't happened yet — nothing to compare, so show at normal opacity.
     if (showDifferences && diffStatus === null && isPast) return 0.25;
+    // Blocks with a detected diff should pop at full opacity so they stand out
+    if (showDifferences && diffStatus !== null) return 1;
     let base = getBaseOpacity();
     if (isCompareMode && matchedSet) {
       const isMatched = block.taskId && matchedSet.has(block.taskId);
@@ -694,7 +699,7 @@ function TimeBlockCardInner({
 
     const diffOutline = diffStatus === 'timing'
       ? '1.5px dashed rgba(255,214,10,0.9)'
-      : (diffStatus === 'missing' || diffStatus === 'unplanned')
+      : (diffStatus === 'missing' || diffStatus === 'unplanned' || diffStatus === 'skipped')
         ? '1.5px dashed rgba(255,59,48,0.8)'
         : undefined;
 
@@ -833,7 +838,7 @@ function TimeBlockCardInner({
 
   const diffOutlineFull = diffStatus === 'timing'
     ? '1.5px dashed rgba(255,214,10,0.9)'
-    : (diffStatus === 'missing' || diffStatus === 'unplanned')
+    : (diffStatus === 'missing' || diffStatus === 'unplanned' || diffStatus === 'skipped')
       ? '1.5px dashed rgba(255,59,48,0.8)'
       : undefined;
 

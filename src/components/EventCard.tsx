@@ -132,7 +132,10 @@ export function EventCard({
     : undefined;
   // Fade "same" (no-diff) past events when showDifferences is on so different ones stand out.
   // Future events haven't happened yet — nothing to compare, so show at normal opacity.
-  const diffFadeOpacity = showDifferences && diffStatus === null && isPast ? 0.25 : undefined;
+  // Events with a detected diff get full opacity so they pop against faded "same" items.
+  const diffFadeOpacity = showDifferences && diffStatus !== null ? 1
+    : showDifferences && diffStatus === null && isPast ? 0.25
+    : undefined;
 
   // Cross-date segment border-radius adjustments
   const segmentRadius: React.CSSProperties = {};

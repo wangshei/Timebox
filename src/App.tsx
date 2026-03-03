@@ -432,7 +432,7 @@ export default function App() {
         end: slot.endTime,
         date: slot.date,
         mode: isPastSlot ? 'recorded' : 'planned',
-        source: 'manual',
+        source: isPastSlot ? 'unplanned' : 'manual',
       });
     }
   };
@@ -454,6 +454,13 @@ export default function App() {
     notes?: string | null;
   }) => {
     saveSnapshot();
+    // Events added for past time slots are retroactive → mark as 'unplanned' so they
+    // appear only in the Actual panel and light up in Show Differences.
+    const evTodayStr = getLocalDateString();
+    const evNow = new Date();
+    const evNowMins = evNow.getHours() * 60 + evNow.getMinutes();
+    const evEndMins = (() => { const [h, m] = eventData.endTime.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); })();
+    const isPastEvent = eventData.date < evTodayStr || (eventData.date === evTodayStr && evEndMins <= evNowMins);
     const eventPayload = {
       title: eventData.title,
       calendarContainerId: eventData.calendar,
@@ -468,6 +475,7 @@ export default function App() {
       link: eventData.link ?? undefined,
       description: eventData.description ?? undefined,
       notes: eventData.notes ?? undefined,
+      ...(isPastEvent ? { source: 'unplanned' as const } : {}),
     };
     const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
 
@@ -859,7 +867,7 @@ export default function App() {
       end: endStr,
       date: params.date,
       mode: blockMode,
-      source: 'manual',
+      source: isPastSlot ? 'unplanned' : 'manual',
     });
   };
 
@@ -1117,6 +1125,7 @@ export default function App() {
       // Undo/redo: always handle, even when focused on inputs
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
+        console.log('[App] Ctrl/Cmd+Z detected, shiftKey:', e.shiftKey);
         if (e.shiftKey) {
           useHistoryStore.getState().redo();
         } else {
