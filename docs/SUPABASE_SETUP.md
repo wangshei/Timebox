@@ -677,6 +677,7 @@ create table if not exists waitlist (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   status text not null default 'pending',  -- 'pending' | 'approved' | 'rejected'
+  referral_source text,                    -- how they found the product (e.g. 'twitter', 'friend', 'search')
   created_at timestamptz not null default now(),
   approved_at timestamptz
 );

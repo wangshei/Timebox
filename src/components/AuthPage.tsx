@@ -24,6 +24,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
+  const [referralSource, setReferralSource] = useState('');
 
   // If parent signals password recovery, switch to reset mode
   useEffect(() => {
@@ -86,7 +87,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
     try {
       const { error } = await supabase
         .from('waitlist')
-        .insert({ email: email.trim().toLowerCase() });
+        .insert({ email: email.trim().toLowerCase(), referral_source: referralSource || null });
 
       if (error) {
         if (error.code === '23505' || error.message?.includes('duplicate')) {
@@ -412,6 +413,44 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     onBlur={handleInputBlur}
                     autoFocus
                   />
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <label htmlFor="auth-referral" style={labelStyle}>How did you hear about us?</label>
+                  <select
+                    id="auth-referral"
+                    value={referralSource}
+                    onChange={(e) => setReferralSource(e.target.value)}
+                    disabled={noBackend || loading}
+                    style={{
+                      ...inputStyle,
+                      appearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238E8E93' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 14px center',
+                      paddingRight: 36,
+                      cursor: 'pointer',
+                      color: referralSource ? '#1C1C1E' : '#AEAEB2',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.border = '1.5px solid rgba(141,162,134,0.65)';
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.border = '1.5px solid transparent';
+                      e.currentTarget.style.backgroundColor = '#F5F4F0';
+                    }}
+                  >
+                    <option value="" disabled>Select one</option>
+                    <option value="twitter">Twitter / X</option>
+                    <option value="reddit">Reddit</option>
+                    <option value="producthunt">Product Hunt</option>
+                    <option value="friend">Friend or colleague</option>
+                    <option value="search">Google / search</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
 
                 {/* Error/success message */}
