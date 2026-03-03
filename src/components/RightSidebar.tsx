@@ -213,8 +213,8 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
   return (
     <div
       data-tour="right-sidebar"
-      className={`flex flex-col overflow-hidden min-h-0 ${
-        isBottomSheet ? 'h-full' : isMobile ? 'w-full' : ''
+      className={`flex flex-col overflow-hidden min-h-0 h-full ${
+        isMobile && !isBottomSheet ? 'w-full' : ''
       }`}
       style={{
         backgroundColor: isDragOverBlock ? 'rgba(141,162,134,0.05)' : BG_PANEL,
