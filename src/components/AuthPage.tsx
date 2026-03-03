@@ -5,7 +5,7 @@ type AuthMode = 'signup' | 'login' | 'forgot' | 'reset' | 'waitlist';
 
 interface AuthPageProps {
   supabase: SupabaseClient | null;
-  mode?: 'signup' | 'login';
+  mode?: 'signup' | 'login' | 'waitlist';
   onVisitMode: () => void;
   isPasswordRecovery?: boolean;
   onPasswordResetComplete?: () => void;

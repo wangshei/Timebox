@@ -104,6 +104,7 @@ export default function App() {
   const [bugStatus, setBugStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const leftBarDragJustEnded = useRef(false);
   const rightBarDragJustEnded = useRef(false);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
@@ -121,8 +122,8 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false);
   // Pre-auth navigation: always show auth screen (landing page lives in the separate landing site)
   const [preAuthScreen, setPreAuthScreen] = useState<'auth'>('auth');
-  const [authMode, setAuthMode] = useState<'signup' | 'login'>(
-    _urlMode === 'login' ? 'login' : 'signup'
+  const [authMode, setAuthMode] = useState<'signup' | 'login' | 'waitlist'>(
+    _urlMode === 'login' ? 'login' : _urlMode === 'waitlist' ? 'waitlist' : 'signup'
   );
   // Walkthrough tour: show after wizard completion or for existing users who haven't seen it
   const [showTour, setShowTour] = useState(false);
@@ -2004,70 +2005,149 @@ export default function App() {
         )}
       </div>
 
-      <div className="flex lg:hidden flex-1 overflow-hidden relative">
-        <CalendarView
-          mode={mode}
-          onModeChange={setViewMode}
-          view={view}
-          onViewChange={setView}
-          selectedDate={selectedDate}
-          onSelectedDateChange={setSelectedDate}
-          timeBlocks={visibleTimeBlocks}
-          tasks={tasks}
-          categories={categories}
-          tags={tags}
-          containers={calendarContainers}
-          containerVisibility={containerVisibility}
-          isMobile
-          onOpenAddModal={handleOpenAddModal}
-          onConfirm={handleConfirmBlock}
-          onSkip={handleSkipBlock}
-          onUnconfirm={handleUnconfirmBlock}
-          onDeleteBlock={handleDeleteBlock}
-          onDeleteTask={handleDeleteTask}
-          onDropTask={handleDropTask}
-          onCreateBlock={handleCreateBlock}
-          onMoveBlock={handleMoveBlock}
-          onResizeBlock={handleResizeBlock}
-          onMoveEvent={handleMoveEvent}
-          onResizeEvent={handleResizeEvent}
-          onEditEvent={handleEditEvent}
-          onEditBlock={handleEditBlock}
-          events={visibleEvents}
-          onDeleteEvent={handleDeleteEvent}
-          onDeleteEventSeries={handleDeleteEventSeries}
-          onToggleEventAttendance={handleToggleEventAttendance}
-          weekStartsOnMonday={weekStartsOnMonday}
-          onRescheduleLater={handleRescheduleBlockLater}
-        />
-        <DraggableBottomSheet
-          tasks={displayTasks}
-          unscheduledTasks={unscheduledDisplay}
-          partiallyCompletedTasks={partiallyCompletedDisplay}
-          fixedMissedTasks={fixedMissedDisplay}
-          doneTasks={doneDisplay}
-          selectedDate={selectedDate}
-          timeBlocks={timeBlocks}
-          categories={categories}
-          tags={tags}
-          onAddTask={handleAddTask}
-          onOpenScheduleTask={handleOpenScheduleTask}
-          onEditTask={handleEditTask}
-          onDeleteTask={handleDeleteTask}
-          onMarkTaskDone={handleMarkTaskDone}
-          onOpenAddModal={handleOpenAddModal}
-          onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
-          onBreakIntoChunks={handleBreakIntoChunks}
-          onSplitTask={handleSplitTask}
-          onTogglePin={(taskId) => {
-            const current = tasks.find((t) => t.id === taskId)?.priority;
-            // Cycle: none → 1 → 2 → 3 → 4 → 5 → none
-            const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
-            updateTask(taskId, { priority: next });
-          }}
-          onRescheduleLater={handleRescheduleLater}
-          onAutoSchedule={handleAutoSchedule}
-        />
+      <div className="flex lg:hidden flex-col flex-1 overflow-hidden relative">
+        {/* Mobile top bar — settings & calendar access */}
+        <div
+          className="flex items-center justify-between px-3 py-2 flex-shrink-0"
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.09)', backgroundColor: '#FCFBF7' }}
+        >
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="p-2 -ml-1 rounded-lg touch-manipulation"
+            style={{ color: THEME.textPrimary }}
+            aria-label="Open calendars"
+          >
+            <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          </button>
+          <span className="text-sm font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.06em' }}>Timebox</span>
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 -mr-1 rounded-lg touch-manipulation"
+            style={{ color: THEME.textPrimary }}
+            aria-label="Open settings"
+          >
+            <Cog6ToothIcon className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+
+        {/* Mobile slide-over sidebar */}
+        {mobileSidebarOpen && (
+          <div className="fixed inset-0 z-[100] flex">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setMobileSidebarOpen(false)} />
+            <div
+              className="relative flex flex-col h-full overflow-hidden"
+              style={{ width: '280px', maxWidth: '85vw', backgroundColor: '#FCFBF7' }}
+            >
+              <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+                <span className="text-[16px] font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.12em' }}>My Calendars</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="p-2 rounded-lg touch-manipulation"
+                  style={{ color: THEME.textPrimary }}
+                  aria-label="Close sidebar"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <LeftSidebar
+                  calendarContainers={calendarContainers}
+                  categories={categories}
+                  tags={tags}
+                  timeBlocks={timeBlocks}
+                  visibility={containerVisibility}
+                  onToggleVisibility={toggleContainerVisibility}
+                  onUpdateCalendar={updateCalendarContainer}
+                  onAddCalendar={addCalendarContainer}
+                  onDeleteCalendar={deleteCalendarContainer}
+                  onUpdateCategory={updateCategory}
+                  onAddCategory={addCategory}
+                  onDeleteCategory={deleteCategory}
+                  onUpdateTag={updateTag}
+                  onAddTag={addTag}
+                  onDeleteTag={deleteTag}
+                  onFocusCalendar={(id) => { setFocusedCalendarId((prev) => (prev === id ? null : id)); setMobileSidebarOpen(false); }}
+                  focusedCalendarId={focusedCalendarId}
+                  onFocusCategory={(id) => { setFocusedCategoryId((prev) => (prev === id ? null : id)); setMobileSidebarOpen(false); }}
+                  isEditMode={isEditMode}
+                  isCompareMode={mode === 'compare'}
+                  onExitCompare={() => setViewMode('overall')}
+                  endDayLabel={`Confirm all (${selectedDate})`}
+                  onEndDay={() => batchConfirmDay(selectedDate)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Calendar content */}
+        <div className="flex-1 overflow-hidden relative">
+          <CalendarView
+            mode={mode}
+            onModeChange={setViewMode}
+            view={view}
+            onViewChange={setView}
+            selectedDate={selectedDate}
+            onSelectedDateChange={setSelectedDate}
+            timeBlocks={visibleTimeBlocks}
+            tasks={tasks}
+            categories={categories}
+            tags={tags}
+            containers={calendarContainers}
+            containerVisibility={containerVisibility}
+            isMobile
+            onOpenAddModal={handleOpenAddModal}
+            onConfirm={handleConfirmBlock}
+            onSkip={handleSkipBlock}
+            onUnconfirm={handleUnconfirmBlock}
+            onDeleteBlock={handleDeleteBlock}
+            onDeleteTask={handleDeleteTask}
+            onDropTask={handleDropTask}
+            onCreateBlock={handleCreateBlock}
+            onMoveBlock={handleMoveBlock}
+            onResizeBlock={handleResizeBlock}
+            onMoveEvent={handleMoveEvent}
+            onResizeEvent={handleResizeEvent}
+            onEditEvent={handleEditEvent}
+            onEditBlock={handleEditBlock}
+            events={visibleEvents}
+            onDeleteEvent={handleDeleteEvent}
+            onDeleteEventSeries={handleDeleteEventSeries}
+            onToggleEventAttendance={handleToggleEventAttendance}
+            weekStartsOnMonday={weekStartsOnMonday}
+            onRescheduleLater={handleRescheduleBlockLater}
+          />
+          <DraggableBottomSheet
+            tasks={displayTasks}
+            unscheduledTasks={unscheduledDisplay}
+            partiallyCompletedTasks={partiallyCompletedDisplay}
+            fixedMissedTasks={fixedMissedDisplay}
+            doneTasks={doneDisplay}
+            selectedDate={selectedDate}
+            timeBlocks={timeBlocks}
+            categories={categories}
+            tags={tags}
+            onAddTask={handleAddTask}
+            onOpenScheduleTask={handleOpenScheduleTask}
+            onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
+            onMarkTaskDone={handleMarkTaskDone}
+            onOpenAddModal={handleOpenAddModal}
+            onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
+            onBreakIntoChunks={handleBreakIntoChunks}
+            onSplitTask={handleSplitTask}
+            onTogglePin={(taskId) => {
+              const current = tasks.find((t) => t.id === taskId)?.priority;
+              const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
+              updateTask(taskId, { priority: next });
+            }}
+            onRescheduleLater={handleRescheduleLater}
+            onAutoSchedule={handleAutoSchedule}
+          />
+        </div>
       </div>
 
       <ScheduleTaskModal
