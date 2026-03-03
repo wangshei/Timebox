@@ -413,8 +413,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const top = ((startMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
       const height = (duration / 60) * PX_PER_HOUR;
       const layout = overlapMap.get(block.id);
-      const widthPercent = layout ? 100 / layout.totalColumns : 100;
-      const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+      const colWidth = layout ? 100 / layout.totalColumns : 100;
+      const leftPercent = layout ? layout.columnIndex * colWidth : 0;
+      // Cap rightmost column so there's always a clickable gutter for creating new blocks
+      const isLastColumn = !layout || layout.columnIndex === layout.totalColumns - 1;
+      const widthPercent = isLastColumn && leftPercent + colWidth > 92 ? 92 - leftPercent : colWidth;
       map.set(block.id, {
         top: `${top}px`,
         height: `${height}px`,
@@ -571,8 +574,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
             const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
             const layout = overlapMap.get(`event-${seg.event.id}`);
-            const widthPercent = layout ? 100 / layout.totalColumns : 100;
-            const leftPercent = layout ? layout.columnIndex * widthPercent : 0;
+            const evColWidth = layout ? 100 / layout.totalColumns : 100;
+            const leftPercent = layout ? layout.columnIndex * evColWidth : 0;
+            // Cap rightmost column so there's always a clickable gutter for creating new blocks
+            const isLastEvCol = !layout || layout.columnIndex === layout.totalColumns - 1;
+            const widthPercent = isLastEvCol && leftPercent + evColWidth > 92 ? 92 - leftPercent : evColWidth;
             return (
               <EventCard
                 key={seg.event.id}

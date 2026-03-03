@@ -428,8 +428,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 const top = (bStartMins / 60) * PX_PER_HOUR;
                                 const height = (bDuration / 60) * PX_PER_HOUR;
                                 const layout = dayOverlapMap.get(block.id);
-                                const widthPercent = layout ? 100 / layout.totalColumns : 100;
-                                const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                                const bColWidth = layout ? 100 / layout.totalColumns : 100;
+                                const leftPercent = layout ? layout.columnIndex * bColWidth : 0;
+                                const isLastCol = !layout || layout.columnIndex === layout.totalColumns - 1;
+                                const widthPercent = isLastCol && leftPercent + bColWidth > 92 ? 92 - leftPercent : bColWidth;
                                 return (
                                   <TimeBlockCard
                                     key={block.id}
@@ -469,8 +471,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
                                 const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
                                 const layout = dayOverlapMap.get(eTruncKey);
-                                const widthPercent = layout ? 100 / layout.totalColumns : 100;
-                                const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
+                                const eColWidth = layout ? 100 / layout.totalColumns : 100;
+                                const leftPercent = layout ? layout.columnIndex * eColWidth : 0;
+                                const isLastEvCol = !layout || layout.columnIndex === layout.totalColumns - 1;
+                                const widthPercent = isLastEvCol && leftPercent + eColWidth > 92 ? 92 - leftPercent : eColWidth;
                                 return (
                                   <EventCard
                                     key={seg.event.id}

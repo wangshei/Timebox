@@ -91,6 +91,7 @@ export function RightSidebar({
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   const [doneSectionOpen, setDoneSectionOpen] = useState(false);
+  const [prioritySectionOpen, setPrioritySectionOpen] = useState(true);
 
   useEffect(() => {
     if (doneTasks.length > 0 && !doneSectionOpen) {
@@ -424,10 +425,24 @@ export function RightSidebar({
       {/* Priority Tasks */}
       {priorityTasks.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Priority</h2>
-          <div className="space-y-2">
-            {priorityTasks.map((task) => renderTaskCard(task, 'plan'))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setPrioritySectionOpen(!prioritySectionOpen)}
+            className="flex items-center justify-between w-full text-left px-1 mb-1.5"
+          >
+            <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
+              Priority ({priorityTasks.length})
+            </h2>
+            {prioritySectionOpen
+              ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+              : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+            }
+          </button>
+          {prioritySectionOpen && (
+            <div className="space-y-2">
+              {priorityTasks.map((task) => renderTaskCard(task, 'plan'))}
+            </div>
+          )}
         </div>
       )}
 
