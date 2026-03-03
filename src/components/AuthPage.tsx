@@ -16,11 +16,14 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
 
   // If parent signals password recovery, switch to reset mode
   useEffect(() => {
@@ -36,11 +39,90 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
     setNewPassword('');
     setConfirmPassword('');
     setAwaitingConfirmation(false);
+    setShowWaitlistPrompt(false);
+    setWaitlistJoined(false);
   };
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
     resetForm();
+  };
+
+  const validateInviteCode = async (code: string): Promise<boolean> => {
+    if (!supabase || !code.trim()) return false;
+    const { data, error } = await supabase
+      .from('invite_codes')
+      .select('id, used_by, expires_at')
+      .eq('code', code.trim().toUpperCase())
+      .maybeSingle();
+    if (error || !data) return false;
+    if (data.used_by) return false;
+    if (data.expires_at && new Date(data.expires_at) < new Date()) return false;
+    return true;
+  };
+
+  const markInviteCodeUsed = async (code: string, userId: string) => {
+    if (!supabase) return;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/validate-and-use-invite-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ code: code.trim().toUpperCase(), userId }),
+      });
+    } catch {
+      // Non-critical — code validation already passed
+    }
+  };
+
+  const joinWaitlist = async () => {
+    if (!supabase || !email.trim()) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase
+        .from('waitlist')
+        .insert({ email: email.trim().toLowerCase() });
+
+      if (error) {
+        if (error.code === '23505' || error.message?.includes('duplicate')) {
+          setWaitlistJoined(true);
+          setShowWaitlistPrompt(false);
+          setMessage({ text: "You're already on the waitlist! We'll send you an invite code when a spot opens up.", isError: false });
+        } else {
+          setMessage({ text: 'Something went wrong. Please try again.', isError: true });
+        }
+        return;
+      }
+
+      // Send waitlist confirmation email via Edge Function
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-waitlist-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+      } catch {
+        // Non-critical — waitlist entry was saved
+      }
+
+      setWaitlistJoined(true);
+      setShowWaitlistPrompt(false);
+      setMessage(null);
+    } catch {
+      setMessage({ text: 'Something went wrong. Please try again.', isError: true });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,6 +131,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
 
     setLoading(true);
     setMessage(null);
+    setShowWaitlistPrompt(false);
 
     try {
       if (mode === 'forgot') {
@@ -86,6 +169,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         }
       } else if (mode === 'signup') {
         if (!email.trim() || !password) return;
+
+        // Validate invite code first
+        const codeValid = await validateInviteCode(inviteCode);
+        if (!codeValid) {
+          setMessage({ text: inviteCode.trim() ? 'Invalid or expired invite code.' : 'An invite code is required to sign up.', isError: true });
+          setShowWaitlistPrompt(true);
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -102,8 +195,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             setMessage({ text: error.message, isError: true });
           }
         } else if (data.session) {
+          // Account created with immediate session — mark invite code as used
+          if (data.user) {
+            await markInviteCodeUsed(inviteCode, data.user.id);
+          }
           setMessage({ text: 'Account created! Setting up your workspace…', isError: false });
         } else {
+          // Email confirmation required — mark code as used with the user ID
+          if (data.user) {
+            await markInviteCodeUsed(inviteCode, data.user.id);
+          }
           setAwaitingConfirmation(true);
           setMessage({
             text: 'Check your inbox — we sent a confirmation link. Once confirmed, come back and log in.',
@@ -235,8 +336,37 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             </div>
           )}
 
-          {/* Confirmation screen (signup email sent OR forgot password email sent) */}
-          {awaitingConfirmation ? (
+          {/* Waitlist joined confirmation */}
+          {waitlistJoined ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 36 }}>🎉</div>
+              <p style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
+                You're on the list!
+              </p>
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0 }}>
+                Thanks for your interest in The Timeboxing Club. We'll send you an invite code when a spot opens up.
+              </p>
+              <button
+                onClick={() => switchMode('login')}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#8DA286',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  marginTop: 8,
+                  transition: 'color 200ms',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+              >
+                Back to log in →
+              </button>
+            </div>
+          ) : awaitingConfirmation ? (
+            /* Confirmation screen (signup email sent OR forgot password email sent) */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 36 }}>{mode === 'forgot' ? '📧' : '📬'}</div>
               <p style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
@@ -278,6 +408,32 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     placeholder="Your name"
                     disabled={noBackend || loading}
                     style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                  />
+                </div>
+              )}
+
+              {/* Invite code field — signup only */}
+              {mode === 'signup' && (
+                <div style={{ marginBottom: 24 }}>
+                  <label htmlFor="auth-invite-code" style={labelStyle}>Invite code</label>
+                  <input
+                    id="auth-invite-code"
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => {
+                      setInviteCode(e.target.value.toUpperCase());
+                      if (showWaitlistPrompt) setShowWaitlistPrompt(false);
+                      if (message?.isError) setMessage(null);
+                    }}
+                    placeholder="e.g. TIMEBOX01"
+                    disabled={noBackend || loading}
+                    style={{
+                      ...inputStyle,
+                      letterSpacing: '0.05em',
+                      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+                    }}
                     onFocus={handleInputFocus}
                     onBlur={handleInputBlur}
                   />
@@ -426,6 +582,47 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 </div>
               )}
 
+              {/* Waitlist prompt — shown inline after invalid/missing invite code */}
+              {showWaitlistPrompt && mode === 'signup' && email.trim() && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    padding: '14px',
+                    borderRadius: 10,
+                    lineHeight: 1.6,
+                    marginBottom: 16,
+                    backgroundColor: 'rgba(141,162,134,0.08)',
+                    border: '1px solid rgba(141,162,134,0.18)',
+                  }}
+                >
+                  <p style={{ margin: '0 0 10px', color: '#3A3A3C' }}>
+                    Would you like to join the waitlist with <strong>{email.trim()}</strong>?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={joinWaitlist}
+                    disabled={loading}
+                    style={{
+                      padding: '8px 18px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      border: 'none',
+                      backgroundColor: '#8DA387',
+                      color: '#FFFFFF',
+                      cursor: loading ? 'default' : 'pointer',
+                      opacity: loading ? 0.5 : 1,
+                      transition: 'all 200ms',
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#7A9076'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA387'; }}
+                  >
+                    {loading ? '...' : 'Join Waitlist'}
+                  </button>
+                </div>
+              )}
+
               {/* Primary action button */}
               <button
                 type="submit"
@@ -463,18 +660,48 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               </button>
 
               {mode === 'signup' && (
-                <p style={{ fontSize: 11, color: '#AEAEB2', textAlign: 'center', marginTop: 12, lineHeight: 1.6 }}>
-                  By signing up, you agree to our{' '}
-                  <a href="https://github.com/wangshei/Timebox/blob/main/docs/TERMS_OF_SERVICE.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Terms of Service</a>
-                  {' '}and{' '}
-                  <a href="https://github.com/wangshei/Timebox/blob/main/docs/PRIVACY_POLICY.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Privacy Policy</a>.
-                </p>
+                <>
+                  {/* "Don't have a code?" secondary link */}
+                  {!showWaitlistPrompt && (
+                    <p style={{ fontSize: 12, color: '#8E8E93', textAlign: 'center', marginTop: 10, marginBottom: 0 }}>
+                      Don't have a code?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (email.trim()) {
+                            joinWaitlist();
+                          } else {
+                            setMessage({ text: 'Enter your email above first.', isError: true });
+                          }
+                        }}
+                        style={{
+                          fontSize: 12,
+                          color: '#8DA286',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          fontFamily: 'inherit',
+                          padding: 0,
+                        }}
+                      >
+                        Join the waitlist
+                      </button>
+                    </p>
+                  )}
+                  <p style={{ fontSize: 11, color: '#AEAEB2', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
+                    By signing up, you agree to our{' '}
+                    <a href="https://github.com/wangshei/Timebox/blob/main/docs/TERMS_OF_SERVICE.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="https://github.com/wangshei/Timebox/blob/main/docs/PRIVACY_POLICY.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Privacy Policy</a>.
+                  </p>
+                </>
               )}
             </form>
           )}
 
           {/* Or divider + secondary action — hide in forgot/reset modes */}
-          {!isForgotOrReset && !awaitingConfirmation && (
+          {!isForgotOrReset && !awaitingConfirmation && !waitlistJoined && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
@@ -532,7 +759,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         </div>
 
         {/* Try without signing in — outside card, hide in reset mode */}
-        {mode !== 'reset' && (
+        {mode !== 'reset' && !waitlistJoined && (
           <div style={{ textAlign: 'center', marginTop: 24 }}>
             <button
               onClick={onVisitMode}

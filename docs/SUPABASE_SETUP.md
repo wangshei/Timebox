@@ -664,3 +664,106 @@ All templates share the same branded shell: warm background (`#F8F7F4`), white c
 ```
 
 > **How to apply:** In the Supabase Dashboard → Authentication → Email Templates, select the template type (Confirm signup, Reset password, Magic Link), replace the subject and body with the HTML above, and save.
+
+---
+
+## 8. Invite Code + Waitlist Tables
+
+The app uses a gated signup system: users need an invite code to create an account, and everyone else can join a waitlist. Run this in the **SQL Editor** (both production AND staging):
+
+```sql
+-- Waitlist: people who want access
+create table if not exists waitlist (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  status text not null default 'pending',  -- 'pending' | 'approved' | 'rejected'
+  created_at timestamptz not null default now(),
+  approved_at timestamptz
+);
+
+-- Invite codes: required to sign up
+create table if not exists invite_codes (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  email text,                -- who this was generated for (null = generic/manual)
+  created_by text not null default 'manual',  -- 'manual' | 'system'
+  used_by uuid references auth.users(id),     -- user who redeemed it
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz     -- null = never expires
+);
+
+-- RLS: waitlist is public-insert (anyone can join), no public reads
+alter table waitlist enable row level security;
+create policy "Anyone can join waitlist"
+  on waitlist for insert to anon, authenticated
+  with check (true);
+
+-- RLS: invite_codes — anon can SELECT (to validate code) but not insert/update/delete
+alter table invite_codes enable row level security;
+create policy "Anyone can validate invite codes"
+  on invite_codes for select to anon, authenticated
+  using (true);
+```
+
+> **Note on RLS**: The `invite_codes` SELECT policy is safe because codes are random — you can't guess them. UPDATE on invite_codes (marking as used) is done via an Edge Function using the service role key, not from the client.
+
+### Seeding invite codes manually
+
+Insert codes for your first users:
+
+```sql
+insert into invite_codes (code) values
+  ('TIMEBOX01'),
+  ('TIMEBOX02'),
+  ('TIMEBOX03');
+```
+
+Or generate codes for specific emails:
+
+```sql
+insert into invite_codes (code, email) values
+  ('INVITE-ABC', 'friend@example.com');
+```
+
+---
+
+## 9. Edge Functions (Invite Code + Waitlist)
+
+The invite/waitlist system uses three Supabase Edge Functions. They live in `supabase/functions/` in the repo.
+
+### Deploying
+
+```bash
+# Install Supabase CLI if not already
+npm install -g supabase
+
+# Link to your project (run once)
+supabase link --project-ref YOUR_PROJECT_REF
+
+# Set secrets
+supabase secrets set RESEND_API_KEY=re_xxxxx
+supabase secrets set FROM_EMAIL=noreply@yourdomain.com
+
+# Deploy all functions
+supabase functions deploy validate-and-use-invite-code
+supabase functions deploy send-waitlist-email
+supabase functions deploy approve-waitlist-user
+```
+
+### Functions
+
+| Function | Purpose | Called from |
+|----------|---------|------------|
+| `validate-and-use-invite-code` | Marks invite code as used after signup | Frontend (AuthPage) |
+| `send-waitlist-email` | Sends thank-you email via Resend | Frontend (AuthPage) |
+| `approve-waitlist-user` | Generates invite code + sends email | Admin (curl/script) |
+
+### Approving a waitlist user (admin)
+
+```bash
+curl -X POST 'https://YOUR_PROJECT.supabase.co/functions/v1/approve-waitlist-user' \
+  -H 'Authorization: Bearer YOUR_SERVICE_ROLE_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "user@example.com"}'
+```

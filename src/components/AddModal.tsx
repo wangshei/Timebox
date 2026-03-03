@@ -505,12 +505,14 @@ export function AddModal({
                 <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Estimated Time</label>
                 <div className="flex gap-3 items-center">
                   <input
-                    type="range" min="0.5" max="8" step="0.5" value={estimatedHours}
+                    type="range" min="0.25" max="8" step="0.25" value={estimatedHours}
                     onChange={(e) => setEstimatedHours(parseFloat(e.target.value))}
                     className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
-                    style={{ background: `linear-gradient(to right, #8DA286 0%, #8DA286 ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.5) / 7.5) * 100}%, rgba(0,0,0,0.09) 100%)` }}
+                    style={{ background: `linear-gradient(to right, #8DA286 0%, #8DA286 ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) 100%)` }}
                   />
-                  <span className="text-sm font-bold w-10 text-right" style={{ color: '#8DA286' }}>{estimatedHours}h</span>
+                  <span className="text-sm font-bold w-14 text-right" style={{ color: '#8DA286' }}>
+                    {estimatedHours >= 1 ? `${estimatedHours}h` : `${Math.round(estimatedHours * 60)}m`}
+                  </span>
                 </div>
               </div>
               <div>

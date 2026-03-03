@@ -697,10 +697,10 @@ function TimeBlockCardInner({
       ? 'h-full overflow-hidden min-w-0 rounded-r-sm'
       : 'h-full overflow-hidden min-w-0';
 
-    const diffOutline = diffStatus === 'timing'
-      ? '1.5px dashed rgba(255,214,10,0.9)'
+    const diffBorder = diffStatus === 'timing'
+      ? '2px solid rgba(255,214,10,0.9)'
       : (diffStatus === 'missing' || diffStatus === 'unplanned' || diffStatus === 'skipped')
-        ? '1.5px dashed rgba(255,59,48,0.8)'
+        ? '2px solid rgba(255,59,48,0.75)'
         : undefined;
 
     const effectivelyLocked = locked;
@@ -722,8 +722,9 @@ function TimeBlockCardInner({
           className={cn('relative', containerClass)}
           style={{
             ...blockStyle,
-            boxShadow: isSelected && !effectivelyLocked ? `0 0 0 1.5px ${blockColor}` : undefined,
-            outline: diffOutline,
+            boxShadow: diffBorder
+              ? `inset 0 0 0 2px ${diffStatus === 'timing' ? 'rgba(255,214,10,0.9)' : 'rgba(255,59,48,0.75)'}`
+              : isSelected && !effectivelyLocked ? `0 0 0 1.5px ${blockColor}` : undefined,
           }}
         >
           {/* Lock hover overlay for plan panel only */}
@@ -836,12 +837,6 @@ function TimeBlockCardInner({
     return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
   };
 
-  const diffOutlineFull = diffStatus === 'timing'
-    ? '1.5px dashed rgba(255,214,10,0.9)'
-    : (diffStatus === 'missing' || diffStatus === 'unplanned' || diffStatus === 'skipped')
-      ? '1.5px dashed rgba(255,59,48,0.8)'
-      : undefined;
-
   const effectivelyLockedFull = locked;
   const noDragFull = locked || isLockedPast;
 
@@ -861,8 +856,9 @@ function TimeBlockCardInner({
         className={cn('relative', containerClass)}
         style={{
           ...blockStyle,
-          boxShadow: isSelected && !effectivelyLockedFull ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
-          outline: diffOutlineFull,
+          boxShadow: diffStatus
+            ? `inset 0 0 0 2px ${diffStatus === 'timing' ? 'rgba(255,214,10,0.9)' : 'rgba(255,59,48,0.75)'}`
+            : isSelected && !effectivelyLockedFull ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
         }}
       >
         {/* Lock hover overlay for plan panel only */}

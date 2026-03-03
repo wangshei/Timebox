@@ -127,8 +127,8 @@ export function EventCard({
     if (isPast && event.attendanceStatus === 'not_attended') return 'missing';
     return null;
   })();
-  const diffOutline = (diffStatus === 'unplanned' || diffStatus === 'missing')
-    ? '1.5px dashed rgba(255,59,48,0.8)'
+  const diffBoxShadow = (diffStatus === 'unplanned' || diffStatus === 'missing')
+    ? 'inset 0 0 0 2px rgba(255,59,48,0.75)'
     : undefined;
   // Fade "same" (no-diff) past events when showDifferences is on so different ones stand out.
   // Future events haven't happened yet — nothing to compare, so show at normal opacity.
@@ -278,7 +278,7 @@ export function EventCard({
           opacity: diffFadeOpacity ?? opacity,
           ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
-          outline: diffOutline,
+          boxShadow: diffBoxShadow,
           ...segmentRadius,
         }}
       >
