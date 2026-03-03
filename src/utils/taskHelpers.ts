@@ -93,6 +93,8 @@ export function formatMinutesToDecimalHours(minutes: number): string {
 export function getUnscheduledTasks(tasks: Task[], timeBlocks: TimeBlock[]): Task[] {
   const today = getLocalDateString();
   return tasks.filter(task => {
+    // Done tasks always go to the Done section, never show as unscheduled
+    if (task.status === 'done') return false;
     const planned = getPlannedMinutes(task, timeBlocks);
     const recorded = getRecordedMinutes(task, timeBlocks);
     // Truly unscheduled: no blocks at all

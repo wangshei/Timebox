@@ -539,6 +539,8 @@ export function startSupabasePersistence() {
   function scheduleReload() {
     if (reloadTimer) clearTimeout(reloadTimer);
     reloadTimer = setTimeout(async () => {
+      // Skip reload while tab is hidden — avoids jarring refreshes on tab switch
+      if (document.hidden) return;
       // Skip if our own save just completed (self-echo guard, 3s window)
       if (Date.now() - lastSaveCompletedAt < 3000) return;
       // Skip if currently saving (our save will overwrite anyway)

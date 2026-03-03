@@ -647,7 +647,7 @@ function TimeBlockCardInner({
             </div>
           )}
           {/* Status circle — top-right, all past blocks */}
-          {renderStatusCircle(14)}
+          {renderStatusCircle(16)}
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
@@ -782,7 +782,7 @@ function TimeBlockCardInner({
           </div>
         )}
         {/* Status circle — top-right, all past blocks */}
-        {renderStatusCircle(16)}
+        {renderStatusCircle(18)}
         {sizeTier === 'micro' ? (
           /* micro: just a colored sliver — no text */
           <div className="h-full w-full" />

@@ -101,7 +101,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   }, [dragPreview]);
 
   React.useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 60_000);
+    const t = setInterval(() => {
+      if (!document.hidden) setNow(new Date());
+    }, 60_000);
     return () => clearInterval(t);
   }, []);
 
