@@ -318,6 +318,7 @@ export default function App() {
   const handleMarkTaskDone = (taskId: string) => {
     const coreTask = tasks.find((t) => t.id === taskId);
     if (!coreTask) return;
+    saveSnapshot();
 
     const taskBlocks = timeBlocks.filter((b) => b.taskId === taskId);
 
@@ -352,6 +353,7 @@ export default function App() {
 
   /** Confirm a block on the calendar AND sync the parent task's done status. */
   const handleConfirmBlock = (blockId: string) => {
+    saveSnapshot();
     confirmBlock(blockId);
     // If all blocks for this task are now confirmed, mark the task as done
     const block = timeBlocks.find((b) => b.id === blockId);
@@ -364,8 +366,14 @@ export default function App() {
     }
   };
 
+  const handleSkipBlock = (blockId: string) => {
+    saveSnapshot();
+    skipBlock(blockId);
+  };
+
   /** Unconfirm a block on the calendar AND clear the parent task's done status. */
   const handleUnconfirmBlock = (blockId: string) => {
+    saveSnapshot();
     const block = timeBlocks.find((b) => b.id === blockId);
     const shouldClearDone = block?.taskId && tasks.find((t) => t.id === block.taskId)?.status === 'done';
     // Atomic update: unconfirm block + clear task done in one setState
@@ -392,6 +400,7 @@ export default function App() {
     priority?: number;
     scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => {
+    saveSnapshot();
     const taskId = addTask({
       title: taskData.title,
       estimatedMinutes: taskData.estimatedHours * 60,
@@ -444,6 +453,7 @@ export default function App() {
     description?: string | null;
     notes?: string | null;
   }) => {
+    saveSnapshot();
     const eventPayload = {
       title: eventData.title,
       calendarContainerId: eventData.calendar,
@@ -513,6 +523,7 @@ export default function App() {
   const handleBreakIntoChunks = (taskId: string, chunkMinutes: number) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || chunkMinutes <= 0) return;
+    saveSnapshot();
     const total = task.estimatedMinutes;
     const n = Math.ceil(total / chunkMinutes);
     for (let i = 0; i < n; i++) {
@@ -535,6 +546,7 @@ export default function App() {
   const handleSplitTask = (taskId: string, chunkMinutes: number) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || chunkMinutes <= 0) return;
+    saveSnapshot();
     const remainder = task.estimatedMinutes - chunkMinutes;
     if (remainder <= 0) return; // not enough to split
     addTask({
@@ -680,6 +692,7 @@ export default function App() {
   const handleRescheduleLater = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+    saveSnapshot();
 
     const today = getLocalDateString();
     const now = new Date();
@@ -745,6 +758,7 @@ export default function App() {
   const handleRescheduleBlockLater = useCallback((blockId: string) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block || !block.taskId) return;
+    saveSnapshot();
 
     const today = getLocalDateString();
     const now = new Date();
@@ -796,6 +810,7 @@ export default function App() {
   ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+    saveSnapshot();
     const parseTimeToMinsLocal = (t: string) => {
       const [h, m] = t.split(':').map(Number);
       return (h ?? 0) * 60 + (m ?? 0);
@@ -907,6 +922,7 @@ export default function App() {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
     if (isPastPlannedBlock(block)) return; // plan is frozen once past
+    saveSnapshot();
     if (!(block.title ?? '').trim() && !block.taskId) {
       setEditingTaskId(null);
       setEditingTimeBlockId(blockId);
@@ -926,6 +942,7 @@ export default function App() {
     if (!block) return;
     if (isPastPlannedBlock(block)) return; // plan is frozen once past
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(block.start)) return;
+    saveSnapshot();
     if (block.mode === 'recorded') {
       if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
     }
@@ -935,11 +952,13 @@ export default function App() {
   const handleDeleteBlock = (blockId: string) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (block && isPastPlannedBlock(block)) return; // plan is frozen once past
+    saveSnapshot();
     deleteTimeBlock(blockId);
   };
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
+    saveSnapshot();
     const event = events.find((e) => e.id === eventId);
     const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
     // Preserve cross-date span: shift endDate by same day offset
@@ -957,6 +976,7 @@ export default function App() {
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
+    saveSnapshot();
     // For cross-date events, resize only changes the end time (end segment)
     const effectiveStart = event.endDate && event.endDate !== event.date && params.date === event.endDate
       ? '00:00' : event.start;
@@ -968,9 +988,20 @@ export default function App() {
     updateEvent(eventId, { attendanceStatus: status });
   };
 
+  const handleDeleteTask = (taskId: string) => {
+    saveSnapshot();
+    deleteTask(taskId);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    saveSnapshot();
+    deleteEvent(eventId);
+  };
+
   const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
     const event = events.find((e) => e.id === id);
     if (!event) return;
+    saveSnapshot();
     if (scope === 'this' || !event.recurrenceSeriesId) {
       deleteEvent(id);
     } else if (scope === 'all') {
@@ -1083,6 +1114,16 @@ export default function App() {
   // Keyboard shortcuts: d day, w week, m month, p planning, r recording, a all calendars
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo/redo: always handle, even when focused on inputs
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          useHistoryStore.getState().redo();
+        } else {
+          useHistoryStore.getState().undo();
+        }
+        return;
+      }
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
       if (isInput) return;
@@ -1820,10 +1861,10 @@ export default function App() {
           focusedCalendarId={focusedCalendarId}
           onOpenAddModal={handleOpenAddModal}
           onConfirm={handleConfirmBlock}
-          onSkip={skipBlock}
+          onSkip={handleSkipBlock}
           onUnconfirm={handleUnconfirmBlock}
           onDeleteBlock={handleDeleteBlock}
-          onDeleteTask={deleteTask}
+          onDeleteTask={handleDeleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
@@ -1833,7 +1874,7 @@ export default function App() {
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
-          onDeleteEvent={deleteEvent}
+          onDeleteEvent={handleDeleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
           onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
@@ -1923,7 +1964,7 @@ export default function App() {
                 onAddTask={handleAddTask}
                 onOpenScheduleTask={handleOpenScheduleTask}
                 onEditTask={handleEditTask}
-                onDeleteTask={deleteTask}
+                onDeleteTask={handleDeleteTask}
                 onMarkTaskDone={handleMarkTaskDone}
                 onOpenAddModal={handleOpenAddModal}
                 onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
@@ -1938,7 +1979,7 @@ export default function App() {
                 onRescheduleLater={handleRescheduleLater}
                 onAutoSchedule={handleAutoSchedule}
                 events={events}
-                onDeleteEvent={deleteEvent}
+                onDeleteEvent={handleDeleteEvent}
                 weekStartsOnMonday={weekStartsOnMonday}
               />
             </div>
@@ -1963,10 +2004,10 @@ export default function App() {
           isMobile
           onOpenAddModal={handleOpenAddModal}
           onConfirm={handleConfirmBlock}
-          onSkip={skipBlock}
+          onSkip={handleSkipBlock}
           onUnconfirm={handleUnconfirmBlock}
           onDeleteBlock={handleDeleteBlock}
-          onDeleteTask={deleteTask}
+          onDeleteTask={handleDeleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
           onMoveBlock={handleMoveBlock}
@@ -1976,7 +2017,7 @@ export default function App() {
           onEditEvent={handleEditEvent}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
-          onDeleteEvent={deleteEvent}
+          onDeleteEvent={handleDeleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
           onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
@@ -1995,7 +2036,7 @@ export default function App() {
           onAddTask={handleAddTask}
           onOpenScheduleTask={handleOpenScheduleTask}
           onEditTask={handleEditTask}
-          onDeleteTask={deleteTask}
+          onDeleteTask={handleDeleteTask}
           onMarkTaskDone={handleMarkTaskDone}
           onOpenAddModal={handleOpenAddModal}
           onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}

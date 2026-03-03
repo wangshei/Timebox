@@ -285,8 +285,9 @@ function TimeBlockCardInner({
   const diffStatus = getDiffStatus();
 
   const getOpacity = () => {
-    // When showDifferences is on, fade "same" (no-diff) items so different ones stand out
-    if (showDifferences && diffStatus === null) return 0.25;
+    // When showDifferences is on, fade "same" (no-diff) past items so different ones stand out.
+    // Future blocks haven't happened yet — nothing to compare, so show at normal opacity.
+    if (showDifferences && diffStatus === null && isPast) return 0.25;
     let base = getBaseOpacity();
     if (isCompareMode && matchedSet) {
       const isMatched = block.taskId && matchedSet.has(block.taskId);

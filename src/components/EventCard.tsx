@@ -130,8 +130,9 @@ export function EventCard({
   const diffOutline = (diffStatus === 'unplanned' || diffStatus === 'missing')
     ? '1.5px dashed rgba(255,59,48,0.8)'
     : undefined;
-  // Fade "same" (no-diff) events when showDifferences is on so different events stand out
-  const diffFadeOpacity = showDifferences && diffStatus === null ? 0.25 : undefined;
+  // Fade "same" (no-diff) past events when showDifferences is on so different ones stand out.
+  // Future events haven't happened yet — nothing to compare, so show at normal opacity.
+  const diffFadeOpacity = showDifferences && diffStatus === null && isPast ? 0.25 : undefined;
 
   // Cross-date segment border-radius adjustments
   const segmentRadius: React.CSSProperties = {};
