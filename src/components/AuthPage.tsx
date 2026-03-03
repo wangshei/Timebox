@@ -25,6 +25,22 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
   const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const [referralSource, setReferralSource] = useState('');
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+
+  // Check if waitlist is open (invite code not required)
+  useEffect(() => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+    fetch(`${supabaseUrl}/functions/v1/admin-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+      body: JSON.stringify({ action: 'get-config', key: 'waitlist_open' }),
+    })
+      .then(r => r.json())
+      .then(data => { if (data.value === 'true') setWaitlistOpen(true); })
+      .catch(() => {}); // non-critical
+  }, []);
 
   // If parent signals password recovery, switch to reset mode
   useEffect(() => {
@@ -171,13 +187,15 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
       } else if (mode === 'signup') {
         if (!email.trim() || !password) return;
 
-        // Validate invite code first
-        const codeValid = await validateInviteCode(inviteCode);
-        if (!codeValid) {
-          setMessage({ text: inviteCode.trim() ? 'Invalid or expired invite code.' : 'An invite code is required to sign up.', isError: true });
-          setShowWaitlistPrompt(true);
-          setLoading(false);
-          return;
+        // Validate invite code (skip when waitlist is open — anyone can sign up)
+        if (!waitlistOpen) {
+          const codeValid = await validateInviteCode(inviteCode);
+          if (!codeValid) {
+            setMessage({ text: inviteCode.trim() ? 'Invalid or expired invite code.' : 'An invite code is required to sign up.', isError: true });
+            setShowWaitlistPrompt(true);
+            setLoading(false);
+            return;
+          }
         }
 
         const { data, error } = await supabase.auth.signUp({
@@ -197,13 +215,13 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
           }
         } else if (data.session) {
           // Account created with immediate session — mark invite code as used
-          if (data.user) {
+          if (data.user && inviteCode.trim()) {
             await markInviteCodeUsed(inviteCode, data.user.id);
           }
           setMessage({ text: 'Account created! Setting up your workspace…', isError: false });
         } else {
           // Email confirmation required — mark code as used with the user ID
-          if (data.user) {
+          if (data.user && inviteCode.trim()) {
             await markInviteCodeUsed(inviteCode, data.user.id);
           }
           setAwaitingConfirmation(true);
@@ -539,8 +557,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 </div>
               )}
 
-              {/* Invite code field — signup only */}
-              {mode === 'signup' && (
+              {/* Invite code field — signup only, hidden when waitlist is open */}
+              {mode === 'signup' && !waitlistOpen && (
                 <div style={{ marginBottom: 24 }}>
                   <label htmlFor="auth-invite-code" style={labelStyle}>Invite code</label>
                   <input
@@ -784,7 +802,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                         : 'Update password'}
               </button>
 
-              {mode === 'signup' && (
+              {mode === 'signup' && !waitlistOpen && (
                 <>
                   {/* "Don't have a code?" secondary link */}
                   {!showWaitlistPrompt && (

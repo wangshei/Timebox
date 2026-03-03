@@ -13,6 +13,7 @@ import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { LeftSidebar } from './components/LeftSidebar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AuthPage } from './components/AuthPage';
+import { AdminDashboard } from './components/AdminDashboard';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { useStore } from './store/useStore';
@@ -115,9 +116,9 @@ export default function App() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const isPasswordRecoveryRef = useRef(false);
   // Check URL params for deep-links from the landing site (e.g. ?mode=signup|login|visitor)
-  const _urlMode = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('mode')
-    : null;
+  const _urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const _urlMode = _urlParams?.get('mode') ?? null;
+  const _urlPage = _urlParams?.get('page') ?? null;
   const [visitMode, setVisitMode] = useState(_urlMode === 'visitor');
   const [dataReady, setDataReady] = useState(false);
   // Pre-auth navigation: always show auth screen (landing page lives in the separate landing site)
@@ -1202,6 +1203,9 @@ export default function App() {
     void persistOnboardingToSupabase(true);
     if (doShowTour) setShowTour(true);
   };
+
+  // ── Admin dashboard (bypass all auth/app logic) ─────────────────────────
+  if (_urlPage === 'admin') return <AdminDashboard />;
 
   // ── Pre-app screens ───────────────────────────────────────────────────────
   if (appScreen === 'loading') {
