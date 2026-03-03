@@ -84,8 +84,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   const [dragPreviewType, setDragPreviewType] = React.useState<'task' | 'block' | 'event'>('task');
   const [dragColor, setDragColor] = React.useState<string>(BLOCK_PREVIEW.color);
   const dragPreviewRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
-  const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number } | null>(null);
-  const creatingBlockRef = React.useRef<{ startMins: number; endMins: number } | null>(null);
+  const [creatingBlock, setCreatingBlock] = React.useState<{ startMins: number; endMins: number; anchorMins: number } | null>(null);
+  const creatingBlockRef = React.useRef<{ startMins: number; endMins: number; anchorMins: number } | null>(null);
   const [resizingBlock, setResizingBlock] = React.useState<{ block: ResolvedTimeBlock; startClientY: number; endMins: number } | null>(null);
   const [resizingEvent, setResizingEvent] = React.useState<{ event: ResolvedEvent; startClientY: number; endMins: number } | null>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
@@ -202,8 +202,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     if (!rect) return;
     const offsetY = e.clientY - rect.top;
     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
-    const startMins = offsetYToMinutes(offsetY);
-    setCreatingBlock({ startMins, endMins: startMins + MIN_CREATE_MINUTES });
+    const anchorMins = offsetYToMinutes(offsetY);
+    setCreatingBlock({ startMins: anchorMins, endMins: anchorMins + MIN_CREATE_MINUTES, anchorMins });
   };
 
   React.useEffect(() => {
@@ -219,17 +219,20 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
       setCreatingBlock((prev) => {
         if (!prev) return null;
-        const minDuration = MIN_CREATE_MINUTES;
-        let startMins = prev.startMins;
-        let endMins = prev.endMins;
-        if (currentMins >= prev.startMins) {
-          endMins = Math.max(currentMins, prev.startMins + minDuration);
+        const anchor = prev.anchorMins;
+        let startMins: number;
+        let endMins: number;
+        if (currentMins >= anchor) {
+          // Dragging down from anchor
+          startMins = anchor;
+          endMins = Math.max(currentMins, anchor + MIN_CREATE_MINUTES);
         } else {
+          // Dragging up from anchor
           startMins = currentMins;
-          endMins = Math.max(prev.endMins, currentMins + minDuration);
+          endMins = Math.max(anchor, currentMins + MIN_CREATE_MINUTES);
         }
-        creatingBlockRef.current = { startMins, endMins };
-        return { startMins, endMins };
+        creatingBlockRef.current = { startMins, endMins, anchorMins: anchor };
+        return { startMins, endMins, anchorMins: anchor };
       });
     };
     const onUp = () => {

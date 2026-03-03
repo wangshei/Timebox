@@ -100,23 +100,25 @@ function TimeBlockCardInner({
     return () => document.removeEventListener('pointerdown', close, true);
   }, [showPopover, isSelected]);
 
-  // Compute portal popover position from block's viewport rect
+  // Compute portal popover position from block's viewport rect, measuring actual popover height
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !blockRef.current) return;
     const el = blockRef.current;
     const popoverWidth = 224;
-    const popoverMaxHeight = 420;
     const gap = 8;
     const update = () => {
       const rect = el.getBoundingClientRect();
-      let top = rect.top - popoverMaxHeight - gap;
+      const popoverH = popoverRef.current?.offsetHeight ?? 200;
+      // Try above the block
+      let top = rect.top - popoverH - gap;
       let left = rect.left;
+      // Flip below if above would go off screen
       if (top < gap) top = rect.bottom + gap;
       left = Math.max(gap, Math.min(left, window.innerWidth - popoverWidth - gap));
-      top = Math.max(gap, top);
+      top = Math.max(gap, Math.min(top, window.innerHeight - popoverH - gap));
       setPopoverRect({ top, left });
     };
-    update();
+    queueMicrotask(update);
     const obs = new ResizeObserver(update);
     obs.observe(el);
     window.addEventListener('scroll', update, true);
@@ -678,14 +680,14 @@ function TimeBlockCardInner({
         </div>
 
         {/* Compact popover — portaled to document.body so it's never clipped by overflow parents */}
-        {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
+        {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
             className="fixed rounded-xl p-3 min-w-56"
             style={{
               zIndex: 200,
-              top: popoverRect.top,
-              left: popoverRect.left,
+              top: popoverRect?.top ?? -9999,
+              left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',
@@ -876,14 +878,14 @@ function TimeBlockCardInner({
       </div>
 
       {/* Full popover — portaled to document.body so it's never clipped by overflow parents */}
-      {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
+      {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
           className="fixed rounded-xl p-3 min-w-56"
           style={{
             zIndex: 200,
-            top: popoverRect.top,
-            left: popoverRect.left,
+            top: popoverRect?.top ?? -9999,
+            left: popoverRect?.left ?? -9999,
             transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.09)',

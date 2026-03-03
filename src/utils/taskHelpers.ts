@@ -98,12 +98,13 @@ export function getUnscheduledTasks(tasks: Task[], timeBlocks: TimeBlock[]): Tas
     // Truly unscheduled: no blocks at all
     if (planned === 0 && recorded === 0) return true;
     // Has planned time but no recorded time — check if all planned blocks
-    // are in the past and none are confirmed (task was never done)
+    // are today or earlier and none are confirmed (task was never done / was unchecked).
+    // This catches tasks that were marked done then unmarked, so they reappear in backlog.
     if (recorded === 0 && task.status !== 'done') {
       const taskBlocks = timeBlocks.filter(b => b.taskId === task.id && b.mode === 'planned');
-      const allPast = taskBlocks.length > 0 && taskBlocks.every(b => b.date < today);
+      const allPastOrToday = taskBlocks.length > 0 && taskBlocks.every(b => b.date <= today);
       const noneConfirmed = taskBlocks.every(b => b.confirmationStatus !== 'confirmed');
-      if (allPast && noneConfirmed) return true;
+      if (allPastOrToday && noneConfirmed) return true;
     }
     return false;
   });

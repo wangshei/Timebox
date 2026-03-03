@@ -328,6 +328,31 @@ export default function App() {
     });
   };
 
+  /** Confirm a block on the calendar AND sync the parent task's done status. */
+  const handleConfirmBlock = (blockId: string) => {
+    confirmBlock(blockId);
+    // If all blocks for this task are now confirmed, mark the task as done
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block?.taskId) return;
+    const taskId = block.taskId;
+    const siblings = timeBlocks.filter((b) => b.taskId === taskId && b.id !== blockId);
+    const allConfirmed = siblings.every((b) => b.confirmationStatus === 'confirmed');
+    if (allConfirmed) {
+      updateTask(taskId, { status: 'done' });
+    }
+  };
+
+  /** Unconfirm a block on the calendar AND clear the parent task's done status. */
+  const handleUnconfirmBlock = (blockId: string) => {
+    updateTimeBlock(blockId, { confirmationStatus: undefined });
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block?.taskId) return;
+    const coreTask = tasks.find((t) => t.id === block.taskId);
+    if (coreTask?.status === 'done') {
+      updateTask(block.taskId, { status: undefined });
+    }
+  };
+
   const handleAddTask = (taskData: {
     title: string;
     estimatedHours: number;
@@ -1493,9 +1518,9 @@ export default function App() {
           focusedCategoryId={focusedCategoryId}
           focusedCalendarId={focusedCalendarId}
           onOpenAddModal={handleOpenAddModal}
-          onConfirm={confirmBlock}
+          onConfirm={handleConfirmBlock}
           onSkip={skipBlock}
-          onUnconfirm={(id) => updateTimeBlock(id, { confirmationStatus: undefined })}
+          onUnconfirm={handleUnconfirmBlock}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}
@@ -1632,9 +1657,9 @@ export default function App() {
           containerVisibility={containerVisibility}
           isMobile
           onOpenAddModal={handleOpenAddModal}
-          onConfirm={confirmBlock}
+          onConfirm={handleConfirmBlock}
           onSkip={skipBlock}
-          onUnconfirm={(id) => updateTimeBlock(id, { confirmationStatus: undefined })}
+          onUnconfirm={handleUnconfirmBlock}
           onDeleteBlock={deleteTimeBlock}
           onDeleteTask={deleteTask}
           onDropTask={handleDropTask}

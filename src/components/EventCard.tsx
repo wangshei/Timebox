@@ -165,22 +165,24 @@ export function EventCard({
     return () => document.removeEventListener('pointerdown', close, true);
   }, [showPopover, isSelected]);
 
-  // Compute portal popover position from card's viewport rect
+  // Compute portal popover position from card's viewport rect, measuring actual popover height
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !cardRef.current) return;
     const el = cardRef.current;
-    const popoverWidth = POPOVER_WIDTH;
     const update = () => {
       const rect = el.getBoundingClientRect();
-      // Position above the card by default, shift down if too close to top
-      let top = rect.top - POPOVER_MAX_HEIGHT - GAP;
+      const popoverH = popoverRef.current?.offsetHeight ?? 200;
+      // Try above the card
+      let top = rect.top - popoverH - GAP;
       let left = rect.left;
-      if (top < GAP) top = rect.bottom + GAP; // flip below
-      left = Math.max(GAP, Math.min(left, window.innerWidth - popoverWidth - GAP));
-      top = Math.max(GAP, top);
+      // Flip below if above would go off screen
+      if (top < GAP) top = rect.bottom + GAP;
+      left = Math.max(GAP, Math.min(left, window.innerWidth - POPOVER_WIDTH - GAP));
+      top = Math.max(GAP, Math.min(top, window.innerHeight - popoverH - GAP));
       setPopoverRect({ top, left });
     };
-    update();
+    // Run after a microtask so the portal element is measured at its real size
+    queueMicrotask(update);
     const obs = new ResizeObserver(update);
     obs.observe(el);
     window.addEventListener('scroll', update, true);
@@ -309,14 +311,14 @@ export function EventCard({
       )}
 
       {/* Detail popover — portaled to document.body so it's never clipped by overflow parents */}
-      {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
+      {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
             className="fixed rounded-xl p-3 min-w-56"
             style={{
               zIndex: 200,
-              top: popoverRect.top,
-              left: popoverRect.left,
+              top: popoverRect?.top ?? -9999,
+              left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',

@@ -108,7 +108,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   // Drag-to-create state
   const MIN_CREATE_MINUTES = 15;
-  const [creatingBlock, setCreatingBlock] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
+  const [creatingBlock, setCreatingBlock] = React.useState<{ date: string; startMins: number; endMins: number; anchorMins: number } | null>(null);
   const creatingBlockRef = React.useRef(creatingBlock);
   React.useEffect(() => { creatingBlockRef.current = creatingBlock; }, [creatingBlock]);
 
@@ -122,9 +122,19 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
       setCreatingBlock((prev) => {
         if (!prev) return null;
-        const endMins = Math.max(currentMins, prev.startMins + MIN_CREATE_MINUTES);
-        creatingBlockRef.current = { ...prev, endMins };
-        return { ...prev, endMins };
+        const anchor = prev.anchorMins;
+        let startMins: number;
+        let endMins: number;
+        if (currentMins >= anchor) {
+          startMins = anchor;
+          endMins = Math.max(currentMins, anchor + MIN_CREATE_MINUTES);
+        } else {
+          startMins = currentMins;
+          endMins = Math.max(anchor, currentMins + MIN_CREATE_MINUTES);
+        }
+        const next = { ...prev, startMins, endMins };
+        creatingBlockRef.current = next;
+        return next;
       });
     };
     const onUp = () => {
@@ -348,7 +358,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         const offsetY = e.clientY - rect.top;
                         if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                         const startMins = offsetYToMinutes(offsetY);
-                        setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES });
+                        setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES, anchorMins: startMins });
                       } : undefined}
                     >
                       {/* Grid lines */}
