@@ -61,7 +61,7 @@ export async function loadSupabaseState() {
     supabase.from('tasks').select('*').eq('user_id', userId),
     supabase.from('time_blocks').select('*').eq('user_id', userId),
     supabase.from('events').select('*').eq('user_id', userId),
-    supabase.from('user_settings').select('timezone, has_completed_setup').eq('user_id', userId).maybeSingle(),
+    supabase.from('user_settings').select('timezone, has_completed_setup, week_starts_on_monday, wake_time, sleep_time').eq('user_id', userId).maybeSingle(),
   ]);
 
   const hasError =
@@ -100,9 +100,12 @@ export async function loadSupabaseState() {
   });
 
   // Ensure user timezone is stored; use browser timezone if missing (table may not exist yet)
-  const settings = settingsRes.data as { timezone?: string; has_completed_setup?: boolean } | null;
+  const settings = settingsRes.data as { timezone?: string; has_completed_setup?: boolean; week_starts_on_monday?: boolean; wake_time?: string; sleep_time?: string } | null;
   const timezone = (settings?.timezone?.trim() || getLocalTimeZone());
   const hasCompletedSetupFromDb = settings?.has_completed_setup === true;
+  const weekStartsOnMondayFromDb = settings?.week_starts_on_monday ?? false;
+  const wakeTimeFromDb = settings?.wake_time ?? '08:00';
+  const sleepTimeFromDb = settings?.sleep_time ?? '23:00';
   const upsertRes = await supabase.from('user_settings').upsert(
     { user_id: userId, timezone },
     { onConflict: 'user_id' }
@@ -147,6 +150,9 @@ export async function loadSupabaseState() {
     return {
       ...prev,
       hasCompletedSetup: hasCompletedSetupFromDb,
+      weekStartsOnMonday: weekStartsOnMondayFromDb,
+      wakeTime: wakeTimeFromDb,
+      sleepTime: sleepTimeFromDb,
       calendarContainers,
       containerVisibility: visibility,
       categories: categories.map(
@@ -459,6 +465,21 @@ export async function persistOnboardingToSupabase(hasCompletedSetup: boolean) {
   if (error) {
     // eslint-disable-next-line no-console
     console.warn('[supabasePersistence] persistOnboardingToSupabase failed (column may not exist yet):', error);
+  }
+}
+
+/** Persist user preferences (weekStartsOnMonday, wakeTime, sleepTime) to Supabase. */
+export async function persistUserPreferencesToSupabase(prefs: { week_starts_on_monday?: boolean; wake_time?: string; sleep_time?: string }) {
+  if (!supabase) return;
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  const { error } = await supabase
+    .from('user_settings')
+    .update(prefs)
+    .eq('user_id', userId);
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[supabasePersistence] persistUserPreferencesToSupabase failed:', error);
   }
 }
 

@@ -130,6 +130,8 @@ export function EventCard({
   const diffOutline = (diffStatus === 'unplanned' || diffStatus === 'missing')
     ? '1.5px dashed rgba(255,59,48,0.8)'
     : undefined;
+  // Fade "same" (no-diff) events when showDifferences is on so different events stand out
+  const diffFadeOpacity = showDifferences && diffStatus === null ? 0.25 : undefined;
 
   // Cross-date segment border-radius adjustments
   const segmentRadius: React.CSSProperties = {};
@@ -269,7 +271,7 @@ export function EventCard({
         )}
         style={{
           backgroundColor: bgColor,
-          opacity,
+          opacity: diffFadeOpacity ?? opacity,
           ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
           outline: diffOutline,

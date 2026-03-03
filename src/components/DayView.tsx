@@ -376,9 +376,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     return computeOverlapLayout(allItems);
   }, [timeBlocks, eventSegments]);
 
-  // Overlap truncation for compare mode actual panel
+  // Overlap truncation — applied in all modes except locked (Plan panel)
   const truncationMap = React.useMemo(() => {
-    if (mode !== 'compare') return new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
+    if (locked) return new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
     const items: TruncationItem[] = [
       ...timeBlocks.map((b) => ({
         id: b.id,
@@ -401,7 +401,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const map = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
     for (const r of results) map.set(r.id, r);
     return map;
-  }, [mode, timeBlocks, eventSegments]);
+  }, [locked, timeBlocks, eventSegments]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();

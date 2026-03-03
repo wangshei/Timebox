@@ -403,9 +403,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             ...dayEventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
                           ];
                           const dayOverlapMap = computeOverlapLayout(allItems);
-                          // Truncation for compare mode actual panel
+                          // Overlap truncation — applied in all modes except locked (Plan panel)
                           const dayTruncMap = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
-                          if (mode === 'compare' && !locked) {
+                          if (!locked) {
                             const truncItems: TruncationItem[] = [
                               ...dayBlocks.map((b) => ({
                                 id: b.id, start: b.start, end: b.end,

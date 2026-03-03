@@ -34,7 +34,7 @@ import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
-import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, deleteOwnAccount } from './supabasePersistence';
+import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { THEME } from './constants/colors';
 
@@ -678,6 +678,38 @@ export default function App() {
       singleBlock: true,
     });
   }, [tasks, timeBlocks, events, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask]);
+
+  /** Reschedule a calendar block to the next available open slot later today. */
+  const handleRescheduleBlockLater = useCallback((blockId: string) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block || !block.taskId) return;
+
+    const today = getLocalDateString();
+    if (block.date !== today) return; // only reschedule today's blocks
+
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    if (parseTimeToMinutes(nowTime) >= parseTimeToMinutes(sleepTime)) return;
+
+    const blockDuration = parseTimeToMinutes(block.end) - parseTimeToMinutes(block.start);
+    const durationMins = Math.max(15, blockDuration);
+
+    // Exclude this block from occupied list so its time slot is considered free
+    const otherBlocks = timeBlocks.filter((b) => b.id !== blockId);
+    const slot = findNextAvailableSlot(
+      otherBlocks,
+      events,
+      today,
+      durationMins,
+      nowTime,
+      sleepTime,
+    );
+
+    if (!slot) return;
+
+    updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: today });
+  }, [timeBlocks, events, sleepTime, updateTimeBlock]);
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
@@ -1711,6 +1743,7 @@ export default function App() {
           onDeleteEventSeries={handleDeleteEventSeries}
           onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
+          onRescheduleLater={handleRescheduleBlockLater}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -1853,6 +1886,7 @@ export default function App() {
           onDeleteEventSeries={handleDeleteEventSeries}
           onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
+          onRescheduleLater={handleRescheduleBlockLater}
         />
         <DraggableBottomSheet
           tasks={displayTasks}
@@ -2122,11 +2156,11 @@ export default function App() {
         onUpdateTag={updateTag}
         onDeleteTag={deleteTag}
         weekStartsOnMonday={weekStartsOnMonday}
-        onWeekStartsOnMondayChange={setWeekStartsOnMonday}
+        onWeekStartsOnMondayChange={(val) => { setWeekStartsOnMonday(val); persistUserPreferencesToSupabase({ week_starts_on_monday: val }); }}
         wakeTime={wakeTime}
         sleepTime={sleepTime}
-        onWakeTimeChange={setWakeTime}
-        onSleepTimeChange={setSleepTime}
+        onWakeTimeChange={(val) => { setWakeTime(val); persistUserPreferencesToSupabase({ wake_time: val }); }}
+        onSleepTimeChange={(val) => { setSleepTime(val); persistUserPreferencesToSupabase({ sleep_time: val }); }}
       />
 
       {/* ── Onboarding tour overlay (first-time users after wizard) ── */}
