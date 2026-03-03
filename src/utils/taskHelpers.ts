@@ -87,30 +87,40 @@ export function formatMinutesToDecimalHours(minutes: number): string {
 
 /**
  * Filter tasks by backlog section.
- * Includes truly unscheduled tasks AND tasks whose planned blocks are all
- * in the past with none confirmed — these should return to the backlog.
+ *
+ * A task is "unscheduled" (shows in right panel) when:
+ *   1. It has zero planned blocks at all, OR
+ *   2. ALL of its planned blocks are in the past AND none are confirmed
+ *      (task was never done — the past blocks stay on calendar as locked/
+ *       not-done, but the task returns to the backlog for re-scheduling).
+ *
+ * A task is NOT unscheduled (stays on calendar only) when:
+ *   - It has any planned block on today or a future date, OR
+ *   - It has at least one confirmed block, OR
+ *   - It is marked done.
  */
 export function getUnscheduledTasks(tasks: Task[], timeBlocks: TimeBlock[]): Task[] {
   const today = getLocalDateString();
   return tasks.filter(task => {
-    // Done tasks always go to the Done section, never show as unscheduled
+    // Done tasks always go to the Done section, never unscheduled
     if (task.status === 'done') return false;
-    const planned = getPlannedMinutes(task, timeBlocks);
-    const recorded = getRecordedMinutes(task, timeBlocks);
-    // Truly unscheduled: no blocks at all
-    if (planned === 0 && recorded === 0) return true;
-    // Has planned time but no recorded time — check if all planned blocks
-    // are today or earlier and none are confirmed (task was never done / was unchecked).
-    // This catches tasks that were marked done then unmarked, so they reappear in backlog.
-    if (recorded === 0 && task.status !== 'done') {
-      const taskBlocks = timeBlocks.filter(b => b.taskId === task.id && b.mode === 'planned');
-      // Only treat blocks as expired if they're strictly before today.
-      // Today's blocks are still active and shouldn't return to the backlog.
-      const allPast = taskBlocks.length > 0 && taskBlocks.every(b => b.date < today);
-      const noneConfirmed = taskBlocks.every(b => b.confirmationStatus !== 'confirmed');
-      if (allPast && noneConfirmed) return true;
-    }
-    return false;
+
+    const taskBlocks = timeBlocks.filter(b => b.taskId === task.id && b.mode === 'planned');
+
+    // No planned blocks at all → unscheduled
+    if (taskBlocks.length === 0) return true;
+
+    // Has any block today or in the future → scheduled on calendar, not unscheduled
+    const hasActiveBlock = taskBlocks.some(b => b.date >= today);
+    if (hasActiveBlock) return false;
+
+    // All blocks are in the past — check if any were confirmed
+    const anyConfirmed = taskBlocks.some(b => b.confirmationStatus === 'confirmed');
+    if (anyConfirmed) return false;
+
+    // All past, none confirmed → task returns to unscheduled
+    // (the past blocks stay on calendar as locked/not-done)
+    return true;
   });
 }
 

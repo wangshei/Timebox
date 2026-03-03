@@ -1847,7 +1847,19 @@ export default function App() {
         initialStartTime={addModalInitialStart}
         initialEndTime={addModalInitialEnd}
         onAddTask={handleAddTask}
-        onUpdateTask={updateTask}
+        onUpdateTask={(id, updates) => {
+          updateTask(id, updates);
+          // Propagate category/tags/calendar changes to all linked time blocks
+          const blockUpdates: Partial<import('./types').TimeBlock> = {};
+          if (updates.categoryId) blockUpdates.categoryId = updates.categoryId;
+          if (updates.tagIds) blockUpdates.tagIds = updates.tagIds;
+          if (updates.calendarContainerId) blockUpdates.calendarContainerId = updates.calendarContainerId;
+          if (Object.keys(blockUpdates).length > 0) {
+            timeBlocks
+              .filter((b) => b.taskId === id)
+              .forEach((b) => updateTimeBlock(b.id, blockUpdates));
+          }
+        }}
         onUpdateEvent={(id, updates) => {
           const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
           const event = events.find((e) => e.id === id);

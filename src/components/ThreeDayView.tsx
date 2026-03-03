@@ -13,6 +13,7 @@ import {
 import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
+import { DueBadge } from './DueBadge';
 import { activeDrag } from '../utils/dragState';
 import { useStore } from '../store/useStore';
 
@@ -277,6 +278,7 @@ export function ThreeDayView({
                   minWidth: compact ? 0 : 160,
                   borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
                   backgroundColor: today ? BG_TODAY : BG_CANVAS,
+                  position: 'relative',
                 }}
               >
                 <div className="flex items-center gap-2 pt-2">
@@ -301,16 +303,16 @@ export function ThreeDayView({
                       {day.getDate()}
                     </div>
                   </div>
-                  {(() => {
-                    const ds = getLocalDateString(day);
-                    const due = dueTasksByDate[ds] || [];
-                    return due.length > 0 ? (
-                      <div className="ml-auto truncate" style={{ fontSize: '10px', color: '#8E8E93', maxWidth: 100 }}>
-                        {due.length === 1 ? due[0].title : `${due.length} due`}
-                      </div>
-                    ) : null;
-                  })()}
                 </div>
+                {(() => {
+                  const ds = getLocalDateString(day);
+                  const due = dueTasksByDate[ds] || [];
+                  return due.length > 0 ? (
+                    <div style={{ position: 'absolute', bottom: 4, right: 8 }}>
+                      <DueBadge tasks={due} />
+                    </div>
+                  ) : null;
+                })()}
               </div>
             );
           })}

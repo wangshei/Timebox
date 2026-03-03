@@ -13,6 +13,7 @@ import {
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { activeDrag } from '../utils/dragState';
+import { DueBadge } from './DueBadge';
 import { useStore } from '../store/useStore';
 
 interface WeekViewProps {
@@ -243,6 +244,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     minWidth: 90,
                     borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
                     backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
+                    position: 'relative',
                   }}
                 >
                   <div className="flex items-center gap-1 pt-2">
@@ -254,16 +256,16 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         {day.getDate()}
                       </div>
                     </div>
-                    {(() => {
-                      const ds = getLocalDateString(day);
-                      const due = dueTasksByDate[ds] || [];
-                      return due.length > 0 ? (
-                        <div className="ml-auto" style={{ fontSize: '9px', color: '#8E8E93' }} title={due.map(t => t.title).join(', ')}>
-                          {due.length} due
-                        </div>
-                      ) : null;
-                    })()}
                   </div>
+                  {(() => {
+                    const ds = getLocalDateString(day);
+                    const due = dueTasksByDate[ds] || [];
+                    return due.length > 0 ? (
+                      <div style={{ position: 'absolute', bottom: 3, right: 4 }}>
+                        <DueBadge tasks={due} compact />
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               );
             })}

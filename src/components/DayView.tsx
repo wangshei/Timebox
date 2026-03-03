@@ -13,6 +13,7 @@ import {
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
+import { DueBadge } from './DueBadge';
 import { activeDrag } from '../utils/dragState';
 import { useStore } from '../store/useStore';
 
@@ -404,6 +405,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               height: 48,
               borderBottom: '1px solid rgba(0,0,0,0.07)',
               backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FDFDFB',
+              position: 'relative',
             }}
           >
             <div className="flex flex-col">
@@ -428,11 +430,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               </div>
             </div>
             {dueTasks.length > 0 && (
-              <div className="flex items-center gap-1.5 ml-auto" style={{ fontSize: '11px', color: '#8E8E93' }}>
-                <span style={{ fontSize: '10px' }}>📋</span>
-                <span className="truncate" style={{ maxWidth: 200 }}>
-                  {dueTasks.length === 1 ? dueTasks[0].title : `${dueTasks.length} tasks`} due
-                </span>
+              <div style={{ position: 'absolute', bottom: 4, right: 8 }}>
+                <DueBadge tasks={dueTasks} />
               </div>
             )}
           </div>

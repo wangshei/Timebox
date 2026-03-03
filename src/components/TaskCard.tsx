@@ -369,19 +369,21 @@ export function TaskCard({
             window.setTimeout(() => { dragEndedRef.current = false; }, 200);
           }}
         >
-          {/* Calendar-block style: cream bg, colored top border, dark text */}
+          {/* Done: category color bg + checkmark. Not done: beige (cream) bg. */}
           <div
             className="h-full overflow-hidden"
             style={{
-              backgroundColor: '#FFF9EC',
-              borderTop: `3px solid ${catColor}`,
-              borderLeft: `1px solid ${hexRgba(catColor, 0.22)}`,
-              borderRight: `1px solid ${hexRgba(catColor, 0.22)}`,
-              borderBottom: `1px solid ${hexRgba(catColor, 0.22)}`,
+              backgroundColor: isDone ? hexRgba(catColor, 0.12) : '#FFF9EC',
+              borderTop: `3px solid ${isDone ? hexRgba(catColor, 0.35) : catColor}`,
+              borderLeft: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
+              borderRight: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
+              borderBottom: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
               borderRadius: 5,
               boxShadow: showPopover
                 ? `0 0 0 2px ${catColor}, 0 4px 12px ${hexRgba(catColor, 0.25)}`
-                : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                : isDone
+                  ? 'none'
+                  : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
             }}
           >
             <div className="flex flex-col h-full overflow-hidden" style={{ padding: '4px 7px' }}>
