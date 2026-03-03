@@ -58,6 +58,12 @@ export interface Task {
   description?: string | null;
   /** Stored task status, mirrors core Task.status. */
   status?: import('./types').Task['status'];
+  /** Earliest planned block date (YYYY-MM-DD). */
+  nextBlockDate?: string | null;
+  /** Earliest planned block start time (HH:mm). */
+  nextBlockStart?: string | null;
+  /** Earliest planned block end time (HH:mm). */
+  nextBlockEnd?: string | null;
 }
 export interface TimeBlock {
   id: string;

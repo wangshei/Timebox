@@ -45,6 +45,23 @@ function fmtMins(mins: number): string {
   return `${m}m`;
 }
 
+/** Format "HH:mm" → "9am" / "2:30pm" */
+function fmtTime(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  const hour = h ?? 0;
+  const min = m ?? 0;
+  const suffix = hour >= 12 ? 'pm' : 'am';
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
+}
+
+/** Format "YYYY-MM-DD" → "Mar 3" */
+function fmtDate(d: string): string {
+  const [y, m, day] = d.split('-').map(Number);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[(m ?? 1) - 1]} ${day}`;
+}
+
 /** Convert hex color to rgba string */
 function hexRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
@@ -590,9 +607,10 @@ export function TaskCard({
                   />
                 </div>
                 <div className="text-xs" style={{ color: THEME.textPrimary }}>
-                  {recordedMins > 0
-                    ? `${fmtMins(recordedMins)} done · `
-                    : ''}{task.blockCount} {task.blockCount === 1 ? 'block' : 'blocks'} · {fmtMins(estimatedMins)} total
+                  {recordedMins > 0 && `${fmtMins(recordedMins)} done · `}
+                  {task.nextBlockDate && task.nextBlockStart
+                    ? `Scheduled for ${fmtDate(task.nextBlockDate)}, ${fmtTime(task.nextBlockStart)}–${fmtTime(task.nextBlockEnd ?? task.nextBlockStart)}`
+                    : `${fmtMins(estimatedMins)} total`}
                 </div>
               </div>
             )}

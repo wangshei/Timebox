@@ -354,6 +354,12 @@ export interface DisplayTask {
   description?: string | null;
   /** Stored task status, mirrors Task.status from the store. */
   status?: Task['status'];
+  /** Earliest planned block date (YYYY-MM-DD) for "scheduled for" display. */
+  nextBlockDate?: string | null;
+  /** Earliest planned block start time (HH:mm). */
+  nextBlockStart?: string | null;
+  /** Earliest planned block end time (HH:mm). */
+  nextBlockEnd?: string | null;
 }
 
 const containerIdToCalendar = (id: string): 'personal' | 'work' | 'school' =>
@@ -380,6 +386,11 @@ export function selectDisplayTasksForBacklog(
       : undefined;
     const plannedMins = getPlannedMinutes(task, timeBlocks);
     const recordedMins = getRecordedMinutes(task, timeBlocks);
+    // Find earliest planned block for "scheduled for" display
+    const plannedBlocks = blocksForTask
+      .filter((b) => b.mode === 'planned')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+    const earliest = plannedBlocks[0] ?? null;
     return {
       id: task.id,
       title: task.title,
@@ -394,6 +405,9 @@ export function selectDisplayTasksForBacklog(
       link: task.link ?? null,
       description: task.description ?? null,
       status: task.status,
+      nextBlockDate: earliest?.date ?? null,
+      nextBlockStart: earliest?.start ?? null,
+      nextBlockEnd: earliest?.end ?? null,
     };
   });
 }

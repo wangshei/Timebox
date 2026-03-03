@@ -82,7 +82,7 @@ export function RightSidebar({
   onTogglePin,
   weekStartsOnMonday = false,
 }: RightSidebarProps) {
-  const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
+  const [viewMode, setViewMode] = useState<TaskViewMode>('plan');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   const [doneSectionOpen, setDoneSectionOpen] = useState(false);
@@ -480,8 +480,8 @@ export function RightSidebar({
         <div className="flex items-center justify-between gap-2">
           <SegmentedControl
             options={[
-              { value: 'overview', label: 'Overview' },
               { value: 'plan', label: 'Plan' },
+              { value: 'overview', label: 'Overview' },
             ]}
             value={viewMode}
             onChange={(v) => setViewMode(v as TaskViewMode)}

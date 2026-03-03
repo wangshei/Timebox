@@ -677,15 +677,15 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Compact popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
-        {showPopover && isSelected && (
+        {/* Compact popover — portaled to document.body so it's never clipped by overflow parents */}
+        {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="absolute z-50 rounded-xl p-3 min-w-56"
+            className="fixed rounded-xl p-3 min-w-56"
             style={{
-              bottom: '100%',
-              left: 0,
-              marginBottom: POPOVER_MARGIN,
+              zIndex: 200,
+              top: popoverRect.top,
+              left: popoverRect.left,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',
@@ -693,7 +693,8 @@ function TimeBlockCardInner({
             }}
           >
             <PopoverContent />
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
@@ -874,15 +875,15 @@ function TimeBlockCardInner({
         )}
       </div>
 
-      {/* Full popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
-      {showPopover && isSelected && (
+      {/* Full popover — portaled to document.body so it's never clipped by overflow parents */}
+      {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="absolute z-50 rounded-xl p-3 min-w-56"
+          className="fixed rounded-xl p-3 min-w-56"
           style={{
-            ...(popoverPosition === 'bottom-left'
-              ? { bottom: '100%', left: 0, marginBottom: POPOVER_MARGIN }
-              : { top: '100%', left: 0, marginTop: POPOVER_MARGIN }),
+            zIndex: 200,
+            top: popoverRect.top,
+            left: popoverRect.left,
             transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.09)',
@@ -890,7 +891,8 @@ function TimeBlockCardInner({
           }}
         >
           <PopoverContent />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
