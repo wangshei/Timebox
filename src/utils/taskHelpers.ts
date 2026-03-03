@@ -1,4 +1,5 @@
 import { Task, TimeBlock } from '../types';
+import { getLocalDateString } from './dateTime';
 
 /**
  * Calculate total planned minutes for a task
@@ -85,13 +86,26 @@ export function formatMinutesToDecimalHours(minutes: number): string {
 }
 
 /**
- * Filter tasks by backlog section
+ * Filter tasks by backlog section.
+ * Includes truly unscheduled tasks AND tasks whose planned blocks are all
+ * in the past with none confirmed — these should return to the backlog.
  */
 export function getUnscheduledTasks(tasks: Task[], timeBlocks: TimeBlock[]): Task[] {
+  const today = getLocalDateString();
   return tasks.filter(task => {
     const planned = getPlannedMinutes(task, timeBlocks);
     const recorded = getRecordedMinutes(task, timeBlocks);
-    return planned === 0 && recorded === 0;
+    // Truly unscheduled: no blocks at all
+    if (planned === 0 && recorded === 0) return true;
+    // Has planned time but no recorded time — check if all planned blocks
+    // are in the past and none are confirmed (task was never done)
+    if (recorded === 0 && task.status !== 'done') {
+      const taskBlocks = timeBlocks.filter(b => b.taskId === task.id && b.mode === 'planned');
+      const allPast = taskBlocks.length > 0 && taskBlocks.every(b => b.date < today);
+      const noneConfirmed = taskBlocks.every(b => b.confirmationStatus !== 'confirmed');
+      if (allPast && noneConfirmed) return true;
+    }
+    return false;
   });
 }
 

@@ -169,10 +169,13 @@ function TimeBlockCardInner({
     }
   };
 
-  /** Renders the confirmation status circle for past blocks (top-right corner).
-   *  Shows for all past blocks (events + tasks). Clickable unless locked. */
+  /** Renders the confirmation status circle (top-right corner).
+   *  Shows for all past blocks (always visible) and future task blocks (hover-only). Clickable unless locked. */
   const renderStatusCircle = (size: number) => {
-    if (!isPast && !isCompareMode) return null;
+    const isFutureTask = !isPast && !isCompareMode && isTask;
+    const isFutureEvent = !isPast && !isCompareMode && isEvent;
+    // Hide for future events — they don't need a done circle
+    if (isFutureEvent) return null;
     const circleSize = size;
     const iconSize = Math.max(6, size - 4);
     const isClickable = !locked && (onConfirm || onUnconfirm || onSkip);
@@ -184,6 +187,7 @@ function TimeBlockCardInner({
         className={cn(
           'absolute flex items-center justify-center rounded-full transition-all z-10',
           isClickable ? 'cursor-pointer' : 'cursor-default pointer-events-none',
+          isFutureTask && !confirmed && 'opacity-0 group-hover:opacity-100',
         )}
         style={{
           top: 2,
@@ -194,7 +198,7 @@ function TimeBlockCardInner({
             ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
             : skipped
               ? { backgroundColor: 'rgba(0,0,0,0.12)', border: '1.5px solid rgba(0,0,0,0.15)' }
-              : { backgroundColor: 'transparent', border: `1.5px dashed ${hexToRgba(blockColor, 0.5)}` }),
+              : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.45)}` }),
         }}
         title={confirmed ? 'Mark as not done' : skipped ? 'Mark as done' : 'Mark as done'}
         aria-label={confirmed ? 'Mark as not done' : 'Mark as done'}
@@ -584,7 +588,7 @@ function TimeBlockCardInner({
     return (
       <div
         ref={blockRef}
-        className={cn('absolute pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+        className={cn('absolute group pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}

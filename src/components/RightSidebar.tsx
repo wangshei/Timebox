@@ -4,6 +4,7 @@ import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event, RecurrencePattern } from '../types';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
 
 const BORDER = 'rgba(0,0,0,0.08)';
@@ -60,7 +61,10 @@ interface RightSidebarProps {
   weekStartsOnMonday?: boolean;
 }
 
+export type TaskViewMode = 'overview' | 'plan';
+
 export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks, fixedMissedTasks = [], doneTasks = [], selectedDate = getLocalDateString(), timeBlocks, categories, tags, onAddTask, onOpenScheduleTask, onEditTask, onDeleteTask, onMarkTaskDone, onOpenAddModal, onDropBlock, onBreakIntoChunks, onSplitTask, events = [], onDeleteEvent, isMobile = false, isBottomSheet = false, onTogglePin, weekStartsOnMonday = false }: RightSidebarProps) {
+  const [viewMode, setViewMode] = useState<TaskViewMode>('overview');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   const [doneSectionOpen, setDoneSectionOpen] = useState(false);
@@ -194,6 +198,22 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
     [tasks]
   );
 
+  // Done task ID set for exclusion from "All tasks" in overview
+  const doneIdSet = useMemo(() => new Set(doneTasks.map((t) => t.id)), [doneTasks]);
+
+  /** All non-done tasks sorted by priority then due date for overview. */
+  const allTasksSorted = useMemo(() => {
+    let base = tasks.filter((t) => !doneIdSet.has(t.id));
+    if (overviewRange !== 'month' && timeBlocks) {
+      base = base.filter((t) => {
+        const hasBlocksInRange = taskIdsInRange.has(t.id);
+        const hasAnyBlocks = (t as any).blockCount && (t as any).blockCount > 0;
+        return hasBlocksInRange || !hasAnyBlocks;
+      });
+    }
+    return [...base].sort(sortByPriorityAndDueDate);
+  }, [tasks, overviewRange, timeBlocks, taskIdsInRange, doneIdSet]);
+
   const handleDragOver = (e: React.DragEvent) => {
     if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
     e.preventDefault();
@@ -226,12 +246,18 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Task view header + date range filter */}
+      {/* Overview toggle + date range filter */}
       <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold" style={{ color: THEME.textPrimary }}>
-            Todo view
-          </span>
+          <SegmentedControl
+            options={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'plan', label: 'Plan' },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as TaskViewMode)}
+            compact
+          />
           <div className="flex gap-1">
             {(['today', 'week'] as const).map((range) => (
               <button
@@ -251,7 +277,99 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
       </div>
 
       <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
-        <div className="space-y-4">
+        {viewMode === 'overview' ? (
+          <>
+            {/* All tasks — sorted by priority then due date, excludes done */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <h2
+                  className="text-sm font-semibold"
+                  style={{ fontSize: '14px', color: THEME.textPrimary }}
+                >
+                  All tasks {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
+                </h2>
+                {onOpenAddModal && (
+                  <button
+                    data-tour="add-task-btn"
+                    type="button"
+                    onClick={() => onOpenAddModal('task')}
+                    className="flex items-center gap-0.5 text-xs transition-colors"
+                    style={{ color: THEME.textPrimary }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#8DA286')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = THEME.textPrimary)}
+                    title="Add task"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {allTasksSorted.length === 0 ? (
+                <div className="text-xs text-center py-4 px-2" style={{ color: '#AEAEB2' }}>
+                  {doneTasks.length > 0 ? 'All tasks are done!' : 'No tasks yet'}
+                </div>
+              ) : (
+                <div>
+                  {allTasksSorted.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      viewMode="overview"
+                      popoverSide="left"
+                      onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                      onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                      onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                      onBreakIntoChunks={onBreakIntoChunks}
+                      onSplitTask={onSplitTask}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Done section — collapsible, chevron on right */}
+            {filteredDoneSorted.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setDoneSectionOpen(!doneSectionOpen)}
+                  className="flex items-center justify-between w-full text-left px-1 mb-1.5"
+                >
+                  <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
+                    Done ({filteredDoneSorted.length})
+                  </h2>
+                  {doneSectionOpen
+                    ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                    : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                  }
+                </button>
+                {doneSectionOpen && (
+                  <div>
+                    {filteredDoneSorted.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        viewMode="overview"
+                        popoverSide="left"
+                        onScheduleTask={onOpenScheduleTask ? () => onOpenScheduleTask(task.id) : undefined}
+                        onEditTask={onEditTask ? () => onEditTask(task.id) : undefined}
+                        onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                        onMarkTaskDone={onMarkTaskDone ? () => onMarkTaskDone(task.id) : undefined}
+                        onBreakIntoChunks={onBreakIntoChunks}
+                        onSplitTask={onSplitTask}
+                        onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          /* ─── PLAN VIEW ─── */
+          <div className="space-y-4">
             {/* Priority Tasks */}
             {priorityTasks.length > 0 && (
               <div>
@@ -460,6 +578,7 @@ export function RightSidebar({ tasks, unscheduledTasks, partiallyCompletedTasks,
               </div>
             )}
           </div>
+        )}
       </div>
     </div>
   );

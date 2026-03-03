@@ -151,6 +151,19 @@ export function EventCard({
     }
   };
 
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!showPopover || !isSelected) return;
+    const close = (e: PointerEvent) => {
+      if (cardRef.current?.contains(e.target as Node)) return;
+      if (popoverRef.current?.contains(e.target as Node)) return;
+      setShowPopover(false);
+      onDeselect();
+    };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [showPopover, isSelected]);
+
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !cardRef.current || !popoverRef.current) return;
     const cardRect = cardRef.current.getBoundingClientRect();

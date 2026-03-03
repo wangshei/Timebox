@@ -412,16 +412,15 @@ export function TaskCard({
                 onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
                 className="absolute flex items-center justify-center rounded-full transition-all"
                 style={{
-                  top: 5, right: 5,
-                  width: 14, height: 14,
-                  border: `1.5px solid ${isDone ? catColor : hexRgba(catColor, 0.45)}`,
+                  top: 4, right: 4,
+                  width: 18, height: 18,
+                  border: `1.5px solid ${isDone ? catColor : hexRgba(catColor, 0.5)}`,
                   backgroundColor: isDone ? catColor : 'transparent',
-                  opacity: isDone ? 1 : 0.7,
                   flexShrink: 0,
                 }}
                 title={isDone ? 'Mark as not done' : 'Mark as done'}
               >
-                {isDone && <CheckIcon style={{ width: 8, height: 8, color: '#FFFFFF' }} />}
+                {isDone && <CheckIcon style={{ width: 10, height: 10, color: '#FFFFFF' }} />}
               </button>
             )}
 
