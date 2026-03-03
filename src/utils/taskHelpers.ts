@@ -158,10 +158,11 @@ export function findNextAvailableSlot(
   const windowStart = Math.ceil(afterMins / 15) * 15;
   if (windowStart + durationMins > beforeMins) return null;
 
-  // Collect all occupied intervals on this date
+  // Collect all occupied intervals on this date (skip past skipped blocks — they're free)
   const occupied: Array<{ start: number; end: number }> = [];
   for (const b of timeBlocks) {
     if (b.date !== date) continue;
+    if (b.confirmationStatus === 'skipped') continue;
     occupied.push({ start: parseTimeToMinutes(b.start), end: parseTimeToMinutes(b.end) });
   }
   for (const e of events) {
