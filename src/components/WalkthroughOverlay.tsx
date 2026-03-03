@@ -423,24 +423,22 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
 
         {/* ── Settings panel (step 5) ── */}
         {step.showSettings && (
-          <div data-tour="settings-popup">
-            <SettingsPanel
-              isOpen={true}
-              onClose={noop}
-              calendarContainers={DEMO_CALENDARS}
-              categories={DEMO_CATEGORIES}
-              tags={DEMO_TAGS}
-              onAddCalendar={noopStr as any}
-              onUpdateCalendar={noop}
-              onDeleteCalendar={noop}
-              onAddCategory={noop}
-              onUpdateCategory={noop}
-              onDeleteCategory={noop}
-              onAddTag={noop}
-              onUpdateTag={noop}
-              onDeleteTag={noop}
-            />
-          </div>
+          <SettingsPanel
+            isOpen={true}
+            onClose={noop}
+            calendarContainers={DEMO_CALENDARS}
+            categories={DEMO_CATEGORIES}
+            tags={DEMO_TAGS}
+            onAddCalendar={noopStr as any}
+            onUpdateCalendar={noop}
+            onDeleteCalendar={noop}
+            onAddCategory={noop}
+            onUpdateCategory={noop}
+            onDeleteCategory={noop}
+            onAddTag={noop}
+            onUpdateTag={noop}
+            onDeleteTag={noop}
+          />
         )}
       </div>
 
