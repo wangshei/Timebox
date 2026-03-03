@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-type AuthMode = 'signup' | 'login' | 'forgot' | 'reset';
+type AuthMode = 'signup' | 'login' | 'forgot' | 'reset' | 'waitlist';
 
 interface AuthPageProps {
   supabase: SupabaseClient | null;
@@ -277,6 +277,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
   const subtitle = (() => {
     if (mode === 'forgot') return 'Enter your email to receive a reset link.';
     if (mode === 'reset') return 'Choose a new password.';
+    if (mode === 'waitlist') return 'Join the waitlist to get early access.';
     if (mode === 'signup') return 'Create an account to save your calendar.';
     return 'Welcome back.';
   })();
@@ -394,7 +395,91 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 Back to log in →
               </button>
             </div>
-          ) : (
+          ) : mode === 'waitlist' ? (
+              <form onSubmit={(e) => { e.preventDefault(); joinWaitlist(); }} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <div style={{ marginBottom: 24 }}>
+                  <label htmlFor="auth-email" style={labelStyle}>Email address</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    disabled={noBackend || loading}
+                    required
+                    style={inputStyle}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Error/success message */}
+                {message && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                      backgroundColor: message.isError ? 'rgba(255,59,48,0.06)' : 'rgba(141,162,134,0.10)',
+                      color: message.isError ? '#B85050' : '#4A7A44',
+                      border: `1px solid ${message.isError ? 'rgba(255,59,48,0.12)' : 'rgba(141,162,134,0.22)'}`,
+                    }}
+                  >
+                    {message.text}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={noBackend || loading || !email.trim()}
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: (noBackend || loading || !email.trim()) ? 'default' : 'pointer',
+                    transition: 'all 200ms',
+                    backgroundColor: '#8DA387',
+                    color: '#FFFFFF',
+                    opacity: (noBackend || loading || !email.trim()) ? 0.4 : 1,
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading && !noBackend && email.trim()) e.currentTarget.style.backgroundColor = '#7A9076';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#8DA387';
+                  }}
+                >
+                  {loading ? '...' : 'Join Waitlist'}
+                </button>
+
+                <div style={{ textAlign: 'center', marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    style={{
+                      fontSize: 13,
+                      color: '#8DA286',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'color 200ms',
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  >
+                    Have an invite code? Sign up
+                  </button>
+                </div>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {/* Name field — signup only */}
               {mode === 'signup' && (
@@ -667,13 +752,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       Don't have a code?{' '}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (email.trim()) {
-                            joinWaitlist();
-                          } else {
-                            setMessage({ text: 'Enter your email above first.', isError: true });
-                          }
-                        }}
+                        onClick={() => switchMode('waitlist')}
                         style={{
                           fontSize: 12,
                           color: '#8DA286',
@@ -700,8 +779,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             </form>
           )}
 
-          {/* Or divider + secondary action — hide in forgot/reset modes */}
-          {!isForgotOrReset && !awaitingConfirmation && !waitlistJoined && (
+          {/* Or divider + secondary action — hide in forgot/reset/waitlist modes */}
+          {!isForgotOrReset && mode !== 'waitlist' && !awaitingConfirmation && !waitlistJoined && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
