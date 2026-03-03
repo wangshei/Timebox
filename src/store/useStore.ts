@@ -275,9 +275,21 @@ export const useStore = create<AppState & AppActions>()(
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return;
     const blockMins = blockMinutes ?? state.defaultBlockMinutes;
-    const planned = getPlannedMinutes(task, state.timeBlocks);
+
+    // For singleBlock (auto-schedule / reschedule-later), only count "active" planned time:
+    // today/future blocks, or confirmed past blocks. Past unconfirmed/skipped blocks
+    // don't count — they correspond to tasks that returned to the unscheduled list.
+    const today = getLocalDateString();
+    const activePlanned = (singleBlock)
+      ? state.timeBlocks
+          .filter(b => b.taskId === task.id && b.mode === 'planned' && (b.date >= today || b.confirmationStatus === 'confirmed'))
+          .reduce((sum, b) => sum + (parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start)), 0)
+      : getPlannedMinutes(task, state.timeBlocks);
     const recorded = getRecordedMinutes(task, state.timeBlocks);
-    const remaining = task.estimatedMinutes - planned - recorded;
+
+    // If task has no estimate (0), allow scheduling with blockMins; otherwise check remaining
+    const hasEstimate = task.estimatedMinutes > 0;
+    const remaining = hasEstimate ? task.estimatedMinutes - activePlanned - recorded : blockMins;
     if (remaining <= 0) return;
 
     const startMins = parseTimeToMinutes(startTime);
