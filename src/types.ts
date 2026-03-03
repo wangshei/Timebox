@@ -107,6 +107,8 @@ export interface Event {
   start: string;
   end: string;
   date: string;
+  /** For cross-date events (e.g. 10pm-8am): the end date. Undefined = same as date. */
+  endDate?: string;
   recurring: boolean;
   recurrencePattern?: RecurrencePattern;
   /** For custom: e.g. [0,1,2,3,4] = Mon–Fri (0=Sun, 6=Sat). */

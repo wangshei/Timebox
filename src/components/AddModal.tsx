@@ -51,6 +51,7 @@ interface AddModalProps {
     startTime: string;
     endTime: string;
     date: string;
+    endDate?: string;
     category: Category;
     tags: Tag[];
     calendar: string;
@@ -100,6 +101,7 @@ export function AddModal({
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
   const [date, setDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
@@ -212,6 +214,7 @@ export function AddModal({
       setMode('event');
       setTitle(editingTimeBlock.title ?? '');
       setDate(editingTimeBlock.date);
+      setEndDate(editingTimeBlock.date);
       setStartTime(editingTimeBlock.start);
       setEndTime(editingTimeBlock.end);
       setSelectedCategory(categories.find((c) => c.id === editingTimeBlock.categoryId) ?? firstCategoryForCalendar(editingTimeBlock.calendarContainerId) ?? null);
@@ -230,6 +233,7 @@ export function AddModal({
       setMode('event');
       setTitle(editingEvent.title ?? '');
       setDate(editingEvent.date);
+      setEndDate(editingEvent.endDate ?? editingEvent.date);
       setStartTime(editingEvent.start);
       setEndTime(editingEvent.end);
       setSelectedCategory(categories.find((c) => c.id === editingEvent.categoryId) ?? firstCategoryForCalendar(editingEvent.calendarContainerId) ?? null);
@@ -251,7 +255,7 @@ export function AddModal({
       setMode(initialMode);
       setPinned(false);
       setPriority(undefined);
-      if (initialDate) setDate(initialDate);
+      if (initialDate) { setDate(initialDate); setEndDate(initialDate); }
       if (initialStartTime) setStartTime(initialStartTime);
       if (initialEndTime) setEndTime(initialEndTime);
     }
@@ -266,6 +270,19 @@ export function AddModal({
       return belongs ? prev : first ?? prev;
     });
   }, [isOpen, selectedCalendar, editingTask, editingTimeBlock, editingEvent, categories]);
+
+  // Auto-advance endDate when endTime < startTime (cross-midnight event)
+  useEffect(() => {
+    if (mode !== 'event') return;
+    const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); };
+    if (parseT(endTime) < parseT(startTime) && endDate === date) {
+      // Advance endDate to next day
+      const d = new Date(date + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const nextDay = d.toISOString().split('T')[0];
+      setEndDate(nextDay);
+    }
+  }, [mode, startTime, endTime, date, endDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,6 +323,7 @@ export function AddModal({
         start: startTime,
         end: endTime,
         date,
+        endDate: endDate !== date ? endDate : undefined,
         calendarContainerId: fallbackCalendar,
         categoryId: categoryToUse.id,
         recurring: recurrencePattern !== 'none',
@@ -355,6 +373,7 @@ export function AddModal({
         startTime,
         endTime,
         date,
+        endDate: endDate !== date ? endDate : undefined,
         category: categoryToUse,
         tags: tagsToUse,
         calendar: fallbackCalendar,
@@ -374,6 +393,7 @@ export function AddModal({
     setDescription('');
     setNotes('');
     setDate(getLocalDateString());
+    setEndDate(getLocalDateString());
     setStartTime('09:00');
     setEndTime('10:00');
     setSelectedCategory(categories[0] || null);
@@ -530,17 +550,32 @@ export function AddModal({
 
           {mode === 'event' && (
             <>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Date</label>
-                <input
-                  type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start date</label>
+                  <input
+                    type="date" value={date} onChange={(e) => {
+                      const newDate = e.target.value;
+                      setDate(newDate);
+                      // Keep endDate >= date
+                      if (endDate < newDate) setEndDate(newDate);
+                    }}
+                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End date</label>
+                  <input
+                    type="date" value={endDate} min={date} onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start time</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
@@ -548,7 +583,7 @@ export function AddModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End time</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"

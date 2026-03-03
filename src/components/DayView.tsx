@@ -16,6 +16,8 @@ import { hexToRgba } from '../utils/color';
 import { DueBadge } from './DueBadge';
 import { activeDrag } from '../utils/dragState';
 import { useStore } from '../store/useStore';
+import { getEventSegmentsForDate } from '../utils/crossDateEvents';
+import { computeOverlapTruncation, TruncationItem } from '../utils/overlapTruncation';
 
 export { SNAP_MINUTES_UTIL as SNAP_MINUTES };
 const DEFAULT_DROP_MINUTES = 15;
@@ -75,12 +77,13 @@ interface DayViewProps {
   /** When true, DayView doesn't scroll internally — parent handles scrolling. */
   disableScroll?: boolean;
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
+  onRescheduleLater?: (blockId: string) => void;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -358,19 +361,57 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     mode === 'compare' &&
     selectedDate < todayStr;
 
+  // Compute event segments for this day (handles cross-date events)
+  const eventSegments = React.useMemo(
+    () => getEventSegmentsForDate(events, selectedDate),
+    [events, selectedDate]
+  );
+
   // Overlap layout for ALL blocks and events (tasks share column with events using overlap algorithm).
   const overlapMap = React.useMemo(() => {
     const allItems = [
       ...timeBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
-      ...events.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
+      ...eventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
     ];
     return computeOverlapLayout(allItems);
-  }, [timeBlocks, events]);
+  }, [timeBlocks, eventSegments]);
+
+  // Overlap truncation for compare mode actual panel
+  const truncationMap = React.useMemo(() => {
+    if (mode !== 'compare') return new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
+    const items: TruncationItem[] = [
+      ...timeBlocks.map((b) => ({
+        id: b.id,
+        start: b.start,
+        end: b.end,
+        priority: b.source === 'unplanned' ? 3
+          : (b.confirmationStatus === 'confirmed') ? 2
+          : 1,
+      })),
+      ...eventSegments.map((seg) => ({
+        id: `event-${seg.event.id}`,
+        start: seg.displayStart,
+        end: seg.displayEnd,
+        priority: seg.event.source === 'unplanned' ? 3
+          : (seg.event.attendanceStatus === 'attended') ? 2
+          : 1,
+      })),
+    ];
+    const results = computeOverlapTruncation(items);
+    const map = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
+    for (const r of results) map.set(r.id, r);
+    return map;
+  }, [mode, timeBlocks, eventSegments]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();
     timeBlocks.forEach((block) => {
-      const { top, height } = getBlockStyle(block);
+      const trunc = truncationMap.get(block.id);
+      const startMins = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveStart) : parseTimeToMins(block.start);
+      const endMins = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveEnd) : parseTimeToMins(block.end);
+      const duration = endMins - startMins;
+      const top = ((startMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
+      const height = (duration / 60) * PX_PER_HOUR;
       const layout = overlapMap.get(block.id);
       const widthPercent = layout ? 100 / layout.totalColumns : 100;
       const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
@@ -379,10 +420,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         height: `${height}px`,
         width: `${widthPercent}%`,
         left: `${leftPercent}%`,
+        ...(trunc?.hidden ? { opacity: 0.15 } : {}),
       });
     });
     return map;
-  }, [timeBlocks, overlapMap]);
+  }, [timeBlocks, overlapMap, truncationMap]);
 
   const nowMins = now.getHours() * 60 + now.getMinutes();
 
@@ -514,40 +556,47 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 compareMatchedTaskIds={compareMatchedTaskIds}
                 locked={locked}
                 showDifferences={showDifferences}
+                onRescheduleLater={onRescheduleLater}
               />
             );
           })}
 
           {/* Events: fill slot, overlap when multiple; show description + tag */}
-          {events.map((event) => {
-            const startMinutes = parseTimeToMins(event.start);
-            const endMinutes = parseTimeToMins(event.end);
+          {eventSegments.map((seg) => {
+            const truncKey = `event-${seg.event.id}`;
+            const trunc = truncationMap.get(truncKey);
+            const startMinutes = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveStart) : parseTimeToMins(seg.displayStart);
+            const endMinutes = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveEnd) : parseTimeToMins(seg.displayEnd);
             const duration = endMinutes - startMinutes;
             const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
             const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
-            const layout = overlapMap.get(`event-${event.id}`);
+            const layout = overlapMap.get(`event-${seg.event.id}`);
             const widthPercent = layout ? 100 / layout.totalColumns : 100;
             const leftPercent = layout ? layout.columnIndex * widthPercent : 0;
             return (
               <EventCard
-                key={event.id}
-                event={event}
+                key={seg.event.id}
+                event={seg.event}
                 style={{
                   top: `${top}px`,
                   height: `${height}px`,
                   width: `${widthPercent}%`,
                   left: `${leftPercent}%`,
+                  ...(trunc?.hidden ? { opacity: 0.15 } : {}),
                 }}
-                isSelected={selectedBlock === `event-${event.id}`}
-                onSelect={() => onSelectBlock(`event-${event.id}`)}
+                isSelected={selectedBlock === `event-${seg.event.id}`}
+                onSelect={() => onSelectBlock(`event-${seg.event.id}`)}
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
                 onDeleteEventSeries={onDeleteEventSeries}
                 onEditEvent={onEditEvent}
                 plannedStyle={false}
                 draggable={!!onMoveEvent}
-                onResizeStart={onResizeEvent ? (e) => handleEventResizeStart(event, e) : undefined}
+                onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => handleEventResizeStart(seg.event, e) : undefined}
                 onToggleAttendance={onToggleEventAttendance}
+                showDifferences={showDifferences}
+                isStartSegment={seg.isStartSegment}
+                isEndSegment={seg.isEndSegment}
               />
             );
           })}

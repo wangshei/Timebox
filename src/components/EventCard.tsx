@@ -45,6 +45,11 @@ interface EventCardProps {
   compact?: boolean;
   /** Toggle attendance for past events */
   onToggleAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
+  /** When true, show red dashed outline for diff status (unplanned / not attended). */
+  showDifferences?: boolean;
+  /** Segment indicators for cross-date events */
+  isStartSegment?: boolean;
+  isEndSegment?: boolean;
 }
 
 export function EventCard({
@@ -61,6 +66,9 @@ export function EventCard({
   onResizeStart,
   compact = false,
   onToggleAttendance,
+  showDifferences = false,
+  isStartSegment = true,
+  isEndSegment = true,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
@@ -111,6 +119,22 @@ export function EventCard({
       : isPast
         ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.40)}` }
         : { borderLeft: `4px solid ${calendarColor}` };
+
+  // Diff status for "Show Differences" mode
+  const diffStatus: 'unplanned' | 'missing' | null = (() => {
+    if (!showDifferences) return null;
+    if (event.source === 'unplanned') return 'unplanned';
+    if (isPast && event.attendanceStatus === 'not_attended') return 'missing';
+    return null;
+  })();
+  const diffOutline = (diffStatus === 'unplanned' || diffStatus === 'missing')
+    ? '1.5px dashed rgba(255,59,48,0.8)'
+    : undefined;
+
+  // Cross-date segment border-radius adjustments
+  const segmentRadius: React.CSSProperties = {};
+  if (!isStartSegment) { segmentRadius.borderTopLeftRadius = 0; segmentRadius.borderTopRightRadius = 0; }
+  if (!isEndSegment) { segmentRadius.borderBottomLeftRadius = 0; segmentRadius.borderBottomRightRadius = 0; }
 
   const heightPx =
     typeof style.height === 'number'
@@ -248,6 +272,8 @@ export function EventCard({
           opacity,
           ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
+          outline: diffOutline,
+          ...segmentRadius,
         }}
       >
         {compact ? (

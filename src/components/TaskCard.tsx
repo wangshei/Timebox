@@ -649,7 +649,7 @@ export function TaskCard({
                 <div className="text-xs" style={{ color: THEME.textPrimary }}>
                   {recordedMins > 0 && `${fmtMins(recordedMins)} done · `}
                   {task.nextBlockDate && task.nextBlockStart
-                    ? `Scheduled for ${fmtDate(task.nextBlockDate)}, ${fmtTime(task.nextBlockStart)}–${fmtTime(task.nextBlockEnd ?? task.nextBlockStart)}`
+                    ? `${fmtDate(task.nextBlockDate)}, ${fmtTime(task.nextBlockStart)}–${fmtTime(task.nextBlockEnd ?? task.nextBlockStart)}`
                     : `${fmtMins(estimatedMins)} total`}
                 </div>
               </div>

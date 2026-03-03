@@ -23,6 +23,8 @@ export interface ResolvedTimeBlock {
   calendarContainer: CalendarContainer;
   /** Priority inherited from linked Task (1–5), undefined if unset. */
   priority?: number;
+  /** Due date inherited from linked Task (YYYY-MM-DD), undefined if unset. */
+  dueDate?: string | null;
   // Emoji removed from UI; keep type minimal.
 }
 
@@ -57,6 +59,7 @@ export function resolveTimeBlock(
     tags: blockTags,
     calendarContainer: container,
     priority: typeof linkedTask?.priority === 'number' ? linkedTask.priority : undefined,
+    dueDate: linkedTask?.dueDate ?? null,
   };
 }
 
@@ -85,8 +88,10 @@ export interface ResolvedEvent {
   start: string;
   end: string;
   date: string;
+  endDate?: string;
   recurring: boolean;
   recurrencePattern?: string;
+  recurrenceDays?: number[];
   recurrenceSeriesId?: string | null;
   link?: string | null;
   description?: string | null;

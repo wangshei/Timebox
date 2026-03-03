@@ -15,6 +15,8 @@ import { hexToRgba } from '../utils/color';
 import { activeDrag } from '../utils/dragState';
 import { DueBadge } from './DueBadge';
 import { useStore } from '../store/useStore';
+import { getEventSegmentsForDate } from '../utils/crossDateEvents';
+import { computeOverlapTruncation, TruncationItem } from '../utils/overlapTruncation';
 
 interface WeekViewProps {
   mode: Mode;
@@ -45,9 +47,10 @@ interface WeekViewProps {
   /** When true, week shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday?: boolean;
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
+  onRescheduleLater?: (blockId: string) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -306,7 +309,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
             {weekDays.map((day, dayIndex) => {
               const dateStr = formatDate(day);
               const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
-              const dayEvents = events.filter(e => e.date === dateStr);
+              const dayEventSegments = getEventSegmentsForDate(events, dateStr);
               const today = isToday(day);
               const showCurrentTimeLine = today && currentTimeTop != null;
 
@@ -397,13 +400,33 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         {(() => {
                           const allItems = [
                             ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
-                            ...dayEvents.map((e) => ({ id: `event-${e.id}`, start: e.start, end: e.end })),
+                            ...dayEventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
                           ];
                           const dayOverlapMap = computeOverlapLayout(allItems);
+                          // Truncation for compare mode actual panel
+                          const dayTruncMap = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
+                          if (mode === 'compare' && !locked) {
+                            const truncItems: TruncationItem[] = [
+                              ...dayBlocks.map((b) => ({
+                                id: b.id, start: b.start, end: b.end,
+                                priority: b.source === 'unplanned' ? 3 : b.confirmationStatus === 'confirmed' ? 2 : 1,
+                              })),
+                              ...dayEventSegments.map((seg) => ({
+                                id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd,
+                                priority: seg.event.source === 'unplanned' ? 3 : seg.event.attendanceStatus === 'attended' ? 2 : 1,
+                              })),
+                            ];
+                            for (const r of computeOverlapTruncation(truncItems)) dayTruncMap.set(r.id, r);
+                          }
                           return (
                             <>
                               {dayBlocks.map((block) => {
-                                const { top, height } = getBlockStyle(block);
+                                const bTrunc = dayTruncMap.get(block.id);
+                                const bStartMins = bTrunc && !bTrunc.hidden ? parseTimeToMins(bTrunc.effectiveStart) : parseTimeToMins(block.start);
+                                const bEndMins = bTrunc && !bTrunc.hidden ? parseTimeToMins(bTrunc.effectiveEnd) : parseTimeToMins(block.end);
+                                const bDuration = bEndMins - bStartMins;
+                                const top = (bStartMins / 60) * PX_PER_HOUR;
+                                const height = (bDuration / 60) * PX_PER_HOUR;
                                 const layout = dayOverlapMap.get(block.id);
                                 const widthPercent = layout ? 100 / layout.totalColumns : 100;
                                 const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
@@ -412,7 +435,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     key={block.id}
                                     block={block}
                                     mode={mode}
-                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%` }}
+                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%`, ...(bTrunc?.hidden ? { opacity: 0.15 } : {}) }}
                                     isSelected={currentSelected === block.id}
                                     onSelectBlock={handleSelect}
                                     todayStr={todayStr}
@@ -433,33 +456,39 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     showDifferences={showDifferences}
                                     compact
                                     view="week"
+                                    onRescheduleLater={onRescheduleLater}
                                   />
                                 );
                               })}
-                              {dayEvents.map((event) => {
-                                const startMinutes = parseTimeToMins(event.start);
-                                const endMinutes = parseTimeToMins(event.end);
+                              {dayEventSegments.map((seg) => {
+                                const eTruncKey = `event-${seg.event.id}`;
+                                const eTrunc = dayTruncMap.get(eTruncKey);
+                                const startMinutes = eTrunc && !eTrunc.hidden ? parseTimeToMins(eTrunc.effectiveStart) : parseTimeToMins(seg.displayStart);
+                                const endMinutes = eTrunc && !eTrunc.hidden ? parseTimeToMins(eTrunc.effectiveEnd) : parseTimeToMins(seg.displayEnd);
                                 const duration = endMinutes - startMinutes;
                                 const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
                                 const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
-                                const layout = dayOverlapMap.get(`event-${event.id}`);
+                                const layout = dayOverlapMap.get(eTruncKey);
                                 const widthPercent = layout ? 100 / layout.totalColumns : 100;
                                 const leftPercent = layout ? layout.columnIndex * (100 / (layout.totalColumns || 1)) : 0;
                                 return (
                                   <EventCard
-                                    key={event.id}
-                                    event={event}
-                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%` }}
-                                    isSelected={currentSelected === `event-${event.id}`}
-                                    onSelect={() => handleSelect(`event-${event.id}`)}
+                                    key={seg.event.id}
+                                    event={seg.event}
+                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%`, ...(eTrunc?.hidden ? { opacity: 0.15 } : {}) }}
+                                    isSelected={currentSelected === `event-${seg.event.id}`}
+                                    onSelect={() => handleSelect(`event-${seg.event.id}`)}
                                     onDeselect={() => handleSelect(null)}
                                     onDeleteEvent={onDeleteEvent}
                                     onDeleteEventSeries={onDeleteEventSeries}
                                     onEditEvent={onEditEvent}
                                     plannedStyle={false}
                                     draggable={!!onMoveEvent}
-                                    onResizeStart={onResizeEvent ? (e) => setResizingEvent({ event, startClientY: e.clientY }) : undefined}
+                                    onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => setResizingEvent({ event: seg.event, startClientY: e.clientY }) : undefined}
                                     onToggleAttendance={onToggleEventAttendance}
+                                    showDifferences={showDifferences}
+                                    isStartSegment={seg.isStartSegment}
+                                    isEndSegment={seg.isEndSegment}
                                     compact={true}
                                   />
                                 );

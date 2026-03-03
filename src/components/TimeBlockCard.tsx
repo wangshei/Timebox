@@ -6,7 +6,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag } from '../utils/dragState';
-import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon } from '@heroicons/react/24/solid';
+import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
 
@@ -50,6 +50,8 @@ interface TimeBlockCardProps {
   locked?: boolean;
   /** When true: show red/yellow dashed border based on difference status. */
   showDifferences?: boolean;
+  /** Reschedule this block to the next available slot later today. */
+  onRescheduleLater?: (blockId: string) => void;
 }
 
 const FOCUS_MUTED_OPACITY = 0.3;
@@ -78,6 +80,7 @@ function TimeBlockCardInner({
   view = 'day',
   locked = false,
   showDifferences = false,
+  onRescheduleLater,
 }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
@@ -180,6 +183,19 @@ function TimeBlockCardInner({
 
   const isEvent = !block.taskId;
   const isTask = !!block.taskId;
+
+  // Urgency detection: red styling for past-due or due-within-1-day tasks
+  const isUrgent = (() => {
+    if (!isTask || !block.dueDate || confirmed || skipped) return false;
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+    const tomorrowLocal = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+    return block.dueDate <= tomorrowLocal;
+  })();
+  const URGENT_TEXT = '#D63031';
+  const URGENT_BG = 'rgba(255, 59, 48, 0.07)';
+  const URGENT_BORDER = 'rgba(255, 59, 48, 0.25)';
 
   // Past + not done task blocks can't be dragged but ARE clickable (popover, confirm circle).
   const isLockedPast = !locked && isPast && !confirmed && !skipped && isTask;
@@ -335,6 +351,19 @@ function TimeBlockCardInner({
 
     // Tasks: sticky-note aesthetic — colored top border + warm cream bg + subtle shadow
     if (blockVisualState === 'future') {
+      if (isUrgent) {
+        return {
+          backgroundColor: URGENT_BG,
+          borderTop: `3px solid ${URGENT_TEXT}`,
+          borderLeft: `1px solid ${URGENT_BORDER}`,
+          borderRight: `1px solid ${URGENT_BORDER}`,
+          borderBottom: `1px solid ${URGENT_BORDER}`,
+          borderRadius: 5,
+          boxShadow: '0 2px 6px rgba(255,59,48,0.12), 0 1px 2px rgba(0,0,0,0.06)',
+          opacity,
+          ...vars,
+        };
+      }
       return {
         backgroundColor: '#FFF9EC',
         borderTop: `3px solid ${blockColor}`,
@@ -363,6 +392,18 @@ function TimeBlockCardInner({
         };
       }
       // Default view: past + not done — faded, locked feel (not warm beige)
+      if (isUrgent) {
+        return {
+          backgroundColor: 'rgba(255, 59, 48, 0.04)',
+          borderTop: `3px solid rgba(255, 59, 48, 0.3)`,
+          borderLeft: `1px dashed rgba(255, 59, 48, 0.15)`,
+          borderRight: `1px dashed rgba(255, 59, 48, 0.15)`,
+          borderBottom: `1px dashed rgba(255, 59, 48, 0.15)`,
+          borderRadius: 5,
+          opacity,
+          ...vars,
+        };
+      }
       return {
         backgroundColor: 'rgba(0,0,0,0.03)',
         borderTop: `3px solid ${hexToRgba(blockColor, 0.3)}`,
@@ -402,6 +443,7 @@ function TimeBlockCardInner({
   };
 
   const getTitleColor = (): string => {
+    if (isUrgent) return URGENT_TEXT;
     if (isEvent && blockVisualState === 'ghost') return '#AEAEB2';
     return THEME.textPrimary;
   };
@@ -546,6 +588,25 @@ function TimeBlockCardInner({
             </button>
           </div>
         )}
+        {!locked && isTask && onRescheduleLater && (
+          <div className="mb-2">
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+              style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              onClick={() => {
+                onRescheduleLater(block.id);
+                setShowPopover(false);
+                doDeselect();
+              }}
+            >
+              <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+              Reschedule later today
+            </button>
+          </div>
+        )}
         {(block as any).notes && (
           <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
             {(block as any).notes}
@@ -683,6 +744,7 @@ function TimeBlockCardInner({
                     fontSize: compactTitleFontSize,
                     overflow: 'hidden',
                     wordBreak: 'break-word',
+                    color: getTitleColor(),
                     ...(isTask && confirmed ? { textDecorationSkipInk: 'none' } : {}),
                   }}
                 >

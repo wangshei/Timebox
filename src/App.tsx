@@ -218,10 +218,15 @@ export default function App() {
   );
 
   const visibleEvents = useMemo(() => {
+    const visible = events.filter((e) => containerVisibility[e.calendarContainerId] !== false);
     if (view === 'day') {
-      return events.filter((e) => e.date === selectedDate && containerVisibility[e.calendarContainerId] !== false);
+      // Include cross-date events that span into selectedDate
+      return visible.filter((e) => {
+        const endDate = e.endDate ?? e.date;
+        return e.date <= selectedDate && selectedDate <= endDate;
+      });
     }
-    return events.filter((e) => containerVisibility[e.calendarContainerId] !== false);
+    return visible;
   }, [events, selectedDate, view, containerVisibility]);
 
   const analyticsDateRange = useMemo(
@@ -413,6 +418,7 @@ export default function App() {
     startTime: string;
     endTime: string;
     date: string;
+    endDate?: string;
     category: Category;
     tags: Tag[];
     calendar: string;
@@ -430,6 +436,7 @@ export default function App() {
       start: eventData.startTime,
       end: eventData.endTime,
       date: eventData.date,
+      endDate: eventData.endDate && eventData.endDate !== eventData.date ? eventData.endDate : undefined,
       recurring: eventData.recurring ?? false,
       recurrencePattern: eventData.recurrencePattern,
       recurrenceDays: eventData.recurrenceDays,
@@ -450,7 +457,18 @@ export default function App() {
         const seriesId = crypto.randomUUID();
         const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
         deleteTimeBlock(editingTimeBlockId);
-        addEvents(dates.map((date) => ({ ...payloadWithSource, date, recurrenceSeriesId: seriesId })));
+        const draftSpanDays = payloadWithSource.endDate
+          ? Math.round((new Date(payloadWithSource.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
+          : 0;
+        addEvents(dates.map((occDate) => {
+          let occEndDate: string | undefined;
+          if (draftSpanDays > 0) {
+            const d = new Date(occDate + 'T00:00:00');
+            d.setDate(d.getDate() + draftSpanDays);
+            occEndDate = d.toISOString().split('T')[0];
+          }
+          return { ...payloadWithSource, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
+        }));
       } else {
         convertTimeBlockToEvent(editingTimeBlockId, payloadWithSource);
       }
@@ -459,7 +477,19 @@ export default function App() {
     } else if (isRecurring) {
       const seriesId = crypto.randomUUID();
       const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
-      addEvents(dates.map((date) => ({ ...eventPayload, date, recurrenceSeriesId: seriesId })));
+      // Compute day span for cross-date events
+      const spanDays = eventPayload.endDate
+        ? Math.round((new Date(eventPayload.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
+        : 0;
+      addEvents(dates.map((occDate) => {
+        let occEndDate: string | undefined;
+        if (spanDays > 0) {
+          const d = new Date(occDate + 'T00:00:00');
+          d.setDate(d.getDate() + spanDays);
+          occEndDate = d.toISOString().split('T')[0];
+        }
+        return { ...eventPayload, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
+      }));
     } else {
       addEvent(eventPayload);
     }
@@ -784,14 +814,28 @@ export default function App() {
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
-    updateEvent(eventId, { date: params.date, start: params.startTime, end: params.endTime });
+    const event = events.find((e) => e.id === eventId);
+    const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
+    // Preserve cross-date span: shift endDate by same day offset
+    if (event?.endDate && event.endDate !== event.date) {
+      const oldStart = new Date(event.date + 'T00:00:00');
+      const newStart = new Date(params.date + 'T00:00:00');
+      const dayOffset = Math.round((newStart.getTime() - oldStart.getTime()) / 86400000);
+      const oldEnd = new Date(event.endDate + 'T00:00:00');
+      oldEnd.setDate(oldEnd.getDate() + dayOffset);
+      updates.endDate = oldEnd.toISOString().split('T')[0];
+    }
+    updateEvent(eventId, updates);
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
-    if (parseTimeToMins(params.endTime) <= parseTimeToMins(event.start)) return;
-    updateEvent(eventId, { date: params.date, end: params.endTime });
+    // For cross-date events, resize only changes the end time (end segment)
+    const effectiveStart = event.endDate && event.endDate !== event.date && params.date === event.endDate
+      ? '00:00' : event.start;
+    if (parseTimeToMins(params.endTime) <= parseTimeToMins(effectiveStart)) return;
+    updateEvent(eventId, { end: params.endTime });
   };
 
   const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {
