@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -79,17 +80,17 @@ function TimeBlockCardInner({
   showDifferences = false,
 }: TimeBlockCardProps) {
   const [showPopover, setShowPopover] = useState(false);
-  const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
+  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverOpenedAtRef = useRef<number>(0);
 
-  const POPOVER_MARGIN = 6;
-
-  // Close popover when clicking outside
+  // Close popover when clicking outside (portal-based — popover is NOT inside blockRef)
   useEffect(() => {
     if (!showPopover || !isSelected) return;
     const close = (e: PointerEvent) => {
+      if (Date.now() - popoverOpenedAtRef.current < 120) return;
       if (blockRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
       setShowPopover(false);
@@ -99,12 +100,32 @@ function TimeBlockCardInner({
     return () => document.removeEventListener('pointerdown', close, true);
   }, [showPopover, isSelected]);
 
+  // Compute portal popover position from block's viewport rect
   useLayoutEffect(() => {
-    if (!showPopover || !isSelected || !blockRef.current || !popoverRef.current) return;
-    const rect = blockRef.current.getBoundingClientRect();
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const spaceBelow = viewportH - rect.bottom;
-    setPopoverPosition(spaceBelow < 300 ? 'top-right' : 'bottom-left');
+    if (!showPopover || !isSelected || !blockRef.current) return;
+    const el = blockRef.current;
+    const popoverWidth = 224;
+    const popoverMaxHeight = 420;
+    const gap = 8;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      let top = rect.top - popoverMaxHeight - gap;
+      let left = rect.left;
+      if (top < gap) top = rect.bottom + gap;
+      left = Math.max(gap, Math.min(left, window.innerWidth - popoverWidth - gap));
+      top = Math.max(gap, top);
+      setPopoverRect({ top, left });
+    };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
   }, [showPopover, isSelected]);
 
   const handlePopoverDragStart = (e: React.MouseEvent) => {
@@ -588,10 +609,10 @@ function TimeBlockCardInner({
     return (
       <div
         ref={blockRef}
-        className={cn('absolute group pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+        className={cn('absolute group pointer-events-auto', 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
+        onClick={() => { if (!locked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
         draggable={!locked}
         onDragStart={!locked ? handleBlockDragStart : undefined}
         onDragEnd={!locked ? () => { activeDrag.type = null; } : undefined}
@@ -710,10 +731,10 @@ function TimeBlockCardInner({
   return (
     <div
       ref={blockRef}
-      className={cn('absolute group pointer-events-auto', showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+      className={cn('absolute group pointer-events-auto', 'overflow-hidden', locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { if (!locked) { doSelect(); setShowPopover((v) => !v); } }}
+      onClick={() => { if (!locked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
       draggable={!locked}
       onDragStart={!locked ? handleBlockDragStart : undefined}
       onDragEnd={!locked ? () => { activeDrag.type = null; } : undefined}

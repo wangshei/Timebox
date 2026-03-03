@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
@@ -60,13 +61,12 @@ export function EventCard({
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
-  const [popoverPosition, setPopoverPosition] = useState<'bottom-left' | 'top-right'>('bottom-left');
+  const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [now, setNow] = useState(() => new Date());
   const cardRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-
-  const POPOVER_MARGIN = 6;
+  const popoverOpenedAtRef = useRef<number>(0);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -151,10 +151,11 @@ export function EventCard({
     }
   };
 
-  // Close popover when clicking outside
+  // Close popover when clicking outside (portal-based — popover is NOT inside cardRef)
   useEffect(() => {
     if (!showPopover || !isSelected) return;
     const close = (e: PointerEvent) => {
+      if (Date.now() - popoverOpenedAtRef.current < 120) return;
       if (cardRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
       setShowPopover(false);
@@ -164,13 +165,31 @@ export function EventCard({
     return () => document.removeEventListener('pointerdown', close, true);
   }, [showPopover, isSelected]);
 
+  // Compute portal popover position from card's viewport rect
   useLayoutEffect(() => {
-    if (!showPopover || !isSelected || !cardRef.current || !popoverRef.current) return;
-    const cardRect = cardRef.current.getBoundingClientRect();
-    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const spaceBelow = viewportH - cardRect.bottom;
-    const preferTop = spaceBelow < POPOVER_MAX_HEIGHT + GAP;
-    setPopoverPosition(preferTop ? 'top-right' : 'bottom-left');
+    if (!showPopover || !isSelected || !cardRef.current) return;
+    const el = cardRef.current;
+    const popoverWidth = POPOVER_WIDTH;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      // Position above the card by default, shift down if too close to top
+      let top = rect.top - POPOVER_MAX_HEIGHT - GAP;
+      let left = rect.left;
+      if (top < GAP) top = rect.bottom + GAP; // flip below
+      left = Math.max(GAP, Math.min(left, window.innerWidth - popoverWidth - GAP));
+      top = Math.max(GAP, top);
+      setPopoverRect({ top, left });
+    };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
   }, [showPopover, isSelected]);
 
   const handlePopoverDragStart = (e: React.MouseEvent) => {
@@ -192,14 +211,14 @@ export function EventCard({
     <div
       ref={cardRef}
       className={cn(
-        'absolute w-full min-w-0 pointer-events-auto group',
-        showPopover && isSelected ? 'overflow-visible' : 'overflow-hidden',
+        'absolute w-full min-w-0 pointer-events-auto group overflow-hidden',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       )}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => {
         onSelect();
+        popoverOpenedAtRef.current = Date.now();
         setShowPopover((v) => !v);
       }}
       draggable={draggable}
@@ -289,15 +308,15 @@ export function EventCard({
         </div>
       )}
 
-      {/* Detail popover — above block with margin, scrolls with block; no backdrop so page stays scrollable */}
-      {showPopover && isSelected && (
+      {/* Detail popover — portaled to document.body so it's never clipped by overflow parents */}
+      {showPopover && isSelected && popoverRect && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="absolute z-50 rounded-xl p-3 min-w-56"
+            className="fixed rounded-xl p-3 min-w-56"
             style={{
-              bottom: '100%',
-              left: 0,
-              marginBottom: POPOVER_MARGIN,
+              zIndex: 200,
+              top: popoverRect.top,
+              left: popoverRect.left,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.09)',
@@ -445,7 +464,8 @@ export function EventCard({
                 </div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
       )}
     </div>
   );
