@@ -53,6 +53,7 @@ interface RightSidebarProps {
   isMobile?: boolean;
   isBottomSheet?: boolean;
   onTogglePin?: (taskId: string) => void;
+  onRescheduleLater?: (taskId: string) => void;
   weekStartsOnMonday?: boolean;
 }
 
@@ -80,6 +81,7 @@ export function RightSidebar({
   isMobile = false,
   isBottomSheet = false,
   onTogglePin,
+  onRescheduleLater,
   weekStartsOnMonday = false,
 }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('plan');
@@ -262,6 +264,7 @@ export function RightSidebar({
       onBreakIntoChunks={onBreakIntoChunks}
       onSplitTask={onSplitTask}
       onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+      onRescheduleLater={onRescheduleLater ? () => onRescheduleLater(task.id) : undefined}
     />
   );
 

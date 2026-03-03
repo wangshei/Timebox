@@ -181,8 +181,7 @@ function TimeBlockCardInner({
   const isEvent = !block.taskId;
   const isTask = !!block.taskId;
 
-  // Past + not done task blocks are effectively locked — they stay on calendar
-  // as a record but can't be dragged. User can still click the confirm circle.
+  // Past + not done task blocks can't be dragged but ARE clickable (popover, confirm circle).
   const isLockedPast = !locked && isPast && !confirmed && !skipped && isTask;
 
   const handleCircleClick = (e: React.MouseEvent) => {
@@ -631,18 +630,19 @@ function TimeBlockCardInner({
         ? '1.5px dashed rgba(255,59,48,0.8)'
         : undefined;
 
-    const effectivelyLocked = locked || isLockedPast;
+    const effectivelyLocked = locked;
+    const noDrag = locked || isLockedPast;
 
     return (
       <div
         ref={blockRef}
-        className={cn('absolute group pointer-events-auto', 'overflow-hidden', effectivelyLocked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+        className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => { if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
-        draggable={!effectivelyLocked}
-        onDragStart={!effectivelyLocked ? handleBlockDragStart : undefined}
-        onDragEnd={!effectivelyLocked ? () => { activeDrag.type = null; } : undefined}
+        draggable={!noDrag}
+        onDragStart={!noDrag ? handleBlockDragStart : undefined}
+        onDragEnd={!noDrag ? () => { activeDrag.type = null; } : undefined}
       >
         <div
           data-slot="block-container"
@@ -653,8 +653,8 @@ function TimeBlockCardInner({
             outline: diffOutline,
           }}
         >
-          {/* Lock hover overlay for plan panel or locked past blocks */}
-          {(locked || isLockedPast) && (
+          {/* Lock hover overlay for plan panel only */}
+          {locked && (
             <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
               style={{ backgroundColor: 'rgba(0,0,0,0.06)' }}>
               <LockClosedIcon className="flex-shrink-0" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10, color: '#636366' }} />
@@ -706,8 +706,8 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Resize handle — compact mode (all blocks, not locked) */}
-        {onResizeStart && !effectivelyLocked && compactTier !== 'micro' && (
+        {/* Resize handle — compact mode (all blocks, not locked/past) */}
+        {onResizeStart && !noDrag && compactTier !== 'micro' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
@@ -768,18 +768,19 @@ function TimeBlockCardInner({
       ? '1.5px dashed rgba(255,59,48,0.8)'
       : undefined;
 
-  const effectivelyLockedFull = locked || isLockedPast;
+  const effectivelyLockedFull = locked;
+  const noDragFull = locked || isLockedPast;
 
   return (
     <div
       ref={blockRef}
-      className={cn('absolute group pointer-events-auto', 'overflow-hidden', effectivelyLockedFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+      className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => { if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
-      draggable={!effectivelyLockedFull}
-      onDragStart={!effectivelyLockedFull ? handleBlockDragStart : undefined}
-      onDragEnd={!effectivelyLockedFull ? () => { activeDrag.type = null; } : undefined}
+      draggable={!noDragFull}
+      onDragStart={!noDragFull ? handleBlockDragStart : undefined}
+      onDragEnd={!noDragFull ? () => { activeDrag.type = null; } : undefined}
     >
       <div
         data-slot="block-container"
@@ -790,8 +791,8 @@ function TimeBlockCardInner({
           outline: diffOutlineFull,
         }}
       >
-        {/* Lock hover overlay for plan panel or locked past blocks */}
-        {(locked || isLockedPast) && (
+        {/* Lock hover overlay for plan panel only */}
+        {locked && (
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
             style={{ backgroundColor: 'rgba(0,0,0,0.06)' }}>
             <LockClosedIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12, color: '#636366' }} />
@@ -905,8 +906,8 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Resize handle (all blocks, small+, not locked) */}
-        {onResizeStart && !effectivelyLockedFull && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {/* Resize handle (all blocks, small+, not locked/past) */}
+        {onResizeStart && !noDragFull && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}

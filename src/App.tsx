@@ -28,6 +28,7 @@ import {
   selectDoneTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
+import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
 import { getLocalDateString, getViewDateRange } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode } from './types';
@@ -186,6 +187,10 @@ export default function App() {
     setTags,
     weekStartsOnMonday,
     setWeekStartsOnMonday,
+    wakeTime,
+    sleepTime,
+    setWakeTime,
+    setSleepTime,
     hasCompletedSetup,
     userName,
     onboardingTourComplete,
@@ -562,6 +567,52 @@ export default function App() {
   const handleOpenScheduleTask = (taskId: string) => {
     setSchedulingTaskId(taskId);
   };
+
+  const handleRescheduleLater = useCallback((taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const today = getLocalDateString();
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    // Check current time is before sleep time
+    if (parseTimeToMinutes(nowTime) >= parseTimeToMinutes(sleepTime)) return;
+
+    const durationMins = Math.max(15, task.estimatedMinutes || defaultBlockMinutes);
+
+    const slot = findNextAvailableSlot(
+      timeBlocks,
+      events,
+      today,
+      durationMins,
+      nowTime,
+      sleepTime,
+    );
+
+    if (!slot) return;
+
+    // Skip old past pending blocks for this task on today
+    const todayPastPending = timeBlocks.filter(
+      (b) =>
+        b.taskId === taskId &&
+        b.date === today &&
+        b.mode === 'planned' &&
+        (!b.confirmationStatus || b.confirmationStatus === 'pending') &&
+        parseTimeToMinutes(b.end) <= parseTimeToMinutes(nowTime),
+    );
+    for (const b of todayPastPending) {
+      skipBlock(b.id);
+    }
+
+    // Create a new planned block in the found slot
+    createPlannedBlocksFromTask(taskId, {
+      date: today,
+      startTime: slot.start,
+      blockMinutes: durationMins,
+      singleBlock: true,
+    });
+  }, [tasks, timeBlocks, events, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask]);
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
@@ -1678,6 +1729,7 @@ export default function App() {
                   const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
                   updateTask(taskId, { priority: next });
                 }}
+                onRescheduleLater={handleRescheduleLater}
                 events={events}
                 onDeleteEvent={deleteEvent}
                 weekStartsOnMonday={weekStartsOnMonday}
@@ -1747,6 +1799,7 @@ export default function App() {
             const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
             updateTask(taskId, { priority: next });
           }}
+          onRescheduleLater={handleRescheduleLater}
         />
       </div>
 
@@ -1989,6 +2042,10 @@ export default function App() {
         onDeleteTag={deleteTag}
         weekStartsOnMonday={weekStartsOnMonday}
         onWeekStartsOnMondayChange={setWeekStartsOnMonday}
+        wakeTime={wakeTime}
+        sleepTime={sleepTime}
+        onWakeTimeChange={setWakeTime}
+        onSleepTimeChange={setSleepTime}
       />
 
       {/* ── Onboarding tour overlay (first-time users after wizard) ── */}

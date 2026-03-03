@@ -57,6 +57,10 @@ export interface AppState {
   defaultBlockMinutes: number;
   /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday: boolean;
+  /** User's wake time — earliest scheduling boundary. "HH:mm", default "08:00". */
+  wakeTime: string;
+  /** User's sleep time — latest scheduling boundary. "HH:mm", default "23:00". */
+  sleepTime: string;
   // Onboarding
   hasCompletedSetup: boolean;
   userName: string;
@@ -100,6 +104,8 @@ function getInitialState(): AppState {
     containerVisibility: visibility,
     defaultBlockMinutes: 60,
     weekStartsOnMonday: false,
+    wakeTime: '08:00',
+    sleepTime: '23:00',
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
@@ -145,6 +151,8 @@ export interface AppActions {
 
   // Onboarding
   setWeekStartsOnMonday: (val: boolean) => void;
+  setWakeTime: (time: string) => void;
+  setSleepTime: (time: string) => void;
   setHasCompletedSetup: (val: boolean) => void;
   setUserName: (name: string) => void;
   setOnboardingTourComplete: (val: boolean) => void;
@@ -422,6 +430,8 @@ export const useStore = create<AppState & AppActions>()(
   },
 
   setWeekStartsOnMonday: (val) => set({ weekStartsOnMonday: val }),
+  setWakeTime: (time) => set({ wakeTime: time }),
+  setSleepTime: (time) => set({ sleepTime: time }),
   setHasCompletedSetup: (val) => set({ hasCompletedSetup: val }),
   setUserName: (name) => set({ userName: name }),
   setOnboardingTourComplete: (val) => set({ onboardingTourComplete: val }),
@@ -687,6 +697,8 @@ type PersistedSlice = Pick<
   | 'containerVisibility'
   | 'defaultBlockMinutes'
   | 'weekStartsOnMonday'
+  | 'wakeTime'
+  | 'sleepTime'
   | 'hasCompletedSetup'
   | 'userName'
   | 'onboardingTourComplete'
@@ -729,6 +741,8 @@ export function startLocalStoragePersistence() {
       containerVisibility: state.containerVisibility,
       defaultBlockMinutes: state.defaultBlockMinutes,
       weekStartsOnMonday: state.weekStartsOnMonday,
+      wakeTime: state.wakeTime,
+      sleepTime: state.sleepTime,
       hasCompletedSetup: state.hasCompletedSetup,
       userName: state.userName,
       onboardingTourComplete: state.onboardingTourComplete,

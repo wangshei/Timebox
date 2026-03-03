@@ -21,6 +21,10 @@ interface SettingsPanelProps {
   onDeleteTag: (id: string) => void;
   weekStartsOnMonday?: boolean;
   onWeekStartsOnMondayChange?: (value: boolean) => void;
+  wakeTime?: string;
+  sleepTime?: string;
+  onWakeTimeChange?: (time: string) => void;
+  onSleepTimeChange?: (time: string) => void;
 }
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
@@ -49,6 +53,10 @@ export function SettingsPanel({
   onAddTag,
   weekStartsOnMonday = false,
   onWeekStartsOnMondayChange,
+  wakeTime = '08:00',
+  sleepTime = '23:00',
+  onWakeTimeChange,
+  onSleepTimeChange,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -346,43 +354,79 @@ export function SettingsPanel({
           >
             {/* ── General ── */}
             {activeTab === 'general' && (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label
-                  htmlFor="week-starts-monday-toggle"
-                  className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg cursor-pointer"
+              <>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label
+                    htmlFor="week-starts-monday-toggle"
+                    className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg cursor-pointer"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Week starts on Monday</p>
+                      <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Show Mon–Sun in week and month views</p>
+                    </div>
+                    <button
+                      id="week-starts-monday-toggle"
+                      type="button"
+                      role="switch"
+                      aria-checked={weekStartsOnMonday}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onWeekStartsOnMondayChange?.(!weekStartsOnMonday);
+                      }}
+                      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{
+                        backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.2)',
+                        minWidth: 44,
+                        minHeight: 24,
+                      }}
+                    >
+                      <span
+                        className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+                        style={{
+                          marginLeft: 2,
+                          marginTop: 2,
+                          transform: weekStartsOnMonday ? 'translateX(20px)' : 'translateX(0)',
+                        }}
+                      />
+                    </button>
+                  </label>
+                </div>
+
+                {/* Wake / Sleep time */}
+                <div
+                  className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
                   style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
                 >
                   <div className="flex-1 min-w-0">
-                    <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Week starts on Monday</p>
-                    <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Show Mon–Sun in week and month views</p>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Wake time</p>
+                    <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Earliest scheduling boundary</p>
                   </div>
-                  <button
-                    id="week-starts-monday-toggle"
-                    type="button"
-                    role="switch"
-                    aria-checked={weekStartsOnMonday}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onWeekStartsOnMondayChange?.(!weekStartsOnMonday);
-                    }}
-                    className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{
-                      backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.2)',
-                      minWidth: 44,
-                      minHeight: 24,
-                    }}
-                  >
-                    <span
-                      className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
-                      style={{
-                        marginLeft: 2,
-                        marginTop: 2,
-                        transform: weekStartsOnMonday ? 'translateX(20px)' : 'translateX(0)',
-                      }}
-                    />
-                  </button>
-                </label>
-              </div>
+                  <input
+                    type="time"
+                    value={wakeTime}
+                    onChange={(e) => onWakeTimeChange?.(e.target.value)}
+                    className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                    style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
+                  />
+                </div>
+                <div
+                  className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Sleep time</p>
+                    <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Latest scheduling boundary</p>
+                  </div>
+                  <input
+                    type="time"
+                    value={sleepTime}
+                    onChange={(e) => onSleepTimeChange?.(e.target.value)}
+                    className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                    style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
+                  />
+                </div>
+              </>
             )}
 
             {/* ── Calendars ── */}

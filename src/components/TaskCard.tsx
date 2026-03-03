@@ -9,6 +9,7 @@ import {
   PencilIcon,
   XMarkIcon,
   StarIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { activeDrag } from '../utils/dragState';
@@ -32,6 +33,8 @@ interface TaskCardProps {
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
   /** Cycle priority rating (1–5 stars, then back to unset). */
   onTogglePin?: () => void;
+  /** Reschedule into the next available slot later today. */
+  onRescheduleLater?: () => void;
 }
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const;
@@ -85,6 +88,7 @@ export function TaskCard({
   onBreakIntoChunks,
   onSplitTask,
   onTogglePin,
+  onRescheduleLater,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
@@ -308,6 +312,18 @@ export function TaskCard({
           <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           {recordedMins > 0 ? 'Schedule again' : 'Schedule todo'}
         </button>
+
+        {onRescheduleLater && (
+          <button type="button"
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
+            style={{ color: '#636366' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onClick={() => { onRescheduleLater(); setShowPopover(false); }}>
+            <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+            Reschedule later today
+          </button>
+        )}
 
         {onMarkTaskDone && (
           <button type="button"

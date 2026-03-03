@@ -1,4 +1,4 @@
-import { Task, TimeBlock } from '../types';
+import { Task, TimeBlock, Event } from '../types';
 import { getLocalDateString } from './dateTime';
 
 /**
@@ -137,4 +137,61 @@ export function getFixedTasks(tasks: Task[]): Task[] {
 
 export function getFlexibleTasks(tasks: Task[]): Task[] {
   return tasks.filter(task => task.flexible);
+}
+
+/**
+ * Find the next available time slot on a given date.
+ * Scans gaps between occupied intervals (blocks + events) from `afterTime` to `beforeTime`.
+ * Returns the first gap that fits `durationMins`, rounded up to 15-minute boundaries.
+ */
+export function findNextAvailableSlot(
+  timeBlocks: TimeBlock[],
+  events: Event[],
+  date: string,
+  durationMins: number,
+  afterTime: string,
+  beforeTime: string,
+): { start: string; end: string } | null {
+  const afterMins = parseTimeToMinutes(afterTime);
+  const beforeMins = parseTimeToMinutes(beforeTime);
+  // Round start up to next 15-min boundary
+  const windowStart = Math.ceil(afterMins / 15) * 15;
+  if (windowStart + durationMins > beforeMins) return null;
+
+  // Collect all occupied intervals on this date
+  const occupied: Array<{ start: number; end: number }> = [];
+  for (const b of timeBlocks) {
+    if (b.date !== date) continue;
+    occupied.push({ start: parseTimeToMinutes(b.start), end: parseTimeToMinutes(b.end) });
+  }
+  for (const e of events) {
+    if (e.date !== date) continue;
+    occupied.push({ start: parseTimeToMinutes(e.start), end: parseTimeToMinutes(e.end) });
+  }
+  // Sort by start time
+  occupied.sort((a, b) => a.start - b.start || a.end - b.end);
+
+  // Scan for gaps
+  let cursor = windowStart;
+  for (const interval of occupied) {
+    if (interval.end <= cursor) continue; // fully before cursor
+    if (interval.start > cursor) {
+      // There's a gap from cursor to interval.start
+      const gapEnd = Math.min(interval.start, beforeMins);
+      if (gapEnd - cursor >= durationMins) {
+        const endMins = cursor + durationMins;
+        return { start: minsToTime(cursor), end: minsToTime(endMins) };
+      }
+    }
+    cursor = Math.max(cursor, interval.end);
+  }
+  // Check gap after last interval
+  if (beforeMins - cursor >= durationMins) {
+    return { start: minsToTime(cursor), end: minsToTime(cursor + durationMins) };
+  }
+  return null;
+}
+
+function minsToTime(mins: number): string {
+  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }
