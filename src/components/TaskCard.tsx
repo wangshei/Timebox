@@ -120,6 +120,25 @@ export function TaskCard({
     ? task.priority
     : 0;
 
+  // Urgency: red background for past-due or due within 1 day
+  const isUrgent = (() => {
+    if (isDone || !task.dueDate) return false;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+    const tomorrowStr = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
+    return task.dueDate <= tomorrowStr; // past due, due today, or due tomorrow
+  })();
+  const isOverdue = (() => {
+    if (isDone || !task.dueDate) return false;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return task.dueDate < todayStr;
+  })();
+  const URGENT_BG = 'rgba(255, 59, 48, 0.05)';
+  const URGENT_BORDER = 'rgba(255, 59, 48, 0.18)';
+  const URGENT_TEXT = '#D63031';
+
   useLayoutEffect(() => {
     if (!showPopover || !cardRef.current) return;
     const el = cardRef.current;
@@ -204,9 +223,9 @@ export function TaskCard({
             {fmtMins(estimatedMins)}
           </span>
           {'dueDate' in task && task.dueDate && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1" style={isUrgent ? { color: URGENT_TEXT, fontWeight: 500 } : undefined}>
               <CalendarIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
-              Due {task.dueDate}
+              {isOverdue ? 'Overdue' : `Due ${fmtDate(task.dueDate)}`}
             </span>
           )}
         </div>
@@ -385,15 +404,15 @@ export function TaskCard({
             window.setTimeout(() => { dragEndedRef.current = false; }, 200);
           }}
         >
-          {/* Done: category color bg + checkmark. Not done: beige (cream) bg. */}
+          {/* Done: category color bg + checkmark. Not done: beige (cream) bg. Urgent: red tint. */}
           <div
             className="h-full overflow-hidden"
             style={{
-              backgroundColor: isDone ? hexRgba(catColor, 0.12) : '#FFF9EC',
-              borderTop: `3px solid ${isDone ? hexRgba(catColor, 0.35) : catColor}`,
-              borderLeft: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
-              borderRight: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
-              borderBottom: `1px solid ${hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
+              backgroundColor: isDone ? hexRgba(catColor, 0.12) : isUrgent ? 'rgba(255, 59, 48, 0.07)' : '#FFF9EC',
+              borderTop: `3px solid ${isDone ? hexRgba(catColor, 0.35) : isUrgent ? URGENT_TEXT : catColor}`,
+              borderLeft: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
+              borderRight: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
+              borderBottom: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
               borderRadius: 5,
               boxShadow: showPopover
                 ? `0 0 0 2px ${catColor}, 0 4px 12px ${hexRgba(catColor, 0.25)}`
@@ -528,9 +547,12 @@ export function TaskCard({
       >
         <div
           className="flex items-start gap-2 px-2 py-2 rounded-lg transition-colors"
-          style={{ backgroundColor: showPopover ? hexRgba(catColor, 0.04) : 'transparent' }}
-          onMouseEnter={(e) => { if (!showPopover) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
-          onMouseLeave={(e) => { if (!showPopover) e.currentTarget.style.backgroundColor = 'transparent'; }}
+          style={{
+            backgroundColor: isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : 'transparent',
+            ...(isUrgent ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
+          }}
+          onMouseEnter={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
+          onMouseLeave={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           {/* Done circle — left side */}
           {onMarkTaskDone ? (
@@ -610,8 +632,8 @@ export function TaskCard({
 
             {/* Due date */}
             {'dueDate' in task && task.dueDate && !isDone && (
-              <div className="mt-0.5" style={{ fontSize: 11, color: THEME.textPrimary, lineHeight: 1.4 }}>
-                Due {task.dueDate}
+              <div className="mt-0.5 flex items-center gap-1" style={{ fontSize: 11, color: isUrgent ? URGENT_TEXT : THEME.textPrimary, lineHeight: 1.4, fontWeight: isUrgent ? 500 : 400 }}>
+                {isOverdue ? 'Overdue' : `Due ${fmtDate(task.dueDate)}`}
               </div>
             )}
 

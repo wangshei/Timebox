@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, BoltIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
@@ -54,6 +54,8 @@ interface RightSidebarProps {
   isBottomSheet?: boolean;
   onTogglePin?: (taskId: string) => void;
   onRescheduleLater?: (taskId: string) => void;
+  /** Auto-schedule all unscheduled tasks into free calendar slots. Receives task IDs in desired order. */
+  onAutoSchedule?: (taskIds: string[]) => void;
   weekStartsOnMonday?: boolean;
 }
 
@@ -82,6 +84,7 @@ export function RightSidebar({
   isBottomSheet = false,
   onTogglePin,
   onRescheduleLater,
+  onAutoSchedule,
   weekStartsOnMonday = false,
 }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('plan');
@@ -191,19 +194,47 @@ export function RightSidebar({
       ? t.priority
       : null;
 
-  const sortByPriorityAndDueDate = (a: Task, b: Task) => {
-    const pa = getPriority(a);
-    const pb = getPriority(b);
-    if (pa !== pb) {
-      if (pa === null) return 1;
-      if (pb === null) return -1;
-      return pb - pa;
-    }
+  // ─── Urgency-aware sort ────────────────────────────────────────────────────
+  // Tier 0: Past due
+  // Tier 1: Due today / tomorrow (within 1 day)
+  // Tier 2: Due within 2 days AND high priority (4-5)
+  // Tier 3: High priority (4-5)
+  // Tier 4: Has priority (1-3)
+  // Tier 5: Has due date
+  // Tier 6: Everything else
+  const { today: todayStr, tomorrow: tomorrowStr, dayAfter: dayAfterStr } = useMemo(() => {
+    const now = new Date();
+    const today = getLocalDateString(now);
+    const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+    const da2 = new Date(now); da2.setDate(da2.getDate() + 2);
+    return { today: today, tomorrow: getLocalDateString(tom), dayAfter: getLocalDateString(da2) };
+  }, []);
+
+  const getUrgencyTier = (t: Task): number => {
+    const due = (t as any).dueDate as string | null | undefined;
+    const p = getPriority(t) ?? 0;
+    if (due && due < todayStr) return 0;        // past due
+    if (due && due <= tomorrowStr) return 1;     // due today or tomorrow
+    if (due && due <= dayAfterStr && p >= 4) return 2; // due in 2 days + high priority
+    if (p >= 4) return 3;                        // high priority
+    if (p > 0) return 4;                         // has priority
+    if (due) return 5;                           // has due date
+    return 6;
+  };
+
+  const sortByUrgencyAndPriority = (a: Task, b: Task) => {
+    const ta = getUrgencyTier(a);
+    const tb = getUrgencyTier(b);
+    if (ta !== tb) return ta - tb;
+    // Within same tier, sort by due date earliest first, then priority highest first
     const da = (a as any).dueDate as string | null | undefined;
     const db = (b as any).dueDate as string | null | undefined;
-    if (da && db) return da.localeCompare(db);
-    if (da) return -1;
-    if (db) return 1;
+    if (da && db && da !== db) return da.localeCompare(db);
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    const pa = getPriority(a) ?? 0;
+    const pb = getPriority(b) ?? 0;
+    if (pa !== pb) return pb - pa;
     return a.title.localeCompare(b.title);
   };
 
@@ -211,8 +242,8 @@ export function RightSidebar({
     () => tasks.filter((t) => {
       const p = getPriority(t);
       return p !== null && p >= 4;
-    }).sort(sortByPriorityAndDueDate),
-    [tasks],
+    }).sort(sortByUrgencyAndPriority),
+    [tasks, todayStr],
   );
 
   // ─── Overview mode: all non-done tasks in a flat list ─────────────────────
@@ -228,8 +259,13 @@ export function RightSidebar({
         return hasBlocksInRange || !hasAnyBlocks;
       });
     }
-    return [...base].sort(sortByPriorityAndDueDate);
-  }, [tasks, overviewRange, timeBlocks, taskIdsInRange, doneIdSet]);
+    return [...base].sort(sortByUrgencyAndPriority);
+  }, [tasks, overviewRange, timeBlocks, taskIdsInRange, doneIdSet, todayStr]);
+
+  const sortedUnscheduled = useMemo(
+    () => [...unscheduledTasks].sort(sortByUrgencyAndPriority),
+    [unscheduledTasks, todayStr],
+  );
 
   // ─── Drag & drop ──────────────────────────────────────────────────────────
 
@@ -397,7 +433,22 @@ export function RightSidebar({
 
       {/* Unscheduled Tasks */}
       <div>
-        <h2 className="text-sm font-semibold mb-2 px-1" style={{ fontSize: '14px', color: THEME.textPrimary }}>Unscheduled</h2>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>Unscheduled</h2>
+          {onAutoSchedule && sortedUnscheduled.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onAutoSchedule(sortedUnscheduled.map((t) => t.id))}
+              className="flex items-center gap-1 text-xs font-medium transition-colors rounded-md px-2 py-1"
+              style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.16)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
+            >
+              <BoltIcon className="h-3 w-3" />
+              Auto Schedule
+            </button>
+          )}
+        </div>
         {onOpenAddModal && (
           <button
             type="button"
@@ -424,10 +475,10 @@ export function RightSidebar({
           </button>
         )}
         <div className="space-y-2">
-          {unscheduledTasks.length === 0 ? (
+          {sortedUnscheduled.length === 0 ? (
             <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
           ) : (
-            unscheduledTasks.map((task) => renderTaskCard(task, 'plan'))
+            sortedUnscheduled.map((task) => renderTaskCard(task, 'plan'))
           )}
         </div>
       </div>

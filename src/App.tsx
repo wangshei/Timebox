@@ -564,6 +564,41 @@ export default function App() {
   const editingEvent = editingEventId ? events.find((e) => e.id === editingEventId) ?? null : null;
   const schedulingTask = schedulingTaskId ? tasks.find((t) => t.id === schedulingTaskId) ?? null : null;
 
+  const handleAutoSchedule = useCallback((taskIds: string[]) => {
+    const today = getLocalDateString();
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const startAfter = parseTimeToMinutes(nowTime) > parseTimeToMinutes(wakeTime) ? nowTime : wakeTime;
+
+    if (parseTimeToMinutes(startAfter) >= parseTimeToMinutes(sleepTime)) return;
+
+    for (const taskId of taskIds) {
+      // Re-read latest state each iteration so previously scheduled blocks are visible
+      const currentState = useStore.getState();
+      const task = currentState.tasks.find((t) => t.id === taskId);
+      if (!task || task.status === 'done') continue;
+
+      const durationMins = Math.max(15, task.estimatedMinutes || currentState.defaultBlockMinutes);
+      const slot = findNextAvailableSlot(
+        currentState.timeBlocks,
+        currentState.events as any,
+        today,
+        durationMins,
+        startAfter,
+        sleepTime,
+      );
+
+      if (!slot) break; // No more room today
+
+      currentState.createPlannedBlocksFromTask(taskId, {
+        date: today,
+        startTime: slot.start,
+        blockMinutes: durationMins,
+        singleBlock: true,
+      });
+    }
+  }, [wakeTime, sleepTime]);
+
   const handleOpenScheduleTask = (taskId: string) => {
     setSchedulingTaskId(taskId);
   };
@@ -1730,6 +1765,7 @@ export default function App() {
                   updateTask(taskId, { priority: next });
                 }}
                 onRescheduleLater={handleRescheduleLater}
+                onAutoSchedule={handleAutoSchedule}
                 events={events}
                 onDeleteEvent={deleteEvent}
                 weekStartsOnMonday={weekStartsOnMonday}
@@ -1800,6 +1836,7 @@ export default function App() {
             updateTask(taskId, { priority: next });
           }}
           onRescheduleLater={handleRescheduleLater}
+          onAutoSchedule={handleAutoSchedule}
         />
       </div>
 

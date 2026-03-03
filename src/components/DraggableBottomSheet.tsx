@@ -31,6 +31,7 @@ interface DraggableBottomSheetProps {
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
   onTogglePin?: (taskId: string) => void;
   onRescheduleLater?: (taskId: string) => void;
+  onAutoSchedule?: (taskIds: string[]) => void;
 }
 
 export function DraggableBottomSheet({
@@ -54,6 +55,7 @@ export function DraggableBottomSheet({
   onSplitTask,
   onTogglePin,
   onRescheduleLater,
+  onAutoSchedule,
 }: DraggableBottomSheetProps) {
   const maxHeight = typeof window !== 'undefined' ? window.innerHeight * 0.85 : 600;
   const halfHeight = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400;
@@ -183,6 +185,7 @@ export function DraggableBottomSheet({
           onSplitTask={onSplitTask}
           onTogglePin={onTogglePin}
           onRescheduleLater={onRescheduleLater}
+          onAutoSchedule={onAutoSchedule}
           isMobile
           isBottomSheet
         />
