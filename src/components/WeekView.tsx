@@ -42,9 +42,10 @@ interface WeekViewProps {
   showDifferences?: boolean;
   /** When true, week shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday?: boolean;
+  onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -177,6 +178,31 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       window.removeEventListener('mouseup', onUp);
     };
   }, [resizingBlock, onResizeBlock]);
+
+  // Event resize state
+  const [resizingEvent, setResizingEvent] = React.useState<{
+    event: ResolvedEvent; startClientY: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!resizingEvent || !onResizeEvent) return;
+    const { event, startClientY } = resizingEvent;
+    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTimeToMins(event.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
+    };
+    const onUp = () => setResizingEvent(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingEvent, onResizeEvent]);
 
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   const currentTimeTopRaw =
@@ -435,6 +461,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     onEditEvent={onEditEvent}
                                     plannedStyle={false}
                                     draggable={!!onMoveEvent}
+                                    onResizeStart={onResizeEvent ? (e) => setResizingEvent({ event, startClientY: e.clientY }) : undefined}
+                                    onToggleAttendance={onToggleEventAttendance}
                                     compact={true}
                                   />
                                 );

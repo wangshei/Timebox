@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
 import { cn } from './ui/utils';
@@ -43,6 +43,8 @@ interface EventCardProps {
   onResizeStart?: (e: React.MouseEvent) => void;
   /** When true, shows compact card without duration, description, or category chip */
   compact?: boolean;
+  /** Toggle attendance for past events */
+  onToggleAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
 }
 
 export function EventCard({
@@ -58,6 +60,7 @@ export function EventCard({
   draggable = false,
   onResizeStart,
   compact = false,
+  onToggleAttendance,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
@@ -85,22 +88,27 @@ export function EventCard({
   const calendarColor = event.calendarContainer?.color ?? THEME.primary;
   const baseBg = plannedStyle ? hexToRgba(categoryColor, 0.2) : categoryColor;
   // Background uses rgba directly — keeps text/chips at full opacity (no container opacity hack)
+  const notAttended = event.attendanceStatus === 'not_attended';
   const bgColor = plannedStyle
     ? baseBg
-    : isPast
-      ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
-      : hexToRgba(categoryColor, 0.65);
-  const opacity = 1; // Applied via rgba background, not container — text stays fully opaque
+    : notAttended
+      ? 'rgba(0,0,0,0.025)'
+      : isPast
+        ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
+        : hexToRgba(categoryColor, 0.65);
+  const opacity = notAttended ? 0.5 : 1;
   // White text when background is dark (current events with 0.65 alpha); otherwise use theme primary
   const eventTextColor =
-    plannedStyle || isPast
+    plannedStyle || isPast || notAttended
       ? THEME.textPrimary
       : getContrastTextColor(categoryColor, 0.65);
   const borderStyle = plannedStyle
     ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
-    : isPast
-      ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.40)}` }
-      : { borderLeft: `4px solid ${calendarColor}` };
+    : notAttended
+      ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.15)}` }
+      : isPast
+        ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.40)}` }
+        : { borderLeft: `4px solid ${calendarColor}` };
 
   const heightPx =
     typeof style.height === 'number'
@@ -365,6 +373,42 @@ export function EventCard({
                 <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
                   <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
+                </div>
+              )}
+              {isPast && onToggleAttendance && (
+                <div className="mb-2">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+                    style={{
+                      color: event.attendanceStatus === 'not_attended' ? THEME.textSecondary : event.attendanceStatus === 'attended' ? THEME.textSecondary : categoryColor,
+                      backgroundColor: 'transparent',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = event.attendanceStatus === 'not_attended' || event.attendanceStatus === 'attended' ? 'rgba(0,0,0,0.04)' : hexToRgba(categoryColor, 0.1); }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (event.attendanceStatus === 'not_attended') {
+                        onToggleAttendance(event.id, undefined);
+                      } else {
+                        onToggleAttendance(event.id, 'not_attended');
+                      }
+                      setShowPopover(false);
+                      onDeselect();
+                    }}
+                  >
+                    {event.attendanceStatus === 'not_attended' ? (
+                      <>
+                        <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14 }} />
+                        Undo not attended
+                      </>
+                    ) : (
+                      <>
+                        <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14 }} />
+                        Mark as not attended
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
               {event.notes && (

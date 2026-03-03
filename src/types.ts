@@ -119,6 +119,8 @@ export interface Event {
   notes?: string | null;
   /** Origin: 'manual' = planned, 'unplanned' = added from actual/recorded panel. */
   source?: 'manual' | 'unplanned';
+  /** Attendance status for past events. Undefined = unreviewed, 'attended' = happened, 'not_attended' = didn't happen. */
+  attendanceStatus?: 'attended' | 'not_attended';
 }
 
 export interface User {

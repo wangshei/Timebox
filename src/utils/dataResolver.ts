@@ -93,6 +93,7 @@ export interface ResolvedEvent {
   notes?: string | null;
   /** Origin: 'unplanned' = created from actual panel, absent/undefined = planned. */
   source?: 'manual' | 'unplanned';
+  attendanceStatus?: 'attended' | 'not_attended';
 }
 
 export function resolveEvent(

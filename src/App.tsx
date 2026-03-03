@@ -669,6 +669,10 @@ export default function App() {
     updateEvent(eventId, { date: params.date, end: params.endTime });
   };
 
+  const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {
+    updateEvent(eventId, { attendanceStatus: status });
+  };
+
   const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
     const event = events.find((e) => e.id === id);
     if (!event) return;
@@ -1534,6 +1538,7 @@ export default function App() {
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
+          onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
         />
 
@@ -1673,6 +1678,7 @@ export default function App() {
           events={visibleEvents}
           onDeleteEvent={deleteEvent}
           onDeleteEventSeries={handleDeleteEventSeries}
+          onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
         />
         <DraggableBottomSheet

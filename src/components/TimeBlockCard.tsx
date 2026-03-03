@@ -200,34 +200,44 @@ function TimeBlockCardInner({
     // Hide for future events — they don't need a done circle
     if (isFutureEvent) return null;
     const circleSize = size;
-    const iconSize = Math.max(6, size - 4);
+    const iconSize = Math.max(8, size - 4);
     const isClickable = !locked && (onConfirm || onUnconfirm || onSkip);
+    // Hit target is larger than the visual circle for easier clicking
+    const hitPad = 4;
 
     return (
       <button
         type="button"
         onClick={isClickable ? handleCircleClick : undefined}
         className={cn(
-          'absolute flex items-center justify-center rounded-full transition-all z-10',
+          'absolute flex items-center justify-center transition-all z-10',
           isClickable ? 'cursor-pointer' : 'cursor-default pointer-events-none',
           isFutureTask && !confirmed && 'opacity-0 group-hover:opacity-100',
         )}
         style={{
-          top: 2,
-          right: 2,
-          width: circleSize,
-          height: circleSize,
-          ...(confirmed
-            ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
-            : skipped
-              ? { backgroundColor: 'rgba(0,0,0,0.12)', border: '1.5px solid rgba(0,0,0,0.15)' }
-              : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.45)}` }),
+          top: 0,
+          right: 0,
+          width: circleSize + hitPad * 2,
+          height: circleSize + hitPad * 2,
         }}
         title={confirmed ? 'Mark as not done' : skipped ? 'Mark as done' : 'Mark as done'}
         aria-label={confirmed ? 'Mark as not done' : 'Mark as done'}
       >
-        {confirmed && <CheckIcon style={{ width: iconSize, height: iconSize, color: '#FFFFFF' }} />}
-        {skipped && <XMarkIcon style={{ width: iconSize, height: iconSize, color: '#636366' }} />}
+        <div
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: circleSize,
+            height: circleSize,
+            ...(confirmed
+              ? { backgroundColor: blockColor, border: `1.5px solid ${blockColor}` }
+              : skipped
+                ? { backgroundColor: 'rgba(0,0,0,0.12)', border: '1.5px solid rgba(0,0,0,0.15)' }
+                : { backgroundColor: 'transparent', border: `1.5px solid ${hexToRgba(blockColor, 0.45)}` }),
+          }}
+        >
+          {confirmed && <CheckIcon style={{ width: iconSize, height: iconSize, color: '#FFFFFF' }} />}
+          {skipped && <XMarkIcon style={{ width: iconSize, height: iconSize, color: '#636366' }} />}
+        </div>
       </button>
     );
   };
@@ -235,8 +245,8 @@ function TimeBlockCardInner({
   const getBaseOpacity = () => {
     if (blockVisualState === 'ghost') return 0.22;
     if (blockVisualState === 'future') return 1;
-    // pastPending in default view: ghost-like trace (plan that hasn't been confirmed)
-    if (blockVisualState === 'pastPending') return isCompareMode ? 0.75 : 0.18;
+    // pastPending in default view: lighter but clearly visible (scheduled, not yet done)
+    if (blockVisualState === 'pastPending') return isCompareMode ? 0.75 : 0.7;
     if (blockVisualState === 'pastConfirmed') return isTask ? 0.82 : 0.78;
     if (blockVisualState === 'pastSkipped') return 0.35;
     return 1;
@@ -349,14 +359,15 @@ function TimeBlockCardInner({
           ...vars,
         };
       }
-      // Default view: true ghost — faint trace that something was planned
+      // Default view: faded sticky-note — past but still clearly visible
       return {
-        backgroundColor: hexToRgba(blockColor, 0.06),
-        borderLeft: `2px solid ${hexToRgba(blockColor, 0.2)}`,
-        borderTop: `1px solid ${hexToRgba(blockColor, 0.1)}`,
-        borderRight: `1px solid ${hexToRgba(blockColor, 0.1)}`,
-        borderBottom: `1px solid ${hexToRgba(blockColor, 0.1)}`,
+        backgroundColor: '#FFF9EC',
+        borderTop: `3px solid ${hexToRgba(blockColor, 0.4)}`,
+        borderLeft: `1px solid ${hexToRgba(blockColor, 0.15)}`,
+        borderRight: `1px solid ${hexToRgba(blockColor, 0.15)}`,
+        borderBottom: `1px solid ${hexToRgba(blockColor, 0.15)}`,
         borderRadius: 5,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
         opacity,
         ...vars,
       };
@@ -636,7 +647,7 @@ function TimeBlockCardInner({
             </div>
           )}
           {/* Status circle — top-right, all past blocks */}
-          {renderStatusCircle(10)}
+          {renderStatusCircle(14)}
           {/* micro: just colored fill, no content */}
           {compactTier === 'micro' ? null : (
             <div
@@ -651,12 +662,14 @@ function TimeBlockCardInner({
                   className={cn(
                     isTask ? 'font-semibold' : 'font-medium',
                     'leading-snug min-w-0 break-words',
+                    isTask && confirmed && 'line-through decoration-current/40',
                     titleTextClass,
                   )}
                   style={{
                     fontSize: compactTitleFontSize,
                     overflow: 'hidden',
                     wordBreak: 'break-word',
+                    ...(isTask && confirmed ? { textDecorationSkipInk: 'none' } : {}),
                   }}
                 >
                   {block.title || 'Untitled'}
@@ -678,6 +691,16 @@ function TimeBlockCardInner({
             </div>
           )}
         </div>
+
+        {/* Resize handle — compact mode (all blocks, not locked) */}
+        {onResizeStart && !locked && compactTier !== 'micro' && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
+          >
+            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
+          </div>
+        )}
 
         {/* Compact popover — portaled to document.body so it's never clipped by overflow parents */}
         {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
@@ -759,7 +782,7 @@ function TimeBlockCardInner({
           </div>
         )}
         {/* Status circle — top-right, all past blocks */}
-        {renderStatusCircle(12)}
+        {renderStatusCircle(16)}
         {sizeTier === 'micro' ? (
           /* micro: just a colored sliver — no text */
           <div className="h-full w-full" />
@@ -866,8 +889,8 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Resize handle (tasks only, small+, not locked) */}
-        {onResizeStart && isTask && !locked && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {/* Resize handle (all blocks, small+, not locked) */}
+        {onResizeStart && !locked && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}

@@ -72,12 +72,13 @@ interface DayViewProps {
   showDateHeader?: boolean;
   /** When true, DayView doesn't scroll internally — parent handles scrolling. */
   disableScroll?: boolean;
+  onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance }: DayViewProps) {
   const [now, setNow] = React.useState(() => new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
@@ -529,6 +530,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 plannedStyle={false}
                 draggable={!!onMoveEvent}
                 onResizeStart={onResizeEvent ? (e) => handleEventResizeStart(event, e) : undefined}
+                onToggleAttendance={onToggleEventAttendance}
               />
             );
           })}

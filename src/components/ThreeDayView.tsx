@@ -48,6 +48,7 @@ interface ThreeDayViewProps {
   compact?: boolean;
   /** When true, ThreeDayView doesn't scroll internally — parent handles scrolling. */
   disableScroll?: boolean;
+  onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
 }
 
 const PRIMARY = THEME.primary;
@@ -63,6 +64,7 @@ export function ThreeDayView({
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
+  onToggleEventAttendance,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -194,26 +196,116 @@ export function ThreeDayView({
     };
   }, [resizingBlock, onResizeBlock]);
 
+  // Event resize state
+  const [resizingEvent, setResizingEvent] = React.useState<{
+    event: ResolvedEvent; startClientY: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!resizingEvent || !onResizeEvent) return;
+    const { event, startClientY } = resizingEvent;
+    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
+    const onMove = (e: MouseEvent) => {
+      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
+      let newEndMins = parseTimeToMins(event.end) + deltaMins;
+      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
+      newEndMins = Math.max(minEndMins, newEndMins);
+      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
+    };
+    const onUp = () => setResizingEvent(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizingEvent, onResizeEvent]);
+
   return (
-    <div className={`flex-1 ${disableScroll ? 'min-w-0' : compact ? 'overflow-y-auto overflow-x-hidden min-w-0' : 'overflow-auto'}`} style={{ backgroundColor: BG_CANVAS }}>
-      <div className={`flex ${compact ? 'min-w-0 w-full' : 'min-w-max'}`}>
-        {/* Time column — hidden when hideTimeGutter is true (compare right panel) */}
+    <div className={compact ? 'min-w-0' : ''} style={{ backgroundColor: BG_CANVAS }}>
+      {/* Sticky header row — stays pinned at top while calendar scrolls */}
+      <div
+        className="flex sticky top-0 z-20"
+        style={{
+          borderBottom: `1px solid ${GRID_HOUR}`,
+          backgroundColor: BG_CANVAS,
+        }}
+      >
+        {/* Time gutter spacer */}
         {!hideTimeGutter && (
           <div
-            className="flex-shrink-0 py-2 sticky left-0 z-10"
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{
+              width: compact ? 40 : 52,
+              height: 48,
+              borderRight: `1px solid ${GRID_HOUR}`,
+              backgroundColor: BG_CANVAS,
+            }}
+          >
+            {panelLabel && (
+              <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '9px', letterSpacing: '0.1em' }}>
+                {panelLabel}
+              </span>
+            )}
+          </div>
+        )}
+        {/* Date headers */}
+        <div className={`flex flex-1 ${compact ? 'min-w-0' : ''}`}>
+          {threeDays.map((day, dayIndex) => {
+            const today = isToday(day);
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+            return (
+              <div
+                key={dayIndex}
+                className="flex-1 flex flex-col px-3"
+                style={{
+                  height: 48,
+                  minWidth: compact ? 0 : 160,
+                  borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
+                  backgroundColor: today ? BG_TODAY : BG_CANVAS,
+                }}
+              >
+                <div className="flex items-center gap-2 pt-2">
+                  <div className="flex flex-col">
+                    <div
+                      className="font-semibold uppercase"
+                      style={{
+                        color: today ? PRIMARY : isWeekend ? '#AEAEB2' : '#C7C7CC',
+                        fontSize: '10px',
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                    </div>
+                    <div
+                      className="font-bold leading-none"
+                      style={{
+                        color: today ? PRIMARY : isWeekend ? '#8E8E93' : '#3A3A3C',
+                        fontSize: today ? 20 : 17,
+                      }}
+                    >
+                      {day.getDate()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Body: time column + day grids (scrolls with parent) */}
+      <div className={`flex ${compact ? 'min-w-0 w-full' : ''}`}>
+        {/* Time column */}
+        {!hideTimeGutter && (
+          <div
+            className="flex-shrink-0 py-2"
             style={{
               width: compact ? 40 : 52,
               borderRight: `1px solid ${GRID_HOUR}`,
               backgroundColor: BG_CANVAS,
             }}
           >
-            <div className="flex items-center justify-center" style={{ height: 48 }}>
-              {panelLabel && (
-                <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '9px', letterSpacing: '0.1em' }}>
-                  {panelLabel}
-                </span>
-              )}
-            </div>
             {hours.map((hour) => (
               <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
                 <div
@@ -235,7 +327,6 @@ export function ThreeDayView({
             const dayEvents = events.filter(e => e.date === dateStr);
             const today = isToday(day);
             const showCurrentTimeLine = today && currentTimeTop != null;
-            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
             return (
               <div
@@ -246,40 +337,6 @@ export function ThreeDayView({
                   borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
                 }}
               >
-                {/* Day header — prominent for today */}
-                <div
-                  className="sticky top-0 z-10 flex flex-col px-3"
-                  style={{
-                    height: 48,
-                    borderBottom: `1px solid ${GRID_HOUR}`,
-                    backgroundColor: today ? BG_TODAY : BG_CANVAS,
-                  }}
-                >
-                  <div className="flex items-center gap-2 pt-2">
-                    <div className="flex flex-col">
-                      <div
-                        className="font-semibold uppercase"
-                        style={{
-                          color: today ? PRIMARY : isWeekend ? '#AEAEB2' : '#C7C7CC',
-                          fontSize: '10px',
-                          letterSpacing: '0.08em',
-                        }}
-                      >
-                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                      </div>
-                      <div
-                        className="font-bold leading-none"
-                        style={{
-                          color: today ? PRIMARY : isWeekend ? '#8E8E93' : '#3A3A3C',
-                          fontSize: today ? 20 : 17,
-                        }}
-                      >
-                        {day.getDate()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Grid */}
                 <div data-3day-col={dateStr} className="px-1.5">
                   <div
@@ -451,6 +508,8 @@ export function ThreeDayView({
                                   onEditEvent={onEditEvent}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
+                                  onResizeStart={onResizeEvent ? (e) => setResizingEvent({ event, startClientY: e.clientY }) : undefined}
+                                  onToggleAttendance={onToggleEventAttendance}
                                 />
                               );
                             })}
