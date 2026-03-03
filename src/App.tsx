@@ -611,9 +611,8 @@ export default function App() {
     const today = getLocalDateString();
     const now = new Date();
     const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const todayHasTime = parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime);
     const startAfter = parseTimeToMinutes(nowTime) > parseTimeToMinutes(wakeTime) ? nowTime : wakeTime;
-
-    if (parseTimeToMinutes(startAfter) >= parseTimeToMinutes(sleepTime)) return;
 
     for (const taskId of taskIds) {
       // Re-read latest state each iteration so previously scheduled blocks are visible
@@ -622,19 +621,47 @@ export default function App() {
       if (!task || task.status === 'done') continue;
 
       const durationMins = Math.max(15, task.estimatedMinutes || currentState.defaultBlockMinutes);
-      const slot = findNextAvailableSlot(
-        currentState.timeBlocks,
-        currentState.events as any,
-        today,
-        durationMins,
-        startAfter,
-        sleepTime,
-      );
 
-      if (!slot) break; // No more room today
+      // Try today first (if there's still time)
+      let targetDate = today;
+      let slot: { start: string; end: string } | null = null;
+
+      if (todayHasTime) {
+        slot = findNextAvailableSlot(
+          currentState.timeBlocks,
+          currentState.events as any,
+          today,
+          durationMins,
+          startAfter,
+          sleepTime,
+        );
+      }
+
+      // If no slot today, try subsequent days (up to 7 days ahead)
+      if (!slot) {
+        const d = new Date(now);
+        for (let i = 1; i <= 7; i++) {
+          d.setDate(d.getDate() + 1);
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          slot = findNextAvailableSlot(
+            currentState.timeBlocks,
+            currentState.events as any,
+            dateStr,
+            durationMins,
+            wakeTime,
+            sleepTime,
+          );
+          if (slot) {
+            targetDate = dateStr;
+            break;
+          }
+        }
+      }
+
+      if (!slot) continue; // No room for this task, try next one
 
       currentState.createPlannedBlocksFromTask(taskId, {
-        date: today,
+        date: targetDate,
         startTime: slot.start,
         blockMinutes: durationMins,
         singleBlock: true,
