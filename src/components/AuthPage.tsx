@@ -348,7 +348,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 Thanks for your interest in The Timeboxing Club. We'll send you an invite code when a spot opens up.
               </p>
               <button
-                onClick={() => switchMode('login')}
+                onClick={onVisitMode}
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
@@ -363,7 +363,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
               >
-                Back to log in →
+                Try it out →
               </button>
             </div>
           ) : awaitingConfirmation ? (
