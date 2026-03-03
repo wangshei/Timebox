@@ -9,6 +9,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
 import { activeDrag } from '../utils/dragState';
+import { useNow, useNowFrozen } from '../contexts/NowContext';
 
 const POPOVER_WIDTH = 224;
 const POPOVER_MAX_HEIGHT = 420;
@@ -74,17 +75,20 @@ export function EventCard({
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
-  const [now, setNow] = useState(() => new Date());
+  const nowCtx = useNow();
+  const frozen = useNowFrozen();
+  const [now, setNow] = useState(() => frozen ? nowCtx : new Date());
   const cardRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
 
   useEffect(() => {
+    if (frozen) { setNow(nowCtx); return; }
     const t = setInterval(() => {
       if (!document.hidden) setNow(new Date());
     }, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [frozen, nowCtx]);
 
   const todayStr = getLocalDateString(now);
   const nowMins = now.getHours() * 60 + now.getMinutes();

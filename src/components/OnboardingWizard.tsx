@@ -88,7 +88,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
 
   const handleSetupContinue = () => {
     if (!choice) return;
-    onComplete({ name: name.trim(), choice, showTour: true });
+    onComplete({ name: name.trim(), choice, showTour: choice === 'template' });
   };
 
   // ── Shared styles ──────────────────────────────────────────────────────

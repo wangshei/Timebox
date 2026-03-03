@@ -9,6 +9,7 @@ import { activeDrag } from '../utils/dragState';
 import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
+import { useNow } from '../contexts/NowContext';
 
 /** Payload for creating a recorded block (e.g. "done differently") */
 export type RecordedBlockPayload = {
@@ -157,7 +158,8 @@ function TimeBlockCardInner({
   const doSelect = onSelectBlock ? () => onSelectBlock(block.id) : (onSelect ?? (() => {}));
   const doDeselect = onSelectBlock ? () => onSelectBlock(null) : (onDeselect ?? (() => {}));
 
-  const nowFallback = todayStrProp === undefined || nowMinsProp === undefined ? new Date() : null;
+  const nowDate = useNow();
+  const nowFallback = todayStrProp === undefined || nowMinsProp === undefined ? nowDate : null;
   const todayStr = todayStrProp ?? (nowFallback ? getLocalDateString(nowFallback) : '');
   const nowMins = nowMinsProp ?? (nowFallback ? nowFallback.getHours() * 60 + nowFallback.getMinutes() : 0);
 

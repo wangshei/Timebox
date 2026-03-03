@@ -14,6 +14,7 @@ import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { DueBadge } from './DueBadge';
+import { useNow, useNowFrozen } from '../contexts/NowContext';
 import { activeDrag } from '../utils/dragState';
 import { useStore } from '../store/useStore';
 import { getEventSegmentsForDate } from '../utils/crossDateEvents';
@@ -86,13 +87,16 @@ export function ThreeDayView({
     });
   }, [currentDate]);
 
-  const [now, setNow] = React.useState(() => new Date());
+  const nowCtx = useNow();
+  const frozen = useNowFrozen();
+  const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
   React.useEffect(() => {
+    if (frozen) { setNow(nowCtx); return; }
     const t = setInterval(() => {
       if (!document.hidden) setNow(new Date());
     }, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [frozen, nowCtx]);
 
   const todayStr = getLocalDateString(now);
   const nowMins = now.getHours() * 60 + now.getMinutes();

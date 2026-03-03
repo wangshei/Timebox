@@ -25,6 +25,7 @@ interface SettingsPanelProps {
   sleepTime?: string;
   onWakeTimeChange?: (time: string) => void;
   onSleepTimeChange?: (time: string) => void;
+  onExploreFeaturesClick?: () => void;
 }
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
@@ -57,6 +58,7 @@ export function SettingsPanel({
   sleepTime = '23:00',
   onWakeTimeChange,
   onSleepTimeChange,
+  onExploreFeaturesClick,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -285,6 +287,7 @@ export function SettingsPanel({
 
       {/* Panel — fixed size */}
       <div
+        data-tour="settings-popup"
         className="relative flex flex-col"
         style={{
           backgroundColor: BG,
@@ -428,6 +431,27 @@ export function SettingsPanel({
                 </div>
               </>
             )}
+
+                {onExploreFeaturesClick && (
+                  <button
+                    type="button"
+                    onClick={onExploreFeaturesClick}
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-colors"
+                    style={{
+                      marginTop: 8,
+                      backgroundColor: 'rgba(141,162,134,0.08)',
+                      border: `1px solid rgba(141,162,134,0.25)`,
+                      color: '#4A6741',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      width: '100%',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)')}
+                  >
+                    Explore features
+                  </button>
+                )}
 
             {/* ── Calendars ── */}
             {activeTab === 'calendars' && calendarContainers.map((calendar) => {

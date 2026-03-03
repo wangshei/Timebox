@@ -14,7 +14,7 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AuthPage } from './components/AuthPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
-import { OnboardingTour } from './components/OnboardingTour';
+import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import {
@@ -124,8 +124,15 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'signup' | 'login'>(
     _urlMode === 'login' ? 'login' : 'signup'
   );
-  // Onboarding tour: show after wizard completion
+  // Walkthrough tour: show after wizard completion or for existing users who haven't seen it
   const [showTour, setShowTour] = useState(false);
+
+  // Auto-show walkthrough for existing users who completed setup but never saw the tour
+  useEffect(() => {
+    if (hasCompletedSetup && !onboardingTourComplete) {
+      setShowTour(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local dev: if not signed in, auto-enter visit mode so you don't have to log in every time.
   // Sign in once when you want to test backend; session persists (Supabase persistSession).
@@ -1163,7 +1170,8 @@ export default function App() {
     // Dev-only: ?page=auth|setup forces a specific screen so you can preview auth flow
     if (!import.meta.env.PROD && typeof window !== 'undefined') {
       const forcePage = new URLSearchParams(window.location.search).get('page') as AppScreen | null;
-      if (forcePage && (['auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
+      if (forcePage === 'setup' && hasCompletedSetup) { /* don't force setup after wizard */ }
+      else if (forcePage && (['auth', 'setup'] as AppScreen[]).includes(forcePage)) return forcePage;
     }
     if (!requireAuth) return 'app';                      // dev bypass
     if (session && !dataReady) return 'loading';         // waiting for Supabase load
@@ -2305,11 +2313,15 @@ export default function App() {
         sleepTime={sleepTime}
         onWakeTimeChange={(val) => { setWakeTime(val); persistUserPreferencesToSupabase({ wake_time: val }); }}
         onSleepTimeChange={(val) => { setSleepTime(val); persistUserPreferencesToSupabase({ sleep_time: val }); }}
+        onExploreFeaturesClick={() => {
+          setIsSettingsOpen(false);
+          setShowTour(true);
+        }}
       />
 
-      {/* ── Onboarding tour overlay (first-time users after wizard) ── */}
-      {showTour && !onboardingTourComplete && (
-        <OnboardingTour
+      {/* ── Walkthrough overlay (first-time users after wizard, existing users, or settings replay) ── */}
+      {showTour && (
+        <WalkthroughOverlay
           onComplete={() => {
             setOnboardingTourComplete(true);
             setShowTour(false);

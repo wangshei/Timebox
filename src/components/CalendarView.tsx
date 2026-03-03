@@ -58,6 +58,8 @@ interface CalendarViewProps {
   /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday?: boolean;
   onRescheduleLater?: (blockId: string) => void;
+  /** Seed value for the internal showDifferences toggle (used by walkthrough overlay). */
+  defaultShowDifferences?: boolean;
 }
 
 const VIEW_OPTIONS = [
@@ -77,9 +79,10 @@ export function CalendarView({
   onToggleEventAttendance,
   weekStartsOnMonday = false,
   onRescheduleLater,
+  defaultShowDifferences,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
-  const [showDifferences, setShowDifferences] = useState(false);
+  const [showDifferences, setShowDifferences] = useState(defaultShowDifferences ?? false);
   const [compareTab, setCompareTab] = useState<'plan' | 'actual'>('actual');
 
   // Track container width for responsive compare layout
@@ -105,10 +108,17 @@ export function CalendarView({
   // Reset state when leaving compare mode
   useEffect(() => {
     if (mode !== 'compare') {
-      setShowDifferences(false);
+      setShowDifferences(defaultShowDifferences ?? false);
       setCompareTab('actual');
     }
-  }, [mode]);
+  }, [mode, defaultShowDifferences]);
+
+  // Sync from external prop (walkthrough overlay)
+  useEffect(() => {
+    if (defaultShowDifferences !== undefined) {
+      setShowDifferences(defaultShowDifferences);
+    }
+  }, [defaultShowDifferences]);
 
   // Scroll compare panels to ~7am when entering compare or changing date/view
   useEffect(() => {

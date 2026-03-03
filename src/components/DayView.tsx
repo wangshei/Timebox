@@ -14,6 +14,7 @@ import {
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { DueBadge } from './DueBadge';
+import { useNow, useNowFrozen } from '../contexts/NowContext';
 import { activeDrag } from '../utils/dragState';
 import { useStore } from '../store/useStore';
 import { getEventSegmentsForDate } from '../utils/crossDateEvents';
@@ -84,7 +85,9 @@ const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
 export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater }: DayViewProps) {
-  const [now, setNow] = React.useState(() => new Date());
+  const nowCtx = useNow();
+  const frozen = useNowFrozen();
+  const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [dragPreview, setDragPreview] = React.useState<{ startMins: number; endMins: number } | null>(null);
   const [dragPreviewType, setDragPreviewType] = React.useState<'task' | 'block' | 'event'>('task');
@@ -113,11 +116,12 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   }, [dragPreview]);
 
   React.useEffect(() => {
+    if (frozen) { setNow(nowCtx); return; }
     const t = setInterval(() => {
       if (!document.hidden) setNow(new Date());
     }, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [frozen, nowCtx]);
 
   const offsetYToMinutes = (offsetY: number): number => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
