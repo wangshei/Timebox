@@ -2110,7 +2110,7 @@ export default function App() {
         )}
 
         {/* Calendar content */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative flex flex-col">
           <CalendarView
             mode={mode}
             onModeChange={setViewMode}
