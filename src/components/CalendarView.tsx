@@ -106,8 +106,10 @@ export function CalendarView({
   const isNarrow = containerWidth < NARROW_BREAKPOINT;
 
   // If mobile and stuck on week view (e.g. resized window), auto-switch to day
+  // Guard: only run when this component is actually visible (both desktop and mobile
+  // CalendarViews render simultaneously; CSS hides one, but effects still fire).
   useEffect(() => {
-    if (isMobile && view === 'week') {
+    if (isMobile && view === 'week' && containerRef.current?.offsetParent !== null) {
       onViewChange('day');
     }
   }, [isMobile, view, onViewChange]);

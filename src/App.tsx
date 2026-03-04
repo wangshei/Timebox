@@ -80,6 +80,67 @@ export interface TimeBlock {
   calendar: 'personal' | 'work' | 'school';
 }
 
+/** Isolated bug-report popover body — keeps textarea state local so keystrokes
+ *  don't re-render the entire App and lose focus. */
+function BugReportPopoverBody({ onClose, supabase, userEmail }: {
+  onClose: () => void;
+  supabase: import('@supabase/supabase-js').SupabaseClient | null;
+  userEmail: string | null;
+}) {
+  const [text, setText] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  if (status === 'success') {
+    return (
+      <div style={{ padding: '12px 0', textAlign: 'center' }}>
+        <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
+        <p style={{ fontSize: 10, color: '#1C1C1E', margin: '2px 0 0' }}>We'll look into it soon.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Describe what happened…"
+        rows={3}
+        autoFocus
+        style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E', fontFamily: 'inherit', boxSizing: 'border-box' }}
+      />
+      {status === 'error' && (
+        <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
+      )}
+      <button
+        type="button"
+        disabled={!text.trim() || status === 'loading'}
+        onClick={async () => {
+          if (!text.trim()) return;
+          setStatus('loading');
+          try {
+            if (supabase) {
+              const { error } = await supabase.from('bug_reports').insert([{ user_email: userEmail ?? 'anonymous', description: text.trim() }]);
+              if (error) throw error;
+            }
+            setStatus('success');
+            setTimeout(() => onClose(), 2000);
+          } catch {
+            setStatus('error');
+          }
+        }}
+        style={{
+          width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms', fontFamily: 'inherit',
+          backgroundColor: text.trim() ? '#8DA286' : 'rgba(0,0,0,0.06)',
+          color: text.trim() ? '#FFFFFF' : '#AEAEB2',
+        }}
+      >
+        {status === 'loading' ? 'Sending…' : 'Send Report'}
+      </button>
+    </>
+  );
+}
+
 export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
@@ -101,8 +162,6 @@ export default function App() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [bugText, setBugText] = useState('');
-  const [bugStatus, setBugStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -1502,7 +1561,7 @@ export default function App() {
                   {/* Bug report button */}
                   <button
                     type="button"
-                    onClick={() => { setIsBugReportOpen((o) => !o); setBugText(''); setBugStatus('idle'); }}
+                    onClick={() => setIsBugReportOpen((o) => !o)}
                     style={{
                       padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
                       color: isBugReportOpen ? '#8DA286' : THEME.textPrimary,
@@ -1714,6 +1773,8 @@ export default function App() {
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsBugReportOpen(false)} />
                   <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
                       borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -1726,50 +1787,11 @@ export default function App() {
                       <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
                     </div>
                     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {bugStatus === 'success' ? (
-                        <div style={{ padding: '12px 0', textAlign: 'center' }}>
-                          <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
-                          <p style={{ fontSize: 10, color: THEME.textPrimary, margin: '2px 0 0' }}>We'll look into it soon.</p>
-                        </div>
-                      ) : (
-                        <>
-                          <textarea
-                            value={bugText}
-                            onChange={(e) => setBugText(e.target.value)}
-                            placeholder="Describe what happened…"
-                            rows={3}
-                            style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary, fontFamily: 'inherit', boxSizing: 'border-box' }}
-                          />
-                          {bugStatus === 'error' && (
-                            <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
-                          )}
-                          <button
-                            type="button"
-                            disabled={!bugText.trim() || bugStatus === 'loading'}
-                            onClick={async () => {
-                              if (!bugText.trim()) return;
-                              setBugStatus('loading');
-                              try {
-                                if (supabase) {
-                                  const { error } = await supabase.from('bug_reports').insert([{ user_email: session?.user.email ?? 'anonymous', description: bugText.trim() }]);
-                                  if (error) throw error;
-                                }
-                                setBugStatus('success');
-                                setTimeout(() => setIsBugReportOpen(false), 2000);
-                              } catch {
-                                setBugStatus('error');
-                              }
-                            }}
-                            style={{
-                              width: '100%', padding: '6px 0', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms', fontFamily: 'inherit',
-                              backgroundColor: bugText.trim() ? '#8DA286' : 'rgba(0,0,0,0.06)',
-                              color: bugText.trim() ? '#FFFFFF' : '#AEAEB2',
-                            }}
-                          >
-                            {bugStatus === 'loading' ? 'Sending…' : 'Send Report'}
-                          </button>
-                        </>
-                      )}
+                      <BugReportPopoverBody
+                        onClose={() => setIsBugReportOpen(false)}
+                        supabase={supabase}
+                        userEmail={session?.user.email ?? null}
+                      />
                     </div>
                   </div>
                 </>
