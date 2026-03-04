@@ -6,7 +6,7 @@ import {
   CalendarIcon,
 } from '@heroicons/react/24/solid';
 import { CalendarView } from './components/CalendarView';
-import { DraggableBottomSheet } from './components/DraggableBottomSheet';
+// DraggableBottomSheet removed — replaced by slide-from-right todo panel
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
@@ -165,6 +165,7 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileTodoPanelOpen, setMobileTodoPanelOpen] = useState(false);
   const leftBarDragJustEnded = useRef(false);
   const rightBarDragJustEnded = useRef(false);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
@@ -997,7 +998,18 @@ export default function App() {
   const handleMoveBlock = (blockId: string, params: { date: string; startTime: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
-    if (isPastPlannedBlock(block)) return; // plan is frozen once past
+    // If dragging a past-planned block to a new slot, convert to recorded so it becomes editable
+    const todayStr2 = getLocalDateString();
+    const nowMins2 = new Date().getHours() * 60 + new Date().getMinutes();
+    const destEndMins = parseTimeToMins(params.endTime);
+    const destIsPast = params.date < todayStr2 || (params.date === todayStr2 && destEndMins <= nowMins2);
+    if (isPastPlannedBlock(block) && !destIsPast) {
+      // Moving to future — just unfreeze it
+    } else if (isPastPlannedBlock(block) && destIsPast) {
+      // Moving within past — convert to recorded
+    } else if (isPastPlannedBlock(block)) {
+      return; // shouldn't happen, but guard
+    }
     saveSnapshot();
     if (!(block.title ?? '').trim() && !block.taskId) {
       setEditingTaskId(null);
@@ -1007,22 +1019,43 @@ export default function App() {
       setIsAddModalOpen(true);
       return;
     }
-    if (block.mode === 'recorded') {
+    const modeUpdate: Partial<import('./types').TimeBlock> = { start: params.startTime, end: params.endTime, date: params.date };
+    if (block.mode === 'planned' && destIsPast) {
+      modeUpdate.mode = 'recorded';
+      modeUpdate.source = 'unplanned';
+      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId)) return;
+    } else if (block.mode === 'recorded') {
       if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId)) return;
     }
-    updateTimeBlock(blockId, { start: params.startTime, end: params.endTime, date: params.date });
+    updateTimeBlock(blockId, modeUpdate);
   };
 
   const handleResizeBlock = (blockId: string, params: { date: string; endTime: string }) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block) return;
-    if (isPastPlannedBlock(block)) return; // plan is frozen once past
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(block.start)) return;
+    // If resizing a past-planned block, convert to recorded
+    const todayStr3 = getLocalDateString();
+    const nowMins3 = new Date().getHours() * 60 + new Date().getMinutes();
+    const resizeEndMins = parseTimeToMins(params.endTime);
+    const resizeIsPast = params.date < todayStr3 || (params.date === todayStr3 && resizeEndMins <= nowMins3);
+    if (isPastPlannedBlock(block) && !resizeIsPast) {
+      // Resizing into future — allow, keep planned
+    } else if (isPastPlannedBlock(block) && resizeIsPast) {
+      // Still in past — convert to recorded
+    } else if (isPastPlannedBlock(block)) {
+      return;
+    }
     saveSnapshot();
-    if (block.mode === 'recorded') {
+    const resizeUpdate: Partial<import('./types').TimeBlock> = { date: params.date, end: params.endTime };
+    if (block.mode === 'planned' && resizeIsPast) {
+      resizeUpdate.mode = 'recorded';
+      resizeUpdate.source = 'unplanned';
+      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
+    } else if (block.mode === 'recorded') {
       if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
     }
-    updateTimeBlock(blockId, { date: params.date, end: params.endTime });
+    updateTimeBlock(blockId, resizeUpdate);
   };
 
   const handleDeleteBlock = (blockId: string) => {
@@ -2032,31 +2065,6 @@ export default function App() {
       </div>
 
       <div className="flex lg:hidden flex-col flex-1 overflow-hidden relative">
-        {/* Mobile top bar — settings & calendar access */}
-        <div
-          className="flex items-center justify-between px-3 py-2 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.09)', backgroundColor: '#FCFBF7' }}
-        >
-          <button
-            type="button"
-            onClick={() => setMobileSidebarOpen(true)}
-            className="p-2 -ml-1 rounded-lg touch-manipulation"
-            style={{ color: THEME.textPrimary }}
-            aria-label="Open calendars"
-          >
-            <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-          </button>
-          <span className="text-sm font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.06em' }}>Timebox</span>
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 -mr-1 rounded-lg touch-manipulation"
-            style={{ color: THEME.textPrimary }}
-            aria-label="Open settings"
-          >
-            <Cog6ToothIcon className="h-[18px] w-[18px]" />
-          </button>
-        </div>
 
         {/* Mobile slide-over sidebar */}
         {mobileSidebarOpen && (
@@ -2125,6 +2133,8 @@ export default function App() {
             containers={calendarContainers}
             containerVisibility={containerVisibility}
             isMobile
+            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenAddModal={handleOpenAddModal}
             onConfirm={handleConfirmBlock}
             onSkip={handleSkipBlock}
@@ -2146,33 +2156,78 @@ export default function App() {
             weekStartsOnMonday={weekStartsOnMonday}
             onRescheduleLater={handleRescheduleBlockLater}
           />
-          <DraggableBottomSheet
-            tasks={displayTasks}
-            unscheduledTasks={unscheduledDisplay}
-            partiallyCompletedTasks={partiallyCompletedDisplay}
-            fixedMissedTasks={fixedMissedDisplay}
-            doneTasks={doneDisplay}
-            selectedDate={selectedDate}
-            timeBlocks={timeBlocks}
-            categories={categories}
-            tags={tags}
-            onAddTask={handleAddTask}
-            onOpenScheduleTask={handleOpenScheduleTask}
-            onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
-            onMarkTaskDone={handleMarkTaskDone}
-            onOpenAddModal={handleOpenAddModal}
-            onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
-            onBreakIntoChunks={handleBreakIntoChunks}
-            onSplitTask={handleSplitTask}
-            onTogglePin={(taskId) => {
-              const current = tasks.find((t) => t.id === taskId)?.priority;
-              const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
-              updateTask(taskId, { priority: next });
+          {/* Floating task list toggle button */}
+          <button
+            type="button"
+            onClick={() => setMobileTodoPanelOpen(true)}
+            className="absolute bottom-5 right-4 z-50 flex items-center justify-center rounded-full shadow-lg touch-manipulation"
+            style={{
+              width: 48, height: 48,
+              backgroundColor: '#8DA286',
+              color: '#FFFFFF',
             }}
-            onRescheduleLater={handleRescheduleLater}
-            onAutoSchedule={handleAutoSchedule}
-          />
+            aria-label="Open tasks"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          {/* Slide-from-right todo panel */}
+          {mobileTodoPanelOpen && (
+            <div className="fixed inset-0 z-[60] flex justify-end">
+              <div className="absolute inset-0 bg-black/30" onClick={() => setMobileTodoPanelOpen(false)} />
+              <div
+                className="relative flex flex-col h-full overflow-hidden animate-slide-in-right"
+                style={{ width: '320px', maxWidth: '85vw', backgroundColor: '#FCFBF7' }}
+              >
+                <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+                  <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+                  <button
+                    type="button"
+                    onClick={() => setMobileTodoPanelOpen(false)}
+                    className="p-2 rounded-lg touch-manipulation"
+                    style={{ color: THEME.textPrimary }}
+                    aria-label="Close tasks"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <RightSidebar
+                    tasks={displayTasks}
+                    unscheduledTasks={unscheduledDisplay}
+                    partiallyCompletedTasks={partiallyCompletedDisplay}
+                    fixedMissedTasks={fixedMissedDisplay}
+                    doneTasks={doneDisplay}
+                    selectedDate={selectedDate}
+                    timeBlocks={timeBlocks}
+                    categories={categories}
+                    tags={tags}
+                    onAddTask={handleAddTask}
+                    onOpenScheduleTask={handleOpenScheduleTask}
+                    onEditTask={handleEditTask}
+                    onDeleteTask={handleDeleteTask}
+                    onMarkTaskDone={handleMarkTaskDone}
+                    onOpenAddModal={handleOpenAddModal}
+                    onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
+                    onBreakIntoChunks={handleBreakIntoChunks}
+                    onSplitTask={handleSplitTask}
+                    onTogglePin={(taskId) => {
+                      const current = tasks.find((t) => t.id === taskId)?.priority;
+                      const next = current == null ? 1 : current >= 5 ? undefined : current + 1;
+                      updateTask(taskId, { priority: next });
+                    }}
+                    onRescheduleLater={handleRescheduleLater}
+                    onAutoSchedule={handleAutoSchedule}
+                    events={events}
+                    onDeleteEvent={handleDeleteEvent}
+                    weekStartsOnMonday={weekStartsOnMonday}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

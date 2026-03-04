@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon } from '@heroicons/react/24/solid';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event } from '../types';
 import { resolveTimeBlocks, resolveEvents, selectMainViewBlocks } from '../utils/dataResolver';
 import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
@@ -60,6 +60,10 @@ interface CalendarViewProps {
   onRescheduleLater?: (blockId: string) => void;
   /** Seed value for the internal showDifferences toggle (used by walkthrough overlay). */
   defaultShowDifferences?: boolean;
+  /** Mobile: open the slide-over calendar sidebar */
+  onOpenMobileSidebar?: () => void;
+  /** Mobile: open settings */
+  onOpenSettings?: () => void;
 }
 
 const VIEW_OPTIONS = [
@@ -80,6 +84,8 @@ export function CalendarView({
   weekStartsOnMonday = false,
   onRescheduleLater,
   defaultShowDifferences,
+  onOpenMobileSidebar,
+  onOpenSettings,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showDifferences, setShowDifferences] = useState(defaultShowDifferences ?? false);
@@ -269,8 +275,20 @@ export function CalendarView({
         style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG }}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Left: nav + title */}
+          {/* Left: hamburger (mobile) + nav + title */}
           <div className="flex items-center gap-2">
+            {/* Mobile hamburger — opens My Calendars sidebar */}
+            {isMobile && onOpenMobileSidebar && (
+              <button
+                type="button"
+                onClick={onOpenMobileSidebar}
+                className="p-1.5 -ml-1 rounded-lg touch-manipulation"
+                style={{ color: TEXT_PRIMARY }}
+                aria-label="Open calendars"
+              >
+                <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+              </button>
+            )}
             <div className="flex items-center gap-0.5">
               <button
                 onClick={navigatePrevious}
@@ -310,8 +328,8 @@ export function CalendarView({
               )}
             </div>
 
-            {/* Compare toggle */}
-            {onModeChange && (
+            {/* Compare toggle — hidden on mobile */}
+            {onModeChange && !isMobile && (
               <button
                 type="button"
                 onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
@@ -364,6 +382,19 @@ export function CalendarView({
               onChange={onViewChange}
               compact={isMobile}
             />
+
+            {/* Mobile settings gear */}
+            {isMobile && onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="p-1.5 -mr-1 rounded-lg touch-manipulation"
+                style={{ color: TEXT_PRIMARY }}
+                aria-label="Open settings"
+              >
+                <Cog6ToothIcon className="h-[18px] w-[18px]" />
+              </button>
+            )}
           </div>
         </div>
       </div>

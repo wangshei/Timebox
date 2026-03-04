@@ -289,6 +289,15 @@ html {
   color: #8E8E93;
 }
 
+/* === Slide-in-right animation for mobile todo panel === */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.25s ease-out;
+}
+
 /* === Segmented control base === */
 .segmented-control {
   display: inline-flex;

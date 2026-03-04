@@ -279,7 +279,7 @@ export function ThreeDayView({
             return (
               <div
                 key={dayIndex}
-                className="flex-1 flex flex-col px-3"
+                className="flex-1 min-w-0 flex flex-col px-3"
                 style={{
                   height: 48,
                   minWidth: compact ? 0 : 160,
@@ -363,7 +363,7 @@ export function ThreeDayView({
             return (
               <div
                 key={dayIndex}
-                className="flex-1 relative"
+                className="flex-1 min-w-0 relative"
                 style={{
                   minWidth: compact ? 0 : 160,
                   borderRight: dayIndex < 2 ? `1px solid ${GRID_HOUR}` : 'none',
