@@ -120,7 +120,7 @@ serve(async (req) => {
     // Send invite email via Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
-    const appUrl = Deno.env.get('APP_URL') || 'https://timebox-fawn.vercel.app'
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.timeboxing.club'
 
     if (!resendApiKey) {
       return new Response(
