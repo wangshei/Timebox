@@ -339,7 +339,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-    const height = (duration / 60) * PX_PER_HOUR;
+    const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
     return { top, height };
   };
 
@@ -415,7 +415,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const endMins = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveEnd) : parseTimeToMins(block.end);
       const duration = endMins - startMins;
       const top = ((startMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
-      const height = (duration / 60) * PX_PER_HOUR;
+      const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
       const layout = overlapMap.get(block.id);
       const colWidth = layout ? 100 / layout.totalColumns : 100;
       const leftPercent = layout ? layout.columnIndex * colWidth : 0;

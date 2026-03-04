@@ -496,13 +496,13 @@ function TimeBlockCardInner({
   // ─── Adaptive size tiers ─────────────────────────────────────────────────
   // Compact (week / 3-day compact) tiers
   const compactTier =
-    heightPx < 18 ? 'micro' :
+    heightPx < 14 ? 'micro' :
     heightPx < 32 ? 'tiny'  :
     heightPx < 50 ? 'small' : 'medium';
 
   // Full (day / 3-day view) tiers
   const sizeTier =
-    heightPx < 22  ? 'micro'  :
+    heightPx < 14  ? 'micro'  :
     heightPx < 36  ? 'tiny'   :
     heightPx < 52  ? 'small'  :
     heightPx < 72  ? 'medium' :

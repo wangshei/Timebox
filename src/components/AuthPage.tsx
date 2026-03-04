@@ -395,6 +395,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0 }}>
                 {message?.text}
               </p>
+              <p style={{ fontSize: 13, lineHeight: 1.5, color: '#AEAEB2', margin: '8px 0 0' }}>
+                Don't see it? Check your spam or junk folder.
+              </p>
               <button
                 onClick={() => switchMode('login')}
                 style={{

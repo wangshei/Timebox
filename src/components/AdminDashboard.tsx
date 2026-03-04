@@ -27,6 +27,20 @@ interface User {
   email_confirmed_at: string | null;
 }
 
+interface BugReport {
+  id: string;
+  user_email: string | null;
+  description: string;
+  created_at: string;
+}
+
+interface UserStats {
+  activeDates: number;
+  blocks: number;
+  events: number;
+  tasks: number;
+}
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD as string;
@@ -114,6 +128,14 @@ const badgeBase: React.CSSProperties = {
   borderRadius: 99,
 };
 
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase' as const,
+  color: '#8E8E93',
+};
+
 export function AdminDashboard() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('admin_authed') === '1');
   const [passwordInput, setPasswordInput] = useState('');
@@ -125,6 +147,9 @@ export function AdminDashboard() {
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [bugReports, setBugReports] = useState<BugReport[]>([]);
+  const [userStats, setUserStats] = useState<Record<string, UserStats>>({});
+  const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -132,6 +157,15 @@ export function AdminDashboard() {
   // Waitlist gate toggle
   const [waitlistOpen, setWaitlistOpen] = useState<boolean | null>(null);
   const [togglingWaitlist, setTogglingWaitlist] = useState(false);
+
+  // Broadcast message composer
+  const [broadcastDraft, setBroadcastDraft] = useState('');
+
+  // Admin todo / notes
+  const [adminTodo, setAdminTodo] = useState('');
+  const [todoSaveStatus, setTodoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const todoSaveTimer = React.useRef<ReturnType<typeof setTimeout>>();
+  const [newTodoItem, setNewTodoItem] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,8 +187,21 @@ export function AdminDashboard() {
       setWaitlist(data.waitlist || []);
       setInviteCodes(data.inviteCodes || []);
       setUsers(data.users || []);
+      setBugReports(data.bugReports || []);
+      setUserStats(data.userStats || {});
       if (typeof data.waitlistOpen === 'boolean') {
         setWaitlistOpen(data.waitlistOpen);
+      }
+      setAdminTodo(data.adminTodo || '');
+      if (data.broadcastMessage) {
+        try {
+          const parsed = JSON.parse(data.broadcastMessage);
+          setBroadcastMessage(parsed.text || null);
+        } catch {
+          setBroadcastMessage(null);
+        }
+      } else {
+        setBroadcastMessage(null);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -212,6 +259,86 @@ export function AdminDashboard() {
       setActionMessage(`Error toggling waitlist: ${(err as Error).message}`);
     } finally {
       setTogglingWaitlist(false);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastDraft.trim()) return;
+    setActionLoading('broadcast');
+    setActionMessage(null);
+    try {
+      const data = await adminFetch('send-broadcast', { message: broadcastDraft.trim() });
+      if (data.error) throw new Error(data.error);
+      setActionMessage('Broadcast message sent to all users');
+      setBroadcastMessage(broadcastDraft.trim());
+      setBroadcastDraft('');
+    } catch (err) {
+      setActionMessage(`Error: ${(err as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleClearBroadcast = async () => {
+    setActionLoading('clear-broadcast');
+    try {
+      const data = await adminFetch('clear-broadcast');
+      if (data.error) throw new Error(data.error);
+      setBroadcastMessage(null);
+      setActionMessage('Broadcast message cleared');
+    } catch (err) {
+      setActionMessage(`Error: ${(err as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const saveTodo = useCallback(async (text: string) => {
+    setTodoSaveStatus('saving');
+    try {
+      await adminFetch('save-admin-todo', { todo: text });
+      setTodoSaveStatus('saved');
+      setTimeout(() => setTodoSaveStatus('idle'), 1500);
+    } catch {
+      setTodoSaveStatus('idle');
+    }
+  }, []);
+
+  const handleTodoChange = (text: string) => {
+    setAdminTodo(text);
+    // Auto-save after 800ms of inactivity
+    if (todoSaveTimer.current) clearTimeout(todoSaveTimer.current);
+    todoSaveTimer.current = setTimeout(() => saveTodo(text), 800);
+  };
+
+  const handleAddTodoItem = () => {
+    if (!newTodoItem.trim()) return;
+    const timestamp = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const newLine = `- [ ] ${newTodoItem.trim()} (${timestamp})`;
+    const updated = adminTodo ? `${adminTodo}\n${newLine}` : newLine;
+    setAdminTodo(updated);
+    setNewTodoItem('');
+    saveTodo(updated);
+  };
+
+  const handleResendConfirmation = async () => {
+    const unconfirmed = users.filter(u => !u.email_confirmed_at);
+    if (unconfirmed.length === 0) {
+      setActionMessage('No unconfirmed users to email');
+      return;
+    }
+    setActionLoading('resend');
+    setActionMessage(null);
+    try {
+      const data = await adminFetch('resend-confirmation', { emails: unconfirmed.map(u => u.email) });
+      if (data.error) throw new Error(data.error);
+      const succeeded = data.results?.filter((r: { success: boolean }) => r.success).length ?? 0;
+      const failed = data.results?.filter((r: { success: boolean }) => !r.success).length ?? 0;
+      setActionMessage(`Resent confirmation to ${succeeded} user(s)${failed > 0 ? `, ${failed} failed` : ''}`);
+    } catch (err) {
+      setActionMessage(`Error: ${(err as Error).message}`);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -288,6 +415,7 @@ export function AdminDashboard() {
   const approvedWaitlist = waitlist.filter(w => w.status === 'approved');
   const usedCodes = inviteCodes.filter(c => c.used_by);
   const totalCodes = inviteCodes.length;
+  const unconfirmedUsers = users.filter(u => !u.email_confirmed_at);
 
   // Referral breakdown
   const referralCounts: Record<string, number> = {};
@@ -321,7 +449,7 @@ export function AdminDashboard() {
               disabled={loading}
               style={{ ...btnSecondary, opacity: loading ? 0.6 : 1 }}
             >
-              {loading ? 'Loading…' : 'Refresh'}
+              {loading ? 'Loading...' : 'Refresh'}
             </button>
             <button
               onClick={() => { sessionStorage.removeItem('admin_authed'); setAuthed(false); }}
@@ -355,12 +483,14 @@ export function AdminDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
             { label: 'Total Users', value: users.length, color: '#1C1C1E' },
+            { label: 'Unconfirmed', value: unconfirmedUsers.length, color: unconfirmedUsers.length > 0 ? '#FF3B30' : '#8E8E93' },
             { label: 'Waitlist Pending', value: pendingWaitlist.length, color: '#FF9500' },
             { label: 'Waitlist Approved', value: approvedWaitlist.length, color: '#8DA387' },
             { label: 'Codes Used / Total', value: `${usedCodes.length} / ${totalCodes}`, color: '#5856D6' },
+            { label: 'Bug Reports', value: bugReports.length, color: bugReports.length > 0 ? '#FF9500' : '#8E8E93' },
           ].map(stat => (
             <div key={stat.label} style={cardStyle}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 6 }}>
+              <div style={{ ...sectionLabel, marginBottom: 6 }}>
                 {stat.label}
               </div>
               <div style={{ fontSize: 28, fontWeight: 700, color: stat.color, letterSpacing: '-0.02em' }}>
@@ -370,11 +500,148 @@ export function AdminDashboard() {
           ))}
         </div>
 
-        {/* Waitlist Gate Toggle + Referral Breakdown */}
+        {/* Admin Todo / Notes */}
+        <div style={{ ...cardStyle, marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={sectionLabel}>
+              Todo / Bugs to Fix
+            </div>
+            <span style={{ fontSize: 11, color: todoSaveStatus === 'saved' ? '#34C759' : todoSaveStatus === 'saving' ? '#8E8E93' : 'transparent', transition: 'color 300ms' }}>
+              {todoSaveStatus === 'saved' ? 'Saved' : todoSaveStatus === 'saving' ? 'Saving...' : '.'}
+            </span>
+          </div>
+          {/* Quick add */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              type="text"
+              value={newTodoItem}
+              onChange={(e) => setNewTodoItem(e.target.value)}
+              placeholder="Quick add a task or bug..."
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                fontSize: 13,
+                border: '1px solid rgba(0,0,0,0.12)',
+                borderRadius: 8,
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddTodoItem(); }}
+            />
+            <button
+              onClick={handleAddTodoItem}
+              disabled={!newTodoItem.trim()}
+              style={{
+                ...btnPrimary,
+                fontSize: 12,
+                padding: '8px 14px',
+                opacity: newTodoItem.trim() ? 1 : 0.4,
+              }}
+            >
+              Add
+            </button>
+          </div>
+          {/* Editable markdown textarea */}
+          <textarea
+            value={adminTodo}
+            onChange={(e) => handleTodoChange(e.target.value)}
+            placeholder={"- [ ] Fix calendar sync bug\n- [ ] Add dark mode\n- [x] Deploy v2.1"}
+            rows={10}
+            style={{
+              width: '100%',
+              fontSize: 13,
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+              lineHeight: 1.7,
+              resize: 'vertical',
+              borderRadius: 8,
+              padding: 12,
+              outline: 'none',
+              backgroundColor: 'rgba(0,0,0,0.02)',
+              border: '1px solid rgba(0,0,0,0.09)',
+              color: '#1C1C1E',
+              boxSizing: 'border-box',
+            }}
+          />
+          <p style={{ fontSize: 11, color: '#AEAEB2', margin: '8px 0 0' }}>
+            Markdown format. Use <code style={{ fontSize: 10, backgroundColor: 'rgba(0,0,0,0.05)', padding: '1px 4px', borderRadius: 3 }}>- [ ]</code> for todos, <code style={{ fontSize: 10, backgroundColor: 'rgba(0,0,0,0.05)', padding: '1px 4px', borderRadius: 3 }}>- [x]</code> for done. Auto-saves.
+          </p>
+        </div>
+
+        {/* Broadcast Message + Waitlist Gate */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Broadcast message composer */}
+          <div style={cardStyle}>
+            <div style={{ ...sectionLabel, marginBottom: 12 }}>
+              Broadcast Message
+            </div>
+            {broadcastMessage && (
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: 8,
+                backgroundColor: 'rgba(88,86,214,0.06)',
+                border: '1px solid rgba(88,86,214,0.15)',
+                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+              }}>
+                <span style={{ fontSize: 13, color: '#5856D6', flex: 1, lineHeight: 1.5 }}>
+                  Active: "{broadcastMessage}"
+                </span>
+                <button
+                  onClick={handleClearBroadcast}
+                  disabled={actionLoading === 'clear-broadcast'}
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 11,
+                    padding: '3px 8px',
+                    color: '#FF3B30',
+                    borderColor: '#FF3B30',
+                    flexShrink: 0,
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={broadcastDraft}
+                onChange={(e) => setBroadcastDraft(e.target.value)}
+                placeholder="e.g. Bug fixed! Calendar sync is now working."
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  fontSize: 13,
+                  border: '1px solid rgba(0,0,0,0.12)',
+                  borderRadius: 8,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSendBroadcast(); }}
+              />
+              <button
+                onClick={handleSendBroadcast}
+                disabled={!broadcastDraft.trim() || actionLoading === 'broadcast'}
+                style={{
+                  ...btnPrimary,
+                  fontSize: 12,
+                  padding: '8px 14px',
+                  opacity: (!broadcastDraft.trim() || actionLoading === 'broadcast') ? 0.5 : 1,
+                }}
+              >
+                {actionLoading === 'broadcast' ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: '#8E8E93', margin: '8px 0 0', lineHeight: 1.5 }}>
+              This message will appear as a popup for all users next time they open the app.
+            </p>
+          </div>
+
           {/* Waitlist gate */}
           <div style={cardStyle}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 12 }}>
+            <div style={{ ...sectionLabel, marginBottom: 12 }}>
               Waitlist Gate
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -385,7 +652,7 @@ export function AdminDashboard() {
                 backgroundColor: waitlistOpen === null ? '#C7C7CC' : waitlistOpen ? '#34C759' : '#FF3B30',
               }} />
               <span style={{ fontSize: 14, fontWeight: 500, color: '#1C1C1E' }}>
-                {waitlistOpen === null ? 'Loading…' : waitlistOpen ? 'Open — anyone can sign up' : 'Closed — invite code required'}
+                {waitlistOpen === null ? 'Loading...' : waitlistOpen ? 'Open — anyone can sign up' : 'Closed — invite code required'}
               </span>
               <button
                 onClick={handleToggleWaitlist}
@@ -398,7 +665,7 @@ export function AdminDashboard() {
                   opacity: togglingWaitlist ? 0.6 : 1,
                 }}
               >
-                {togglingWaitlist ? 'Updating…' : waitlistOpen ? 'Close Waitlist' : 'Open Waitlist'}
+                {togglingWaitlist ? 'Updating...' : waitlistOpen ? 'Close Waitlist' : 'Open Waitlist'}
               </button>
             </div>
             <p style={{ fontSize: 11, color: '#8E8E93', margin: '10px 0 0', lineHeight: 1.5 }}>
@@ -407,10 +674,13 @@ export function AdminDashboard() {
                 : 'Users need a valid invite code to sign up. Those without one can join the waitlist.'}
             </p>
           </div>
+        </div>
 
+        {/* Referral Breakdown + Resend Confirmation */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
           {/* Referral breakdown */}
           <div style={cardStyle}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 12 }}>
+            <div style={{ ...sectionLabel, marginBottom: 12 }}>
               Referral Sources
             </div>
             {referralEntries.length === 0 ? (
@@ -430,12 +700,86 @@ export function AdminDashboard() {
               </table>
             )}
           </div>
+
+          {/* Resend confirmation */}
+          <div style={cardStyle}>
+            <div style={{ ...sectionLabel, marginBottom: 12 }}>
+              Unconfirmed Users ({unconfirmedUsers.length})
+            </div>
+            {unconfirmedUsers.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#8E8E93', margin: 0 }}>All users have confirmed their email.</p>
+            ) : (
+              <>
+                <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 12 }}>
+                  {unconfirmedUsers.map(u => (
+                    <div key={u.id} style={{ fontSize: 12, color: '#3A3A3C', padding: '3px 0', fontFamily: 'ui-monospace, monospace' }}>
+                      {u.email}
+                      <span style={{ color: '#AEAEB2', marginLeft: 8 }}>signed up {formatDate(u.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleResendConfirmation}
+                  disabled={actionLoading === 'resend'}
+                  style={{
+                    ...btnPrimary,
+                    fontSize: 12,
+                    padding: '6px 14px',
+                    opacity: actionLoading === 'resend' ? 0.5 : 1,
+                    backgroundColor: '#FF9500',
+                  }}
+                >
+                  {actionLoading === 'resend' ? 'Sending...' : `Resend Confirmation (${unconfirmedUsers.length})`}
+                </button>
+                <p style={{ fontSize: 11, color: '#8E8E93', margin: '8px 0 0', lineHeight: 1.5 }}>
+                  Sends a reminder email with a new confirmation link to all unconfirmed users.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bug Reports Table */}
+        <div style={{ ...cardStyle, marginBottom: 24 }}>
+          <div style={{ ...sectionLabel, marginBottom: 16 }}>
+            Bug Reports ({bugReports.length})
+          </div>
+          {bugReports.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#8E8E93', margin: 0 }}>No bug reports yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Date</th>
+                    <th style={thStyle}>User</th>
+                    <th style={thStyle}>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bugReports.map(report => (
+                    <tr key={report.id}>
+                      <td style={{ ...tdStyle, color: '#8E8E93', fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {formatDateTime(report.created_at)}
+                      </td>
+                      <td style={{ ...tdStyle, fontFamily: 'ui-monospace, monospace', fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {report.user_email || 'anonymous'}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, lineHeight: 1.5, maxWidth: 500 }}>
+                        {report.description}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Waitlist Table */}
         <div style={{ ...cardStyle, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
+            <div style={sectionLabel}>
               Waitlist ({waitlist.length})
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -450,7 +794,7 @@ export function AdminDashboard() {
                   disabled={actionLoading === 'send'}
                   style={{ ...btnPrimary, fontSize: 12, padding: '5px 12px', opacity: actionLoading === 'send' ? 0.6 : 1 }}
                 >
-                  {actionLoading === 'send' ? 'Sending…' : `Send Invites (${selectedEmails.size})`}
+                  {actionLoading === 'send' ? 'Sending...' : `Send Invites (${selectedEmails.size})`}
                 </button>
               )}
             </div>
@@ -508,7 +852,7 @@ export function AdminDashboard() {
         {/* Invite Codes Table */}
         <div style={{ ...cardStyle, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
+            <div style={sectionLabel}>
               Invite Codes ({inviteCodes.length})
             </div>
             <button
@@ -516,7 +860,7 @@ export function AdminDashboard() {
               disabled={actionLoading === 'generate'}
               style={{ ...btnPrimary, fontSize: 12, padding: '5px 12px', opacity: actionLoading === 'generate' ? 0.6 : 1 }}
             >
-              {actionLoading === 'generate' ? 'Generating…' : 'Generate 10 Codes'}
+              {actionLoading === 'generate' ? 'Generating...' : 'Generate 10 Codes'}
             </button>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -560,9 +904,9 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        {/* Users Table */}
+        {/* Users Table — with per-user stats */}
         <div style={cardStyle}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 16 }}>
+          <div style={{ ...sectionLabel, marginBottom: 16 }}>
             Users ({users.length})
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -573,28 +917,47 @@ export function AdminDashboard() {
                   <th style={thStyle}>Signed Up</th>
                   <th style={thStyle}>Last Sign In</th>
                   <th style={thStyle}>Email Confirmed</th>
+                  <th style={thStyle}>Active Days</th>
+                  <th style={thStyle}>Tasks</th>
+                  <th style={thStyle}>Blocks</th>
+                  <th style={thStyle}>Events</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map(user => (
-                  <tr key={user.id}>
-                    <td style={{ ...tdStyle, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{user.email}</td>
-                    <td style={{ ...tdStyle, color: '#8E8E93', fontSize: 12 }}>{formatDate(user.created_at)}</td>
-                    <td style={{ ...tdStyle, color: '#8E8E93', fontSize: 12 }}>{formatDateTime(user.last_sign_in_at)}</td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        ...badgeBase,
-                        backgroundColor: user.email_confirmed_at ? '#E8F5E9' : '#FFF3E0',
-                        color: user.email_confirmed_at ? '#2E7D32' : '#E65100',
-                      }}>
-                        {user.email_confirmed_at ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {users.map(user => {
+                  const stats = userStats[user.id];
+                  return (
+                    <tr key={user.id}>
+                      <td style={{ ...tdStyle, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{user.email}</td>
+                      <td style={{ ...tdStyle, color: '#8E8E93', fontSize: 12 }}>{formatDate(user.created_at)}</td>
+                      <td style={{ ...tdStyle, color: '#8E8E93', fontSize: 12 }}>{formatDateTime(user.last_sign_in_at)}</td>
+                      <td style={tdStyle}>
+                        <span style={{
+                          ...badgeBase,
+                          backgroundColor: user.email_confirmed_at ? '#E8F5E9' : '#FFF3E0',
+                          color: user.email_confirmed_at ? '#2E7D32' : '#E65100',
+                        }}>
+                          {user.email_confirmed_at ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, fontWeight: 600, color: stats?.activeDates ? '#1C1C1E' : '#C7C7CC' }}>
+                        {stats?.activeDates ?? 0}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, color: stats?.tasks ? '#3A3A3C' : '#C7C7CC' }}>
+                        {stats?.tasks ?? 0}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, color: stats?.blocks ? '#3A3A3C' : '#C7C7CC' }}>
+                        {stats?.blocks ?? 0}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, color: stats?.events ? '#3A3A3C' : '#C7C7CC' }}>
+                        {stats?.events ?? 0}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
+                    <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
                       No users.
                     </td>
                   </tr>

@@ -158,6 +158,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
+  const [showBroadcastPopup, setShowBroadcastPopup] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -1220,6 +1222,33 @@ export default function App() {
     };
   }, []);
 
+  // Fetch broadcast message (public endpoint, no admin secret needed)
+  useEffect(() => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+    fetch(`${supabaseUrl}/functions/v1/admin-api`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+      body: JSON.stringify({ action: 'get-config', key: 'broadcast_message' }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.value) return;
+        try {
+          const parsed = JSON.parse(data.value);
+          if (parsed.text && parsed.sentAt) {
+            const lastRead = localStorage.getItem('broadcast_read_at');
+            if (!lastRead || new Date(lastRead) < new Date(parsed.sentAt)) {
+              setBroadcastMessage(parsed.text);
+              setShowBroadcastPopup(true);
+            }
+          }
+        } catch { /* ignore parse errors */ }
+      })
+      .catch(() => {}); // non-critical
+  }, []);
+
   // Keyboard shortcuts: d day, w week, m month, p planning, r recording, a all calendars
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1589,8 +1618,39 @@ export default function App() {
                   {profileLetter}
                 </button>
 
-                {/* Right icons: bug report + keyboard shortcuts */}
+                {/* Right icons: message + bug report + keyboard shortcuts */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {/* Broadcast message button — only visible when there's an active message */}
+                  {broadcastMessage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBroadcastPopup((o) => !o);
+                      }}
+                      style={{
+                        padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                        color: showBroadcastPopup ? '#5856D6' : '#5856D6',
+                        backgroundColor: showBroadcastPopup ? 'rgba(88,86,214,0.09)' : 'transparent',
+                        position: 'relative',
+                      }}
+                      onMouseEnter={(e) => { if (!showBroadcastPopup) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                      onMouseLeave={(e) => { if (!showBroadcastPopup) e.currentTarget.style.backgroundColor = showBroadcastPopup ? 'rgba(88,86,214,0.09)' : 'transparent'; }}
+                      title="New message"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 3h12v8H4l-2 2V3z" />
+                        <path d="M5 7h6M5 9h3" />
+                      </svg>
+                      {/* Unread dot — shows when popup hasn't been dismissed yet */}
+                      {showBroadcastPopup && (
+                        <div style={{
+                          position: 'absolute', top: 3, right: 3, width: 6, height: 6,
+                          borderRadius: '50%', backgroundColor: '#5856D6',
+                        }} />
+                      )}
+                    </button>
+                  )}
+
                   {/* Bug report button */}
                   <button
                     type="button"
@@ -1796,6 +1856,62 @@ export default function App() {
                           {deleteStatus === 'loading' ? 'Deleting...' : 'Delete my account'}
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Broadcast message popup */}
+              {showBroadcastPopup && broadcastMessage && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => {
+                    setShowBroadcastPopup(false);
+                    localStorage.setItem('broadcast_read_at', new Date().toISOString());
+                  }} />
+                  <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      borderRadius: 12, overflow: 'hidden',
+                      backgroundColor: '#FFFFFF', border: '1px solid rgba(88,86,214,0.2)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    }}
+                  >
+                    <div style={{ padding: '14px 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#5856D6', flexShrink: 0 }} />
+                        <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#5856D6', margin: 0 }}>Update</p>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#1C1C1E', margin: 0, lineHeight: 1.5 }}>
+                        {broadcastMessage}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBroadcastPopup(false);
+                          localStorage.setItem('broadcast_read_at', new Date().toISOString());
+                          setBroadcastMessage(null);
+                        }}
+                        style={{
+                          alignSelf: 'flex-end',
+                          padding: '4px 12px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          borderRadius: 6,
+                          border: 'none',
+                          cursor: 'pointer',
+                          backgroundColor: 'rgba(88,86,214,0.08)',
+                          color: '#5856D6',
+                          fontFamily: 'inherit',
+                          transition: 'background-color 200ms',
+                          marginTop: 2,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(88,86,214,0.15)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(88,86,214,0.08)')}
+                      >
+                        Got it
+                      </button>
                     </div>
                   </div>
                 </>

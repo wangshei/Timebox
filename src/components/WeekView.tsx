@@ -82,7 +82,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-    const height = (duration / 60) * PX_PER_HOUR;
+    const height = Math.max((duration / 60) * PX_PER_HOUR, 18);
     return { top, height };
   };
 
