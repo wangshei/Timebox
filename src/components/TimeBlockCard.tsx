@@ -86,6 +86,7 @@ function TimeBlockCardInner({
   const [showPopover, setShowPopover] = useState(false);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
+  const [showDetails, setShowDetails] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
@@ -619,20 +620,39 @@ function TimeBlockCardInner({
             </button>
           </div>
         )}
-        {block.notes && (
-          <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
-            {block.notes}
-          </div>
-        )}
-        {block.description && (
-          <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{block.description}</div>
-        )}
-        {block.link && (
-          <div className="mb-2">
-            <a href={block.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
-              {block.link}
-            </a>
-          </div>
+        {(block.notes || block.description || block.link) && (
+          <>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-[10px] font-medium mt-1 mb-1"
+              style={{ color: THEME.textMuted }}
+              onClick={() => setShowDetails(d => !d)}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
+                <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+              Details
+            </button>
+            {showDetails && (
+              <div className="mb-1">
+                {block.notes && (
+                  <div className="text-xs italic mb-1.5 break-words" style={{ color: THEME.textSecondary }}>
+                    {block.notes}
+                  </div>
+                )}
+                {block.description && (
+                  <div className="text-xs whitespace-pre-wrap mb-1.5 break-words" style={{ color: THEME.textSecondary }}>{block.description}</div>
+                )}
+                {block.link && (
+                  <div className="overflow-hidden">
+                    <a href={block.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block" style={{ color: '#8DA286' }}>
+                      {block.link}
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
         <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
         {!isPastPlanned && (
@@ -714,7 +734,7 @@ function TimeBlockCardInner({
         className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
+        onClick={() => { if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => { if (!v) setShowDetails(false); return !v; }); } }}
         draggable={!noDrag}
         onDragStart={!noDrag ? handleBlockDragStart : undefined}
         onDragEnd={!noDrag ? () => { activeDrag.type = null; } : undefined}
@@ -797,9 +817,11 @@ function TimeBlockCardInner({
         {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="fixed rounded-xl p-3 w-56"
+            className="fixed rounded-xl p-3 overflow-hidden"
             style={{
               zIndex: 200,
+              width: 224,
+              maxWidth: 224,
               top: popoverRect?.top ?? -9999,
               left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
@@ -848,7 +870,7 @@ function TimeBlockCardInner({
       className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => !v); } }}
+      onClick={() => { if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => { if (!v) setShowDetails(false); return !v; }); } }}
       draggable={!noDragFull}
       onDragStart={!noDragFull ? handleBlockDragStart : undefined}
       onDragEnd={!noDragFull ? () => { activeDrag.type = null; } : undefined}
@@ -993,9 +1015,11 @@ function TimeBlockCardInner({
       {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="fixed rounded-xl p-3 w-56"
+          className="fixed rounded-xl p-3 overflow-hidden"
           style={{
             zIndex: 200,
+            width: 224,
+            maxWidth: 224,
             top: popoverRect?.top ?? -9999,
             left: popoverRect?.left ?? -9999,
             transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,

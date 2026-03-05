@@ -75,6 +75,7 @@ export function EventCard({
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
+  const [showDetails, setShowDetails] = useState(false);
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = useState(() => frozen ? nowCtx : new Date());
@@ -265,7 +266,7 @@ export function EventCard({
       onClick={() => {
         onSelect();
         popoverOpenedAtRef.current = Date.now();
-        setShowPopover((v) => !v);
+        setShowPopover((v) => { if (!v) setShowDetails(false); return !v; });
       }}
       draggable={draggable}
       onDragStart={handleDragStart}
@@ -360,9 +361,11 @@ export function EventCard({
       {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="fixed rounded-xl p-3 w-56"
+            className="fixed rounded-xl p-3 overflow-hidden"
             style={{
               zIndex: 200,
+              width: 224,
+              maxWidth: 224,
               top: popoverRect?.top ?? -9999,
               left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
@@ -449,20 +452,39 @@ export function EventCard({
                   </button>
                 </div>
               )}
-              {event.notes && (
-                <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
-                  {event.notes}
-                </div>
-              )}
-              {event.description && (
-                <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{event.description}</div>
-              )}
-              {event.link && (
-                <div className="mb-2">
-                  <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
-                    {event.link}
-                  </a>
-                </div>
+              {(event.notes || event.description || event.link) && (
+                <>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[10px] font-medium mt-1 mb-1"
+                    style={{ color: THEME.textMuted }}
+                    onClick={() => setShowDetails(d => !d)}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
+                      <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                    Details
+                  </button>
+                  {showDetails && (
+                    <div className="mb-1">
+                      {event.notes && (
+                        <div className="text-xs italic mb-1.5 break-words" style={{ color: THEME.textSecondary }}>
+                          {event.notes}
+                        </div>
+                      )}
+                      {event.description && (
+                        <div className="text-xs whitespace-pre-wrap mb-1.5 break-words" style={{ color: THEME.textSecondary }}>{event.description}</div>
+                      )}
+                      {event.link && (
+                        <div className="overflow-hidden">
+                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block" style={{ color: '#8DA286' }}>
+                            {event.link}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
               {deleteConfirmState === 'confirm' ? (
