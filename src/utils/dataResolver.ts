@@ -25,7 +25,12 @@ export interface ResolvedTimeBlock {
   priority?: number;
   /** Due date inherited from linked Task (YYYY-MM-DD), undefined if unset. */
   dueDate?: string | null;
-  // Emoji removed from UI; keep type minimal.
+  /** Notes — from block itself or inherited from linked Task. */
+  notes?: string | null;
+  /** Description — from block itself or inherited from linked Task. */
+  description?: string | null;
+  /** Link — from block itself or inherited from linked Task. */
+  link?: string | null;
 }
 
 /**
@@ -60,6 +65,9 @@ export function resolveTimeBlock(
     calendarContainer: container,
     priority: typeof linkedTask?.priority === 'number' ? linkedTask.priority : undefined,
     dueDate: linkedTask?.dueDate ?? null,
+    notes: block.notes || linkedTask?.notes || null,
+    description: block.description || linkedTask?.description || null,
+    link: block.link || linkedTask?.link || null,
   };
 }
 

@@ -514,7 +514,7 @@ function TimeBlockCardInner({
     : sizeTier === 'medium' || sizeTier === 'full' || sizeTier === 'rich';
   const showCategory = sizeTier === 'full' || sizeTier === 'rich';
   const showTags = sizeTier === 'rich' && block.tags.length > 0;
-  const showNotes = sizeTier === 'rich' && !!(block as any).notes;
+  const showNotes = sizeTier === 'rich' && !!block.notes;
 
   const getDurationMinutes = () => {
     const [startHour, startMin] = block.start.split(':').map(Number);
@@ -619,18 +619,18 @@ function TimeBlockCardInner({
             </button>
           </div>
         )}
-        {(block as any).notes && (
+        {block.notes && (
           <div className="text-xs italic mb-2 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.05)', color: THEME.textSecondary }}>
-            {(block as any).notes}
+            {block.notes}
           </div>
         )}
-        {(block as any).description && (
-          <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{(block as any).description}</div>
+        {block.description && (
+          <div className="text-xs whitespace-pre-wrap mb-2" style={{ color: THEME.textSecondary }}>{block.description}</div>
         )}
-        {(block as any).link && (
+        {block.link && (
           <div className="mb-2">
-            <a href={(block as any).link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
-              {(block as any).link}
+            <a href={block.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block max-w-full" style={{ color: '#8DA286' }}>
+              {block.link}
             </a>
           </div>
         )}
@@ -959,7 +959,7 @@ function TimeBlockCardInner({
                 className="mt-0.5 italic line-clamp-2 opacity-65"
                 style={{ fontSize: 9.5, color: '#636366' }}
               >
-                {(block as any).notes}
+                {block.notes}
               </div>
             )}
           </div>
