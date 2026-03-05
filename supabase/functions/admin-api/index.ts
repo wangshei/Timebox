@@ -139,6 +139,13 @@ serve(async (req) => {
       // Default: waitlist closed (invite code required)
       const waitlistOpen = configRes.data?.value === 'true'
 
+      // Log stats query errors for debugging
+      const statsErrors: string[] = []
+      if (blocksRes.error) statsErrors.push(`time_blocks: ${blocksRes.error.message}`)
+      if (eventsRes.error) statsErrors.push(`events: ${eventsRes.error.message}`)
+      if (tasksRes.error) statsErrors.push(`tasks: ${tasksRes.error.message}`)
+      if (settingsRes.error) statsErrors.push(`user_settings: ${settingsRes.error.message}`)
+
       // Build per-user stats
       const userStats: Record<string, { activeDates: Set<string>; sessions: number; events: number; tasks: number }> = {}
       const ensure = (uid: string) => {
@@ -177,6 +184,13 @@ serve(async (req) => {
         broadcastMessage: broadcastRes.data?.value ?? null,
         adminTodo: adminTodoRes.data?.value ?? '',
         userStats: userStatsJson,
+        ...(statsErrors.length ? { statsErrors } : {}),
+        statsDebug: {
+          blocksCount: (blocksRes.data ?? []).length,
+          eventsCount: (eventsRes.data ?? []).length,
+          tasksCount: (tasksRes.data ?? []).length,
+          settingsCount: (settingsRes.data ?? []).length,
+        },
       })
     }
 

@@ -189,6 +189,12 @@ export function AdminDashboard() {
       setUsers(data.users || []);
       setBugReports(data.bugReports || []);
       setUserStats(data.userStats || {});
+      // Debug: log full response to diagnose stats
+      console.log('[AdminDashboard] Full response keys:', Object.keys(data));
+      console.log('[AdminDashboard] userStats:', JSON.stringify(data.userStats, null, 2));
+      console.log('[AdminDashboard] users sample:', data.users?.slice(0, 3)?.map((u: any) => ({ id: u.id, email: u.email })));
+      if (data.statsErrors?.length) console.warn('[AdminDashboard] Stats query errors:', data.statsErrors);
+      if (data.statsDebug) console.log('[AdminDashboard] Stats debug:', data.statsDebug);
       if (typeof data.waitlistOpen === 'boolean') {
         setWaitlistOpen(data.waitlistOpen);
       }
