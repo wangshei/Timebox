@@ -876,6 +876,27 @@ export default function App() {
     updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: targetDate });
   }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock]);
 
+  /** Create a continuation task from a time block with a chosen duration. */
+  const handleAddTimeToComplete = useCallback((blockId: string, minutes: number) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block || !block.taskId) return;
+    const task = tasks.find((t) => t.id === block.taskId);
+    if (!task) return;
+    saveSnapshot();
+    addTask({
+      title: task.title + ' - Continued',
+      estimatedMinutes: minutes,
+      calendarContainerId: task.calendarContainerId,
+      categoryId: task.categoryId,
+      tagIds: task.tagIds ?? [],
+      flexible: task.flexible,
+      dueDate: task.dueDate ?? undefined,
+      notes: task.notes ?? undefined,
+      description: task.description ?? undefined,
+      link: task.link ?? undefined,
+    });
+  }, [timeBlocks, tasks, addTask, saveSnapshot]);
+
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
       createPlannedBlocksFromTask(schedulingTaskId, { ...params, singleBlock: true });
@@ -1166,6 +1187,17 @@ export default function App() {
           console.error('[App] loadSupabaseState failed', e);
           // Still allow app to render even if load failed (user can fix DB schema)
         }
+        // Track session count (fire-and-forget)
+        try {
+          const userId = next.user.id;
+          supabase!.rpc('increment_session_count', { uid: userId }).then(() => {}, () => {
+            // Fallback: manual increment if RPC doesn't exist
+            supabase!.from('user_settings').select('session_count').eq('user_id', userId).maybeSingle().then(({ data }) => {
+              const current = (data as any)?.session_count ?? 0;
+              supabase!.from('user_settings').update({ session_count: current + 1 } as any).eq('user_id', userId).then(() => {}, () => {});
+            });
+          });
+        } catch { /* ignore session tracking errors */ }
       }
       setDataReady(true);
     };
@@ -2072,6 +2104,7 @@ export default function App() {
           onToggleEventAttendance={handleToggleEventAttendance}
           weekStartsOnMonday={weekStartsOnMonday}
           onRescheduleLater={handleRescheduleBlockLater}
+          onAddTimeToComplete={handleAddTimeToComplete}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -2271,23 +2304,9 @@ export default function App() {
             onToggleEventAttendance={handleToggleEventAttendance}
             weekStartsOnMonday={weekStartsOnMonday}
             onRescheduleLater={handleRescheduleBlockLater}
+            onAddTimeToComplete={handleAddTimeToComplete}
+            onOpenMobileTasks={() => setMobileTodoPanelOpen(true)}
           />
-          {/* Floating task list toggle button */}
-          <button
-            type="button"
-            onClick={() => setMobileTodoPanelOpen(true)}
-            className="absolute bottom-5 right-4 z-50 flex items-center justify-center rounded-full shadow-lg touch-manipulation"
-            style={{
-              width: 48, height: 48,
-              backgroundColor: '#8DA286',
-              color: '#FFFFFF',
-            }}
-            aria-label="Open tasks"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
 
           {/* Slide-from-right todo panel */}
           {mobileTodoPanelOpen && (

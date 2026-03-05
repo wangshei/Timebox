@@ -118,7 +118,7 @@ serve(async (req) => {
 
     // ── get-dashboard-data ─────────────────────────────────────────────────
     if (action === 'get-dashboard-data') {
-      const [waitlistRes, codesRes, usersRes, configRes, bugReportsRes, broadcastRes, adminTodoRes, blocksRes, eventsRes, tasksRes] = await Promise.all([
+      const [waitlistRes, codesRes, usersRes, configRes, bugReportsRes, broadcastRes, adminTodoRes, blocksRes, eventsRes, tasksRes, settingsRes] = await Promise.all([
         supabaseAdmin.from('waitlist').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('invite_codes').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
@@ -126,9 +126,10 @@ serve(async (req) => {
         supabaseAdmin.from('bug_reports').select('*').order('created_at', { ascending: false }).limit(50),
         supabaseAdmin.from('app_config').select('value').eq('key', 'broadcast_message').maybeSingle(),
         supabaseAdmin.from('app_config').select('value').eq('key', 'admin_todo').maybeSingle(),
-        supabaseAdmin.from('time_blocks').select('user_id, date'),
-        supabaseAdmin.from('events').select('user_id, date'),
-        supabaseAdmin.from('tasks').select('user_id, status'),
+        supabaseAdmin.from('time_blocks').select('user_id, date').limit(10000),
+        supabaseAdmin.from('events').select('user_id, date').limit(10000),
+        supabaseAdmin.from('tasks').select('user_id, status').limit(10000),
+        supabaseAdmin.from('user_settings').select('user_id, session_count'),
       ])
 
       if (waitlistRes.error) return json({ error: waitlistRes.error.message }, 500)
@@ -139,13 +140,17 @@ serve(async (req) => {
       const waitlistOpen = configRes.data?.value === 'true'
 
       // Build per-user stats
-      const userStats: Record<string, { activeDates: Set<string>; blocks: number; events: number; tasks: number }> = {}
+      const userStats: Record<string, { activeDates: Set<string>; sessions: number; events: number; tasks: number }> = {}
       const ensure = (uid: string) => {
-        if (!userStats[uid]) userStats[uid] = { activeDates: new Set(), blocks: 0, events: 0, tasks: 0 }
+        if (!userStats[uid]) userStats[uid] = { activeDates: new Set(), sessions: 0, events: 0, tasks: 0 }
+      }
+      // Session counts from user_settings
+      for (const s of settingsRes.data ?? []) {
+        ensure(s.user_id)
+        userStats[s.user_id].sessions = s.session_count ?? 0
       }
       for (const b of blocksRes.data ?? []) {
         ensure(b.user_id)
-        userStats[b.user_id].blocks++
         userStats[b.user_id].activeDates.add(b.date)
       }
       for (const e of eventsRes.data ?? []) {
@@ -158,9 +163,9 @@ serve(async (req) => {
         userStats[t.user_id].tasks++
       }
       // Convert Sets to counts for JSON
-      const userStatsJson: Record<string, { activeDates: number; blocks: number; events: number; tasks: number }> = {}
+      const userStatsJson: Record<string, { activeDates: number; sessions: number; events: number; tasks: number }> = {}
       for (const [uid, s] of Object.entries(userStats)) {
-        userStatsJson[uid] = { activeDates: s.activeDates.size, blocks: s.blocks, events: s.events, tasks: s.tasks }
+        userStatsJson[uid] = { activeDates: s.activeDates.size, sessions: s.sessions, events: s.events, tasks: s.tasks }
       }
 
       return json({
@@ -305,21 +310,25 @@ serve(async (req) => {
     // ── get-user-stats ──────────────────────────────────────────────────
     if (action === 'get-user-stats') {
       // Get per-user counts of time_blocks, events, and distinct active dates
-      const [blocksRes, eventsRes, tasksRes] = await Promise.all([
-        supabaseAdmin.from('time_blocks').select('user_id, date'),
-        supabaseAdmin.from('events').select('user_id, date'),
-        supabaseAdmin.from('tasks').select('user_id, status'),
+      const [blocksRes, eventsRes, tasksRes, settingsRes2] = await Promise.all([
+        supabaseAdmin.from('time_blocks').select('user_id, date').limit(10000),
+        supabaseAdmin.from('events').select('user_id, date').limit(10000),
+        supabaseAdmin.from('tasks').select('user_id, status').limit(10000),
+        supabaseAdmin.from('user_settings').select('user_id, session_count'),
       ])
 
-      const stats: Record<string, { activeDates: Set<string>; blocks: number; events: number; tasks: number }> = {}
+      const stats: Record<string, { activeDates: Set<string>; sessions: number; events: number; tasks: number }> = {}
 
       const ensure = (uid: string) => {
-        if (!stats[uid]) stats[uid] = { activeDates: new Set(), blocks: 0, events: 0, tasks: 0 }
+        if (!stats[uid]) stats[uid] = { activeDates: new Set(), sessions: 0, events: 0, tasks: 0 }
       }
 
+      for (const s of settingsRes2.data ?? []) {
+        ensure(s.user_id)
+        stats[s.user_id].sessions = s.session_count ?? 0
+      }
       for (const b of blocksRes.data ?? []) {
         ensure(b.user_id)
-        stats[b.user_id].blocks++
         stats[b.user_id].activeDates.add(b.date)
       }
       for (const e of eventsRes.data ?? []) {
@@ -333,9 +342,9 @@ serve(async (req) => {
       }
 
       // Convert Sets to counts
-      const result: Record<string, { activeDates: number; blocks: number; events: number; tasks: number }> = {}
+      const result: Record<string, { activeDates: number; sessions: number; events: number; tasks: number }> = {}
       for (const [uid, s] of Object.entries(stats)) {
-        result[uid] = { activeDates: s.activeDates.size, blocks: s.blocks, events: s.events, tasks: s.tasks }
+        result[uid] = { activeDates: s.activeDates.size, sessions: s.sessions, events: s.events, tasks: s.tasks }
       }
 
       return json({ userStats: result })

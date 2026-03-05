@@ -58,12 +58,15 @@ interface CalendarViewProps {
   /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday?: boolean;
   onRescheduleLater?: (blockId: string) => void;
+  onAddTimeToComplete?: (blockId: string, minutes: number) => void;
   /** Seed value for the internal showDifferences toggle (used by walkthrough overlay). */
   defaultShowDifferences?: boolean;
   /** Mobile: open the slide-over calendar sidebar */
   onOpenMobileSidebar?: () => void;
   /** Mobile: open settings */
   onOpenSettings?: () => void;
+  /** Mobile: open task list panel */
+  onOpenMobileTasks?: () => void;
 }
 
 const VIEW_OPTIONS = [
@@ -83,9 +86,11 @@ export function CalendarView({
   onToggleEventAttendance,
   weekStartsOnMonday = false,
   onRescheduleLater,
+  onAddTimeToComplete,
   defaultShowDifferences,
   onOpenMobileSidebar,
   onOpenSettings,
+  onOpenMobileTasks,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showDifferences, setShowDifferences] = useState(defaultShowDifferences ?? false);
@@ -388,11 +393,26 @@ export function CalendarView({
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="p-1.5 -mr-1 rounded-lg touch-manipulation"
+                className="p-1.5 rounded-lg touch-manipulation"
                 style={{ color: TEXT_PRIMARY }}
                 aria-label="Open settings"
               >
                 <Cog6ToothIcon className="h-[18px] w-[18px]" />
+              </button>
+            )}
+
+            {/* Mobile tasks button */}
+            {isMobile && onOpenMobileTasks && (
+              <button
+                type="button"
+                onClick={onOpenMobileTasks}
+                className="p-1.5 -mr-1 rounded-lg touch-manipulation"
+                style={{ color: TEXT_PRIMARY }}
+                aria-label="Open tasks"
+              >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
               </button>
             )}
           </div>
@@ -473,13 +493,13 @@ export function CalendarView({
         /* Normal view (or week/month compare — single view with showDifferences) */
         <div className="flex-1 overflow-y-auto min-h-0">
           {view === 'day' && (
-            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} showDateHeader />
+            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDateHeader />
           )}
           {view === '3day' && (
-            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} />
+            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} />
           )}
           {view === 'week' && (
-            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} />
+            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} />
           )}
           {view === 'month' && (
             <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} weekStartsOnMonday={weekStartsOnMonday} />

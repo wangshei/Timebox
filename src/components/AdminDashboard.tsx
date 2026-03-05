@@ -36,7 +36,7 @@ interface BugReport {
 
 interface UserStats {
   activeDates: number;
-  blocks: number;
+  sessions: number;
   events: number;
   tasks: number;
 }
@@ -917,9 +917,9 @@ export function AdminDashboard() {
                   <th style={thStyle}>Signed Up</th>
                   <th style={thStyle}>Last Sign In</th>
                   <th style={thStyle}>Email Confirmed</th>
+                  <th style={thStyle}>Sessions</th>
                   <th style={thStyle}>Active Days</th>
                   <th style={thStyle}>Tasks</th>
-                  <th style={thStyle}>Blocks</th>
                   <th style={thStyle}>Events</th>
                 </tr>
               </thead>
@@ -940,14 +940,14 @@ export function AdminDashboard() {
                           {user.email_confirmed_at ? 'Yes' : 'No'}
                         </span>
                       </td>
+                      <td style={{ ...tdStyle, fontSize: 13, fontWeight: 600, color: stats?.sessions ? '#5856D6' : '#C7C7CC' }}>
+                        {stats?.sessions ?? 0}
+                      </td>
                       <td style={{ ...tdStyle, fontSize: 13, fontWeight: 600, color: stats?.activeDates ? '#1C1C1E' : '#C7C7CC' }}>
                         {stats?.activeDates ?? 0}
                       </td>
                       <td style={{ ...tdStyle, fontSize: 13, color: stats?.tasks ? '#3A3A3C' : '#C7C7CC' }}>
                         {stats?.tasks ?? 0}
-                      </td>
-                      <td style={{ ...tdStyle, fontSize: 13, color: stats?.blocks ? '#3A3A3C' : '#C7C7CC' }}>
-                        {stats?.blocks ?? 0}
                       </td>
                       <td style={{ ...tdStyle, fontSize: 13, color: stats?.events ? '#3A3A3C' : '#C7C7CC' }}>
                         {stats?.events ?? 0}

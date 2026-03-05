@@ -55,6 +55,7 @@ interface ThreeDayViewProps {
   disableScroll?: boolean;
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
   onRescheduleLater?: (blockId: string) => void;
+  onAddTimeToComplete?: (blockId: string, minutes: number) => void;
 }
 
 const PRIMARY = THEME.primary;
@@ -70,7 +71,7 @@ export function ThreeDayView({
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
-  onToggleEventAttendance, onRescheduleLater,
+  onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -534,6 +535,7 @@ export function ThreeDayView({
                                   compact
                                   view="3day"
                                   onRescheduleLater={onRescheduleLater}
+                                  onAddTimeToComplete={onAddTimeToComplete}
                                 />
                               );
                             })}
