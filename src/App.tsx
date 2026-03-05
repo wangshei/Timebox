@@ -2215,13 +2215,13 @@ export default function App() {
 
       <div className="flex lg:hidden flex-col flex-1 overflow-hidden relative">
 
-        {/* Mobile slide-over sidebar */}
+        {/* Mobile slide-over sidebar — flush to left edge */}
         {mobileSidebarOpen && (
-          <div className="fixed inset-0 z-[100] flex">
+          <div className="fixed inset-0 z-[100]">
             <div className="absolute inset-0 bg-black/30" onClick={() => setMobileSidebarOpen(false)} />
             <div
-              className="relative flex flex-col h-full overflow-hidden"
-              style={{ width: '280px', maxWidth: '85vw', backgroundColor: '#FCFBF7' }}
+              className="absolute top-0 left-0 bottom-0 flex flex-col overflow-hidden animate-slide-in-left"
+              style={{ width: '75vw', maxWidth: 280, backgroundColor: '#FCFBF7' }}
             >
               <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
                 <span className="text-[16px] font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.12em' }}>My Calendars</span>
@@ -2308,13 +2308,13 @@ export default function App() {
             onOpenMobileTasks={() => setMobileTodoPanelOpen(true)}
           />
 
-          {/* Slide-from-right todo panel */}
+          {/* Slide-from-right todo panel — full-height drawer flush to right edge */}
           {mobileTodoPanelOpen && (
-            <div className="fixed inset-0 z-[60] flex justify-end">
+            <div className="fixed inset-0 z-[60]">
               <div className="absolute inset-0 bg-black/30" onClick={() => setMobileTodoPanelOpen(false)} />
               <div
-                className="relative flex flex-col h-full overflow-hidden animate-slide-in-right"
-                style={{ width: '320px', maxWidth: '85vw', backgroundColor: '#FCFBF7' }}
+                className="absolute top-0 right-0 bottom-0 flex flex-col overflow-hidden animate-slide-in-right"
+                style={{ width: '40vw', minWidth: 150, maxWidth: 320, backgroundColor: '#FCFBF7' }}
               >
                 <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
                   <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>

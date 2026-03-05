@@ -455,7 +455,6 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
               height: 48,
               borderBottom: '1px solid rgba(0,0,0,0.07)',
               backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FDFDFB',
-              position: 'relative',
             }}
           >
             <div className="flex flex-col">

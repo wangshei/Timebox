@@ -275,149 +275,226 @@ export function CalendarView({
   return (
     <div ref={containerRef} className="flex-1 flex flex-col relative min-w-0 overflow-hidden" style={{ backgroundColor: BG }}>
       {/* Header */}
-      <div
-        className={isMobile ? 'px-4 py-2' : 'px-5 py-2'}
-        style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG }}
-      >
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Left: hamburger (mobile) + nav + title */}
-          <div className="flex items-center gap-2">
-            {/* Mobile hamburger — opens My Calendars sidebar */}
-            {isMobile && onOpenMobileSidebar && (
-              <button
-                type="button"
-                onClick={onOpenMobileSidebar}
-                className="p-1.5 -ml-1 rounded-lg touch-manipulation"
-                style={{ color: TEXT_PRIMARY }}
-                aria-label="Open calendars"
-              >
-                <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-              </button>
-            )}
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={navigatePrevious}
-                className="p-1.5 rounded-lg transition-colors touch-manipulation"
-                style={{ color: TEXT_MUTED }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-              </button>
-              <button
-                onClick={navigateNext}
-                className="p-1.5 rounded-lg transition-colors touch-manipulation"
-                style={{ color: TEXT_MUTED }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-            </div>
+      {isMobile ? (
+        /* ── Mobile header: single compact row ── */
+        <div
+          className="px-2 py-1 flex items-center gap-1 shrink-0"
+          style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, zIndex: 10 }}
+        >
+          {/* Hamburger — 40px touch target */}
+          {onOpenMobileSidebar && (
+            <button
+              type="button"
+              onClick={() => { setSelectedBlock(null); onOpenMobileSidebar(); }}
+              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
+              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              aria-label="Open calendars"
+            >
+              <svg width="16" height="12" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            </button>
+          )}
 
-            <div className="min-w-0">
-              {!isMobile && view === 'day' ? (
-                <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
-                  <span>{(headerTitle as any).dayName}</span>
-                  <span className="font-normal ml-1" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>, {(headerTitle as any).dateStr}</span>
-                </h1>
-              ) : (
-                <h1
-                  className={`font-semibold truncate ${isMobile ? 'text-xs' : 'text-sm'}`}
-                  style={{ color: TEXT_PRIMARY }}
+          {/* Nav arrows — 36px touch targets */}
+          <div className="flex items-center shrink-0">
+            <button onClick={navigatePrevious} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 28, height: 36, color: TEXT_MUTED }}>
+              <ChevronLeftIcon className="h-4 w-4" />
+            </button>
+            <button onClick={navigateNext} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 28, height: 36, color: TEXT_MUTED }}>
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Date title — truncates to fit */}
+          <h1 className="text-xs font-semibold truncate shrink min-w-0" style={{ color: TEXT_PRIMARY }}>
+            {view === 'day'
+              ? currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : typeof headerTitle === 'string' ? headerTitle : `${(headerTitle as any).dayName}`}
+          </h1>
+
+          {/* Spacer */}
+          <div className="flex-1 min-w-1" />
+
+          {/* View switcher: [· D 3D M] — Today is a dot */}
+          <div className="flex items-center shrink-0"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.06)',
+              borderRadius: 7,
+              padding: 2,
+              gap: 1,
+            }}
+          >
+            <button
+              onClick={navigateToday}
+              className="flex items-center justify-center touch-manipulation"
+              style={{
+                width: 28,
+                height: 28,
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: 5,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                backgroundColor: 'transparent',
+                color: PRIMARY,
+              }}
+              aria-label="Go to today"
+            >
+              <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PRIMARY }} />
+            </button>
+            {VIEW_OPTIONS.filter(o => o.value !== 'week').map((option) => {
+              const isActive = option.value === view;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onViewChange(option.value)}
+                  className="flex items-center justify-center touch-manipulation"
+                  style={{
+                    minWidth: 28,
+                    height: 28,
+                    padding: '0 6px',
+                    fontSize: 11,
+                    fontWeight: isActive ? 600 : 400,
+                    borderRadius: 5,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                    backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+                    color: isActive ? TEXT_PRIMARY : TEXT_SECONDARY,
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.04)' : 'none',
+                  }}
                 >
-                  {isMobile && view === 'day'
-                    ? currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : typeof headerTitle === 'string' ? headerTitle : `${(headerTitle as any).dayName}`}
-                </h1>
+                  {option.shortLabel ?? option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Settings gear — 36px touch target */}
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
+              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              aria-label="Open settings"
+            >
+              <Cog6ToothIcon className="h-[17px] w-[17px]" />
+            </button>
+          )}
+
+          {/* Tasks button — 36px touch target */}
+          {onOpenMobileTasks && (
+            <button
+              type="button"
+              onClick={() => { setSelectedBlock(null); onOpenMobileTasks(); }}
+              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0 -mr-1"
+              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              aria-label="Open tasks"
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </div>
+      ) : (
+        /* ── Desktop header ── */
+        <div className="px-5 py-2 shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG }}>
+          <div className="flex items-center justify-between gap-3">
+            {/* Left: nav + title */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={navigatePrevious}
+                  className="p-1.5 rounded-lg transition-colors touch-manipulation"
+                  style={{ color: TEXT_MUTED }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={navigateNext}
+                  className="p-1.5 rounded-lg transition-colors touch-manipulation"
+                  style={{ color: TEXT_MUTED }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <ChevronRightIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-w-0">
+                {view === 'day' ? (
+                  <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
+                    <span>{(headerTitle as any).dayName}</span>
+                    <span className="font-normal ml-1" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>, {(headerTitle as any).dateStr}</span>
+                  </h1>
+                ) : (
+                  <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
+                    {typeof headerTitle === 'string' ? headerTitle : `${(headerTitle as any).dayName}`}
+                  </h1>
+                )}
+              </div>
+
+              {/* Compare toggle */}
+              {onModeChange && (
+                <button
+                  type="button"
+                  onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
+                  className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
+                  style={{
+                    backgroundColor: mode === 'compare' ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
+                    color: mode === 'compare' ? PRIMARY : TEXT_SECONDARY,
+                    border: mode === 'compare' ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
+                  }}
+                >
+                  Compare
+                </button>
+              )}
+
+              {/* Show Difference button — only in compare mode (wide layout) */}
+              {mode === 'compare' && !isNarrow && (
+                <button
+                  type="button"
+                  onClick={() => setShowDifferences((v) => !v)}
+                  className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
+                  style={{
+                    color: '#FF3B30',
+                    border: '1px solid #FF3B30',
+                    backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent',
+                  }}
+                >
+                  Show Difference
+                </button>
               )}
             </div>
 
-            {/* Compare toggle — hidden on mobile */}
-            {onModeChange && !isMobile && (
+            {/* Right: today + view selector */}
+            <div className="flex items-center gap-2">
               <button
-                type="button"
-                onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
-                className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
-                style={{
-                  backgroundColor: mode === 'compare' ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
-                  color: mode === 'compare' ? PRIMARY : TEXT_SECONDARY,
-                  border: mode === 'compare' ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
-                }}
+                onClick={navigateToday}
+                className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1 font-medium touch-manipulation"
+                style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
               >
-                Compare
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Today
               </button>
-            )}
 
-            {/* Show Difference button — only in compare mode (wide layout) */}
-            {mode === 'compare' && !isNarrow && (
-              <button
-                type="button"
-                onClick={() => setShowDifferences((v) => !v)}
-                className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
-                style={{
-                  color: '#FF3B30',
-                  border: '1px solid #FF3B30',
-                  backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent',
-                }}
-              >
-                Show Difference
-              </button>
-            )}
-          </div>
-
-          {/* Right: today + view selector */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={navigateToday}
-              className={`${isMobile ? 'px-2 py-1.5 text-[11px]' : 'px-3 py-1.5 text-xs'} rounded-lg transition-colors flex items-center gap-1 font-medium touch-manipulation`}
-              style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
-            >
-              {!isMobile && <CalendarIcon className="h-3.5 w-3.5" />}
-              Today
-            </button>
-
-            <SegmentedControl
-              options={isMobile
-                ? VIEW_OPTIONS.filter(o => o.value !== 'week').map(o => ({ ...o, label: o.shortLabel ?? o.label }))
-                : VIEW_OPTIONS}
-              value={view}
-              onChange={onViewChange}
-              compact={isMobile}
-            />
-
-            {/* Mobile settings gear */}
-            {isMobile && onOpenSettings && (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="p-1.5 rounded-lg touch-manipulation"
-                style={{ color: TEXT_PRIMARY }}
-                aria-label="Open settings"
-              >
-                <Cog6ToothIcon className="h-[18px] w-[18px]" />
-              </button>
-            )}
-
-            {/* Mobile tasks button */}
-            {isMobile && onOpenMobileTasks && (
-              <button
-                type="button"
-                onClick={onOpenMobileTasks}
-                className="p-1.5 -mr-1 rounded-lg touch-manipulation"
-                style={{ color: TEXT_PRIMARY }}
-                aria-label="Open tasks"
-              >
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                  <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
+              <SegmentedControl
+                options={VIEW_OPTIONS}
+                value={view}
+                onChange={onViewChange}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Calendar Content */}
       {mode === 'compare' && view === 'day' ? (
@@ -507,14 +584,14 @@ export function CalendarView({
         </div>
       )}
 
-      {/* Floating Add Button */}
+      {/* Floating Add Button — always visible, pinned to bottom-right */}
       {onOpenAddModal && (
         <button
           type="button"
           onClick={() => onOpenAddModal('event')}
-          className="absolute bottom-6 right-6 z-20 flex items-center justify-center shadow-lg transition-all active:scale-95"
+          className={`absolute ${isMobile ? 'bottom-5 right-4' : 'bottom-6 right-6'} z-30 flex items-center justify-center shadow-lg transition-all active:scale-95`}
           style={{
-            width: 52, height: 52, borderRadius: '50%',
+            width: isMobile ? 48 : 52, height: isMobile ? 48 : 52, borderRadius: '50%',
             backgroundColor: PRIMARY,
             boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
           }}
