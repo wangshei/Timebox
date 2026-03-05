@@ -360,7 +360,7 @@ export function EventCard({
       {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="fixed rounded-xl p-3 min-w-56"
+            className="fixed rounded-xl p-3 w-56"
             style={{
               zIndex: 200,
               top: popoverRect?.top ?? -9999,
