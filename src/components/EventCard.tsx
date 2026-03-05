@@ -11,7 +11,7 @@ import { Chip } from './ui/chip';
 import { activeDrag } from '../utils/dragState';
 import { useNow, useNowFrozen } from '../contexts/NowContext';
 
-const POPOVER_WIDTH = 224;
+const POPOVER_WIDTH = 220;
 const POPOVER_MAX_HEIGHT = 420;
 const GAP = 8;
 
@@ -82,6 +82,7 @@ export function EventCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
+  const dragEndedRef = useRef(false);
 
   useEffect(() => {
     if (frozen) { setNow(nowCtx); return; }
@@ -200,7 +201,7 @@ export function EventCard({
   useEffect(() => {
     if (!showPopover || !isSelected) return;
     const close = (e: PointerEvent) => {
-      if (Date.now() - popoverOpenedAtRef.current < 120) return;
+      if (Date.now() - popoverOpenedAtRef.current < 200) return;
       if (cardRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
       setShowPopover(false);
@@ -264,13 +265,15 @@ export function EventCard({
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => {
+        if (dragEndedRef.current) { dragEndedRef.current = false; return; }
         onSelect();
         popoverOpenedAtRef.current = Date.now();
-        setShowPopover((v) => { if (!v) setShowDetails(false); return !v; });
+        setShowPopover(true);
+        setShowDetails(false);
       }}
       draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragEnd={() => { activeDrag.type = null; }}
+      onDragStart={(e: React.DragEvent) => { setShowPopover(false); handleDragStart(e); }}
+      onDragEnd={() => { activeDrag.type = null; dragEndedRef.current = true; }}
     >
       <div
         className={cn(
@@ -364,65 +367,66 @@ export function EventCard({
             className="fixed rounded-xl p-3 overflow-hidden"
             style={{
               zIndex: 200,
-              width: 224,
-              maxWidth: 224,
+              width: 220,
+              maxWidth: 220,
               top: popoverRect?.top ?? -9999,
               left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
-              border: '1px solid rgba(0,0,0,0.09)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 6px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl"
-              style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
+              className="cursor-grab active:cursor-grabbing pb-1.5 -mx-3 px-3 -mt-0.5 pt-1 rounded-t-xl"
+              style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
               onMouseDown={handlePopoverDragStart}
             >
-              <div className="font-semibold text-sm truncate" style={{ color: THEME.textPrimary }}>
+              <div className="font-semibold truncate" style={{ color: THEME.textPrimary, fontSize: 12 }}>
                 {event.title || 'Untitled Event'}
               </div>
             </div>
             <div className="pt-2">
-              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <ClockIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
-              <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <CalendarIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                 <span>{event.date}</span>
               </div>
               {event.category && (
-                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                   <div
-                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: event.category.color }}
                   />
                   <span>{event.category.name}</span>
                 </div>
               )}
               {event.calendarContainer && (
-                <div className="flex items-center gap-2 text-xs mb-3" style={{ color: THEME.textSecondary }}>
+                <div className="flex items-center gap-1.5 mb-2" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                   <div
-                    className="w-3 h-3 rounded flex-shrink-0"
-                    style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `2px solid ${event.calendarContainer.color}` }}
+                    className="w-2 h-2 rounded flex-shrink-0"
+                    style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `1.5px solid ${event.calendarContainer.color}` }}
                   />
                   <span>{event.calendarContainer.name}</span>
                 </div>
               )}
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
-                <div className="flex items-center gap-2 text-xs mb-1.5" style={{ color: THEME.textSecondary }}>
-                  <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14, color: THEME.textMuted }} />
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                  <ArrowPathIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
                 </div>
               )}
               {isPast && onToggleAttendance && (
-                <div className="mb-2">
+                <div className="mb-1.5">
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
+                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
                     style={{
+                      fontSize: 11,
                       color: event.attendanceStatus === 'not_attended' ? THEME.textSecondary : event.attendanceStatus === 'attended' ? THEME.textSecondary : categoryColor,
                       backgroundColor: 'transparent',
                     }}
@@ -441,12 +445,12 @@ export function EventCard({
                   >
                     {event.attendanceStatus === 'not_attended' ? (
                       <>
-                        <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14 }} />
+                        <CheckIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
                         Undo not attended
                       </>
                     ) : (
                       <>
-                        <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14 }} />
+                        <XMarkIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
                         Mark as not attended
                       </>
                     )}
@@ -457,28 +461,28 @@ export function EventCard({
                 <>
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[10px] font-medium mt-1 mb-1"
-                    style={{ color: THEME.textMuted }}
+                    className="flex items-center gap-1 font-medium mt-0.5 mb-0.5"
+                    style={{ color: THEME.textMuted, fontSize: 10 }}
                     onClick={() => setShowDetails(d => !d)}
                   >
-                    <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
-                      <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
+                      <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                     </svg>
                     Details
                   </button>
                   {showDetails && (
                     <div className="mb-1">
                       {event.notes && (
-                        <div className="text-xs italic mb-1.5 break-words" style={{ color: THEME.textSecondary }}>
+                        <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                           {event.notes}
                         </div>
                       )}
                       {event.description && (
-                        <div className="text-xs whitespace-pre-wrap mb-1.5 break-words" style={{ color: THEME.textSecondary }}>{event.description}</div>
+                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>{event.description}</div>
                       )}
                       {event.link && (
                         <div className="overflow-hidden">
-                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline truncate block" style={{ color: '#8DA286' }}>
+                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block" style={{ color: '#8DA286', fontSize: 10 }}>
                             {event.link}
                           </a>
                         </div>
@@ -487,10 +491,10 @@ export function EventCard({
                   )}
                 </>
               )}
-              <div className="my-1" style={{ borderTop: '1px solid rgba(0,0,0,0.08)' }} />
+              <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
               {deleteConfirmState === 'confirm' ? (
-                <div className="flex flex-col gap-1.5">
-                  <div className="text-xs font-medium mb-0.5" style={{ color: THEME.textSecondary }}>Which events to delete?</div>
+                <div className="flex flex-col gap-1">
+                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Which events to delete?</div>
                   {([
                     { scope: 'this' as const, label: 'This event', desc: 'Only this occurrence' },
                     { scope: 'all_after' as const, label: 'This and all after', desc: 'From this date forward' },
@@ -499,8 +503,8 @@ export function EventCard({
                     <button
                       key={scope}
                       type="button"
-                      className="text-left px-3 py-2 rounded-xl transition-all"
-                      style={{ border: '1.5px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
+                      className="text-left px-2.5 py-1.5 rounded-lg transition-all"
+                      style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
                       onClick={(e) => {
@@ -511,14 +515,14 @@ export function EventCard({
                         onDeselect();
                       }}
                     >
-                      <div className="text-xs font-medium">{label}</div>
-                      <div className="text-xs mt-0.5 opacity-70">{desc}</div>
+                      <div className="font-medium" style={{ fontSize: 10 }}>{label}</div>
+                      <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>{desc}</div>
                     </button>
                   ))}
                   <button
                     type="button"
-                    className="mt-0.5 w-full py-1.5 text-xs font-medium rounded-xl transition-colors"
-                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)' }}
+                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
+                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                     onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
@@ -527,12 +531,12 @@ export function EventCard({
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-1.5">
+                <div className="flex gap-1">
                   {onEditEvent && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
-                      style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                      style={{ color: THEME.textSecondary, backgroundColor: 'transparent', fontSize: 11 }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
@@ -542,15 +546,15 @@ export function EventCard({
                         onDeselect();
                       }}
                     >
-                      <PencilIcon className="h-3.5 w-3.5" />
+                      <PencilIcon style={{ width: 11, height: 11 }} />
                       Edit
                     </button>
                   )}
                   {(onDeleteEvent || onDeleteEventSeries) && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors"
-                      style={{ color: '#B85050', backgroundColor: 'transparent' }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                      style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
@@ -564,7 +568,7 @@ export function EventCard({
                         }
                       }}
                     >
-                      <TrashIcon className="h-3.5 w-3.5" />
+                      <TrashIcon style={{ width: 11, height: 11 }} />
                       Delete
                     </button>
                   )}

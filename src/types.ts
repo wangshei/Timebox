@@ -88,6 +88,8 @@ export interface TimeBlock {
   description?: string | null;
   /** Quick inline notes — shown inside the block and in the popover. */
   notes?: string | null;
+  /** Timestamp (ms) of last edit — used for overlap truncation priority. */
+  editedAt?: number;
 }
 
 /** Recurrence pattern for events. */
@@ -123,6 +125,8 @@ export interface Event {
   source?: 'manual' | 'unplanned';
   /** Attendance status for past events. Undefined = unreviewed, 'attended' = happened, 'not_attended' = didn't happen. */
   attendanceStatus?: 'attended' | 'not_attended';
+  /** Timestamp (ms) of last edit — used for overlap truncation priority. */
+  editedAt?: number;
 }
 
 export interface User {

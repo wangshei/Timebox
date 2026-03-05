@@ -381,32 +381,31 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     return computeOverlapLayout(allItems);
   }, [timeBlocks, eventSegments]);
 
-  // Overlap truncation — applied in all modes except locked (Plan panel)
+  // Overlap truncation — only past items; future items overlap freely
   const truncationMap = React.useMemo(() => {
     if (locked) return new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
+    const curNowMins = now.getHours() * 60 + now.getMinutes();
+    const isPast = (date: string, end: string) =>
+      date < todayStr || (date === todayStr && parseTimeToMins(end) <= curNowMins);
     const items: TruncationItem[] = [
-      ...timeBlocks.map((b) => ({
+      ...timeBlocks.filter((b) => isPast(b.date, b.end)).map((b) => ({
         id: b.id,
         start: b.start,
         end: b.end,
-        priority: b.source === 'unplanned' ? 3
-          : (b.confirmationStatus === 'confirmed') ? 2
-          : 1,
+        priority: b.editedAt ?? 0,
       })),
-      ...eventSegments.map((seg) => ({
+      ...eventSegments.filter((seg) => isPast(seg.event.date, seg.displayEnd)).map((seg) => ({
         id: `event-${seg.event.id}`,
         start: seg.displayStart,
         end: seg.displayEnd,
-        priority: seg.event.source === 'unplanned' ? 3
-          : (seg.event.attendanceStatus === 'attended') ? 2
-          : 1,
+        priority: seg.event.editedAt ?? 0,
       })),
     ];
     const results = computeOverlapTruncation(items);
     const map = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
     for (const r of results) map.set(r.id, r);
     return map;
-  }, [locked, timeBlocks, eventSegments]);
+  }, [locked, timeBlocks, eventSegments, now, todayStr]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();

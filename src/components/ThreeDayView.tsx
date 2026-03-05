@@ -473,17 +473,19 @@ export function ThreeDayView({
                           ...dayEventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
                         ];
                         const dayOverlapMap = computeOverlapLayout(allItems);
-                        // Overlap truncation — applied in all modes except locked (Plan panel)
+                        // Overlap truncation — only past items; future items overlap freely
                         const dayTruncMap = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
                         if (!locked) {
+                          const isPast = (date: string, end: string) =>
+                            date < todayStr || (date === todayStr && parseTimeToMins(end) <= nowMins);
                           const truncItems: TruncationItem[] = [
-                            ...dayBlocks.map((b) => ({
+                            ...dayBlocks.filter((b) => isPast(dateStr, b.end)).map((b) => ({
                               id: b.id, start: b.start, end: b.end,
-                              priority: b.source === 'unplanned' ? 3 : b.confirmationStatus === 'confirmed' ? 2 : 1,
+                              priority: b.editedAt ?? 0,
                             })),
-                            ...dayEventSegments.map((seg) => ({
+                            ...dayEventSegments.filter((seg) => isPast(dateStr, seg.displayEnd)).map((seg) => ({
                               id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd,
-                              priority: seg.event.source === 'unplanned' ? 3 : seg.event.attendanceStatus === 'attended' ? 2 : 1,
+                              priority: seg.event.editedAt ?? 0,
                             })),
                           ];
                           for (const r of computeOverlapTruncation(truncItems)) dayTruncMap.set(r.id, r);

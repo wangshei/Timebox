@@ -257,13 +257,13 @@ export const useStore = create<AppState & AppActions>()(
     }
     const id = generateId();
     set((s) => ({
-      timeBlocks: [...s.timeBlocks, { ...block, id }],
+      timeBlocks: [...s.timeBlocks, { ...block, id, editedAt: Date.now() }],
     }));
     return id;
   },
   updateTimeBlock: (id, updates) =>
     set((s) => ({
-      timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+      timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates, editedAt: Date.now() } : b)),
     })),
   deleteTimeBlock: (id) =>
     set((s) => ({
@@ -294,6 +294,7 @@ export const useStore = create<AppState & AppActions>()(
 
     const startMins = parseTimeToMinutes(startTime);
     const blocks: TimeBlock[] = [];
+    const editedAt = Date.now();
 
     if (splitTask) {
       // Drop: create exactly one block; reduce task so remainder stays in todo
@@ -313,6 +314,7 @@ export const useStore = create<AppState & AppActions>()(
         date,
         mode: 'planned',
         source: 'manual',
+        editedAt,
       });
       set((s) => ({
         timeBlocks: [...s.timeBlocks, ...blocks],
@@ -343,6 +345,7 @@ export const useStore = create<AppState & AppActions>()(
         date,
         mode: 'planned',
         source: 'manual',
+        editedAt,
       });
       set((s) => ({ timeBlocks: [...s.timeBlocks, ...blocks] }));
       return;
@@ -367,6 +370,7 @@ export const useStore = create<AppState & AppActions>()(
         date,
         mode: 'planned',
         source: 'manual',
+        editedAt,
       });
       currentStart = endMins;
       remainingToSchedule -= blockMins;
@@ -386,6 +390,7 @@ export const useStore = create<AppState & AppActions>()(
               confirmationStatus: 'confirmed' as const,
               recordedStart: recordedStart ?? b.recordedStart ?? null,
               recordedEnd: recordedEnd ?? b.recordedEnd ?? null,
+              editedAt: Date.now(),
             }
           : b
       ),
@@ -395,7 +400,7 @@ export const useStore = create<AppState & AppActions>()(
   skipBlock: (id) => {
     set((s) => ({
       timeBlocks: s.timeBlocks.map((b) =>
-        b.id === id ? { ...b, confirmationStatus: 'skipped' as const } : b
+        b.id === id ? { ...b, confirmationStatus: 'skipped' as const, editedAt: Date.now() } : b
       ),
     }));
   },
@@ -410,6 +415,7 @@ export const useStore = create<AppState & AppActions>()(
           id,
           source: 'unplanned' as const,
           confirmationStatus: 'confirmed' as const,
+          editedAt: Date.now(),
         },
       ],
     }));
@@ -634,12 +640,12 @@ export const useStore = create<AppState & AppActions>()(
       return '';
     }
     const id = generateId();
-    set((s) => ({ events: [...s.events, { ...e, id }] }));
+    set((s) => ({ events: [...s.events, { ...e, id, editedAt: Date.now() }] }));
     return id;
   },
   updateEvent: (id, updates) =>
     set((s) => ({
-      events: s.events.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+      events: s.events.map((e) => (e.id === id ? { ...e, ...updates, editedAt: Date.now() } : e)),
     })),
   deleteEvent: (id) =>
     set((s) => ({
@@ -650,7 +656,7 @@ export const useStore = create<AppState & AppActions>()(
     const eventId = generateId();
     set((s) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
-      events: [...s.events, { ...event, id: eventId }],
+      events: [...s.events, { ...event, id: eventId, editedAt: Date.now() }],
     }));
     return eventId;
   },
@@ -663,17 +669,20 @@ export const useStore = create<AppState & AppActions>()(
       return [];
     }
     const capped = events.slice(0, headroom);
-    const newEvents = capped.map((e) => ({ ...e, id: generateId() }));
+    const now = Date.now();
+    const newEvents = capped.map((e) => ({ ...e, id: generateId(), editedAt: now }));
     set((s) => ({ events: [...s.events, ...newEvents] }));
     return newEvents.map((e) => e.id);
   },
-  updateEvents: (updates) =>
+  updateEvents: (updates) => {
+    const now = Date.now();
     set((s) => ({
       events: s.events.map((e) => {
         const u = updates.find((u) => u.id === e.id);
-        return u ? { ...e, ...u.changes } : e;
+        return u ? { ...e, ...u.changes, editedAt: now } : e;
       }),
-    })),
+    }));
+  },
   deleteEvents: (ids) =>
     set((s) => ({
       events: s.events.filter((e) => !ids.includes(e.id)),

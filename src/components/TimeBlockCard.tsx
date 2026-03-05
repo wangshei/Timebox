@@ -93,12 +93,13 @@ function TimeBlockCardInner({
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
+  const dragEndedRef = useRef(false);
 
   // Close popover when clicking outside (portal-based — popover is NOT inside blockRef)
   useEffect(() => {
     if (!showPopover || !isSelected) return;
     const close = (e: PointerEvent) => {
-      if (Date.now() - popoverOpenedAtRef.current < 120) return;
+      if (Date.now() - popoverOpenedAtRef.current < 200) return;
       if (blockRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
       setShowPopover(false);
@@ -112,7 +113,7 @@ function TimeBlockCardInner({
   useLayoutEffect(() => {
     if (!showPopover || !isSelected || !blockRef.current) return;
     const el = blockRef.current;
-    const popoverWidth = 224;
+    const popoverWidth = 220;
     const gap = 8;
     const update = () => {
       const rect = el.getBoundingClientRect();
@@ -553,32 +554,32 @@ function TimeBlockCardInner({
   const PopoverContent = () => (
     <>
       <div
-        className="cursor-grab active:cursor-grabbing pb-2 -mx-4 px-4 -mt-1 pt-1.5 rounded-t-2xl"
+        className="cursor-grab active:cursor-grabbing pb-1.5 -mx-3 px-3 -mt-0.5 pt-1 rounded-t-xl"
         style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
         onMouseDown={handlePopoverDragStart}
       >
-        <div className="font-semibold text-[13px] leading-snug" style={{ color: THEME.textPrimary }}>{block.title || 'Untitled'}</div>
-        <div className="flex items-center gap-1.5 mt-1 text-[11px]" style={{ color: THEME.textMuted }}>
+        <div className="font-semibold leading-snug" style={{ color: THEME.textPrimary, fontSize: 12 }}>{block.title || 'Untitled'}</div>
+        <div className="flex items-center gap-1.5 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
           <span>{getTimeRange()}</span>
           <span style={{ color: 'rgba(0,0,0,0.2)' }}>·</span>
           <span>{getDuration()}</span>
         </div>
       </div>
-      <div className="pt-2.5">
+      <div className="pt-2">
         {/* Metadata row */}
-        <div className="flex items-center gap-2 flex-wrap mb-2.5">
+        <div className="flex items-center gap-1.5 flex-wrap mb-2">
           {block.calendarContainer && (
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: THEME.textSecondary }}>
-              <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: block.calendarContainer.color }} />
+            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+              <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: block.calendarContainer.color }} />
               <span>{block.calendarContainer.name}</span>
             </div>
           )}
           {block.calendarContainer && block.category && (
-            <span style={{ color: 'rgba(0,0,0,0.15)', fontSize: '11px' }}>·</span>
+            <span style={{ color: 'rgba(0,0,0,0.15)', fontSize: 10 }}>·</span>
           )}
           {block.category && (
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: THEME.textSecondary }}>
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
+            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
               <span>{block.category.name}</span>
             </div>
           )}
@@ -586,30 +587,30 @@ function TimeBlockCardInner({
 
         {/* Details section */}
         {(block.notes || block.description || block.link) && (
-          <div className="mb-2">
+          <div className="mb-1.5">
             <button
               type="button"
-              className="flex items-center gap-1.5 text-[11px] font-medium py-1"
-              style={{ color: THEME.textMuted }}
+              className="flex items-center gap-1 font-medium py-0.5"
+              style={{ color: THEME.textMuted, fontSize: 10 }}
               onClick={() => setShowDetails(d => !d)}
             >
-              <svg width="8" height="8" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
+              <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
                 <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
               Details
             </button>
             {showDetails && (
-              <div className="mt-1.5 pl-0.5">
+              <div className="mt-1 pl-0.5">
                 {block.notes && (
-                  <div className="text-[11px] italic mb-1.5 break-words leading-relaxed" style={{ color: THEME.textSecondary }}>
+                  <div className="italic mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                     {block.notes}
                   </div>
                 )}
                 {block.description && (
-                  <div className="text-[11px] whitespace-pre-wrap mb-1.5 break-words leading-relaxed" style={{ color: THEME.textSecondary }}>{block.description}</div>
+                  <div className="whitespace-pre-wrap mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 10 }}>{block.description}</div>
                 )}
                 {block.link && (
-                  <a href={block.link} target="_blank" rel="noopener noreferrer" className="text-[11px] hover:underline break-all" style={{ color: '#8DA286' }}>
+                  <a href={block.link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all" style={{ color: '#8DA286', fontSize: 10 }}>
                     {block.link}
                   </a>
                 )}
@@ -619,12 +620,12 @@ function TimeBlockCardInner({
         )}
 
         {/* Action buttons */}
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} className="pt-1.5 -mx-4 px-4">
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} className="pt-1 -mx-3 px-3">
         {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
           <button
             type="button"
-            className="w-full flex items-center gap-2 py-2 text-[12px] font-medium rounded-lg transition-colors"
-            style={{ color: confirmed ? THEME.textSecondary : blockColor }}
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
+            style={{ color: confirmed ? THEME.textSecondary : blockColor, fontSize: 11 }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.03)' : hexToRgba(blockColor, 0.07); }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             onClick={() => {
@@ -638,15 +639,15 @@ function TimeBlockCardInner({
               doDeselect();
             }}
           >
-            <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+            <CheckIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
             {confirmed ? 'Mark as not done' : 'Mark as done'}
           </button>
         )}
         {!locked && isTask && onRescheduleLater && (
           <button
             type="button"
-            className="w-full flex items-center gap-2 py-2 text-[12px] font-medium rounded-lg transition-colors"
-            style={{ color: THEME.textSecondary }}
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
+            style={{ color: THEME.textSecondary, fontSize: 11 }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             onClick={() => {
@@ -655,7 +656,7 @@ function TimeBlockCardInner({
               doDeselect();
             }}
           >
-            <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+            <ArrowPathIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
             Reschedule later
           </button>
         )}
@@ -663,26 +664,26 @@ function TimeBlockCardInner({
           <>
             <button
               type="button"
-              className="w-full flex items-center gap-2 py-2 text-[12px] font-medium rounded-lg transition-colors"
-              style={{ color: THEME.textSecondary }}
+              className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
+              style={{ color: THEME.textSecondary, fontSize: 11 }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               onClick={() => setShowTimePicker((v) => !v)}
             >
-              <ClockIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
+              <ClockIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
               Add time to complete
-              <svg width="8" height="8" viewBox="0 0 8 8" className="ml-auto" style={{ transform: showTimePicker ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
+              <svg width="7" height="7" viewBox="0 0 8 8" className="ml-auto" style={{ transform: showTimePicker ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
                 <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
               </svg>
             </button>
             {showTimePicker && (
-              <div className="flex items-center gap-1.5 pb-2 pl-6">
+              <div className="flex items-center gap-1 pb-1.5 pl-5">
                 {[{ label: '15m', mins: 15 }, { label: '30m', mins: 30 }, { label: '1h', mins: 60 }, { label: '2h', mins: 120 }].map((opt) => (
                   <button
                     key={opt.mins}
                     type="button"
-                    className="px-2.5 py-1 text-[10px] font-medium rounded-full transition-colors"
-                    style={{ color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)` }}
+                    className="px-2 py-0.5 font-medium rounded-full transition-colors"
+                    style={{ color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)`, fontSize: 9 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hexToRgba(blockColor, 0.12); e.currentTarget.style.borderColor = hexToRgba(blockColor, 0.25); e.currentTarget.style.color = blockColor; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = THEME.textSecondary; }}
                     onClick={() => {
@@ -699,27 +700,27 @@ function TimeBlockCardInner({
           </>
         )}
         </div>
-        <div className="-mx-4 px-4 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+        <div className="-mx-3 px-3 pt-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
         {!isPastPlanned && (
-        <div className="flex gap-1 -mx-4 px-4">
+        <div className="flex gap-1 -mx-3 px-3">
           {onEditBlock && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium rounded-lg transition-colors"
-              style={{ color: THEME.textSecondary }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+              style={{ color: THEME.textSecondary, fontSize: 11 }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               onClick={(e) => { e.stopPropagation(); onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
-              <PencilIcon className="h-3.5 w-3.5" />
+              <PencilIcon style={{ width: 11, height: 11 }} />
               Edit
             </button>
           )}
           {(onDeleteBlock || (onDeleteTask && block.taskId)) && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium rounded-lg transition-colors"
-              style={{ color: '#C45050' }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+              style={{ color: '#C45050', fontSize: 11 }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(196,80,80,0.06)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               onClick={(e) => {
@@ -733,7 +734,7 @@ function TimeBlockCardInner({
                 doDeselect();
               }}
             >
-              <TrashIcon className="h-3.5 w-3.5" />
+              <TrashIcon style={{ width: 11, height: 11 }} />
               Delete
             </button>
           )}
@@ -779,10 +780,10 @@ function TimeBlockCardInner({
         className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => { if (!v) { setShowDetails(false); setShowTimePicker(false); } return !v; }); } }}
+        onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
         draggable={!noDrag}
-        onDragStart={!noDrag ? handleBlockDragStart : undefined}
-        onDragEnd={!noDrag ? () => { activeDrag.type = null; } : undefined}
+        onDragStart={!noDrag ? (e: React.DragEvent) => { setShowPopover(false); handleBlockDragStart(e); } : undefined}
+        onDragEnd={!noDrag ? () => { activeDrag.type = null; dragEndedRef.current = true; } : undefined}
       >
         <div
           data-slot="block-container"
@@ -862,11 +863,11 @@ function TimeBlockCardInner({
         {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="fixed rounded-2xl p-4"
+            className="fixed rounded-xl p-3"
             style={{
               zIndex: 200,
-              width: 240,
-              maxWidth: 240,
+              width: 220,
+              maxWidth: 220,
               top: popoverRect?.top ?? -9999,
               left: popoverRect?.left ?? -9999,
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
@@ -916,10 +917,10 @@ function TimeBlockCardInner({
       className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover((v) => { if (!v) { setShowDetails(false); setShowTimePicker(false); } return !v; }); } }}
+      onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
       draggable={!noDragFull}
-      onDragStart={!noDragFull ? handleBlockDragStart : undefined}
-      onDragEnd={!noDragFull ? () => { activeDrag.type = null; } : undefined}
+      onDragStart={!noDragFull ? (e: React.DragEvent) => { setShowPopover(false); handleBlockDragStart(e); } : undefined}
+      onDragEnd={!noDragFull ? () => { activeDrag.type = null; dragEndedRef.current = true; } : undefined}
     >
       <div
         data-slot="block-container"
