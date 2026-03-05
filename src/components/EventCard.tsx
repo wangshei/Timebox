@@ -388,6 +388,7 @@ export function EventCard({
               </div>
             </div>
             <div className="pt-2">
+              {/* Info section */}
               <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                 <ClockIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
@@ -406,7 +407,7 @@ export function EventCard({
                 </div>
               )}
               {event.calendarContainer && (
-                <div className="flex items-center gap-1.5 mb-2" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                   <div
                     className="w-2 h-2 rounded flex-shrink-0"
                     style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `1.5px solid ${event.calendarContainer.color}` }}
@@ -420,48 +421,13 @@ export function EventCard({
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
                 </div>
               )}
-              {isPast && onToggleAttendance && (
-                <div className="mb-1.5">
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                    style={{
-                      fontSize: 11,
-                      color: event.attendanceStatus === 'not_attended' ? THEME.textSecondary : event.attendanceStatus === 'attended' ? THEME.textSecondary : categoryColor,
-                      backgroundColor: 'transparent',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = event.attendanceStatus === 'not_attended' || event.attendanceStatus === 'attended' ? 'rgba(0,0,0,0.04)' : hexToRgba(categoryColor, 0.1); }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (event.attendanceStatus === 'not_attended') {
-                        onToggleAttendance(event.id, undefined);
-                      } else {
-                        onToggleAttendance(event.id, 'not_attended');
-                      }
-                      setShowPopover(false);
-                      onDeselect();
-                    }}
-                  >
-                    {event.attendanceStatus === 'not_attended' ? (
-                      <>
-                        <CheckIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
-                        Undo not attended
-                      </>
-                    ) : (
-                      <>
-                        <XMarkIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
-                        Mark as not attended
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+
+              {/* Details toggle — grouped with info above */}
               {(event.notes || event.description || event.link) && (
-                <>
+                <div className="mt-0.5 mb-1">
                   <button
                     type="button"
-                    className="flex items-center gap-1 font-medium mt-0.5 mb-0.5"
+                    className="flex items-center gap-1 font-medium py-0.5"
                     style={{ color: THEME.textMuted, fontSize: 10 }}
                     onClick={() => setShowDetails(d => !d)}
                   >
@@ -471,7 +437,7 @@ export function EventCard({
                     Details
                   </button>
                   {showDetails && (
-                    <div className="mb-1">
+                    <div className="mt-1">
                       {event.notes && (
                         <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                           {event.notes}
@@ -489,8 +455,48 @@ export function EventCard({
                       )}
                     </div>
                   )}
-                </>
+                </div>
               )}
+
+              {/* Attendance button — below the line */}
+              <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+              {isPast && onToggleAttendance && (
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                  style={{
+                    fontSize: 11,
+                    color: event.attendanceStatus === 'not_attended' ? THEME.textSecondary : event.attendanceStatus === 'attended' ? THEME.textSecondary : categoryColor,
+                    backgroundColor: 'transparent',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = event.attendanceStatus === 'not_attended' || event.attendanceStatus === 'attended' ? 'rgba(0,0,0,0.04)' : hexToRgba(categoryColor, 0.1); }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (event.attendanceStatus === 'not_attended') {
+                      onToggleAttendance(event.id, undefined);
+                    } else {
+                      onToggleAttendance(event.id, 'not_attended');
+                    }
+                    setShowPopover(false);
+                    onDeselect();
+                  }}
+                >
+                  {event.attendanceStatus === 'not_attended' ? (
+                    <>
+                      <CheckIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
+                      Undo not attended
+                    </>
+                  ) : (
+                    <>
+                      <XMarkIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
+                      Mark as not attended
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Edit / Delete — below another line */}
               <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
               {deleteConfirmState === 'confirm' ? (
                 <div className="flex flex-col gap-1">

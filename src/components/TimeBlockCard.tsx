@@ -273,10 +273,10 @@ function TimeBlockCardInner({
   const getBaseOpacity = () => {
     if (blockVisualState === 'ghost') return 0.22;
     if (blockVisualState === 'future') return 1;
-    // Past blocks are transparent per user spec (past → transparent, now → full)
-    if (blockVisualState === 'pastPending') return isCompareMode ? 0.55 : 0.5;
-    if (blockVisualState === 'pastConfirmed') return isTask ? 0.6 : 0.55;
-    if (blockVisualState === 'pastSkipped') return 0.3;
+    // Past tasks already use low-alpha fills/borders — no extra opacity needed
+    if (blockVisualState === 'pastPending') return isTask ? 1 : (isCompareMode ? 0.55 : 0.5);
+    if (blockVisualState === 'pastConfirmed') return isTask ? 1 : 0.55;
+    if (blockVisualState === 'pastSkipped') return isTask ? 1 : 0.3;
     return 1;
   };
 
@@ -567,7 +567,7 @@ function TimeBlockCardInner({
       </div>
       <div className="pt-2">
         {/* Metadata row */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+        <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
           {block.calendarContainer && (
             <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
               <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: block.calendarContainer.color }} />
@@ -585,9 +585,9 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Details section */}
+        {/* Details toggle — grouped with info above */}
         {(block.notes || block.description || block.link) && (
-          <div className="mb-1.5">
+          <div className="mb-1">
             <button
               type="button"
               className="flex items-center gap-1 font-medium py-0.5"
@@ -619,7 +619,7 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Action buttons */}
+        {/* Mark done / Reschedule / Add time — below the line */}
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} className="pt-1 -mx-3 px-3">
         {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
           <button
@@ -700,6 +700,8 @@ function TimeBlockCardInner({
           </>
         )}
         </div>
+
+        {/* Edit / Delete — below another line */}
         <div className="-mx-3 px-3 pt-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
         {!isPastPlanned && (
         <div className="flex gap-1 -mx-3 px-3">
