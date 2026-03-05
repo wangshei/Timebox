@@ -1187,15 +1187,18 @@ export default function App() {
           console.error('[App] loadSupabaseState failed', e);
           // Still allow app to render even if load failed (user can fix DB schema)
         }
-        // Track session count (fire-and-forget)
+        // Track session count + session date (fire-and-forget)
         try {
           const userId = next.user.id;
-          supabase!.rpc('increment_session_count', { uid: userId }).then(() => {}, () => {
-            // Fallback: manual increment if RPC doesn't exist
-            supabase!.from('user_settings').select('session_count').eq('user_id', userId).maybeSingle().then(({ data }) => {
-              const current = (data as any)?.session_count ?? 0;
-              supabase!.from('user_settings').update({ session_count: current + 1 } as any).eq('user_id', userId).then(() => {}, () => {});
-            });
+          const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          supabase!.from('user_settings').select('session_count, session_dates').eq('user_id', userId).maybeSingle().then(({ data }) => {
+            const current = (data as any)?.session_count ?? 0;
+            const existingDates: string[] = (data as any)?.session_dates ?? [];
+            const updatedDates = existingDates.includes(today) ? existingDates : [...existingDates, today];
+            supabase!.from('user_settings').update({
+              session_count: current + 1,
+              session_dates: updatedDates,
+            } as any).eq('user_id', userId).then(() => {}, () => {});
           });
         } catch { /* ignore session tracking errors */ }
       }

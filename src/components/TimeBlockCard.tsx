@@ -874,6 +874,7 @@ function TimeBlockCardInner({
               border: '1px solid rgba(0,0,0,0.08)',
               boxShadow: '0 6px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <PopoverContent />
           </div>,
@@ -1072,6 +1073,7 @@ function TimeBlockCardInner({
             border: '1px solid rgba(0,0,0,0.08)',
             boxShadow: '0 6px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <PopoverContent />
         </div>,

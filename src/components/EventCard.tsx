@@ -373,6 +373,7 @@ export function EventCard({
               border: '1px solid rgba(0,0,0,0.09)',
               boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div
               className="cursor-grab active:cursor-grabbing pb-2 -mx-3 px-3 -mt-1 pt-1 rounded-t-xl"
