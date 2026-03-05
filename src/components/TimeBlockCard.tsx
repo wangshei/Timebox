@@ -514,7 +514,7 @@ function TimeBlockCardInner({
     : sizeTier === 'medium' || sizeTier === 'full' || sizeTier === 'rich';
   const showCategory = sizeTier === 'full' || sizeTier === 'rich';
   const showTags = sizeTier === 'rich' && block.tags.length > 0;
-  const showNotes = sizeTier === 'rich' && !!block.notes;
+  const showNotes = false; // notes shown only in popover, not inline
 
   const getDurationMinutes = () => {
     const [startHour, startMin] = block.start.split(':').map(Number);
