@@ -158,6 +158,7 @@ export default function App() {
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
+  const [pendingBlockPreview, setPendingBlockPreview] = useState<{ date: string; startTime: string; endTime: string } | null>(null);
   const [recurrenceEditScopePending, setRecurrenceEditScopePending] = useState<string | null>(null);
   const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
@@ -1000,6 +1001,7 @@ export default function App() {
     setAddModalInitialStart(params.startTime);
     setAddModalInitialEnd(params.endTime);
     setAddModalMode('event');
+    setPendingBlockPreview({ date: params.date, startTime: params.startTime, endTime: params.endTime });
     setIsAddModalOpen(true);
     return undefined;
   };
@@ -2115,6 +2117,7 @@ export default function App() {
           weekStartsOnMonday={weekStartsOnMonday}
           onRescheduleLater={handleRescheduleBlockLater}
           onAddTimeToComplete={handleAddTimeToComplete}
+          pendingBlockPreview={pendingBlockPreview}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -2217,6 +2220,7 @@ export default function App() {
                 events={events}
                 onDeleteEvent={handleDeleteEvent}
                 weekStartsOnMonday={weekStartsOnMonday}
+                onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
             </div>
           </div>
@@ -2316,6 +2320,7 @@ export default function App() {
             onRescheduleLater={handleRescheduleBlockLater}
             onAddTimeToComplete={handleAddTimeToComplete}
             onOpenMobileTasks={() => setMobileTodoPanelOpen(true)}
+            pendingBlockPreview={pendingBlockPreview}
           />
 
           {/* Slide-from-right todo panel — full-height drawer flush to right edge */}
@@ -2368,6 +2373,7 @@ export default function App() {
                     events={events}
                     onDeleteEvent={handleDeleteEvent}
                     weekStartsOnMonday={weekStartsOnMonday}
+                    onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
                   />
                 </div>
               </div>
@@ -2460,6 +2466,7 @@ export default function App() {
           setAddModalInitialDate(null);
           setAddModalInitialStart(null);
           setAddModalInitialEnd(null);
+          setPendingBlockPreview(null);
         }}
         categories={categories}
         tags={tags}

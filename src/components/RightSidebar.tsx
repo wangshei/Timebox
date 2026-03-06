@@ -58,6 +58,7 @@ interface RightSidebarProps {
   /** Auto-schedule all unscheduled tasks into free calendar slots. Receives task IDs in desired order. */
   onAutoSchedule?: (taskIds: string[]) => void;
   weekStartsOnMonday?: boolean;
+  onResizeTask?: (taskId: string, newEstimatedMinutes: number) => void;
 }
 
 export function RightSidebar({
@@ -87,6 +88,7 @@ export function RightSidebar({
   onRescheduleLater,
   onAutoSchedule,
   weekStartsOnMonday = false,
+  onResizeTask,
 }: RightSidebarProps) {
   const [viewMode, setViewMode] = useState<TaskViewMode>('plan');
   const [overviewRange, setOverviewRange] = useState<'today' | 'week' | 'month'>('month');
@@ -303,6 +305,7 @@ export function RightSidebar({
       onSplitTask={onSplitTask}
       onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
       onRescheduleLater={onRescheduleLater ? () => onRescheduleLater(task.id) : undefined}
+      onResizeTask={onResizeTask}
     />
   );
 
@@ -545,21 +548,24 @@ export function RightSidebar({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Overview / Plan toggle + date range filter */}
-      <div className="px-3 py-2.5 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+      {/* Tasks title + timer */}
+      <div className="px-3 pt-2.5 pb-1 flex-shrink-0 flex items-center justify-between">
+        <h2 className="font-semibold" style={{ fontSize: 15, color: THEME.textPrimary }}>Tasks</h2>
+        <TimerWidget />
+      </div>
+
+      {/* Plan / Overview toggle + date range filter */}
+      <div className="px-3 pb-2.5 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <SegmentedControl
-              options={[
-                { value: 'plan', label: 'Plan' },
-                { value: 'overview', label: 'Overview' },
-              ]}
-              value={viewMode}
-              onChange={(v) => setViewMode(v as TaskViewMode)}
-              compact
-            />
-            <TimerWidget />
-          </div>
+          <SegmentedControl
+            options={[
+              { value: 'plan', label: 'Plan' },
+              { value: 'overview', label: 'Overview' },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as TaskViewMode)}
+            compact
+          />
           <div className="flex gap-1">
             {(['today', 'week'] as const).map((range) => (
               <button

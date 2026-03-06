@@ -132,10 +132,10 @@ export function TimerWidget() {
   if (activeTimer) {
     const timerBlock = timeBlocks.find((b) => b.id === activeTimer.blockId);
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <span
-          className="text-xs font-mono font-semibold tabular-nums"
-          style={{ color: THEME.primary, minWidth: 40 }}
+          className="font-mono font-medium tabular-nums"
+          style={{ fontSize: 10, color: THEME.primary }}
           title={timerBlock?.title ?? 'Timer'}
         >
           {elapsed}
@@ -143,13 +143,13 @@ export function TimerWidget() {
         <button
           type="button"
           onClick={stopTimer}
-          className="p-1 rounded-md transition-colors"
-          style={{ color: '#FF3B30' }}
+          className="p-0.5 rounded transition-colors flex-shrink-0"
+          style={{ color: '#FF3B30', backgroundColor: 'transparent' }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.10)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           title="Stop timer"
         >
-          <StopIcon className="w-3.5 h-3.5" />
+          <StopIcon className="w-2.5 h-2.5" />
         </button>
       </div>
     );
@@ -157,23 +157,23 @@ export function TimerWidget() {
 
   // No timer — show play button (+ optional start existing block)
   return (
-    <div className="relative flex items-center gap-1">
+    <div className="relative flex items-center gap-0.5">
       {/* If a block exists at current time, show start button for it */}
       {currentBlock && (
         <button
           type="button"
           onClick={handleStartExisting}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium transition-colors truncate max-w-[100px]"
+          className="flex items-center gap-0.5 px-1 py-0.5 rounded text-xs font-medium transition-colors truncate max-w-[80px]"
           style={{
+            fontSize: 10,
             color: THEME.primary,
-            backgroundColor: 'rgba(141,162,134,0.08)',
-            border: '1px solid rgba(141,162,134,0.20)',
+            backgroundColor: 'transparent',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.16)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           title={`Start: ${currentBlock.title}`}
         >
-          <PlayIcon className="w-2.5 h-2.5 flex-shrink-0" />
+          <PlayIcon className="w-2 h-2 flex-shrink-0" />
           <span className="truncate">{currentBlock.title}</span>
         </button>
       )}
@@ -182,8 +182,8 @@ export function TimerWidget() {
       <button
         type="button"
         onClick={handlePlayClick}
-        className="p-1 rounded-md transition-colors"
-        style={{ color: THEME.textSecondary }}
+        className="p-0.5 rounded transition-colors flex-shrink-0"
+        style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)';
           e.currentTarget.style.color = THEME.primary;
@@ -194,7 +194,7 @@ export function TimerWidget() {
         }}
         title={currentBlock ? 'Start timer for current block' : 'Start new timer'}
       >
-        <PlayIcon className="w-3.5 h-3.5" />
+        <PlayIcon className="w-2.5 h-2.5" />
       </button>
 
       {/* New block popover */}

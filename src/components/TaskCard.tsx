@@ -35,6 +35,8 @@ interface TaskCardProps {
   onTogglePin?: () => void;
   /** Reschedule into the next available slot later today. */
   onRescheduleLater?: () => void;
+  /** Resize the task's estimated time by dragging the bottom edge. */
+  onResizeTask?: (taskId: string, newEstimatedMinutes: number) => void;
 }
 
 const SPLIT_BLOCK_OPTIONS = [30, 60, 90, 120] as const;
@@ -89,6 +91,7 @@ export function TaskCard({
   onSplitTask,
   onTogglePin,
   onRescheduleLater,
+  onResizeTask,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
@@ -97,6 +100,8 @@ export function TaskCard({
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
   const dragEndedRef = useRef(false);
+  const resizingRef = useRef(false);
+  const [resizeHeight, setResizeHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (!showPopover) return;
@@ -390,8 +395,9 @@ export function TaskCard({
         <div
           ref={cardRef}
           className="cursor-grab active:cursor-grabbing group relative"
-          style={{ height: `${cardHeight}px`, ...(showPopover ? { zIndex: 101 } : {}) }}
+          style={{ height: `${resizeHeight ?? cardHeight}px`, ...(showPopover ? { zIndex: 101 } : {}) }}
           onClick={() => {
+            if (resizingRef.current) return;
             if (dragEndedRef.current) { dragEndedRef.current = false; return; }
             popoverOpenedAtRef.current = Date.now();
             setShowPopover((v) => !v);
@@ -491,12 +497,42 @@ export function TaskCard({
             )}
 
             {/* Resize handle */}
-            <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity">
+            {onResizeTask && (
               <div
-                className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full"
-                style={{ backgroundColor: hexRgba(catColor, 0.35) }}
-              />
-            </div>
+                className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  resizingRef.current = true;
+                  const startY = e.clientY;
+                  const startHeight = resizeHeight ?? cardHeight;
+                  let latestH = startHeight;
+                  const onMove = (ev: PointerEvent) => {
+                    const delta = ev.clientY - startY;
+                    latestH = Math.max(45, startHeight + delta);
+                    setResizeHeight(latestH);
+                  };
+                  const onUp = () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    // Reverse the 1.5× scale: height = displayMins * 1.5 → displayMins = height / 1.5, snap to 15min
+                    const newDisplayMins = Math.max(15, Math.round(latestH / 1.5 / 15) * 15);
+                    // For partially-done tasks, add back recorded time to get total estimate
+                    const newTotalMins = recordedMins > 0 ? recordedMins + newDisplayMins : newDisplayMins;
+                    onResizeTask(task.id, newTotalMins);
+                    setResizeHeight(null);
+                    setTimeout(() => { resizingRef.current = false; }, 100);
+                  };
+                  window.addEventListener('pointermove', onMove);
+                  window.addEventListener('pointerup', onUp);
+                }}
+              >
+                <div
+                  className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full"
+                  style={{ backgroundColor: hexRgba(catColor, 0.35) }}
+                />
+              </div>
+            )}
           </div>
         </div>
 

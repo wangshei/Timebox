@@ -56,6 +56,8 @@ interface ThreeDayViewProps {
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
   onRescheduleLater?: (blockId: string) => void;
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
+  /** Preview rectangle for pending drag-create while AddModal is open. */
+  pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
 }
 
 const PRIMARY = THEME.primary;
@@ -71,7 +73,7 @@ export function ThreeDayView({
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
-  onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete,
+  onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -675,6 +677,33 @@ export function ThreeDayView({
                         </span>
                       </div>
                     )}
+
+                    {/* Pending create-block preview (shown while AddModal is open) */}
+                    {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === dateStr && (() => {
+                      const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
+                      const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
+                      return (
+                        <div
+                          className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
+                          style={{
+                            top: `${(pStartMins / 60) * PX_PER_HOUR}px`,
+                            height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
+                            backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                            borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                            borderTop: '1px dashed rgba(0,0,0,0.08)',
+                            borderRight: '1px dashed rgba(0,0,0,0.08)',
+                            borderBottom: '1px dashed rgba(0,0,0,0.08)',
+                          }}
+                        >
+                          <span
+                            className="absolute bottom-0.5 left-2 font-medium truncate"
+                            style={{ color: THEME.textPrimary, fontSize: '10px' }}
+                          >
+                            {minsToTime(pStartMins)}–{minsToTime(pEndMins)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

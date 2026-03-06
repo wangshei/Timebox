@@ -80,12 +80,14 @@ interface DayViewProps {
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
   onRescheduleLater?: (blockId: string) => void;
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
+  /** Preview rectangle for pending drag-create while AddModal is open. */
+  pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -691,6 +693,30 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             </span>
           </div>
         )}
+
+        {/* Pending create-block preview (shown while AddModal is open) */}
+        {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === selectedDate && (() => {
+          const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
+          const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
+          return (
+            <div
+              className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
+              style={{
+                top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
+                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                borderTop: '1px dashed rgba(0,0,0,0.08)',
+                borderRight: '1px dashed rgba(0,0,0,0.08)',
+                borderBottom: '1px dashed rgba(0,0,0,0.08)',
+              }}
+            >
+              <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
+                {minutesToTimeString(pStartMins)}–{minutesToTimeString(pEndMins)} ({pEndMins - pStartMins}m)
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Drag-over highlight */}
         {isDragOver && (
