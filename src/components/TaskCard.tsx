@@ -503,7 +503,7 @@ export function TaskCard({
         {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
           <div
             ref={popoverRef}
-            className="fixed rounded-xl p-3 min-w-[268px] max-w-xs"
+            className="fixed rounded-xl p-3 min-w-[268px] max-w-xs overflow-hidden"
             style={{
               zIndex: 200,
               top: popoverRect.top,
@@ -667,7 +667,7 @@ export function TaskCard({
       {showPopover && popoverRect && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="fixed rounded-xl p-3 min-w-[272px] max-w-xs"
+          className="fixed rounded-xl p-3 min-w-[272px] max-w-xs overflow-hidden"
           style={{
             zIndex: 200,
             top: popoverRect.top,
