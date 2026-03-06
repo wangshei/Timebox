@@ -548,7 +548,7 @@ export function RightSidebar({
       onDrop={handleDrop}
     >
       {/* Plan / Overview toggle + date range filter */}
-      <div className="px-3 pb-2.5 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
+      <div className="px-3 pt-2 pb-2.5 flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
           <SegmentedControl
             options={[

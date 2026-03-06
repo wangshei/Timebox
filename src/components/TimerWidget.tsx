@@ -88,20 +88,11 @@ export function TimerWidget() {
   }, [showPopover]);
 
   const handlePlayClick = useCallback(() => {
-    if (activeTimer) return; // already running
-    if (currentBlock) {
-      // Start timer for existing block
-      startTimer(currentBlock.id);
-    } else {
-      // Show popover to create a new block
-      setTitle('');
-      setShowPopover(true);
-    }
-  }, [activeTimer, currentBlock, startTimer]);
-
-  const handleStartExisting = useCallback(() => {
-    if (currentBlock) startTimer(currentBlock.id);
-  }, [currentBlock, startTimer]);
+    if (activeTimer) return;
+    // Always show popover to create a new block
+    setTitle('');
+    setShowPopover(true);
+  }, [activeTimer]);
 
   const handleCreateAndStart = useCallback(() => {
     if (!title.trim()) return;
@@ -132,10 +123,10 @@ export function TimerWidget() {
   if (activeTimer) {
     const timerBlock = timeBlocks.find((b) => b.id === activeTimer.blockId);
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <span
           className="font-mono font-medium tabular-nums"
-          style={{ fontSize: 10, color: THEME.primary }}
+          style={{ fontSize: 11, color: THEME.primary }}
           title={timerBlock?.title ?? 'Timer'}
         >
           {elapsed}
@@ -149,52 +140,31 @@ export function TimerWidget() {
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           title="Stop timer"
         >
-          <StopIcon className="w-2.5 h-2.5" />
+          <StopIcon className="w-3.5 h-3.5" />
         </button>
       </div>
     );
   }
 
-  // No timer — show play button (+ optional start existing block)
+  // No timer — show play icon (like gear/pencil icons beside "My Calendars")
   return (
-    <div className="relative flex items-center gap-0.5">
-      {/* If a block exists at current time, show start button for it */}
-      {currentBlock && (
-        <button
-          type="button"
-          onClick={handleStartExisting}
-          className="flex items-center gap-0.5 px-1 py-0.5 rounded text-xs font-medium transition-colors truncate max-w-[80px]"
-          style={{
-            fontSize: 10,
-            color: THEME.primary,
-            backgroundColor: 'transparent',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          title={`Start: ${currentBlock.title}`}
-        >
-          <PlayIcon className="w-2 h-2 flex-shrink-0" />
-          <span className="truncate">{currentBlock.title}</span>
-        </button>
-      )}
-
-      {/* Play button to create new ad-hoc block */}
+    <div className="relative flex items-center">
       <button
         type="button"
         onClick={handlePlayClick}
-        className="p-0.5 rounded transition-colors flex-shrink-0"
-        style={{ color: THEME.textSecondary, backgroundColor: 'transparent' }}
+        className="p-1 rounded transition-colors flex-shrink-0"
+        style={{ color: THEME.textMuted, backgroundColor: 'transparent' }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)';
           e.currentTarget.style.color = THEME.primary;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.color = THEME.textSecondary;
+          e.currentTarget.style.color = THEME.textMuted;
         }}
-        title={currentBlock ? 'Start timer for current block' : 'Start new timer'}
+        title="Start new timer"
       >
-        <PlayIcon className="w-2.5 h-2.5" />
+        <PlayIcon className="w-3.5 h-3.5" />
       </button>
 
       {/* New block popover */}

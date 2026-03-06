@@ -206,8 +206,10 @@ function TimeBlockCardInner({
 
   // Past planned blocks are frozen — the plan is history. Only actuals can change.
   // This prevents dragging/resizing. Confirm/skip/popover still work.
+  // Confirmed/recorded past blocks are still resizable (user adjusting actual time).
   const isPastPlanned = isPast && block.mode === 'planned';
   const isLockedPast = !locked && isPastPlanned;
+  const allowResizePast = isPast && (confirmed || block.mode === 'recorded');
 
   const handleCircleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -851,8 +853,8 @@ function TimeBlockCardInner({
           )}
         </div>
 
-        {/* Resize handle — compact mode (all blocks, not locked/past) */}
-        {onResizeStart && !noDrag && compactTier !== 'micro' && (
+        {/* Resize handle — compact mode (all blocks, not locked/past; or confirmed past) */}
+        {onResizeStart && (!noDrag || allowResizePast) && compactTier !== 'micro' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
@@ -1049,8 +1051,8 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Resize handle (all blocks, small+, not locked/past) */}
-        {onResizeStart && !noDragFull && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {/* Resize handle (all blocks, small+, not locked/past; or confirmed past) */}
+        {onResizeStart && (!noDragFull || allowResizePast) && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
             className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
