@@ -126,7 +126,7 @@ export function TimerWidget() {
     const now = getCurrentHHMM();
     const blockId = addTimeBlock({
       title: title.trim(),
-      calendarContainerId: selectedCalendarId || cat.calendarContainerId ?? calendarContainers[0]?.id ?? '',
+      calendarContainerId: selectedCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
       categoryId: cat.id,
       tagIds: selectedTagIds,
       start: now,
