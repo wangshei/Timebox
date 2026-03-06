@@ -476,9 +476,9 @@ export function LeftSidebar({
 
                         {/* Tags */}
                         {catExpanded && (
-                          <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 4 }}>
+                          <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8, paddingTop: 2 }}>
                             {categoryTags.length > 0 && (
-                              <div className="flex flex-wrap gap-x-2 gap-y-2.5 py-1">
+                              <div className="flex flex-wrap gap-x-2.5 gap-y-3 py-1.5">
                                 {categoryTags.map((tag) =>
                                   editingId === tag.id && editingType === 'tag' ? (
                                     <div key={tag.id} className="w-full">

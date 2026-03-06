@@ -89,12 +89,19 @@ function BugReportPopoverBody({ onClose, supabase, userEmail }: {
 }) {
   const [text, setText] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [submittedText, setSubmittedText] = useState('');
 
   if (status === 'success') {
     return (
-      <div style={{ padding: '12px 0', textAlign: 'center' }}>
-        <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0 }}>Thanks! Bug reported ✓</p>
-        <p style={{ fontSize: 10, color: '#1C1C1E', margin: '2px 0 0' }}>We'll look into it soon.</p>
+      <div style={{ padding: '12px 0' }}>
+        <p style={{ fontSize: 12, fontWeight: 500, color: '#34C759', margin: 0, textAlign: 'center' }}>Thanks! Bug reported ✓</p>
+        <p style={{ fontSize: 10, color: '#1C1C1E', margin: '2px 0 0', textAlign: 'center' }}>We'll look into it soon.</p>
+        {submittedText && (
+          <div style={{ marginTop: 8, padding: 8, backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: 6, border: '1px solid rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: 10, color: '#8E8E93', margin: '0 0 2px', fontWeight: 500 }}>What you sent:</p>
+            <p style={{ fontSize: 11, color: '#3A3A3C', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{submittedText}</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -123,8 +130,8 @@ function BugReportPopoverBody({ onClose, supabase, userEmail }: {
               const { error } = await supabase.from('bug_reports').insert([{ user_email: userEmail ?? 'anonymous', description: text.trim() }]);
               if (error) throw error;
             }
+            setSubmittedText(text.trim());
             setStatus('success');
-            setTimeout(() => onClose(), 2000);
           } catch {
             setStatus('error');
           }
@@ -2468,8 +2475,9 @@ export default function App() {
         onAddTask={handleAddTask}
         onUpdateTask={(id, updates) => {
           updateTask(id, updates);
-          // Propagate category/tags/calendar changes to all linked time blocks
+          // Propagate title/category/tags/calendar changes to all linked time blocks
           const blockUpdates: Partial<import('./types').TimeBlock> = {};
+          if (updates.title) blockUpdates.title = updates.title;
           if (updates.categoryId) blockUpdates.categoryId = updates.categoryId;
           if (updates.tagIds) blockUpdates.tagIds = updates.tagIds;
           if (updates.calendarContainerId) blockUpdates.calendarContainerId = updates.calendarContainerId;

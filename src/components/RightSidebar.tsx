@@ -5,6 +5,7 @@ import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, BoltIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { TimerWidget } from './TimerWidget';
 import { THEME } from '../constants/colors';
 
 const BORDER = 'rgba(0,0,0,0.08)';
@@ -547,15 +548,18 @@ export function RightSidebar({
       {/* Overview / Plan toggle + date range filter */}
       <div className="px-3 py-2.5 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center justify-between gap-2">
-          <SegmentedControl
-            options={[
-              { value: 'plan', label: 'Plan' },
-              { value: 'overview', label: 'Overview' },
-            ]}
-            value={viewMode}
-            onChange={(v) => setViewMode(v as TaskViewMode)}
-            compact
-          />
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              options={[
+                { value: 'plan', label: 'Plan' },
+                { value: 'overview', label: 'Overview' },
+              ]}
+              value={viewMode}
+              onChange={(v) => setViewMode(v as TaskViewMode)}
+              compact
+            />
+            <TimerWidget />
+          </div>
           <div className="flex gap-1">
             {(['today', 'week'] as const).map((range) => (
               <button

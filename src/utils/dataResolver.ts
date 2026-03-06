@@ -51,11 +51,8 @@ export function resolveTimeBlock(
   // Resolve from linked task when available
   const linkedTask = block.taskId ? tasks.find(t => t.id === block.taskId) : undefined;
 
-  // Resolve title: from linked Task if exists, otherwise from TimeBlock.title
-  let title = block.title || '';
-  if (!title && linkedTask) {
-    title = linkedTask.title || '';
-  }
+  // Resolve title: prefer linked Task's title (live source of truth), fall back to block.title for standalone blocks
+  let title = (linkedTask?.title) || block.title || '';
 
   return {
     ...block,

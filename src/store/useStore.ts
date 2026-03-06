@@ -65,6 +65,8 @@ export interface AppState {
   hasCompletedSetup: boolean;
   userName: string;
   onboardingTourComplete: boolean;
+  // Timer
+  activeTimer: { blockId: string; startedAt: number } | null;
   // Persistence status
   saveError: boolean;
   sessionExpired: boolean;
@@ -109,6 +111,7 @@ function getInitialState(): AppState {
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
+    activeTimer: null,
     saveError: false,
     sessionExpired: false,
   };
@@ -192,6 +195,9 @@ export interface AppActions {
   setTags: (tags: Tag[]) => void;
 
   resetToSeed: () => void;
+
+  startTimer: (blockId: string) => void;
+  stopTimer: () => void;
 
   setSaveError: (val: boolean) => void;
   setSessionExpired: (val: boolean) => void;
@@ -693,6 +699,31 @@ export const useStore = create<AppState & AppActions>()(
   setTags: (tags) => set({ tags }),
 
   resetToSeed: () => set(getInitialState()),
+
+  startTimer: (blockId) => set({ activeTimer: { blockId, startedAt: Date.now() } }),
+  stopTimer: () => {
+    const { activeTimer, timeBlocks } = get();
+    if (!activeTimer) return;
+    const block = timeBlocks.find((b) => b.id === activeTimer.blockId);
+    if (block) {
+      const now = new Date();
+      const endMinutes = now.getHours() * 60 + now.getMinutes();
+      const startMinutes = parseTimeToMinutes(block.start);
+      // Clamp to at least 1 minute duration
+      const clampedEnd = Math.max(endMinutes, startMinutes + 1);
+      const endStr = `${Math.floor(clampedEnd / 60)}:${String(clampedEnd % 60).padStart(2, '0')}`;
+      set((s) => ({
+        activeTimer: null,
+        timeBlocks: s.timeBlocks.map((b) =>
+          b.id === activeTimer.blockId
+            ? { ...b, end: endStr, confirmationStatus: 'confirmed' as const, editedAt: Date.now() }
+            : b
+        ),
+      }));
+    } else {
+      set({ activeTimer: null });
+    }
+  },
 
   setSaveError: (val) => set({ saveError: val }),
   setSessionExpired: (val) => set({ sessionExpired: val }),

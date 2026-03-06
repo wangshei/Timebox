@@ -19,10 +19,10 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 - [x] **TimeBlockCard:** Recording actions — “Done as planned” / “Done differently” / “Delete” actually create/update/delete recorded blocks. *(CP4)*
 - [x] **Calendar:** Day view — filter blocks by selected date (not only today).
 - [x] **Left rail:** Today summary — show both **Planned** and **Recorded** by CalendarContainer, Category, Tag; add **Plan vs Actual** comparison (e.g. side-by-side or delta). *(CP6)*
-- [ ] **Add Event:** Events list section in right sidebar (placeholder “No upcoming events” → real list). *(Events)*
+- [x] **Add Event:** Events list section in right sidebar (placeholder “No upcoming events” → real list). *(Events)*
 - [x] **End Day:** Button or action to run end-of-day sweep for selected date. *(CP5)*
 - [ ] **Mobile:** DraggableBottomSheet and mobile layout — ensure parity with desktop where needed.
-- [ ] **Calendar views:** Ensure **WeekView** and **MonthView** connect to **TimeBlockCard** the same way as DayView (click block → recording actions). Currently all three use TimeBlockCard; verify interactions work in Week/Month. *(CP4)*
+- [x] **Calendar views:** WeekView connects to TimeBlockCard with full recording actions (confirm/skip/unconfirm). MonthView is intentionally minimal (summary only). *(CP4)*
 - [x] **Side panel (Notion-style tabs):** Add a tabbed side panel for **Calendar / Tag / Category management**. Reference Notion side tab: categories (e.g. Exercise, Eating) can be **grouped under a parent** (e.g. Personal care). Panel must be **editable** — add, edit, delete calendars, categories, tags. *(CP6b)*
 - [x] **Left panel hierarchy:** Calendars → Categories (under calendar) → Tags (under category). Data: `Category.calendarContainerId`, `Tag.categoryId`. Settings: category pick calendar; tag pick category. Organization tree with expand/collapse.
 
@@ -98,6 +98,15 @@ Single source of truth for what’s left to do. Link: [ENGINEERING_LEAD.md](./EN
 | CP7 | Tests | Section 6 |
 | CP8–CP9 | Supabase | Section 5 |
 | CP10 | Drag-and-drop | Section 4 |
+
+---
+
+## 8. Bug fixes (Mar 6)
+
+- [x] **Tag groups overlapping:** Increased margins/gaps for tag pills in LeftSidebar (gap-x-2.5 gap-y-3, more padding).
+- [x] **Task name edits not updating on blocks:** Fixed dataResolver to prefer linked task title over stale block snapshot; propagate title in onUpdateTask.
+- [x] **Bug report popover:** Show submitted text in success state; removed auto-close so user can see what was sent.
+- [ ] **Drag for tasks not working on right panel:** Investigated — drag code looks correct (draggable, onDragStart, drop handlers all wired). May need live testing to reproduce.
 
 ---
 
