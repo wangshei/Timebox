@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { getLocalDateString } from '../utils/dateTime';
 import { parseTimeToMinutes } from '../utils/taskHelpers';
 import { THEME } from '../constants/colors';
+import { Chip } from './ui/chip';
 import { PlayIcon, StopIcon } from '@heroicons/react/24/solid';
 
 function formatElapsed(ms: number): string {
@@ -40,18 +41,6 @@ export function TimerWidget() {
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Find a block at the current time
-  const currentBlock = (() => {
-    const today = getLocalDateString();
-    const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
-    return timeBlocks.find(
-      (b) =>
-        b.date === today &&
-        parseTimeToMinutes(b.start) <= nowMins &&
-        parseTimeToMinutes(b.end) > nowMins
-    ) ?? null;
-  })();
-
   // Tick elapsed time when timer is running
   useEffect(() => {
     if (!activeTimer) {
@@ -79,7 +68,6 @@ export function TimerWidget() {
   // Focus input when popover opens
   useEffect(() => {
     if (showPopover) {
-      // Set default category
       if (categories.length > 0 && !selectedCategoryId) {
         setSelectedCategoryId(categories[0].id);
       }
@@ -89,7 +77,6 @@ export function TimerWidget() {
 
   const handlePlayClick = useCallback(() => {
     if (activeTimer) return;
-    // Always show popover to create a new block
     setTitle('');
     setShowPopover(true);
   }, [activeTimer]);
@@ -146,7 +133,7 @@ export function TimerWidget() {
     );
   }
 
-  // No timer — show play icon (like gear/pencil icons beside "My Calendars")
+  // No timer — show play icon
   return (
     <div className="relative flex items-center">
       <button
@@ -175,11 +162,12 @@ export function TimerWidget() {
           style={{
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
-            width: 220,
-            padding: 12,
+            width: 240,
+            padding: 14,
           }}
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {/* Title input */}
             <input
               ref={inputRef}
               type="text"
@@ -197,25 +185,39 @@ export function TimerWidget() {
                 backgroundColor: 'rgba(0,0,0,0.02)',
               }}
             />
-            <select
-              value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(e.target.value)}
-              className="w-full px-2 py-1.5 text-xs rounded-lg outline-none appearance-none cursor-pointer"
-              style={{
-                border: '1px solid rgba(0,0,0,0.10)',
-                color: THEME.textPrimary,
-                backgroundColor: 'rgba(0,0,0,0.02)',
-              }}
-            >
-              {categories.map((cat) => {
-                const cal = calendarContainers.find((c) => c.id === cat.calendarContainerId);
-                return (
-                  <option key={cat.id} value={cat.id}>
-                    {cal ? `${cal.name} / ` : ''}{cat.name}
-                  </option>
-                );
-              })}
-            </select>
+
+            {/* Category chips */}
+            <div>
+              <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
+                Category
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((cat) => {
+                  const isSel = selectedCategoryId === cat.id;
+                  const cal = calendarContainers.find((c) => c.id === cat.calendarContainerId);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                      className="rounded-full transition-all"
+                    >
+                      <Chip
+                        variant={isSel ? 'subtle' : 'outline'}
+                        color={isSel ? cat.color : undefined}
+                        className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                        style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cat.color : THEME.textMuted }} />
+                        {cal ? `${cal.name} / ` : ''}{cat.name}
+                      </Chip>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Start button */}
             <button
               type="button"
               onClick={handleCreateAndStart}

@@ -494,7 +494,7 @@ export function AddModal({
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-5">
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Todo Title' : 'Event Title'}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} autoFocus />
