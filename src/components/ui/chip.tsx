@@ -5,13 +5,13 @@ import { cn } from "./utils";
 import { getTextClassForBackground, hexToRgba } from "../../utils/color";
 
 const chipVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium w-fit whitespace-nowrap shrink-0 truncate max-w-[120px] transition-colors",
+  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 truncate max-w-[120px] transition-colors",
   {
     variants: {
       variant: {
         solid: "border border-transparent",
         subtle: "border border-transparent",
-        outline: "bg-transparent border-2",
+        outline: "bg-transparent border",
       },
     },
     defaultVariants: {

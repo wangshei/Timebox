@@ -29,6 +29,7 @@ export function TimerWidget() {
   const activeTimer = useStore((s) => s.activeTimer);
   const timeBlocks = useStore((s) => s.timeBlocks);
   const categories = useStore((s) => s.categories);
+  const tags = useStore((s) => s.tags);
   const calendarContainers = useStore((s) => s.calendarContainers);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
   const startTimer = useStore((s) => s.startTimer);
@@ -37,9 +38,13 @@ export function TimerWidget() {
   const [showPopover, setShowPopover] = useState(false);
   const [title, setTitle] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [elapsed, setElapsed] = useState('0:00');
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const categoryTags = tags.filter((t) => t.categoryId === selectedCategoryId);
 
   // Tick elapsed time when timer is running
   useEffect(() => {
@@ -75,11 +80,23 @@ export function TimerWidget() {
     }
   }, [showPopover]);
 
+  // Clear tags when category changes
+  useEffect(() => {
+    setSelectedTagIds([]);
+  }, [selectedCategoryId]);
+
   const handlePlayClick = useCallback(() => {
     if (activeTimer) return;
     setTitle('');
+    setSelectedTagIds([]);
     setShowPopover(true);
   }, [activeTimer]);
+
+  const toggleTag = useCallback((tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  }, []);
 
   const handleCreateAndStart = useCallback(() => {
     if (!title.trim()) return;
@@ -91,7 +108,7 @@ export function TimerWidget() {
       title: title.trim(),
       calendarContainerId: cat.calendarContainerId ?? calendarContainers[0]?.id ?? '',
       categoryId: cat.id,
-      tagIds: [],
+      tagIds: selectedTagIds,
       start: now,
       end: addMinutesHHMM(now, 30),
       date: getLocalDateString(),
@@ -103,8 +120,9 @@ export function TimerWidget() {
       startTimer(blockId);
       setShowPopover(false);
       setTitle('');
+      setSelectedTagIds([]);
     }
-  }, [title, selectedCategoryId, categories, calendarContainers, addTimeBlock, startTimer]);
+  }, [title, selectedCategoryId, selectedTagIds, categories, calendarContainers, addTimeBlock, startTimer]);
 
   // Timer is running — show elapsed + stop
   if (activeTimer) {
@@ -194,7 +212,6 @@ export function TimerWidget() {
               <div className="flex flex-wrap gap-1.5">
                 {categories.map((cat) => {
                   const isSel = selectedCategoryId === cat.id;
-                  const cal = calendarContainers.find((c) => c.id === cat.calendarContainerId);
                   return (
                     <button
                       key={cat.id}
@@ -209,13 +226,45 @@ export function TimerWidget() {
                         style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
                       >
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cat.color : THEME.textMuted }} />
-                        {cal ? `${cal.name} / ` : ''}{cat.name}
+                        {cat.name}
                       </Chip>
                     </button>
                   );
                 })}
               </div>
             </div>
+
+            {/* Tags — shown after category is selected, only if category has tags */}
+            {selectedCategory && categoryTags.length > 0 && (
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
+                  Tags <span style={{ fontWeight: 400, color: '#8E8E93' }}>(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {categoryTags.map((tag) => {
+                    const isSel = selectedTagIds.includes(tag.id);
+                    const catColor = selectedCategory.color ?? THEME.primary;
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        className="rounded-full transition-all"
+                      >
+                        <Chip
+                          variant={isSel ? 'subtle' : 'outline'}
+                          color={isSel ? catColor : undefined}
+                          className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                          style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
+                        >
+                          {tag.name}
+                        </Chip>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Start button */}
             <button
