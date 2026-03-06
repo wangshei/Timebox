@@ -37,6 +37,7 @@ export function TimerWidget() {
 
   const [showPopover, setShowPopover] = useState(false);
   const [title, setTitle] = useState('');
+  const [selectedCalendarId, setSelectedCalendarId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [elapsed, setElapsed] = useState('0:00');
@@ -44,6 +45,13 @@ export function TimerWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const filteredCategories = selectedCalendarId
+    ? categories.filter((c) => {
+        const ids = (c as any).calendarContainerIds;
+        if (ids && ids.length > 0) return ids.includes(selectedCalendarId);
+        return c.calendarContainerId === selectedCalendarId || !c.calendarContainerId;
+      })
+    : categories;
   const categoryTags = tags.filter((t) => t.categoryId === selectedCategoryId);
 
   // Tick elapsed time when timer is running
@@ -73,12 +81,23 @@ export function TimerWidget() {
   // Focus input when popover opens
   useEffect(() => {
     if (showPopover) {
-      if (categories.length > 0 && !selectedCategoryId) {
-        setSelectedCategoryId(categories[0].id);
+      if (calendarContainers.length > 0 && !selectedCalendarId) {
+        setSelectedCalendarId(calendarContainers[0].id);
       }
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [showPopover]);
+
+  // Auto-select first category when calendar changes
+  useEffect(() => {
+    if (!selectedCalendarId) return;
+    const first = categories.find((c) => {
+      const ids = (c as any).calendarContainerIds;
+      if (ids && ids.length > 0) return ids.includes(selectedCalendarId);
+      return c.calendarContainerId === selectedCalendarId || !c.calendarContainerId;
+    });
+    setSelectedCategoryId(first?.id ?? '');
+  }, [selectedCalendarId]);
 
   // Clear tags when category changes
   useEffect(() => {
@@ -89,8 +108,9 @@ export function TimerWidget() {
     if (activeTimer) return;
     setTitle('');
     setSelectedTagIds([]);
+    setSelectedCalendarId(calendarContainers[0]?.id ?? '');
     setShowPopover(true);
-  }, [activeTimer]);
+  }, [activeTimer, calendarContainers]);
 
   const toggleTag = useCallback((tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -106,7 +126,7 @@ export function TimerWidget() {
     const now = getCurrentHHMM();
     const blockId = addTimeBlock({
       title: title.trim(),
-      calendarContainerId: cat.calendarContainerId ?? calendarContainers[0]?.id ?? '',
+      calendarContainerId: selectedCalendarId || cat.calendarContainerId ?? calendarContainers[0]?.id ?? '',
       categoryId: cat.id,
       tagIds: selectedTagIds,
       start: now,
@@ -204,13 +224,45 @@ export function TimerWidget() {
               }}
             />
 
+            {/* Calendar chips */}
+            {calendarContainers.length > 1 && (
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
+                  Calendar
+                </label>
+                <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+                  {calendarContainers.map((cal) => {
+                    const isSel = selectedCalendarId === cal.id;
+                    return (
+                      <button
+                        key={cal.id}
+                        type="button"
+                        onClick={() => setSelectedCalendarId(cal.id)}
+                        className="rounded-full transition-all"
+                      >
+                        <Chip
+                          variant={isSel ? 'subtle' : 'outline'}
+                          color={isSel ? cal.color : undefined}
+                          className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                          style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cal.color : THEME.textMuted }} />
+                          {cal.name}
+                        </Chip>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Category chips */}
             <div>
               <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                 Category
               </label>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map((cat) => {
+              <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+                {filteredCategories.map((cat) => {
                   const isSel = selectedCategoryId === cat.id;
                   return (
                     <button
@@ -240,7 +292,7 @@ export function TimerWidget() {
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Tags <span style={{ fontWeight: 400, color: '#8E8E93' }}>(optional)</span>
                 </label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-x-1.5 gap-y-2">
                   {categoryTags.map((tag) => {
                     const isSel = selectedTagIds.includes(tag.id);
                     const catColor = selectedCategory.color ?? THEME.primary;
