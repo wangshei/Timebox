@@ -32,6 +32,7 @@ interface LeftSidebarProps {
   onFocusCalendar?: (id: string) => void;
   focusedCalendarId?: string | null;
   onFocusCategory?: (id: string) => void;
+  onReorderCategories?: (reorderedCategories: Category[]) => void;
   endDayLabel?: string;
   onEndDay?: () => void;
   planVsActualSection?: React.ReactNode;
@@ -41,6 +42,45 @@ interface LeftSidebarProps {
   isEditMode?: boolean;
   isCompareMode?: boolean;
   onExitCompare?: () => void;
+}
+
+// Stable component — defined outside LeftSidebar so React doesn't remount on every render
+function InlineEditForm({
+  name, setName, color, setColor, showColor, onSave, onCancel,
+}: {
+  name: string; setName: (v: string) => void;
+  color: string; setColor: (v: string) => void;
+  showColor: boolean; onSave: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="rounded-lg p-3 space-y-2.5 my-1" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); onSave(); }
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        }}
+        className="w-full px-2 py-1.5 text-xs rounded-md focus:outline-none"
+        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#8E8E93' }}
+        autoFocus
+      />
+      {showColor && <ColorPicker value={color} onChange={setColor} swatchSize="sm" />}
+      <div className="flex gap-1.5">
+        <button type="button" onClick={onSave}
+          className="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors"
+          style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}>
+          Save
+        </button>
+        <button type="button" onClick={onCancel}
+          className="px-2 py-1 text-xs rounded-md transition-colors"
+          style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function LeftSidebar({
@@ -62,6 +102,7 @@ export function LeftSidebar({
   onFocusCalendar,
   focusedCalendarId = null,
   onFocusCategory,
+  onReorderCategories,
   endDayLabel,
   onEndDay,
   planVsActualSection,
@@ -87,6 +128,9 @@ export function LeftSidebar({
   const [addColor, setAddColor] = useState(DEFAULT_PALETTE_COLOR);
   const [addExistingCategoryId, setAddExistingCategoryId] = useState<string | null>(null);
   const [isPlanVsActualOpen, setIsPlanVsActualOpen] = useState(true);
+  const [dragCategoryId, setDragCategoryId] = useState<string | null>(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
+  const [dragCalendarId, setDragCalendarId] = useState<string | null>(null);
 
   const toggleExpandCalendar = (id: string) => {
     setExpandedCalendars((prev) => {
@@ -203,42 +247,7 @@ export function LeftSidebar({
     });
   });
 
-  // Compact inline form for adding/editing
-  const InlineEditForm = ({
-    name, setName, color, setColor, showColor, onSave, onCancel,
-  }: {
-    name: string; setName: (v: string) => void;
-    color: string; setColor: (v: string) => void;
-    showColor: boolean; onSave: () => void; onCancel: () => void;
-  }) => (
-    <div className="rounded-lg p-3 space-y-2.5 my-1" style={{ backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)' }}>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); onSave(); }
-          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-        }}
-        className="w-full px-2 py-1.5 text-xs rounded-md focus:outline-none"
-        style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)', color: '#8E8E93' }}
-        autoFocus
-      />
-      {showColor && <ColorPicker value={color} onChange={setColor} swatchSize="sm" />}
-      <div className="flex gap-1.5">
-        <button type="button" onClick={onSave}
-          className="flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors"
-          style={{ backgroundColor: '#8DA286', color: '#8E8E93' }}>
-          Save
-        </button>
-        <button type="button" onClick={onCancel}
-          className="px-2 py-1 text-xs rounded-md transition-colors"
-          style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
+  // Compact inline form — uses stable ref below
 
   const iconBtn = (onClick: () => void, icon: React.ReactNode, color: string, bg: string) => (
     <button type="button" onClick={onClick}
@@ -453,7 +462,46 @@ export function LeftSidebar({
                     const categoryTags = tagsByCalendarCategory.get(`${calendar.id}:${category.id}`) ?? [];
 
                     return (
-                      <div key={category.id}>
+                      <div
+                        key={category.id}
+                        draggable={isEditMode && editingId !== category.id}
+                        onDragStart={isEditMode ? (e) => {
+                          setDragCategoryId(category.id);
+                          setDragCalendarId(calendar.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                        } : undefined}
+                        onDragOver={isEditMode ? (e) => {
+                          if (dragCategoryId && dragCalendarId === calendar.id && dragCategoryId !== category.id) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            setDragOverCategoryId(category.id);
+                          }
+                        } : undefined}
+                        onDragLeave={isEditMode ? () => setDragOverCategoryId(null) : undefined}
+                        onDrop={isEditMode ? (e) => {
+                          e.preventDefault();
+                          if (dragCategoryId && dragCalendarId === calendar.id && dragCategoryId !== category.id && onReorderCategories) {
+                            // Swap positions in the global categories array
+                            const arr = [...categories];
+                            const fromIdx = arr.findIndex((c) => c.id === dragCategoryId);
+                            const toIdx = arr.findIndex((c) => c.id === category.id);
+                            if (fromIdx >= 0 && toIdx >= 0) {
+                              const [moved] = arr.splice(fromIdx, 1);
+                              arr.splice(toIdx, 0, moved);
+                              onReorderCategories(arr);
+                            }
+                          }
+                          setDragCategoryId(null);
+                          setDragOverCategoryId(null);
+                          setDragCalendarId(null);
+                        } : undefined}
+                        onDragEnd={() => { setDragCategoryId(null); setDragOverCategoryId(null); setDragCalendarId(null); }}
+                        style={{
+                          opacity: dragCategoryId === category.id ? 0.4 : 1,
+                          borderTop: dragOverCategoryId === category.id ? '2px solid #8DA286' : '2px solid transparent',
+                          cursor: isEditMode && editingId !== category.id ? 'grab' : undefined,
+                        }}
+                      >
                         {editingId === category.id && editingType === 'category' ? (
                           <div className="px-2 py-1">
                             <InlineEditForm name={editName} setName={setEditName} color={editColor} setColor={setEditColor} showColor onSave={saveEdit} onCancel={cancelEdit} />

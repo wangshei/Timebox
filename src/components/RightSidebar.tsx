@@ -425,30 +425,6 @@ export function RightSidebar({
 
   const renderPlanView = () => (
     <div className="space-y-4">
-      {/* Priority Tasks */}
-      {priorityTasks.length > 0 && (
-        <div>
-          <button
-            type="button"
-            onClick={() => setPrioritySectionOpen(!prioritySectionOpen)}
-            className="flex items-center justify-between w-full text-left px-1 mb-1.5"
-          >
-            <h2 className="text-sm font-semibold" style={{ fontSize: '14px', color: THEME.textPrimary }}>
-              Priority ({priorityTasks.length})
-            </h2>
-            {prioritySectionOpen
-              ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
-              : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
-            }
-          </button>
-          {prioritySectionOpen && (
-            <div className="space-y-2">
-              {priorityTasks.map((task) => renderTaskCard(task, 'plan'))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Unscheduled Tasks */}
       <div>
         <div className="flex items-center justify-between mb-2 px-1">

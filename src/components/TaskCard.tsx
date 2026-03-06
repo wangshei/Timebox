@@ -630,7 +630,7 @@ export function TaskCard({
                 {task.title}
               </span>
 
-              {/* Right: priority stars + time */}
+              {/* Right: priority stars */}
               <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                 {onTogglePin && (
                   <button
@@ -657,12 +657,6 @@ export function TaskCard({
                     }
                   </button>
                 )}
-                <span
-                  className="text-xs font-medium tabular-nums"
-                  style={{ color: isDone ? '#AEAEB2' : catColor }}
-                >
-                  {fmtMins(estimatedMins)}
-                </span>
               </div>
             </div>
 
@@ -673,23 +667,6 @@ export function TaskCard({
               </div>
             )}
 
-            {/* Progress bar — show when task has scheduled blocks */}
-            {task.blockCount >= 1 && !isDone && (
-              <div className="mt-1.5 space-y-0.5">
-                <div className="w-full rounded-full overflow-hidden" style={{ height: 3, backgroundColor: hexRgba(catColor, 0.12) }}>
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: catColor }}
-                  />
-                </div>
-                <div className="text-xs" style={{ color: THEME.textPrimary }}>
-                  {recordedMins > 0 && `${fmtMins(recordedMins)} done · `}
-                  {task.nextBlockDate && task.nextBlockStart
-                    ? `${fmtDate(task.nextBlockDate)}, ${fmtTime(task.nextBlockStart)}–${fmtTime(task.nextBlockEnd ?? task.nextBlockStart)}`
-                    : `${fmtMins(estimatedMins)} total`}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Drag handle — subtle on hover */}

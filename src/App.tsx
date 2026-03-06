@@ -886,26 +886,70 @@ export default function App() {
     updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: targetDate });
   }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock]);
 
-  /** Create a continuation task from a time block with a chosen duration. */
+  /** Create a continuation task from a time block with a chosen duration, auto-scheduled to next free slot. */
   const handleAddTimeToComplete = useCallback((blockId: string, minutes: number) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block || !block.taskId) return;
     const task = tasks.find((t) => t.id === block.taskId);
     if (!task) return;
     saveSnapshot();
-    addTask({
-      title: task.title + ' - Continued',
+    const newTaskId = addTask({
+      title: task.title,
       estimatedMinutes: minutes,
       calendarContainerId: task.calendarContainerId,
       categoryId: task.categoryId,
       tagIds: task.tagIds ?? [],
       flexible: task.flexible,
+      priority: task.priority,
       dueDate: task.dueDate ?? undefined,
       notes: task.notes ?? undefined,
       description: task.description ?? undefined,
       link: task.link ?? undefined,
     });
-  }, [timeBlocks, tasks, addTask, saveSnapshot]);
+
+    // Auto-schedule to next available slot
+    if (newTaskId) {
+      const now = new Date();
+      const today = getLocalDateString();
+      const nowTime = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const durationMins = Math.max(15, minutes);
+
+      let targetDate = today;
+      let slot: { start: string; end: string } | null = null;
+
+      if (parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime)) {
+        slot = findNextAvailableSlot(timeBlocks, events, today, durationMins, nowTime, sleepTime);
+      }
+
+      if (!slot) {
+        const d = new Date(now);
+        for (let i = 1; i <= 7; i++) {
+          d.setDate(d.getDate() + 1);
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          slot = findNextAvailableSlot(timeBlocks, events, dateStr, durationMins, wakeTime, sleepTime);
+          if (slot) {
+            targetDate = dateStr;
+            break;
+          }
+        }
+      }
+
+      if (slot) {
+        addTimeBlock({
+          title: task.title,
+          taskId: newTaskId,
+          calendarContainerId: task.calendarContainerId,
+          categoryId: task.categoryId,
+          tagIds: task.tagIds ?? [],
+          start: slot.start,
+          end: slot.end,
+          date: targetDate,
+          mode: 'planned',
+          source: 'manual',
+        });
+      }
+    }
+  }, [timeBlocks, tasks, events, addTask, addTimeBlock, saveSnapshot, wakeTime, sleepTime]);
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
@@ -1525,6 +1569,7 @@ export default function App() {
                 onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
                 focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
+                onReorderCategories={setCategories}
                 isEditMode={isEditMode}
                 isCompareMode={mode === 'compare'}
                 onExitCompare={() => setViewMode('overall')}
@@ -2272,6 +2317,7 @@ export default function App() {
                   onFocusCalendar={(id) => { setFocusedCalendarId((prev) => (prev === id ? null : id)); setMobileSidebarOpen(false); }}
                   focusedCalendarId={focusedCalendarId}
                   onFocusCategory={(id) => { setFocusedCategoryId((prev) => (prev === id ? null : id)); setMobileSidebarOpen(false); }}
+                  onReorderCategories={setCategories}
                   isEditMode={isEditMode}
                   isCompareMode={mode === 'compare'}
                   onExitCompare={() => setViewMode('overall')}
