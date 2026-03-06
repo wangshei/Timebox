@@ -5,7 +5,6 @@ import { TaskCard } from './TaskCard';
 import { PlusIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, BoltIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
-import { TimerWidget } from './TimerWidget';
 import { THEME } from '../constants/colors';
 
 const BORDER = 'rgba(0,0,0,0.08)';
@@ -548,12 +547,6 @@ export function RightSidebar({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Tasks title + timer */}
-      <div className="px-3 pt-2.5 pb-1 flex-shrink-0 flex items-center justify-between">
-        <h2 className="font-semibold" style={{ fontSize: 15, color: THEME.textPrimary }}>Tasks</h2>
-        <TimerWidget />
-      </div>
-
       {/* Plan / Overview toggle + date range filter */}
       <div className="px-3 pb-2.5 flex-shrink-0" style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="flex items-center justify-between gap-2">

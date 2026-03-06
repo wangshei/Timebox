@@ -8,6 +8,7 @@ import {
 import { CalendarView } from './components/CalendarView';
 // DraggableBottomSheet removed — replaced by slide-from-right todo panel
 import { RightSidebar } from './components/RightSidebar';
+import { TimerWidget } from './components/TimerWidget';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { LeftSidebar } from './components/LeftSidebar';
@@ -206,11 +207,12 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Local dev: if not signed in, auto-enter visit mode so you don't have to log in every time.
-  // Sign in once when you want to test backend; session persists (Supabase persistSession).
+  // Local dev: if Supabase is configured but not signed in, auto-enter visit mode
+  // so you don't have to log in every time. When there's no Supabase at all (no
+  // invite/waitlist gate), skip visit mode entirely — the app runs without auth.
   useEffect(() => {
     if (typeof import.meta.env.PROD !== 'boolean') return;
-    if (!import.meta.env.PROD && !session && !visitMode) {
+    if (!import.meta.env.PROD && supabase && !session && !visitMode) {
       setVisitMode(true);
     }
   }, [session, visitMode]);
@@ -2186,8 +2188,9 @@ export default function App() {
         )}
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
-            <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+            <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+              <TimerWidget />
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -2332,7 +2335,10 @@ export default function App() {
                 style={{ width: '40vw', minWidth: 150, maxWidth: 320, backgroundColor: '#FCFBF7' }}
               >
                 <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-                  <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+                    <TimerWidget />
+                  </div>
                   <button
                     type="button"
                     onClick={() => setMobileTodoPanelOpen(false)}
