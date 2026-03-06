@@ -522,7 +522,7 @@ export function AdminDashboard() {
               type="text"
               value={newTodoItem}
               onChange={(e) => setNewTodoItem(e.target.value)}
-              placeholder="Quick add a task or bug..."
+              placeholder="Quick add a to-do or bug..."
               style={{
                 flex: 1,
                 padding: '8px 12px',
@@ -925,7 +925,7 @@ export function AdminDashboard() {
                   <th style={thStyle}>Email Confirmed</th>
                   <th style={thStyle}>Sessions</th>
                   <th style={thStyle}>Active Days</th>
-                  <th style={thStyle}>Tasks</th>
+                  <th style={thStyle}>To-Dos</th>
                   <th style={thStyle}>Events</th>
                 </tr>
               </thead>

@@ -200,10 +200,10 @@ export function TimerWidget() {
           style={{
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
-            width: 260,
+            width: 270,
             maxHeight: 400,
             overflowY: 'auto',
-            padding: 14,
+            padding: '14px 18px',
           }}
         >
           <div className="space-y-3">
@@ -232,7 +232,7 @@ export function TimerWidget() {
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Calendar
                 </label>
-                <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+                <div className="flex flex-wrap gap-x-2 gap-y-3">
                   {calendarContainers.map((cal) => {
                     const isSel = selectedCalendarId === cal.id;
                     return (
@@ -263,7 +263,7 @@ export function TimerWidget() {
               <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                 Category
               </label>
-              <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+              <div className="flex flex-wrap gap-x-2 gap-y-3">
                 {filteredCategories.map((cat) => {
                   const isSel = selectedCategoryId === cat.id;
                   return (
@@ -294,7 +294,7 @@ export function TimerWidget() {
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Tags <span style={{ fontWeight: 400, color: '#8E8E93' }}>(optional)</span>
                 </label>
-                <div className="flex flex-wrap gap-x-1.5 gap-y-2">
+                <div className="flex flex-wrap gap-x-2 gap-y-3">
                   {categoryTags.map((tag) => {
                     const isSel = selectedTagIds.includes(tag.id);
                     const catColor = selectedCategory.color ?? THEME.primary;

@@ -2179,7 +2179,7 @@ export default function App() {
               borderRadius: '6px 0 0 6px',
               color: THEME.textPrimary,
             }}
-            title="Show tasks"
+            title="Show to-dos"
           >
             <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
               <path d="M7 1L2 6l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -2189,7 +2189,7 @@ export default function App() {
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
               <TimerWidget />
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -2336,7 +2336,7 @@ export default function App() {
               >
                 <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
                   <div className="flex items-center gap-2">
-                    <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+                    <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
                     <TimerWidget />
                   </div>
                   <button
@@ -2344,7 +2344,7 @@ export default function App() {
                     onClick={() => setMobileTodoPanelOpen(false)}
                     className="p-2 rounded-lg touch-manipulation"
                     style={{ color: THEME.textPrimary }}
-                    aria-label="Close tasks"
+                    aria-label="Close to-dos"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
                   </button>

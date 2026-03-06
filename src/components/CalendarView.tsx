@@ -395,7 +395,7 @@ export function CalendarView({
               onClick={() => { setSelectedBlock(null); onOpenMobileTasks(); }}
               className="flex items-center justify-center rounded-lg touch-manipulation shrink-0 -mr-1"
               style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
-              aria-label="Open tasks"
+              aria-label="Open to-dos"
             >
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -600,7 +600,7 @@ export function CalendarView({
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#8DA387')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}
-          aria-label="Add task or event"
+          aria-label="Add to-do or event"
         >
           <PlusIcon className="h-6 w-6 text-white" />
         </button>

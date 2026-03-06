@@ -452,11 +452,11 @@ export function AddModal({
           <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#8E8E93' }} />
           <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#1C1C1E' }}>
             {editingTask
-              ? 'Edit Task'
+              ? 'Edit To-Do'
               : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : mode === 'task'
-                  ? 'New Task'
+                  ? 'New To-Do'
                   : 'New Event'}
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}

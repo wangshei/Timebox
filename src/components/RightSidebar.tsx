@@ -388,7 +388,7 @@ export function RightSidebar({
             className="text-sm font-semibold"
             style={{ fontSize: '14px', color: THEME.textPrimary }}
           >
-            All tasks {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
+            All to-dos {allTasksSorted.length > 0 && `(${allTasksSorted.length})`}
           </h2>
           {onOpenAddModal && (
             <button
@@ -399,7 +399,7 @@ export function RightSidebar({
               style={{ color: THEME.textPrimary }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#8DA286')}
               onMouseLeave={(e) => (e.currentTarget.style.color = THEME.textPrimary)}
-              title="Add task"
+              title="Add to-do"
             >
               <PlusIcon className="h-3.5 w-3.5" />
             </button>
@@ -408,7 +408,7 @@ export function RightSidebar({
 
         {allTasksSorted.length === 0 ? (
           <div className="text-xs text-center py-4 px-2" style={{ color: '#AEAEB2' }}>
-            {doneTasks.length > 0 ? 'All tasks are done!' : 'No tasks yet'}
+            {doneTasks.length > 0 ? 'All to-dos are done!' : 'No to-dos yet'}
           </div>
         ) : (
           <div>
@@ -489,12 +489,12 @@ export function RightSidebar({
             }}
           >
             <PlusIcon className="h-3.5 w-3.5" />
-            Add task
+            Add to-do
           </button>
         )}
         <div className="space-y-2">
           {sortedUnscheduled.length === 0 ? (
-            <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled tasks</div>
+            <div className="text-xs text-center py-4" style={{ color: '#AEAEB2' }}>No unscheduled to-dos</div>
           ) : (
             sortedUnscheduled.map((task) => renderTaskCard(task, 'plan'))
           )}

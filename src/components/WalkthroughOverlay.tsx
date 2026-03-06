@@ -43,7 +43,7 @@ const STEPS: TourStep[] = [
   {
     target: 'right-sidebar',
     title: 'To-Dos and Scheduled Events In One',
-    body: 'Drag-and-drop to set task time slots, mark items as done with one click',
+    body: 'Drag-and-drop to set to-do time slots, mark items as done with one click',
     placement: 'left',
     mode: 'overall',
     showDifferences: false,
@@ -403,7 +403,7 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
           {/* Right panel */}
           <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>Tasks</span>
+              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <RightSidebar
