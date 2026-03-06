@@ -494,7 +494,7 @@ export function AddModal({
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-5">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-6">
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Todo Title' : 'Event Title'}</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} autoFocus />
@@ -611,7 +611,7 @@ export function AddModal({
                 Add a calendar first
               </button>
             ) : (
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-x-2.5 gap-y-3.5 flex-wrap">
                 {calendars.map((cal) => {
                   const isSel = selectedCalendar === cal.id;
                   return (
@@ -640,7 +640,7 @@ export function AddModal({
           {/* Category — pill select, with colored dot */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
-            <div className="flex flex-wrap gap-x-2 gap-y-2.5 items-center">
+            <div className="flex flex-wrap gap-x-2.5 gap-y-3.5 items-center">
               {categoriesToShow
                 .filter((category) => {
                   if (!selectedCalendar) return true;
@@ -715,7 +715,7 @@ export function AddModal({
           {/* Tags — multi-select pills */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
-            <div className="flex flex-wrap gap-x-2 gap-y-2.5 items-center">
+            <div className="flex flex-wrap gap-x-2.5 gap-y-3.5 items-center">
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
