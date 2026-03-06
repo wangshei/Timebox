@@ -47,7 +47,7 @@ export function TimerWidget() {
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const filteredCategories = selectedCalendarId
     ? categories.filter((c) => {
-        const ids = (c as any).calendarContainerIds;
+        const ids = c.calendarContainerIds;
         if (ids && ids.length > 0) return ids.includes(selectedCalendarId);
         return c.calendarContainerId === selectedCalendarId || !c.calendarContainerId;
       })
@@ -92,7 +92,7 @@ export function TimerWidget() {
   useEffect(() => {
     if (!selectedCalendarId) return;
     const first = categories.find((c) => {
-      const ids = (c as any).calendarContainerIds;
+      const ids = c.calendarContainerIds;
       if (ids && ids.length > 0) return ids.includes(selectedCalendarId);
       return c.calendarContainerId === selectedCalendarId || !c.calendarContainerId;
     });
@@ -200,7 +200,9 @@ export function TimerWidget() {
           style={{
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
-            width: 240,
+            width: 260,
+            maxHeight: 400,
+            overflowY: 'auto',
             padding: 14,
           }}
         >
@@ -225,7 +227,7 @@ export function TimerWidget() {
             />
 
             {/* Calendar chips */}
-            {calendarContainers.length > 1 && (
+            {calendarContainers.length > 0 && (
               <div>
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Calendar
