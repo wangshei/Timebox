@@ -20,7 +20,7 @@
  *   POST /share-invite { action: 'shared_with_me' }
  *     → List shares the current user is a member of.
  *
- * Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_URL
+ * Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_URL, RESEND_API_KEY, FROM_EMAIL
  */
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
@@ -66,6 +66,82 @@ async function getUserName(userId: string): Promise<string> {
     .eq('user_id', userId)
     .single()
   return data?.user_name ?? 'A Timebox user'
+}
+
+// --- Email via Resend ---
+
+function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+<tr><td align="center" style="padding:48px 24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <tr><td style="padding:32px 32px 0;text-align:center;">
+      <div style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:14px;font-weight:700;padding:8px 20px;border-radius:20px;letter-spacing:0.5px;">
+        The Timeboxing Club
+      </div>
+    </td></tr>
+    <tr><td style="padding:24px 32px 16px;text-align:center;">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1C1C1E;">You're invited!</h1>
+      <p style="margin:0;font-size:15px;color:#636366;line-height:1.5;">
+        <strong>${senderName}</strong> shared <strong>"${shareName}"</strong> with you on The Timeboxing Club.
+      </p>
+    </td></tr>
+    <tr><td style="padding:8px 32px 24px;text-align:center;">
+      <p style="margin:0 0 20px;font-size:14px;color:#8E8E93;line-height:1.5;">
+        You'll see their events on your calendar. Accept to get started.
+      </p>
+      <a href="${inviteLink}" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">
+        View Invite
+      </a>
+    </td></tr>
+    <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #F0F0F0;">
+      <p style="margin:0;font-size:12px;color:#AEAEB2;">
+        Not interested? Simply ignore this email. <a href="${inviteLink}&action=decline" style="color:#8DA286;">Decline</a>
+      </p>
+    </td></tr>
+  </table>
+  <p style="margin:24px 0 0;font-size:11px;color:#C7C7CC;text-align:center;">
+    The Timeboxing Club · <a href="${APP_URL}" style="color:#AEAEB2;">timeboxing.club</a>
+  </p>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+async function sendInviteEmail(recipientEmail: string, senderName: string, shareName: string, inviteToken: string) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
+
+  if (!resendApiKey) {
+    console.warn('[share-invite] No RESEND_API_KEY — skipping email')
+    return
+  }
+
+  const inviteLink = `${APP_URL}/invite/${inviteToken}`
+  const html = inviteEmailHtml(senderName, shareName, inviteLink)
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: recipientEmail,
+      subject: `${senderName} shared "${shareName}" with you on Timeboxing Club`,
+      html,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`[share-invite] Resend error: ${body}`)
+  }
 }
 
 // --- Create Share ---
@@ -130,13 +206,18 @@ async function createShare(userId: string, body: Record<string, unknown>) {
     }
   }
 
-  // TODO: Send invite emails to non-users with the event page link
-  // For now, log the invite tokens
+  // Send invite emails
   const senderName = await getUserName(userId)
   const inviteLinks = (insertedMembers ?? []).map((m: Record<string, unknown>) => ({
     email: m.email,
     link: `${APP_URL}/invite/${m.token}`,
   }))
+
+  // Send emails in parallel
+  const emailPromises = (insertedMembers ?? []).map((m: Record<string, unknown>) =>
+    sendInviteEmail(m.email as string, senderName, (displayName as string) ?? 'a calendar', m.token as string)
+  )
+  await Promise.allSettled(emailPromises)
 
   return {
     shareId: share.id,
@@ -259,9 +340,23 @@ serve(async (req) => {
     const body = await req.json()
     const { action } = body
 
-    // respond action doesn't need auth
+    // respond and send_test_invite actions don't need auth
     if (action === 'respond') {
       const result = await respondToInvite(body)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (action === 'send_test_invite') {
+      const { email: testEmail, senderName: testSender, shareName: testShare } = body
+      const testToken = generateToken()
+      await sendInviteEmail(
+        testEmail as string,
+        (testSender as string) ?? 'Test User',
+        (testShare as string) ?? 'Test Calendar',
+        testToken,
+      )
+      const result = { success: true, email: testEmail, token: testToken }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
