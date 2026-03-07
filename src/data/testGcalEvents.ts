@@ -8,6 +8,7 @@
  */
 
 import type { Event, CalendarContainer, Category } from '../types';
+import type { SharedCalendarView } from '../types/sharing';
 import { getLocalDateString } from '../utils/dateTime';
 
 // ─── Test calendar containers for Google-synced calendars ──────────────────
@@ -173,6 +174,29 @@ export const testGcalEvents: Event[] = [
     sharedFromShareId: 'share-abc',
     readOnly: true,
     source: 'manual',
+  },
+];
+
+// ─── Shared calendar views (what appears in "Shared with me" sidebar) ─────
+
+export const testSharedCalendars: SharedCalendarView[] = [
+  {
+    shareId: 'share-abc',
+    ownerId: 'user-sarah',
+    ownerName: 'Sarah Chen',
+    displayName: "Sarah's Project Alpha",
+    scope: 'tag',
+    color: '#4285F4',
+    eventCount: 2,
+  },
+  {
+    shareId: 'share-def',
+    ownerId: 'user-mike',
+    ownerName: 'Mike Johnson',
+    displayName: "Mike's 1-on-1s",
+    scope: 'category',
+    color: '#EA4335',
+    eventCount: 1,
   },
 ];
 

@@ -7,9 +7,11 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ArrowLeftIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag, TimeBlock } from '../types';
 import type { CalendarContainerVisibility } from '../types';
+import type { SharedCalendarView } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
@@ -42,6 +44,8 @@ interface LeftSidebarProps {
   isEditMode?: boolean;
   isCompareMode?: boolean;
   onExitCompare?: () => void;
+  /** Shared calendars from other Timebox users. */
+  sharedCalendars?: SharedCalendarView[];
 }
 
 // Stable component — defined outside LeftSidebar so React doesn't remount on every render
@@ -112,6 +116,7 @@ export function LeftSidebar({
   isEditMode = false,
   isCompareMode = false,
   onExitCompare,
+  sharedCalendars = [],
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -621,6 +626,40 @@ export function LeftSidebar({
           )}
         </div>
       </div>
+
+      {/* Shared with me */}
+      {sharedCalendars.length > 0 && (
+        <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+          <div className="px-3 pt-3 pb-1">
+            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', margin: 0 }}>
+              Shared with me
+            </h2>
+          </div>
+          <div className="px-2 pb-2 space-y-0.5">
+            {sharedCalendars.map((shared) => (
+              <div
+                key={shared.shareId}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors hover:bg-black/[0.03] cursor-default"
+              >
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${shared.color}20`, color: shared.color }}
+                >
+                  <UserGroupIcon style={{ width: 10, height: 10 }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E' }}>
+                    {shared.displayName}
+                  </span>
+                  <span className="block truncate" style={{ fontSize: 10, color: '#8E8E93' }}>
+                    from {shared.ownerName} · {shared.eventCount} event{shared.eventCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Plan vs Actual section */}
       {planVsActualSection && (

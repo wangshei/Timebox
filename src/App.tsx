@@ -217,11 +217,13 @@ export default function App() {
     }
   }, [session, visitMode]);
 
-  // Dev only: inject test Google Calendar events for localhost testing
+  // Dev only: inject test Google Calendar events and shared calendars for localhost testing
+  const [devSharedCalendars, setDevSharedCalendars] = useState<import('./types/sharing').SharedCalendarView[]>([]);
   useEffect(() => {
     if (import.meta.env.DEV) {
-      import('./data/testGcalEvents').then(({ injectTestGcalEvents }) => {
+      import('./data/testGcalEvents').then(({ injectTestGcalEvents, testSharedCalendars }) => {
         injectTestGcalEvents(useStore);
+        setDevSharedCalendars(testSharedCalendars);
       });
     }
   }, []);
@@ -1591,6 +1593,7 @@ export default function App() {
                 isEditMode={isEditMode}
                 isCompareMode={mode === 'compare'}
                 onExitCompare={() => setViewMode('overall')}
+                sharedCalendars={devSharedCalendars}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -2339,6 +2342,7 @@ export default function App() {
                   isEditMode={isEditMode}
                   isCompareMode={mode === 'compare'}
                   onExitCompare={() => setViewMode('overall')}
+                  sharedCalendars={devSharedCalendars}
                   endDayLabel={`Confirm all (${selectedDate})`}
                   onEndDay={() => batchConfirmDay(selectedDate)}
                 />
