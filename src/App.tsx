@@ -544,6 +544,7 @@ export default function App() {
     link?: string | null;
     description?: string | null;
     notes?: string | null;
+    inviteEmails?: string[];
   }) => {
     saveSnapshot();
     // Events added for past time slots are retroactive → mark as 'unplanned' so they
@@ -617,6 +618,19 @@ export default function App() {
       }));
     } else {
       addEvent(eventPayload);
+    }
+
+    // Handle invites — create a per-event share for invited emails
+    if (eventData.inviteEmails && eventData.inviteEmails.length > 0) {
+      // In production, this would call the share-invite edge function.
+      // For now, log the intent so we can verify the data flows correctly.
+      // eslint-disable-next-line no-console
+      console.log('[invite] Event created with invites:', {
+        title: eventData.title,
+        inviteEmails: eventData.inviteEmails,
+      });
+      // TODO: Wire up createShare() from src/services/sharing.ts
+      // once Supabase tables are deployed.
     }
   };
 
