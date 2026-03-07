@@ -135,6 +135,14 @@ export interface Event {
   originalEnd?: string | null;
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
+
+  // ─── Google Calendar / Sharing fields ─────────────────────
+  /** Google Calendar event ID — set for events synced from Google. */
+  googleEventId?: string | null;
+  /** When set, this event came from a CalendarShare subscription (read-only for recipient). */
+  sharedFromShareId?: string | null;
+  /** When set, this event is read-only (synced from Google or shared by another user). */
+  readOnly?: boolean;
 }
 
 export interface User {

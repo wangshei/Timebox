@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon, UserPlusIcon, UserGroupIcon } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag } from '../types';
+import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
@@ -70,6 +71,74 @@ export function SettingsPanel({
   const [editCalendarIds, setEditCalendarIds] = useState<string[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
+
+  // ── Sharing state ──
+  const [sharingId, setSharingId] = useState<string | null>(null); // id of item being shared
+  const [sharingScope, setSharingScope] = useState<ShareScope>('calendar');
+  const [shares, setShares] = useState<CalendarShare[]>([]); // local state (will be persisted later)
+  const [shareEmail, setShareEmail] = useState('');
+  const [sharePushToGoogle, setSharePushToGoogle] = useState(true);
+  const [shareIncludeExisting, setShareIncludeExisting] = useState(true);
+
+  const handleStartShare = (id: string, scope: ShareScope) => {
+    setSharingId(id);
+    setSharingScope(scope);
+    setShareEmail('');
+    setEditingId(null);
+    setIsAdding(false);
+  };
+
+  const handleAddShareMember = () => {
+    if (!shareEmail.trim() || !sharingId) return;
+    const email = shareEmail.trim().toLowerCase();
+
+    setShares((prev) => {
+      const existing = prev.find((s) => s.id === `share-${sharingId}`);
+      const member: ShareMember = {
+        id: `member-${Date.now()}`,
+        shareId: `share-${sharingId}`,
+        email,
+        role: 'viewer',
+        status: 'pending',
+        pushToGoogle: sharePushToGoogle,
+        token: Math.random().toString(36).slice(2, 10),
+        invitedAt: new Date().toISOString(),
+      };
+      if (existing) {
+        if (existing.members.some((m) => m.email === email)) return prev;
+        return prev.map((s) =>
+          s.id === existing.id ? { ...s, members: [...s.members, member] } : s
+        );
+      }
+      const newShare: CalendarShare = {
+        id: `share-${sharingId}`,
+        ownerId: 'current-user',
+        scope: sharingScope,
+        ...(sharingScope === 'calendar' ? { calendarContainerId: sharingId } : {}),
+        ...(sharingScope === 'category' ? { categoryId: sharingId } : {}),
+        ...(sharingScope === 'tag' ? { tagId: sharingId } : {}),
+        members: [member],
+        includeExisting: shareIncludeExisting,
+        pushToGoogle: sharePushToGoogle,
+        createdAt: new Date().toISOString(),
+      };
+      return [...prev, newShare];
+    });
+    setShareEmail('');
+  };
+
+  const handleRemoveShareMember = (shareId: string, memberId: string) => {
+    setShares((prev) =>
+      prev
+        .map((s) =>
+          s.id === shareId ? { ...s, members: s.members.filter((m) => m.id !== memberId) } : s
+        )
+        .filter((s) => s.members.length > 0)
+    );
+  };
+
+  const getShareForItem = (id: string) => shares.find((s) => s.id === `share-${id}`);
+  const getMemberCount = (id: string) => getShareForItem(id)?.members.length ?? 0;
 
   if (!isOpen) return null;
 
@@ -235,11 +304,12 @@ export function SettingsPanel({
   /* ── Compact item card ── */
   const ItemCard = ({
     color, name, subtitle, icon: Icon,
-    onEdit, onDelete,
+    onEdit, onDelete, onShare, memberCount,
   }: {
     color: string; name: string; subtitle?: string;
     icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
     onEdit: () => void; onDelete: () => void;
+    onShare?: () => void; memberCount?: number;
   }) => (
     <div
       className="flex items-center gap-2 rounded-lg group"
@@ -253,6 +323,31 @@ export function SettingsPanel({
         <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{name}</span>
         {subtitle && <span className="block truncate" style={{ fontSize: 10, color: TEXT_MUTED }}>{subtitle}</span>}
       </div>
+      {onShare && (
+        <button
+          type="button"
+          onClick={onShare}
+          className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 relative"
+          style={{ color: PRIMARY }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${PRIMARY}14`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          title="Share / Invite"
+        >
+          {(memberCount ?? 0) > 0 ? (
+            <UserGroupIcon className="h-3 w-3" />
+          ) : (
+            <UserPlusIcon className="h-3 w-3" />
+          )}
+          {(memberCount ?? 0) > 0 && (
+            <span
+              className="absolute -top-1 -right-1 flex items-center justify-center rounded-full"
+              style={{ width: 12, height: 12, fontSize: 8, fontWeight: 700, backgroundColor: PRIMARY, color: '#fff' }}
+            >
+              {memberCount}
+            </span>
+          )}
+        </button>
+      )}
       <button
         type="button"
         onClick={onEdit}
@@ -275,6 +370,124 @@ export function SettingsPanel({
       </button>
     </div>
   );
+
+  /* ── Inline share panel ── */
+  const SharePanel = ({ itemId, itemName, scope, color }: { itemId: string; itemName: string; scope: ShareScope; color: string }) => {
+    const share = getShareForItem(itemId);
+    const members = share?.members ?? [];
+    return (
+      <div
+        className="space-y-2.5 p-3 rounded-xl"
+        style={{ backgroundColor: `${PRIMARY}06`, border: `1.5px solid ${PRIMARY}30` }}
+      >
+        <div className="flex items-center gap-2">
+          <UserGroupIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: PRIMARY }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: TEXT }}>Share "{itemName}"</span>
+        </div>
+        <p style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>
+          {scope === 'calendar' && 'All events in this calendar will be shared.'}
+          {scope === 'category' && 'All events in this category will be shared.'}
+          {scope === 'tag' && 'All events with this tag will be shared.'}
+        </p>
+
+        {/* Add member */}
+        <div className="flex gap-1.5">
+          <input
+            type="email"
+            value={shareEmail}
+            onChange={(e) => setShareEmail(e.target.value)}
+            placeholder="Email address"
+            style={{ ...inputStyle, flex: 1 }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddShareMember()}
+          />
+          <button
+            type="button"
+            onClick={handleAddShareMember}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex-shrink-0"
+            style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+          >
+            <PlusIcon className="h-3 w-3" /> Invite
+          </button>
+        </div>
+
+        {/* Options */}
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 cursor-pointer" style={{ fontSize: 10, color: TEXT_SECONDARY }}>
+            <input
+              type="checkbox"
+              checked={shareIncludeExisting}
+              onChange={(e) => setShareIncludeExisting(e.target.checked)}
+              className="w-3 h-3 rounded border-neutral-300"
+            />
+            Include existing events
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer" style={{ fontSize: 10, color: TEXT_SECONDARY }}>
+            <input
+              type="checkbox"
+              checked={sharePushToGoogle}
+              onChange={(e) => setSharePushToGoogle(e.target.checked)}
+              className="w-3 h-3 rounded border-neutral-300"
+            />
+            Push to Google Calendar
+          </label>
+        </div>
+
+        {/* Member list */}
+        {members.length > 0 && (
+          <div className="space-y-1">
+            <span style={{ fontSize: 10, fontWeight: 500, color: TEXT_MUTED }}>Members ({members.length})</span>
+            {members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+                style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+              >
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${color}25`, color, fontSize: 9, fontWeight: 600 }}
+                >
+                  {member.email.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate" style={{ fontSize: 11, color: TEXT }}>{member.email}</span>
+                  <span style={{ fontSize: 9, color: member.status === 'accepted' ? '#34C759' : member.status === 'declined' ? '#FF3B30' : TEXT_MUTED }}>
+                    {member.status === 'pending' ? 'Pending' : member.status === 'accepted' ? 'Accepted' : 'Declined'}
+                    {member.userId ? '' : ' (non-user)'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveShareMember(`share-${itemId}`, member.id)}
+                  className="p-0.5 rounded transition-colors flex-shrink-0"
+                  style={{ color: '#C87868' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  <XMarkIcon className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Close */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setSharingId(null)}
+            className="px-2.5 py-1 rounded-md text-xs transition-colors"
+            style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -457,9 +670,12 @@ export function SettingsPanel({
             {activeTab === 'calendars' && calendarContainers.map((calendar) => {
               const calColor = calendar.color && /^#[0-9A-Fa-f]{6}$/.test(calendar.color) ? calendar.color : PRIMARY;
               const isEditing = editingId === calendar.id;
+              const isSharing = sharingId === calendar.id && sharingScope === 'calendar';
               return (
-                <div key={calendar.id} style={isEditing ? { gridColumn: '1 / -1' } : undefined}>
-                  {isEditing ? (
+                <div key={calendar.id} style={(isEditing || isSharing) ? { gridColumn: '1 / -1' } : undefined}>
+                  {isSharing ? (
+                    <SharePanel itemId={calendar.id} itemName={calendar.name} scope="calendar" color={calColor} />
+                  ) : isEditing ? (
                     <EditForm onSave={handleSaveEdit} onCancel={handleCancelEdit} showColor />
                   ) : (
                     <ItemCard
@@ -467,6 +683,8 @@ export function SettingsPanel({
                       name={calendar.name}
                       onEdit={() => handleStartEdit(calendar.id, calendar.name, calendar.color)}
                       onDelete={() => handleDeleteRequest(calendar.id, calendar.name)}
+                      onShare={() => handleStartShare(calendar.id, 'calendar')}
+                      memberCount={getMemberCount(calendar.id)}
                     />
                   )}
                 </div>
@@ -481,9 +699,12 @@ export function SettingsPanel({
                 : (category.calendarContainerId ? [category.calendarContainerId] : []);
               const calNames = calIds.map(id => calendarContainers.find(c => c.id === id)?.name).filter(Boolean) as string[];
               const isEditing = editingId === category.id;
+              const isSharing = sharingId === category.id && sharingScope === 'category';
               return (
-                <div key={category.id} style={isEditing ? { gridColumn: '1 / -1' } : undefined}>
-                  {isEditing ? (
+                <div key={category.id} style={(isEditing || isSharing) ? { gridColumn: '1 / -1' } : undefined}>
+                  {isSharing ? (
+                    <SharePanel itemId={category.id} itemName={category.name} scope="category" color={baseColor} />
+                  ) : isEditing ? (
                     <EditForm onSave={handleSaveEdit} onCancel={handleCancelEdit} showColor />
                   ) : (
                     <ItemCard
@@ -492,6 +713,8 @@ export function SettingsPanel({
                       subtitle={calNames.join(', ') || undefined}
                       onEdit={() => handleStartEdit(category.id, category.name, category.color, category)}
                       onDelete={() => handleDeleteRequest(category.id, category.name)}
+                      onShare={() => handleStartShare(category.id, 'category')}
+                      memberCount={getMemberCount(category.id)}
                     />
                   )}
                 </div>
@@ -503,9 +726,12 @@ export function SettingsPanel({
               const parentCategory = tag.categoryId ? categories.find((c) => c.id === tag.categoryId) : undefined;
               const tagColor = parentCategory?.color && /^#[0-9A-Fa-f]{6}$/.test(parentCategory.color) ? parentCategory.color : PRIMARY;
               const isEditing = editingId === tag.id;
+              const isSharing = sharingId === tag.id && sharingScope === 'tag';
               return (
-                <div key={tag.id} style={isEditing ? { gridColumn: '1 / -1' } : undefined}>
-                  {isEditing ? (
+                <div key={tag.id} style={(isEditing || isSharing) ? { gridColumn: '1 / -1' } : undefined}>
+                  {isSharing ? (
+                    <SharePanel itemId={tag.id} itemName={tag.name} scope="tag" color={tagColor} />
+                  ) : isEditing ? (
                     <EditForm onSave={handleSaveEdit} onCancel={handleCancelEdit} showColor={false} />
                   ) : (
                     <ItemCard
@@ -515,6 +741,8 @@ export function SettingsPanel({
                       icon={TagIcon}
                       onEdit={() => handleStartEdit(tag.id, tag.name)}
                       onDelete={() => handleDeleteRequest(tag.id, tag.name)}
+                      onShare={() => handleStartShare(tag.id, 'tag')}
+                      memberCount={getMemberCount(tag.id)}
                     />
                   )}
                 </div>

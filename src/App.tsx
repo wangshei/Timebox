@@ -217,6 +217,15 @@ export default function App() {
     }
   }, [session, visitMode]);
 
+  // Dev only: inject test Google Calendar events for localhost testing
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      import('./data/testGcalEvents').then(({ injectTestGcalEvents }) => {
+        injectTestGcalEvents(useStore);
+      });
+    }
+  }, []);
+
   const {
     viewMode: mode,
     view,

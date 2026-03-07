@@ -308,6 +308,12 @@ export function EventCard({
               >
                 {event.title || 'Untitled Event'}
               </span>
+              {event.googleEventId && (
+                <span className="flex-shrink-0 mt-0.5 opacity-50" style={{ fontSize: 8, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
+              )}
+              {event.sharedFromShareId && !event.googleEventId && (
+                <span className="flex-shrink-0 mt-0.5 opacity-50" style={{ fontSize: 8, lineHeight: 1 }} title="Shared event">S</span>
+              )}
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
                 <ArrowPathIcon className="flex-shrink-0 mt-0.5 opacity-60" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
               )}
@@ -327,6 +333,12 @@ export function EventCard({
                 {event.title || 'Untitled Event'}
               </span>
               <div className="flex items-center gap-1 shrink-0">
+                {event.googleEventId && (
+                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
+                )}
+                {event.sharedFromShareId && !event.googleEventId && (
+                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Shared event">S</span>
+                )}
                 {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
                   <ArrowPathIcon className="opacity-60 flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
                 )}
@@ -501,7 +513,18 @@ export function EventCard({
                 </button>
               )}
 
-              {/* Edit / Delete — below another line */}
+              {/* Read-only badge for synced/shared events */}
+              {event.readOnly && (
+                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                    <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
+                  </svg>
+                  <span>{event.googleEventId ? 'Synced from Google Calendar' : event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
+                </div>
+              )}
+
+              {/* Edit / Delete — below another line (hidden for read-only events) */}
+              {!event.readOnly && <>
               <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
               {deleteConfirmState === 'confirm' ? (
                 <div className="flex flex-col gap-1">
@@ -585,6 +608,7 @@ export function EventCard({
                   )}
                 </div>
               )}
+              </>}
             </div>
           </div>,
           document.body

@@ -104,6 +104,12 @@ export interface ResolvedEvent {
   /** Origin: 'unplanned' = created from actual panel, absent/undefined = planned. */
   source?: 'manual' | 'unplanned';
   attendanceStatus?: 'attended' | 'not_attended';
+  /** Google Calendar event ID — set for events synced from Google. */
+  googleEventId?: string | null;
+  /** When set, this event came from a CalendarShare subscription (read-only for recipient). */
+  sharedFromShareId?: string | null;
+  /** When true, event is read-only (synced from Google or shared by another user). */
+  readOnly?: boolean;
 }
 
 export function resolveEvent(

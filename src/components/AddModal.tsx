@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString } from '../utils/dateTime';
@@ -61,6 +61,7 @@ interface AddModalProps {
     link?: string | null;
     description?: string | null;
     notes?: string | null;
+    inviteEmails?: string[];
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -136,6 +137,22 @@ export function AddModal({
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
+
+  // Invite state (event mode only)
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [inviteInput, setInviteInput] = useState('');
+  const [showInviteSection, setShowInviteSection] = useState(false);
+
+  const handleAddInvite = () => {
+    const email = inviteInput.trim().toLowerCase();
+    if (!email || !email.includes('@') || inviteEmails.includes(email)) return;
+    setInviteEmails((prev) => [...prev, email]);
+    setInviteInput('');
+  };
+
+  const handleRemoveInvite = (email: string) => {
+    setInviteEmails((prev) => prev.filter((e) => e !== email));
+  };
 
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -383,6 +400,7 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
+        inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
       });
     }
 
@@ -403,6 +421,9 @@ export function AddModal({
     setSelectedCalendar(calendars[0]?.id ?? 'personal');
     setPinned(false);
     setPriority(undefined);
+    setInviteEmails([]);
+    setInviteInput('');
+    setShowInviteSection(false);
     onClose();
   };
 
@@ -867,6 +888,68 @@ export function AddModal({
             )}
           </div>
           </div>
+
+          {/* Invite section — event mode only */}
+          {mode === 'event' && (
+            <div className="px-4 py-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <button
+                type="button"
+                onClick={() => setShowInviteSection((o) => !o)}
+                className="w-full flex items-center gap-1.5 py-1 text-xs font-semibold transition-colors"
+                style={{ color: inviteEmails.length > 0 ? '#8DA286' : '#636366' }}
+              >
+                <UserPlusIcon className="h-3.5 w-3.5" />
+                <span>Invite people{inviteEmails.length > 0 ? ` (${inviteEmails.length})` : ''}</span>
+                {showInviteSection ? <ChevronUpIcon className="h-3 w-3 ml-auto" /> : <ChevronDownIcon className="h-3 w-3 ml-auto" />}
+              </button>
+              {showInviteSection && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="email"
+                      value={inviteInput}
+                      onChange={(e) => setInviteInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddInvite(); } }}
+                      placeholder="Email address"
+                      className="flex-1 px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
+                      style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddInvite}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                      style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
+                    >
+                      <PlusIcon className="h-3 w-3" /> Add
+                    </button>
+                  </div>
+                  {inviteEmails.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {inviteEmails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                          style={{ backgroundColor: 'rgba(141,162,134,0.12)', color: '#636366', border: '1px solid rgba(141,162,134,0.25)' }}
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveInvite(email)}
+                            className="rounded-full p-0.5 transition-colors hover:bg-black/10"
+                          >
+                            <XMarkIcon className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs" style={{ color: '#8E8E93', fontSize: 10, lineHeight: 1.4 }}>
+                    Timebox users will see this event in their calendar. Non-users will get an email invite + Google Calendar event.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Submit row */}
           <div className="px-4 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
