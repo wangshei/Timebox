@@ -516,7 +516,7 @@ export function ThreeDayView({
                                     height: `${height}px`,
                                     width: `${widthPercent}%`,
                                     left: `${leftPercent}%`,
-                                    ...(bTrunc?.hidden ? { opacity: 0.15 } : {}),
+                                    ...(bTrunc?.hidden && !showDifferences ? { opacity: 0.15 } : {}),
                                   }}
                                   isSelected={currentSelected === block.id}
                                   onSelectBlock={handleSelect}
@@ -565,7 +565,7 @@ export function ThreeDayView({
                                     height: `${height}px`,
                                     width: `${widthPercent}%`,
                                     left: `${leftPercent}%`,
-                                    ...(eTrunc?.hidden ? { opacity: 0.15 } : {}),
+                                    ...(eTrunc?.hidden && !showDifferences ? { opacity: 0.15 } : {}),
                                   }}
                                   isSelected={currentSelected === `event-${seg.event.id}`}
                                   onSelect={() => handleSelect(`event-${seg.event.id}`)}

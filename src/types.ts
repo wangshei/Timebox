@@ -88,6 +88,10 @@ export interface TimeBlock {
   description?: string | null;
   /** Quick inline notes — shown inside the block and in the popover. */
   notes?: string | null;
+  /** Original planned start before any move — preserved for diff detection. */
+  originalStart?: string | null;
+  /** Original planned end before any move/resize — preserved for diff detection. */
+  originalEnd?: string | null;
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
 }
@@ -125,6 +129,10 @@ export interface Event {
   source?: 'manual' | 'unplanned';
   /** Attendance status for past events. Undefined = unreviewed, 'attended' = happened, 'not_attended' = didn't happen. */
   attendanceStatus?: 'attended' | 'not_attended';
+  /** Original planned start before any move — preserved for diff detection. */
+  originalStart?: string | null;
+  /** Original planned end before any move/resize — preserved for diff detection. */
+  originalEnd?: string | null;
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
 }

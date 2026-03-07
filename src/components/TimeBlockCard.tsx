@@ -290,6 +290,9 @@ function TimeBlockCardInner({
     if (isPast && skipped && block.mode === 'planned' && block.source !== 'unplanned') return 'skipped';
     // Missing = planned but not yet confirmed/skipped (didn't happen)
     if (isPast && !confirmed && !skipped && block.mode === 'planned' && block.source !== 'unplanned') return 'missing';
+    // Timing changed — block was moved/resized from its original position
+    if (block.originalStart != null && block.originalEnd != null &&
+        (block.originalStart !== block.start || block.originalEnd !== block.end)) return 'timing';
     if (confirmed && block.recordedStart && block.recordedEnd &&
         (block.recordedStart !== block.start || block.recordedEnd !== block.end)) return 'timing';
     return null;
@@ -769,11 +772,10 @@ function TimeBlockCardInner({
       ? 'h-full overflow-hidden min-w-0 rounded-r-sm'
       : 'h-full overflow-hidden min-w-0';
 
-    const diffBorder = diffStatus === 'timing'
-      ? '2px solid rgba(255,214,10,0.9)'
-      : (diffStatus === 'missing' || diffStatus === 'unplanned' || diffStatus === 'skipped')
-        ? '2px solid rgba(255,59,48,0.75)'
-        : undefined;
+    const diffColor = diffStatus === 'unplanned' ? 'rgba(52,199,89,0.75)'
+      : diffStatus === 'timing' ? 'rgba(255,214,10,0.9)'
+      : (diffStatus === 'missing' || diffStatus === 'skipped') ? 'rgba(255,59,48,0.75)'
+      : undefined;
 
     const effectivelyLocked = locked;
     const noDrag = locked || isLockedPast;
@@ -794,8 +796,8 @@ function TimeBlockCardInner({
           className={cn('relative', containerClass)}
           style={{
             ...blockStyle,
-            boxShadow: diffBorder
-              ? `inset 0 0 0 2px ${diffStatus === 'timing' ? 'rgba(255,214,10,0.9)' : 'rgba(255,59,48,0.75)'}`
+            boxShadow: diffColor
+              ? `inset 0 0 0 2px ${diffColor}`
               : isSelected && !effectivelyLocked ? `0 0 0 1.5px ${blockColor}` : undefined,
           }}
         >

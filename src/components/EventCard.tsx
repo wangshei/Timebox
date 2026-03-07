@@ -127,15 +127,20 @@ export function EventCard({
         : { borderLeft: `4px solid ${calendarColor}` };
 
   // Diff status for "Show Differences" mode
-  const diffStatus: 'unplanned' | 'missing' | null = (() => {
+  const diffStatus: 'unplanned' | 'missing' | 'timing' | null = (() => {
     if (!showDifferences) return null;
     if (event.source === 'unplanned') return 'unplanned';
     if (isPast && event.attendanceStatus === 'not_attended') return 'missing';
+    // Timing changed — event was moved/resized from its original position
+    if (event.originalStart != null && event.originalEnd != null &&
+        (event.originalStart !== event.start || event.originalEnd !== event.end)) return 'timing';
     return null;
   })();
-  const diffBoxShadow = (diffStatus === 'unplanned' || diffStatus === 'missing')
-    ? 'inset 0 0 0 2px rgba(255,59,48,0.75)'
+  const diffColor = diffStatus === 'unplanned' ? 'rgba(52,199,89,0.75)'
+    : diffStatus === 'timing' ? 'rgba(255,214,10,0.9)'
+    : diffStatus === 'missing' ? 'rgba(255,59,48,0.75)'
     : undefined;
+  const diffBoxShadow = diffColor ? `inset 0 0 0 2px ${diffColor}` : undefined;
   // Fade "same" (no-diff) past events when showDifferences is on so different ones stand out.
   // Future events haven't happened yet — nothing to compare, so show at normal opacity.
   // Events with a detected diff get full opacity so they pop against faded "same" items.

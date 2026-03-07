@@ -1098,6 +1098,8 @@ export default function App() {
       return;
     }
     const modeUpdate: Partial<import('./types').TimeBlock> = { start: params.startTime, end: params.endTime, date: params.date };
+    // Preserve original position for diff detection (only set once)
+    if (!block.originalStart) { modeUpdate.originalStart = block.start; modeUpdate.originalEnd = block.end; }
     if (block.mode === 'planned' && destIsPast) {
       modeUpdate.mode = 'recorded';
       modeUpdate.source = 'unplanned';
@@ -1126,6 +1128,8 @@ export default function App() {
     }
     saveSnapshot();
     const resizeUpdate: Partial<import('./types').TimeBlock> = { date: params.date, end: params.endTime };
+    // Preserve original end for diff detection (only set once)
+    if (!block.originalEnd) { resizeUpdate.originalEnd = block.end; }
     if (block.mode === 'planned' && resizeIsPast) {
       resizeUpdate.mode = 'recorded';
       resizeUpdate.source = 'unplanned';
@@ -1148,6 +1152,8 @@ export default function App() {
     saveSnapshot();
     const event = events.find((e) => e.id === eventId);
     const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
+    // Preserve original position for diff detection (only set once)
+    if (event && !event.originalStart) { updates.originalStart = event.start; updates.originalEnd = event.end; }
     // Preserve cross-date span: shift endDate by same day offset
     if (event?.endDate && event.endDate !== event.date) {
       const oldStart = new Date(event.date + 'T00:00:00');
@@ -1168,7 +1174,10 @@ export default function App() {
     const effectiveStart = event.endDate && event.endDate !== event.date && params.date === event.endDate
       ? '00:00' : event.start;
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(effectiveStart)) return;
-    updateEvent(eventId, { end: params.endTime });
+    // Preserve original end for diff detection (only set once)
+    const resizeEvUpdate: Partial<import('./types').Event> = { end: params.endTime };
+    if (!event.originalEnd) { resizeEvUpdate.originalEnd = event.end; }
+    updateEvent(eventId, resizeEvUpdate);
   };
 
   const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {
