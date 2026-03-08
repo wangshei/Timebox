@@ -920,6 +920,34 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             </button>
           </div>
         )}
+        {/* Desktop app promo */}
+        {mode !== 'reset' && !waitlistJoined && (
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <a
+              href="https://github.com/timeboxing-club/desktop/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 12,
+                color: '#8E8E93',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'color 200ms',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="1.5" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M4.5 12.5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M7 10.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              Also available as a desktop app
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

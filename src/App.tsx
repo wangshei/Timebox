@@ -18,9 +18,14 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { MobileApp } from './components/MobileApp';
+import ActivityPanel from './components/ActivityPanel';
+import UpdateChecker from './components/UpdateChecker';
+import { isTauri, getActivityBlocks, ActivityBlock } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
+import { notifyEventUpdate } from './services/sharing';
+import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -36,7 +41,7 @@ import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
 import { getLocalDateString, getViewDateRange } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
-import type { Category, Tag, Mode as StoreMode } from './types';
+import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
@@ -177,6 +182,7 @@ export default function App() {
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileTodoPanelOpen, setMobileTodoPanelOpen] = useState(false);
   const leftBarDragJustEnded = useRef(false);
@@ -359,19 +365,72 @@ export default function App() {
     sessionExpired,
     setSaveError,
     setSessionExpired,
+    notificationScope,
+    notificationLeadMinutes,
+    emailNotificationsEnabled,
+    setNotificationScope,
+    setNotificationLeadMinutes,
+    setEmailNotificationsEnabled,
   } = useStore();
 
   const { saveSnapshot } = useHistoryStore();
 
+  // Load activity blocks from desktop tracker for calendar integration
+  const [activityTimeBlocks, setActivityTimeBlocks] = useState<TimeBlock[]>([]);
+  const defaultContainerId = calendarContainers[0]?.id ?? '';
+  useEffect(() => {
+    if (!isTauri() || !activityPanelOpen || !defaultContainerId) {
+      setActivityTimeBlocks([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const blocks = await getActivityBlocks(selectedDate);
+        if (cancelled) return;
+        const converted: TimeBlock[] = blocks.map((ab, i) => {
+          const start = new Date(ab.start_time);
+          const end = new Date(ab.end_time);
+          const startHH = String(start.getHours()).padStart(2, '0');
+          const startMM = String(start.getMinutes()).padStart(2, '0');
+          const endHH = String(end.getHours()).padStart(2, '0');
+          const endMM = String(end.getMinutes()).padStart(2, '0');
+          return {
+            id: `activity-${ab.date}-${i}`,
+            title: `${ab.category}: ${ab.app_name}`,
+            calendarContainerId: defaultContainerId,
+            categoryId: '',
+            tagIds: [],
+            start: `${startHH}:${startMM}`,
+            end: `${endHH}:${endMM}`,
+            date: ab.date,
+            mode: 'planned' as const,
+            source: 'unplanned' as const,
+            confirmationStatus: 'confirmed' as const,
+          };
+        });
+        setActivityTimeBlocks(converted);
+      } catch (err) {
+        console.error('[activity] Failed to load blocks:', err);
+      }
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedDate, activityPanelOpen, defaultContainerId]);
+
   const visibleTimeBlocks = useMemo(
-    () =>
-      selectTimeBlocksForView(
+    () => {
+      const base = selectTimeBlocksForView(
         timeBlocks,
         selectedDate,
         view,
         containerVisibility
-      ),
-    [timeBlocks, selectedDate, view, containerVisibility]
+      );
+      // Append activity-tracked blocks when activity panel is open
+      return activityTimeBlocks.length > 0 ? [...base, ...activityTimeBlocks] : base;
+    },
+    [timeBlocks, selectedDate, view, containerVisibility, activityTimeBlocks]
   );
 
   const visibleEvents = useMemo(() => {
@@ -385,6 +444,16 @@ export default function App() {
     }
     return visible;
   }, [events, selectedDate, view, containerVisibility]);
+
+  // Schedule push notifications for upcoming events/tasks
+  useEffect(() => {
+    if (notificationScope === 'off') return;
+    requestNotificationPermission();
+    scheduleNotifications(events, timeBlocks);
+    // Re-schedule every 5 minutes to pick up new/changed events
+    const interval = setInterval(() => scheduleNotifications(events, timeBlocks), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [events, timeBlocks, notificationScope, notificationLeadMinutes]);
 
   const analyticsDateRange = useMemo(
     () => getViewDateRange(selectedDate, view),
@@ -405,6 +474,7 @@ export default function App() {
 
   type PlanVsActualView = 'category' | 'container' | 'tag';
   const [planVsActualView, setPlanVsActualView] = useState<PlanVsActualView>('category');
+  const [distributionOmitted, setDistributionOmitted] = useState<Set<string>>(new Set());
   const planVsActual =
     planVsActualView === 'category'
       ? planVsActualByCategory
@@ -765,6 +835,32 @@ export default function App() {
     setIsDraftTimeBlock(false);
     setAddModalMode('task');
     setIsAddModalOpen(true);
+  };
+
+  /** Notify attendees when organizer updates their own event. Fire-and-forget. */
+  const notifyAttendeesIfNeeded = (event: import('./types').Event, updates: Record<string, unknown>) => {
+    if (!emailNotificationsEnabled) return;
+    if (!event.isOrganizer || !event.attendees?.length) return;
+    const otherEmails = event.attendees
+      .filter(a => !a.self && a.email)
+      .map(a => a.email);
+    if (otherEmails.length === 0) return;
+
+    // Build human-readable change summary
+    const parts: string[] = [];
+    if (updates.title && updates.title !== event.title) parts.push(`Title: ${updates.title}`);
+    if (updates.date && updates.date !== event.date) parts.push(`Date: ${updates.date}`);
+    if (updates.start && updates.start !== event.start) parts.push(`Start: ${updates.start}`);
+    if (updates.end && updates.end !== event.end) parts.push(`End: ${updates.end}`);
+    if (updates.description !== undefined && updates.description !== event.description) parts.push('Description updated');
+    if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
+    if (parts.length === 0) parts.push('Event details have been updated.');
+
+    notifyEventUpdate({
+      eventTitle: (updates.title as string) || event.title,
+      attendeeEmails: otherEmails,
+      changes: parts.join('\n'),
+    }).catch((err) => console.warn('[notify] Failed to notify attendees:', err));
   };
 
   const handleEditEvent = (id: string) => {
@@ -1778,7 +1874,7 @@ export default function App() {
                             { value: 'tag' as PlanVsActualView, label: 'Tag' },
                           ]}
                           value={planVsActualView}
-                          onChange={setPlanVsActualView}
+                          onChange={(v: PlanVsActualView) => { setPlanVsActualView(v); setDistributionOmitted(new Set()); }}
                           compact
                           style={{ flex: 1, width: '100%' }}
                         />
@@ -1845,6 +1941,89 @@ export default function App() {
                               </div>
                             )}
                           </div>
+
+                          {/* ── Distribution bar graph ── */}
+                          {(() => {
+                            const visibleRows = planVsActual.filter(r => !distributionOmitted.has(r.id) && r.recordedHours > 0);
+                            const visibleTotal = visibleRows.reduce((s, r) => s + r.recordedHours, 0);
+                            if (visibleTotal <= 0) return null;
+                            return (
+                              <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, marginTop: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 600, color: THEME.textPrimary, letterSpacing: '-0.01em' }}>
+                                    Time distribution
+                                  </span>
+                                  {distributionOmitted.size > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDistributionOmitted(new Set())}
+                                      style={{ fontSize: 9, color: '#8DA286', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                    >
+                                      Show all
+                                    </button>
+                                  )}
+                                </div>
+                                {/* Stacked bar */}
+                                <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)' }}>
+                                  {visibleRows.map(row => {
+                                    const pct = (row.recordedHours / visibleTotal) * 100;
+                                    if (pct < 0.5) return null;
+                                    return (
+                                      <div
+                                        key={row.id}
+                                        title={`${row.name}: ${row.recordedHours.toFixed(1)}h (${Math.round(pct)}%)`}
+                                        style={{
+                                          width: `${pct}%`,
+                                          backgroundColor: row.color,
+                                          opacity: 0.8,
+                                          transition: 'width 0.3s ease',
+                                          minWidth: pct > 2 ? 2 : 0,
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                {/* Legend — clickable to omit */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 8px', marginTop: 6 }}>
+                                  {planVsActual.filter(r => r.recordedHours > 0).map(row => {
+                                    const isOmitted = distributionOmitted.has(row.id);
+                                    const pct = isOmitted ? 0 : (row.recordedHours / visibleTotal) * 100;
+                                    return (
+                                      <button
+                                        key={row.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setDistributionOmitted(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(row.id)) next.delete(row.id);
+                                            else next.add(row.id);
+                                            return next;
+                                          });
+                                        }}
+                                        style={{
+                                          display: 'flex', alignItems: 'center', gap: 3, padding: '1px 0',
+                                          background: 'none', border: 'none', cursor: 'pointer',
+                                          opacity: isOmitted ? 0.35 : 1,
+                                          textDecoration: isOmitted ? 'line-through' : 'none',
+                                          transition: 'opacity 0.2s',
+                                        }}
+                                        title={isOmitted ? `Click to show ${row.name}` : `Click to hide ${row.name}`}
+                                      >
+                                        <div style={{
+                                          width: 5, height: 5, borderRadius: '50%',
+                                          backgroundColor: row.color,
+                                          opacity: isOmitted ? 0.4 : 1,
+                                        }} />
+                                        <span style={{ fontSize: 9, color: THEME.textSecondary, whiteSpace: 'nowrap' }}>
+                                          {row.name} {!isOmitted && pct > 0 ? `${Math.round(pct)}%` : ''}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: '14px 0', color: '#AEAEB2', fontSize: 11 }}>
@@ -1910,6 +2089,30 @@ export default function App() {
                         }} />
                       )}
                     </button>
+                  )}
+
+                  {/* Desktop app download button */}
+                  {!isTauri() && (
+                    <a
+                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                        color: THEME.textPrimary, backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        textDecoration: 'none',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      title="Download desktop app"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="2" width="12" height="9" rx="1.5" />
+                        <path d="M5 14h6" />
+                        <path d="M8 11v3" />
+                        <path d="M8 5v3M6 7l2 2 2-2" />
+                      </svg>
+                    </a>
                   )}
 
                   {/* Bug report button */}
@@ -2405,7 +2608,27 @@ export default function App() {
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
-              <TimerWidget />
+              <div className="flex items-center gap-1.5">
+                {isTauri() && (
+                  <button
+                    type="button"
+                    onClick={() => setActivityPanelOpen(!activityPanelOpen)}
+                    className="p-1 rounded transition-colors"
+                    style={{
+                      color: activityPanelOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: activityPanelOpen ? 'rgba(141,162,134,0.12)' : 'transparent',
+                    }}
+                    title="Screen activity"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M5 14h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      <path d="M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+                <TimerWidget />
+              </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -2441,6 +2664,11 @@ export default function App() {
                 onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
             </div>
+          </div>
+        )}
+        {activityPanelOpen && (
+          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', borderLeft: '1px solid rgba(0,0,0,0.09)' }}>
+            <ActivityPanel selectedDate={selectedDate} onClose={() => setActivityPanelOpen(false)} />
           </div>
         )}
       </div>
@@ -2564,6 +2792,8 @@ export default function App() {
         onUpdateEvent={(id, updates) => {
           const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
           const event = events.find((e) => e.id === id);
+          // Notify attendees if this is the organizer's own event
+          if (event) notifyAttendeesIfNeeded(event, eventUpdates);
           if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
             const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
             updateEvents(
@@ -2694,6 +2924,12 @@ export default function App() {
         sleepTime={sleepTime}
         onWakeTimeChange={(val) => { setWakeTime(val); persistUserPreferencesToSupabase({ wake_time: val }); }}
         onSleepTimeChange={(val) => { setSleepTime(val); persistUserPreferencesToSupabase({ sleep_time: val }); }}
+        notificationScope={notificationScope}
+        onNotificationScopeChange={setNotificationScope}
+        notificationLeadMinutes={notificationLeadMinutes}
+        onNotificationLeadMinutesChange={setNotificationLeadMinutes}
+        emailNotificationsEnabled={emailNotificationsEnabled}
+        onEmailNotificationsEnabledChange={setEmailNotificationsEnabled}
         onExploreFeaturesClick={() => {
           setIsSettingsOpen(false);
           setShowTour(true);
@@ -2835,6 +3071,7 @@ export default function App() {
         </div>
       )}
 
+      <UpdateChecker />
     </div >
   );
 }

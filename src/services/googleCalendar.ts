@@ -208,7 +208,39 @@ interface GcalEvent {
   attendees?: Array<{ email: string; self?: boolean; responseStatus?: string }>;
   description?: string;
   htmlLink?: string;
+  hangoutLink?: string;
+  conferenceData?: {
+    entryPoints?: Array<{ entryPointType?: string; uri?: string }>;
+  };
+  location?: string;
   recurringEventId?: string;
+}
+
+/** Extract the best meeting/conference link from a Google Calendar event. */
+function extractEventLink(evt: GcalEvent): string | undefined {
+  // 1. Conference data (Zoom, Meet, Teams, etc.)
+  if (evt.conferenceData?.entryPoints) {
+    const video = evt.conferenceData.entryPoints.find(
+      (ep) => ep.entryPointType === 'video' && ep.uri
+    );
+    if (video?.uri) return video.uri;
+  }
+  // 2. Hangout link (older Google Meet)
+  if (evt.hangoutLink) return evt.hangoutLink;
+  // 3. Location if it's a URL
+  if (evt.location && /^https?:\/\//i.test(evt.location.trim())) {
+    return evt.location.trim();
+  }
+  // 4. Google Calendar HTML link as fallback
+  return evt.htmlLink || undefined;
+}
+
+/** Extract location text (non-URL portion) from a Google Calendar event. */
+function extractEventLocation(evt: GcalEvent): string | undefined {
+  if (!evt.location) return undefined;
+  // If location is just a URL, don't duplicate it (already captured as link)
+  if (/^https?:\/\//i.test(evt.location.trim())) return undefined;
+  return evt.location;
 }
 
 /** Check if an event is one that others invited the user to (not self-organized). */
@@ -222,6 +254,29 @@ function isInviteFromOthers(evt: GcalEvent): boolean {
   // If there's an organizer that isn't self, treat as invite
   if (evt.organizer && !evt.organizer.self) return true;
   return false;
+}
+
+/** Check if the user is the organizer of this event. */
+function isUserOrganizer(evt: GcalEvent): boolean {
+  if (evt.organizer?.self) return true;
+  if (evt.creator?.self && !evt.organizer) return true;
+  return false;
+}
+
+/** Check if an event involves other people (has non-self attendees). */
+function hasOtherAttendees(evt: GcalEvent): boolean {
+  if (!evt.attendees || evt.attendees.length === 0) return false;
+  return evt.attendees.some(a => !a.self);
+}
+
+/** Map Google Calendar attendees to our attendee format. */
+function mapAttendees(evt: GcalEvent): Array<{ email: string; name?: string; self?: boolean; responseStatus?: string }> | undefined {
+  if (!evt.attendees || evt.attendees.length === 0) return undefined;
+  return evt.attendees.map(a => ({
+    email: a.email,
+    self: a.self,
+    responseStatus: a.responseStatus,
+  }));
 }
 
 type SyncMode = 'migrate_listen' | 'listen_with_history' | 'listen_fresh';
@@ -406,10 +461,11 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
         if (!evt.start.dateTime) continue;
 
         // Apply sync mode filter
+        // Always import: invites from others + user-created events with other attendees
         if (syncMode === 'listen_with_history') {
-          if (!isInviteFromOthers(evt)) continue;
+          if (!isInviteFromOthers(evt) && !hasOtherAttendees(evt)) continue;
         } else if (syncMode === 'listen_fresh') {
-          if (!isInviteFromOthers(evt)) continue;
+          if (!isInviteFromOthers(evt) && !hasOtherAttendees(evt)) continue;
           const evtStart = new Date(evt.start.dateTime);
           if (evtStart < new Date(connectedAt)) continue;
         }
@@ -427,6 +483,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
       for (const evt of oneOffEvents) {
         const start = parseGcalDateTime(evt.start);
         const end = parseGcalDateTime(evt.end);
+        const organizer = isUserOrganizer(evt);
         events.push({
           id: `gcal-evt-${evt.id}`,
           title: evt.summary,
@@ -438,9 +495,13 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           endDate: start.date !== end.date ? end.date : undefined,
           recurring: false,
           googleEventId: evt.id,
-          readOnly: true,
+          readOnly: !organizer,
+          isOrganizer: organizer,
           source: 'manual',
           description: evt.description || undefined,
+          link: extractEventLink(evt),
+          location: extractEventLocation(evt),
+          attendees: mapAttendees(evt),
         });
       }
 
@@ -455,6 +516,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
         const seriesId = `gcal-series-${recurringId}`;
 
         // Create one Timebox event per instance, all sharing the series ID
+        const organizer = isUserOrganizer(first);
         for (const evt of instances) {
           const start = parseGcalDateTime(evt.start);
           const end = parseGcalDateTime(evt.end);
@@ -473,9 +535,13 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
             recurrenceSeriesId: seriesId,
             googleEventId: evt.id,
             recurringGoogleEventId: recurringId,
-            readOnly: true,
+            readOnly: !organizer,
+            isOrganizer: organizer,
             source: 'manual',
             description: evt.description || first.description || undefined,
+            link: extractEventLink(evt) || extractEventLink(first),
+            location: extractEventLocation(evt) || extractEventLocation(first),
+            attendees: mapAttendees(evt) || mapAttendees(first),
           });
         }
       }

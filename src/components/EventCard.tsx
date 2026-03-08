@@ -13,6 +13,15 @@ import { useNow, useNowFrozen } from '../contexts/NowContext';
 
 const POPOVER_WIDTH = 220;
 const POPOVER_MAX_HEIGHT = 420;
+
+/** Convert URLs in plain text to clickable links. Escapes HTML to prevent XSS. */
+function linkifyText(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.replace(
+    /https?:\/\/[^\s<>"')\]]+/gi,
+    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#8DA286;text-decoration:underline" onclick="event.stopPropagation()">${url}</a>`
+  );
+}
 const GAP = 8;
 
 function patternLabel(pattern: RecurrencePattern | undefined): string {
@@ -333,6 +342,21 @@ export function EventCard({
                 {event.title || 'Untitled Event'}
               </span>
               <div className="flex items-center gap-1 shrink-0">
+                {event.link && /meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) && (
+                  <a
+                    href={event.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 rounded px-1 py-0.5 transition-colors"
+                    style={{ backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 9, fontWeight: 600, textDecoration: 'none', lineHeight: 1 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.25)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                    onClick={(e) => e.stopPropagation()}
+                    title="Join meeting"
+                  >
+                    Join
+                  </a>
+                )}
                 {event.googleEventId && (
                   <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
                 )}
@@ -439,6 +463,45 @@ export function EventCard({
                 </div>
               )}
 
+              {/* Attendees */}
+              {event.attendees && event.attendees.length > 0 && (
+                <div className="mt-1 mb-1">
+                  <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                      <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4H4zm9-7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm1 7c0-.7-.1-1.4-.4-2h2.4c.6 0 1 .4 1 1v1h-3z" />
+                    </svg>
+                    <span style={{ fontWeight: 500 }}>{event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="pl-4 flex flex-col gap-0.5">
+                    {event.attendees.slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex items-center gap-1.5" style={{ fontSize: 10, color: THEME.textSecondary }}>
+                        <div
+                          className="flex-shrink-0 rounded-full flex items-center justify-center"
+                          style={{
+                            width: 14, height: 14, fontSize: 7, fontWeight: 600,
+                            backgroundColor: a.self ? hexToRgba(categoryColor, 0.15) : 'rgba(0,0,0,0.06)',
+                            color: a.self ? categoryColor : THEME.textMuted,
+                          }}
+                        >
+                          {(a.name || a.email).charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate" style={{ maxWidth: 140 }}>
+                          {a.self ? 'You' : (a.name || a.email)}
+                        </span>
+                        {a.responseStatus && a.responseStatus !== 'needsAction' && (
+                          <span style={{ fontSize: 8, color: a.responseStatus === 'accepted' ? '#34C759' : a.responseStatus === 'declined' ? '#FF3B30' : THEME.textMuted }}>
+                            {a.responseStatus === 'accepted' ? '✓' : a.responseStatus === 'declined' ? '✕' : '?'}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {event.attendees.length > 5 && (
+                      <div style={{ fontSize: 9, color: THEME.textMuted }}>+{event.attendees.length - 5} more</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Details toggle — grouped with info above */}
               {(event.notes || event.description || event.link) && (
                 <div className="mt-0.5 mb-1">
@@ -455,20 +518,46 @@ export function EventCard({
                   </button>
                   {showDetails && (
                     <div className="mt-1">
+                      {event.link && (
+                        <a
+                          href={event.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 mb-1 px-1.5 py-1 rounded-md transition-colors"
+                          style={{ backgroundColor: 'rgba(141,162,134,0.08)', textDecoration: 'none', display: 'inline-flex' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)')}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) ? (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 3.5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z" stroke="#8DA286" strokeWidth="1"/><path d="M7 4l2-1v4l-2-1" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          ) : (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8 5.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a1 1 0 011-1h2" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/><path d="M6 1.5h2.5V4" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5L8.5 1.5" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/></svg>
+                          )}
+                          <span style={{ color: '#8DA286', fontSize: 10, fontWeight: 500 }}>
+                            {/meet\.google/i.test(event.link) ? 'Join Google Meet'
+                              : /zoom\.us/i.test(event.link) ? 'Join Zoom'
+                              : /teams\.microsoft/i.test(event.link) ? 'Join Teams'
+                              : /calendar\.google/i.test(event.link) ? 'Open in Google Calendar'
+                              : 'Open link'}
+                          </span>
+                        </a>
+                      )}
+                      {event.location && (
+                        <div className="flex items-center gap-1 mb-1" style={{ fontSize: 10, color: THEME.textMuted }}>
+                          <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 8C4.5 8 7.5 5.5 7.5 3.5a3 3 0 10-6 0C1.5 5.5 4.5 8 4.5 8z" stroke="currentColor" strokeWidth="0.9"/><circle cx="4.5" cy="3.5" r="1" stroke="currentColor" strokeWidth="0.9"/></svg>
+                          <span>{event.location}</span>
+                        </div>
+                      )}
                       {event.notes && (
                         <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                           {event.notes}
                         </div>
                       )}
                       {event.description && (
-                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>{event.description}</div>
-                      )}
-                      {event.link && (
-                        <div className="overflow-hidden">
-                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block" style={{ color: '#8DA286', fontSize: 10 }}>
-                            {event.link}
-                          </a>
-                        </div>
+                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}
+                          dangerouslySetInnerHTML={{ __html: linkifyText(event.description) }}
+                        />
                       )}
                     </div>
                   )}
@@ -513,13 +602,32 @@ export function EventCard({
                 </button>
               )}
 
-              {/* Read-only badge for synced/shared events */}
-              {event.readOnly && (
+              {/* Source badge for synced/shared events */}
+              {event.googleEventId && (
+                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                  {event.readOnly ? (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                        <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
+                      </svg>
+                      <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Synced from Google Calendar'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
+                        <path d="M8 16A8 8 0 108 0a8 8 0 000 16zm1-11v2h2a1 1 0 110 2H9v2a1 1 0 11-2 0V9H5a1 1 0 010-2h2V5a1 1 0 012 0z" />
+                      </svg>
+                      <span>Your event · Google Calendar</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {!event.googleEventId && event.readOnly && (
                 <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
                     <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
                   </svg>
-                  <span>{event.googleEventId ? 'Synced from Google Calendar' : event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
+                  <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
                 </div>
               )}
 

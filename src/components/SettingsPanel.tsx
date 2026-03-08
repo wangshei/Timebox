@@ -29,6 +29,12 @@ interface SettingsPanelProps {
   onWakeTimeChange?: (time: string) => void;
   onSleepTimeChange?: (time: string) => void;
   onExploreFeaturesClick?: () => void;
+  notificationScope?: 'events' | 'events_and_tasks' | 'off';
+  onNotificationScopeChange?: (scope: 'events' | 'events_and_tasks' | 'off') => void;
+  notificationLeadMinutes?: number;
+  onNotificationLeadMinutesChange?: (minutes: number) => void;
+  emailNotificationsEnabled?: boolean;
+  onEmailNotificationsEnabledChange?: (val: boolean) => void;
 }
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
@@ -62,6 +68,12 @@ export function SettingsPanel({
   onWakeTimeChange,
   onSleepTimeChange,
   onExploreFeaturesClick,
+  notificationScope = 'events',
+  onNotificationScopeChange,
+  notificationLeadMinutes = 5,
+  onNotificationLeadMinutesChange,
+  emailNotificationsEnabled = true,
+  onEmailNotificationsEnabledChange,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -717,6 +729,110 @@ export function SettingsPanel({
                   />
                 </div>
 
+                {/* ── Notifications ── */}
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Notifications</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Push notification scope */}
+                    <div
+                      className="py-3 px-3 rounded-lg"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <p style={{ fontSize: 12, fontWeight: 500, color: TEXT, marginBottom: 2 }}>Push notifications</p>
+                      <p style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 8 }}>Get reminded before events and tasks start</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { value: 'events' as const, label: 'Events only' },
+                          { value: 'events_and_tasks' as const, label: 'Events & tasks' },
+                          { value: 'off' as const, label: 'Off' },
+                        ]).map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onNotificationScopeChange?.(opt.value)}
+                            className="px-2.5 py-1 rounded-md transition-colors"
+                            style={{
+                              fontSize: 11,
+                              fontWeight: notificationScope === opt.value ? 600 : 400,
+                              backgroundColor: notificationScope === opt.value ? PRIMARY : 'rgba(0,0,0,0.05)',
+                              color: notificationScope === opt.value ? '#FFFFFF' : TEXT_SECONDARY,
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Lead time */}
+                    {notificationScope !== 'off' && (
+                      <div
+                        className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Remind before</p>
+                          <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Minutes before event starts</p>
+                        </div>
+                        <select
+                          value={notificationLeadMinutes}
+                          onChange={(e) => onNotificationLeadMinutesChange?.(Number(e.target.value))}
+                          className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                          style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 90 }}
+                        >
+                          <option value={0}>At start</option>
+                          <option value={1}>1 min</option>
+                          <option value={2}>2 min</option>
+                          <option value={5}>5 min</option>
+                          <option value={10}>10 min</option>
+                          <option value={15}>15 min</option>
+                          <option value={30}>30 min</option>
+                          <option value={60}>1 hour</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Email notifications */}
+                    <label
+                      htmlFor="email-notif-toggle"
+                      className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg cursor-pointer"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Email notifications</p>
+                        <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Notify attendees by email when you change an event</p>
+                      </div>
+                      <button
+                        id="email-notif-toggle"
+                        type="button"
+                        role="switch"
+                        aria-checked={emailNotificationsEnabled}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onEmailNotificationsEnabledChange?.(!emailNotificationsEnabled);
+                        }}
+                        className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        style={{
+                          backgroundColor: emailNotificationsEnabled ? PRIMARY : 'rgba(0,0,0,0.2)',
+                          minWidth: 44,
+                          minHeight: 24,
+                        }}
+                      >
+                        <span
+                          className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+                          style={{
+                            marginLeft: 2,
+                            marginTop: 2,
+                            transform: emailNotificationsEnabled ? 'translateX(20px)' : 'translateX(0)',
+                          }}
+                        />
+                      </button>
+                    </label>
+                  </div>
+                </div>
+
                 {/* ── Google Calendar ── */}
                 <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Google Calendar</span>
@@ -1048,6 +1164,52 @@ export function SettingsPanel({
                     Explore features
                   </button>
                 )}
+
+                {/* ── Get the Desktop App ── */}
+                <div style={{ marginTop: 20, gridColumn: '1 / -1' }}>
+                  <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 10 }}>Desktop App</h2>
+                  <div
+                    className="p-3 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}>
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                          <rect x="1.5" y="2.5" width="15" height="11" rx="1.5" stroke="#8DA286" strokeWidth="1.3" />
+                          <path d="M5.5 15.5h7" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
+                          <path d="M9 13.5v2" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>Screen activity tracking</p>
+                        <p style={{ fontSize: 11, color: '#8E8E93', margin: '2px 0 0' }}>Auto-records what you work on and shows it in your calendar. Knows when you're away.</p>
+                      </div>
+                    </div>
+                    <a
+                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 mt-3 py-2 px-3 rounded-lg cursor-pointer transition-colors"
+                      style={{
+                        backgroundColor: '#1C1C1E',
+                        color: '#FFFFFF',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        width: '100%',
+                        display: 'flex',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A3A3C')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1C1C1E')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M7 1v9M3.5 6.5L7 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      </svg>
+                      Download for macOS
+                    </a>
+                  </div>
+                </div>
               </>
             )}
 

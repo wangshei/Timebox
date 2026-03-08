@@ -20,6 +20,9 @@
  *   POST /share-invite { action: 'shared_with_me' }
  *     → List shares the current user is a member of.
  *
+ *   POST /share-invite { action: 'notify_event_update', eventTitle, attendeeEmails[], changes, senderName }
+ *     → Notify attendees when the organizer updates an event.
+ *
  * Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_URL, RESEND_API_KEY, FROM_EMAIL
  */
 
@@ -142,6 +145,99 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
     const body = await res.text()
     console.error(`[share-invite] Resend error: ${body}`)
   }
+}
+
+// --- Event Update Notification ---
+
+function eventUpdateEmailHtml(senderName: string, eventTitle: string, changes: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+<tr><td align="center" style="padding:48px 24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <tr><td style="padding:32px 32px 0;text-align:center;">
+      <div style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:14px;font-weight:700;padding:8px 20px;border-radius:20px;letter-spacing:0.5px;">
+        The Timeboxing Club
+      </div>
+    </td></tr>
+    <tr><td style="padding:24px 32px 16px;text-align:center;">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1C1C1E;">Event Updated</h1>
+      <p style="margin:0;font-size:15px;color:#636366;line-height:1.5;">
+        <strong>${senderName}</strong> updated <strong>"${eventTitle}"</strong>
+      </p>
+    </td></tr>
+    <tr><td style="padding:8px 32px 24px;text-align:center;">
+      <div style="text-align:left;background-color:#F8F7F4;border-radius:10px;padding:16px;margin-bottom:16px;">
+        <p style="margin:0;font-size:13px;color:#3A3A3C;line-height:1.6;white-space:pre-line;">${changes}</p>
+      </div>
+      <a href="${APP_URL}" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">
+        View Calendar
+      </a>
+    </td></tr>
+    <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #F0F0F0;">
+      <p style="margin:0;font-size:12px;color:#AEAEB2;">
+        You received this because you're an attendee of this event.
+      </p>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+async function sendEventUpdateEmail(recipientEmail: string, senderName: string, eventTitle: string, changes: string) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
+
+  if (!resendApiKey) {
+    console.warn('[share-invite] No RESEND_API_KEY — skipping notification email')
+    return
+  }
+
+  const html = eventUpdateEmailHtml(senderName, eventTitle, changes)
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: recipientEmail,
+      subject: `${senderName} updated "${eventTitle}"`,
+      html,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`[share-invite] Resend error: ${body}`)
+  }
+}
+
+async function notifyEventUpdate(userId: string, body: Record<string, unknown>) {
+  const { eventTitle, attendeeEmails, changes, senderName: providedName } = body
+
+  if (!eventTitle || !attendeeEmails || !Array.isArray(attendeeEmails)) {
+    throw new Error('Missing required fields: eventTitle, attendeeEmails')
+  }
+
+  const senderName = (providedName as string) || await getUserName(userId)
+  const changesText = (changes as string) || 'Event details have been updated.'
+
+  // Send notification emails in parallel (skip the organizer's own email)
+  const emailPromises = (attendeeEmails as string[])
+    .filter((email: string) => email && email.trim())
+    .map((email: string) =>
+      sendEventUpdateEmail(email, senderName, eventTitle as string, changesText)
+    )
+  await Promise.allSettled(emailPromises)
+
+  return { success: true, notified: emailPromises.length }
 }
 
 // --- Create Share ---
@@ -480,6 +576,9 @@ serve(async (req) => {
         break
       case 'shared_with_me':
         result = await sharedWithMe(userId)
+        break
+      case 'notify_event_update':
+        result = await notifyEventUpdate(userId, body)
         break
       default:
         throw new Error(`Unknown action: ${action}`)
