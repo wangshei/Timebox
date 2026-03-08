@@ -523,6 +523,29 @@ export function EventCard({
                 </div>
               )}
 
+              {/* Remove from Timebox — for Google/shared read-only events */}
+              {event.readOnly && onDeleteEvent && (
+                <>
+                  <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                    style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteEvent(event.id);
+                      setShowPopover(false);
+                      onDeselect();
+                    }}
+                  >
+                    <TrashIcon style={{ width: 11, height: 11 }} />
+                    Remove from Timebox
+                  </button>
+                </>
+              )}
+
               {/* Edit / Delete — below another line (hidden for read-only events) */}
               {!event.readOnly && <>
               <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
