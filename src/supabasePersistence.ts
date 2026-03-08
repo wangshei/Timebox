@@ -115,12 +115,15 @@ export async function loadSupabaseState() {
     console.warn('[supabasePersistence] user_settings upsert skipped (table may not exist):', upsertRes.error);
   }
 
-  let containers = (containersRes.data ?? []) as any[];
-  let categories = (categoriesRes.data ?? []) as any[];
+  // Filter out gcal containers/categories/events on load — they're ephemeral and
+  // will be re-injected from the Google API. Any that leaked into Supabase from
+  // earlier versions will be cleaned up by the orphan-delete phase on next save.
+  let containers = ((containersRes.data ?? []) as any[]).filter((c: any) => !String(c.id).startsWith('gcal-'));
+  let categories = ((categoriesRes.data ?? []) as any[]).filter((c: any) => !String(c.id).startsWith('gcal-cat-'));
   const tags = (tagsRes.data ?? []) as any[];
   const tasks = (tasksRes.data ?? []) as any[];
   const blocks = (blocksRes.data ?? []) as any[];
-  const events = (eventsRes.data ?? []) as any[];
+  const events = ((eventsRes.data ?? []) as any[]).filter((e: any) => !String(e.id).startsWith('gcal-evt-'));
 
   // New user (or data lost): give them a default Personal calendar + a General
   // category so they can start adding tasks/events immediately. The persistence
@@ -277,9 +280,11 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   // --- PHASE 1: UPSERT everything first (parent → child order for FK safety) ---
   // This ensures data is never lost even if the delete phase fails.
 
-  if (state.calendarContainers.length) {
+  // Filter out gcal containers/categories — they're ephemeral, sourced from Google API on each load
+  const nonGcalContainers = state.calendarContainers.filter(c => !c.id.startsWith('gcal-'));
+  if (nonGcalContainers.length) {
     check('calendar_containers', 'upsert', await supabase.from('calendar_containers').upsert(
-      state.calendarContainers.map((c) => ({
+      nonGcalContainers.map((c) => ({
         id: c.id,
         user_id: userId,
         name: c.name,
@@ -288,9 +293,10 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       { onConflict: 'id' }
     ));
   }
-  if (state.categories.length) {
+  const nonGcalCategories = state.categories.filter(c => !c.id.startsWith('gcal-cat-'));
+  if (nonGcalCategories.length) {
     check('categories', 'upsert', await supabase.from('categories').upsert(
-      state.categories.map((c) => ({
+      nonGcalCategories.map((c) => ({
         id: c.id,
         user_id: userId,
         name: c.name,
@@ -400,8 +406,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   // Only delete by specific IDs, NOT "delete all". This way, if phase 1 partially
   // failed on a previous run, we don't wipe data that hasn't been re-inserted.
 
-  const containerIds = state.calendarContainers.map((c) => c.id);
-  const categoryIds = state.categories.map((c) => c.id);
+  const containerIds = nonGcalContainers.map((c) => c.id);
+  const categoryIds = nonGcalCategories.map((c) => c.id);
   const tagIds = state.tags.map((t) => t.id);
   const taskIds = state.tasks.map((t) => t.id);
   const blockIds = state.timeBlocks.map((b) => b.id);
