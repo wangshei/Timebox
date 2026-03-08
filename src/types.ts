@@ -122,6 +122,7 @@ export interface Event {
   /** For "all after" edits: id of the first event in the series. */
   recurrenceSeriesId?: string | null;
   link?: string | null;
+  location?: string | null;
   description?: string | null;
   /** Quick inline notes — shown in the detail popup. */
   notes?: string | null;

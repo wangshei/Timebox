@@ -35,5 +35,8 @@ lerna-debug.log*
 *.sln
 *.sw?
 
+# Tauri
+src-tauri/target/
+
 # OS
 Thumbs.db

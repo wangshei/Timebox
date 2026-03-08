@@ -1,0 +1,312 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  isTauri,
+  startTracking,
+  stopTracking,
+  isTracking as checkIsTracking,
+  getActivitySummary,
+  getActivityLog,
+  CategorySummary,
+  ActivityEntry,
+} from '../services/desktopActivity';
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Coding: '#8DA286',
+  'AI Agent': '#B07CD8',
+  'AI Agent (working)': '#9B59B6',
+  'AI Agent (you)': '#C39BD3',
+  Communication: '#6B9BD2',
+  Browsing: '#D4A574',
+  Design: '#C27BA0',
+  Writing: '#9B8EC0',
+  Entertainment: '#E8806A',
+  Music: '#5BBFBF',
+  System: '#A0A0A0',
+  Other: '#C0C0C0',
+};
+
+function formatDuration(minutes: number): string {
+  if (minutes < 1) return '<1m';
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+interface ActivityPanelProps {
+  selectedDate: string; // YYYY-MM-DD
+  onClose: () => void;
+}
+
+export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelProps) {
+  const [tracking, setTracking] = useState(false);
+  const [summary, setSummary] = useState<CategorySummary[]>([]);
+  const [entries, setEntries] = useState<ActivityEntry[]>([]);
+  const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('summary');
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [summaryData, entriesData, trackingStatus] = await Promise.all([
+        getActivitySummary(selectedDate),
+        getActivityLog(selectedDate, selectedDate),
+        checkIsTracking(),
+      ]);
+      setSummary(summaryData);
+      setEntries(entriesData);
+      setTracking(trackingStatus);
+    } catch (err) {
+      console.error('[activity] Failed to load data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Only poll when tracking is active
+  useEffect(() => {
+    if (!tracking) return;
+    const interval = setInterval(loadData, 15000);
+    return () => clearInterval(interval);
+  }, [tracking, loadData]);
+
+  const handleToggleTracking = async () => {
+    try {
+      if (tracking) {
+        await stopTracking();
+        setTracking(false);
+        setTimeout(loadData, 500);
+      } else {
+        await startTracking();
+        setTracking(true);
+      }
+    } catch (err) {
+      console.error('[activity] Tracking toggle failed:', err);
+      // Re-sync state with backend
+      try {
+        const actual = await checkIsTracking();
+        setTracking(actual);
+      } catch { /* ignore */ }
+    }
+  };
+
+  const totalMinutes = summary.reduce((sum, s) => sum + s.total_minutes, 0);
+
+  if (!isTauri()) {
+    return (
+      <div className="flex flex-col h-full" style={{ backgroundColor: '#FCFBF7' }}>
+        <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+          <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
+          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-black/5">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="#8E8E93" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center px-6 text-center">
+          <p style={{ color: '#8E8E93', fontSize: 13 }}>
+            Screen activity tracking is only available in the desktop app.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#FCFBF7' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
+        <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
+        <button type="button" onClick={onClose} className="p-1 rounded hover:bg-black/5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M1 1l12 12M13 1L1 13" stroke="#8E8E93" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
+        {/* Tracking toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: tracking ? '#34C759' : '#C7C7CC' }}
+            />
+            <span style={{ fontSize: 12, color: '#3A3A3C', fontWeight: 500 }}>
+              {tracking ? 'Tracking active' : 'Tracking paused'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleTracking}
+            className="px-3 py-1 rounded-full text-white transition-colors"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              backgroundColor: tracking ? '#FF3B30' : '#8DA286',
+            }}
+          >
+            {tracking ? 'Stop' : 'Start'}
+          </button>
+        </div>
+
+        {/* Total time */}
+        {totalMinutes > 0 && (
+          <div className="mb-4">
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', lineHeight: 1 }}>
+              {formatDuration(totalMinutes)}
+            </div>
+            <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>total screen time</div>
+          </div>
+        )}
+
+        {/* View toggle */}
+        <div className="flex gap-1 mb-3 p-0.5 rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
+          {(['summary', 'timeline'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className="flex-1 py-1 rounded-md transition-all"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: viewMode === mode ? '#1C1C1E' : '#8E8E93',
+                backgroundColor: viewMode === mode ? '#fff' : 'transparent',
+                boxShadow: viewMode === mode ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              }}
+            >
+              {mode === 'summary' ? 'Summary' : 'Timeline'}
+            </button>
+          ))}
+        </div>
+
+        {loading && summary.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <span style={{ fontSize: 12, color: '#8E8E93' }}>Loading...</span>
+          </div>
+        ) : viewMode === 'summary' ? (
+          <SummaryView summary={summary} totalMinutes={totalMinutes} />
+        ) : (
+          <TimelineView entries={entries} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SummaryView({ summary, totalMinutes }: { summary: CategorySummary[]; totalMinutes: number }) {
+  if (summary.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p style={{ fontSize: 12, color: '#8E8E93' }}>No activity recorded on this date.</p>
+        <p style={{ fontSize: 11, color: '#AEAEB2', marginTop: 4 }}>Start tracking to see your screen time breakdown.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Category bar chart */}
+      <div className="flex rounded-lg overflow-hidden h-3">
+        {summary.map((cat) => (
+          <div
+            key={cat.category}
+            style={{
+              width: `${(cat.total_minutes / totalMinutes) * 100}%`,
+              backgroundColor: CATEGORY_COLORS[cat.category] || '#C0C0C0',
+              minWidth: 4,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Category list */}
+      {summary.map((cat) => (
+        <div key={cat.category}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2.5 h-2.5 rounded-sm"
+                style={{ backgroundColor: CATEGORY_COLORS[cat.category] || '#C0C0C0' }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E' }}>{cat.category}</span>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#3A3A3C' }}>
+              {formatDuration(cat.total_minutes)}
+            </span>
+          </div>
+          {/* App details */}
+          <div className="pl-5 space-y-0.5">
+            {cat.app_details.map((app) => (
+              <div key={app.app_name} className="flex items-center justify-between">
+                <span style={{ fontSize: 11, color: '#8E8E93' }}>{app.app_name}</span>
+                <span style={{ fontSize: 11, color: '#AEAEB2' }}>{formatDuration(app.minutes)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TimelineView({ entries }: { entries: ActivityEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p style={{ fontSize: 12, color: '#8E8E93' }}>No activity recorded on this date.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {entries.map((entry) => {
+        const startTime = new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const endTime = new Date(entry.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const color = CATEGORY_COLORS[entry.category] || '#C0C0C0';
+
+        return (
+          <div
+            key={entry.id}
+            className="flex items-start gap-2 py-1.5 px-2 rounded-md"
+            style={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
+          >
+            <div
+              className="w-0.5 rounded-full flex-shrink-0 mt-0.5"
+              style={{ backgroundColor: color, height: 28 }}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span
+                  className="truncate"
+                  style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E', maxWidth: '65%' }}
+                >
+                  {entry.app_name}
+                </span>
+                <span style={{ fontSize: 10, color: '#AEAEB2', flexShrink: 0 }}>
+                  {formatDuration(entry.duration_secs / 60)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span style={{ fontSize: 10, color: '#8E8E93' }}>{startTime} – {endTime}</span>
+                <span
+                  className="px-1.5 py-0 rounded-full"
+                  style={{ fontSize: 9, color, backgroundColor: `${color}18`, fontWeight: 500 }}
+                >
+                  {entry.category}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

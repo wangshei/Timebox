@@ -18,6 +18,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { MobileApp } from './components/MobileApp';
+import ActivityPanel from './components/ActivityPanel';
+import { isTauri, getActivityBlocks, ActivityBlock } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
@@ -36,7 +38,7 @@ import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
 import { getLocalDateString, getViewDateRange } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
-import type { Category, Tag, Mode as StoreMode } from './types';
+import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
@@ -177,6 +179,7 @@ export default function App() {
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileTodoPanelOpen, setMobileTodoPanelOpen] = useState(false);
   const leftBarDragJustEnded = useRef(false);
@@ -363,15 +366,62 @@ export default function App() {
 
   const { saveSnapshot } = useHistoryStore();
 
+  // Load activity blocks from desktop tracker for calendar integration
+  const [activityTimeBlocks, setActivityTimeBlocks] = useState<TimeBlock[]>([]);
+  const defaultContainerId = calendarContainers[0]?.id ?? '';
+  useEffect(() => {
+    if (!isTauri() || !activityPanelOpen || !defaultContainerId) {
+      setActivityTimeBlocks([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const blocks = await getActivityBlocks(selectedDate);
+        if (cancelled) return;
+        const converted: TimeBlock[] = blocks.map((ab, i) => {
+          const start = new Date(ab.start_time);
+          const end = new Date(ab.end_time);
+          const startHH = String(start.getHours()).padStart(2, '0');
+          const startMM = String(start.getMinutes()).padStart(2, '0');
+          const endHH = String(end.getHours()).padStart(2, '0');
+          const endMM = String(end.getMinutes()).padStart(2, '0');
+          return {
+            id: `activity-${ab.date}-${i}`,
+            title: `${ab.category}: ${ab.app_name}`,
+            calendarContainerId: defaultContainerId,
+            categoryId: '',
+            tagIds: [],
+            start: `${startHH}:${startMM}`,
+            end: `${endHH}:${endMM}`,
+            date: ab.date,
+            mode: 'planned' as const,
+            source: 'unplanned' as const,
+            confirmationStatus: 'confirmed' as const,
+          };
+        });
+        setActivityTimeBlocks(converted);
+      } catch (err) {
+        console.error('[activity] Failed to load blocks:', err);
+      }
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedDate, activityPanelOpen, defaultContainerId]);
+
   const visibleTimeBlocks = useMemo(
-    () =>
-      selectTimeBlocksForView(
+    () => {
+      const base = selectTimeBlocksForView(
         timeBlocks,
         selectedDate,
         view,
         containerVisibility
-      ),
-    [timeBlocks, selectedDate, view, containerVisibility]
+      );
+      // Append activity-tracked blocks when activity panel is open
+      return activityTimeBlocks.length > 0 ? [...base, ...activityTimeBlocks] : base;
+    },
+    [timeBlocks, selectedDate, view, containerVisibility, activityTimeBlocks]
   );
 
   const visibleEvents = useMemo(() => {
@@ -2405,7 +2455,27 @@ export default function App() {
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
-              <TimerWidget />
+              <div className="flex items-center gap-1.5">
+                {isTauri() && (
+                  <button
+                    type="button"
+                    onClick={() => setActivityPanelOpen(!activityPanelOpen)}
+                    className="p-1 rounded transition-colors"
+                    style={{
+                      color: activityPanelOpen ? '#8DA286' : '#8E8E93',
+                      backgroundColor: activityPanelOpen ? 'rgba(141,162,134,0.12)' : 'transparent',
+                    }}
+                    title="Screen activity"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M5 14h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      <path d="M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+                <TimerWidget />
+              </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <RightSidebar
@@ -2441,6 +2511,11 @@ export default function App() {
                 onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
             </div>
+          </div>
+        )}
+        {activityPanelOpen && (
+          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', borderLeft: '1px solid rgba(0,0,0,0.09)' }}>
+            <ActivityPanel selectedDate={selectedDate} onClose={() => setActivityPanelOpen(false)} />
           </div>
         )}
       </div>

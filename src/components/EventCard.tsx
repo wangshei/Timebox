@@ -13,6 +13,15 @@ import { useNow, useNowFrozen } from '../contexts/NowContext';
 
 const POPOVER_WIDTH = 220;
 const POPOVER_MAX_HEIGHT = 420;
+
+/** Convert URLs in plain text to clickable links. Escapes HTML to prevent XSS. */
+function linkifyText(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.replace(
+    /https?:\/\/[^\s<>"')\]]+/gi,
+    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#8DA286;text-decoration:underline" onclick="event.stopPropagation()">${url}</a>`
+  );
+}
 const GAP = 8;
 
 function patternLabel(pattern: RecurrencePattern | undefined): string {
@@ -333,6 +342,21 @@ export function EventCard({
                 {event.title || 'Untitled Event'}
               </span>
               <div className="flex items-center gap-1 shrink-0">
+                {event.link && /meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) && (
+                  <a
+                    href={event.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 rounded px-1 py-0.5 transition-colors"
+                    style={{ backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 9, fontWeight: 600, textDecoration: 'none', lineHeight: 1 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.25)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                    onClick={(e) => e.stopPropagation()}
+                    title="Join meeting"
+                  >
+                    Join
+                  </a>
+                )}
                 {event.googleEventId && (
                   <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
                 )}
@@ -455,20 +479,46 @@ export function EventCard({
                   </button>
                   {showDetails && (
                     <div className="mt-1">
+                      {event.link && (
+                        <a
+                          href={event.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 mb-1 px-1.5 py-1 rounded-md transition-colors"
+                          style={{ backgroundColor: 'rgba(141,162,134,0.08)', textDecoration: 'none', display: 'inline-flex' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)')}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) ? (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 3.5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z" stroke="#8DA286" strokeWidth="1"/><path d="M7 4l2-1v4l-2-1" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          ) : (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8 5.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a1 1 0 011-1h2" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/><path d="M6 1.5h2.5V4" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5L8.5 1.5" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/></svg>
+                          )}
+                          <span style={{ color: '#8DA286', fontSize: 10, fontWeight: 500 }}>
+                            {/meet\.google/i.test(event.link) ? 'Join Google Meet'
+                              : /zoom\.us/i.test(event.link) ? 'Join Zoom'
+                              : /teams\.microsoft/i.test(event.link) ? 'Join Teams'
+                              : /calendar\.google/i.test(event.link) ? 'Open in Google Calendar'
+                              : 'Open link'}
+                          </span>
+                        </a>
+                      )}
+                      {event.location && (
+                        <div className="flex items-center gap-1 mb-1" style={{ fontSize: 10, color: THEME.textMuted }}>
+                          <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 8C4.5 8 7.5 5.5 7.5 3.5a3 3 0 10-6 0C1.5 5.5 4.5 8 4.5 8z" stroke="currentColor" strokeWidth="0.9"/><circle cx="4.5" cy="3.5" r="1" stroke="currentColor" strokeWidth="0.9"/></svg>
+                          <span>{event.location}</span>
+                        </div>
+                      )}
                       {event.notes && (
                         <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>
                           {event.notes}
                         </div>
                       )}
                       {event.description && (
-                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>{event.description}</div>
-                      )}
-                      {event.link && (
-                        <div className="overflow-hidden">
-                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block" style={{ color: '#8DA286', fontSize: 10 }}>
-                            {event.link}
-                          </a>
-                        </div>
+                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}
+                          dangerouslySetInnerHTML={{ __html: linkifyText(event.description) }}
+                        />
                       )}
                     </div>
                   )}

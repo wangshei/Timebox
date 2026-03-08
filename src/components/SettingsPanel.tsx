@@ -1048,6 +1048,52 @@ export function SettingsPanel({
                     Explore features
                   </button>
                 )}
+
+                {/* ── Get the Desktop App ── */}
+                <div style={{ marginTop: 20, gridColumn: '1 / -1' }}>
+                  <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 10 }}>Desktop App</h2>
+                  <div
+                    className="p-3 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}>
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                          <rect x="1.5" y="2.5" width="15" height="11" rx="1.5" stroke="#8DA286" strokeWidth="1.3" />
+                          <path d="M5.5 15.5h7" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
+                          <path d="M9 13.5v2" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>Screen activity tracking</p>
+                        <p style={{ fontSize: 11, color: '#8E8E93', margin: '2px 0 0' }}>Auto-records what you work on and shows it in your calendar. Knows when you're away.</p>
+                      </div>
+                    </div>
+                    <a
+                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 mt-3 py-2 px-3 rounded-lg cursor-pointer transition-colors"
+                      style={{
+                        backgroundColor: '#1C1C1E',
+                        color: '#FFFFFF',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        width: '100%',
+                        display: 'flex',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A3A3C')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1C1C1E')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M7 1v9M3.5 6.5L7 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                      </svg>
+                      Download for macOS
+                    </a>
+                  </div>
+                </div>
               </>
             )}
 
