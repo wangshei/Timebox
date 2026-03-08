@@ -14,15 +14,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # macOS ARM (M1+) — native build on ARM runner
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
             rust-target: aarch64-apple-darwin
-          - platform: macos-latest
+          # macOS Intel — use older Intel runner
+          - platform: macos-13
             args: '--target x86_64-apple-darwin'
             rust-target: x86_64-apple-darwin
+          # Linux
           - platform: ubuntu-22.04
             args: ''
             rust-target: ''
+          # Windows
           - platform: windows-latest
             args: ''
             rust-target: ''
@@ -45,7 +49,18 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxcb1-dev libx11-dev libxrandr-dev libxinerama-dev pkg-config
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libxcb1-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            pkg-config
 
       - name: Install frontend dependencies
         run: npm ci
