@@ -434,9 +434,12 @@ function NowTab() {
 
   const hasAnythingToday = todayBlocks.length > 0 || todayEvents.length > 0;
 
+  // Determine if we have active content (timer, current block, reviews, upcoming)
+  const hasContent = activeTimer || currentBlock || showStartForm || pendingReview.length > 0 || upNext.length > 0;
+
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden" style={{ padding: '24px 16px' }}>
-      {/* Header */}
+      {/* Header — always visible */}
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 12, color: '#AEAEB2', fontWeight: 500, margin: 0, letterSpacing: '0.03em' }}>
           {formatDateHeader(today)}
@@ -511,28 +514,82 @@ function NowTab() {
         </div>
       )}
 
-      {/* Start timer CTA */}
-      {!activeTimer && !showStartForm && (
-        <button
-          type="button"
-          onClick={() => setShowStartForm(true)}
-          className="touch-manipulation flex items-center justify-center gap-2"
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: 14,
-            backgroundColor: THEME.primary,
-            color: '#FFFFFF',
-            fontSize: 15,
-            fontWeight: 600,
-            border: 'none',
-            marginBottom: 24,
-            boxShadow: '0 2px 8px rgba(141,162,134,0.3)',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-          Start tracking
-        </button>
+      {/* Idle state — centered CTA */}
+      {!activeTimer && !currentBlock && !showStartForm && (
+        <>
+          {/* Spacer to push content to ~40% from top */}
+          <div style={{ flex: '0 0 15%' }} />
+
+          <div className="flex flex-col items-center" style={{ padding: '0 16px' }}>
+            {/* Clock icon */}
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: `${THEME.primary}10`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={THEME.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity={0.7}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+
+            <p style={{ fontSize: 14, color: '#8E8E93', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
+              {hasAnythingToday ? 'No active block right now' : 'Nothing scheduled yet'}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowStartForm(true)}
+              className="touch-manipulation flex items-center justify-center gap-2"
+              style={{
+                width: '100%',
+                maxWidth: 280,
+                padding: '14px',
+                borderRadius: 14,
+                backgroundColor: THEME.primary,
+                color: '#FFFFFF',
+                fontSize: 15,
+                fontWeight: 600,
+                border: 'none',
+                boxShadow: '0 2px 8px rgba(141,162,134,0.3)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+              Start tracking
+            </button>
+          </div>
+
+          {/* Up next preview in idle state */}
+          {upNext.length > 0 && (
+            <div style={{ marginTop: 32, width: '100%' }}>
+              <SectionLabel>Up next</SectionLabel>
+              {upNext.slice(0, 3).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3"
+                  style={{ ...CARD_STYLE, borderLeft: `3px solid ${item.color}` }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p style={{ fontSize: 14, fontWeight: 500, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.title}
+                    </p>
+                    <p style={{ fontSize: 11, color: '#AEAEB2', margin: '2px 0 0' }}>
+                      {formatTime12(item.start)} – {formatTime12(item.end)}
+                      {item.type === 'event' && <span style={{ marginLeft: 6, fontSize: 10, fontStyle: 'italic', color: '#C7C7CC' }}>event</span>}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ flex: 1 }} />
+        </>
       )}
 
       {/* Start timer form */}
@@ -722,8 +779,8 @@ function NowTab() {
         </div>
       )}
 
-      {/* Up next */}
-      {upNext.length > 0 && (
+      {/* Up next (only shown when there's active content — otherwise shown in idle center) */}
+      {hasContent && upNext.length > 0 && (
         <div>
           <SectionLabel>Up next</SectionLabel>
           {upNext.map((item) => (
@@ -743,31 +800,6 @@ function NowTab() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!activeTimer && !currentBlock && !hasAnythingToday && !showStartForm && (
-        <div className="flex flex-col items-center" style={{ marginTop: 20, padding: '0 20px' }}>
-          <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: `${THEME.primary}12`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 14,
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={THEME.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity={0.6}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <p style={{ fontSize: 14, color: '#AEAEB2', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
-            No blocks scheduled for today.<br />
-            Tap above to start tracking time.
-          </p>
         </div>
       )}
     </div>
@@ -1053,9 +1085,13 @@ function TodayTab() {
 
           {/* Current time indicator */}
           {showNowLine && (
-            <div style={{ position: 'absolute', top: nowLineTop, left: TIME_COL_WIDTH - 4, right: 0, zIndex: 10, pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', top: nowLineTop, left: 0, right: 8, zIndex: 10, pointerEvents: 'none' }}>
               <div className="flex items-center">
-                <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30', flexShrink: 0 }} />
+                {/* Time label */}
+                <span style={{ fontSize: 9, fontWeight: 600, color: '#FF3B30', width: TIME_COL_WIDTH, textAlign: 'right', paddingRight: 6, flexShrink: 0 }}>
+                  {(() => { const h = Math.floor(nowMins / 60); const m = nowMins % 60; const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return `${h12}:${String(m).padStart(2, '0')}`; })()}
+                </span>
+                <div style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF3B30', flexShrink: 0, marginLeft: -3 }} />
                 <div style={{ flex: 1, height: 1.5, backgroundColor: '#FF3B30' }} />
               </div>
             </div>
@@ -1152,6 +1188,9 @@ function CaptureTab() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden" style={{ padding: '24px 16px' }}>
+      {/* Push form toward upper-third when empty */}
+      {recentCaptures.length === 0 && <div style={{ flex: '0 0 12%' }} />}
+
       <h1 style={{ fontSize: 22, fontWeight: 700, color: THEME.textPrimary, margin: '0 0 4px' }}>
         Quick Capture
       </h1>
@@ -1251,7 +1290,7 @@ function CaptureTab() {
       </div>
 
       {/* Recent captures */}
-      {recentCaptures.length > 0 && (
+      {recentCaptures.length > 0 ? (
         <div>
           <SectionLabel count={recentCaptures.length}>Just captured</SectionLabel>
           {recentCaptures.map((item, i) => (
@@ -1265,6 +1304,8 @@ function CaptureTab() {
             </div>
           ))}
         </div>
+      ) : (
+        <div style={{ flex: 1.5 }} />
       )}
     </div>
   );
@@ -1346,12 +1387,15 @@ function TasksTab() {
       {/* Task list */}
       <div className="flex-1 overflow-y-auto" style={{ padding: '0 16px 16px' }}>
         {activeTasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center" style={{ height: 200 }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10 }}>
+          <div className="flex flex-col items-center justify-center" style={{ flex: 1, minHeight: 0 }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            <p style={{ fontSize: 14, color: '#AEAEB2', margin: 0 }}>
+            <p style={{ fontSize: 15, color: '#AEAEB2', margin: 0 }}>
               {filter === 'done' ? 'No completed tasks' : 'No tasks yet'}
+            </p>
+            <p style={{ fontSize: 12, color: '#C7C7CC', margin: '6px 0 0', textAlign: 'center' }}>
+              {filter !== 'done' ? 'Use Capture to add tasks quickly' : ''}
             </p>
           </div>
         )}
