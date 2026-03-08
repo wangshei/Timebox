@@ -263,6 +263,7 @@ function ScheduleTab() {
   const calendarContainers = useStore((s) => s.calendarContainers);
   const activeTimer = useStore((s) => s.activeTimer);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
+  const updateTimeBlock = useStore((s) => s.updateTimeBlock);
   const startTimer = useStore((s) => s.startTimer);
   const stopTimer = useStore((s) => s.stopTimer);
   const confirmBlock = useStore((s) => s.confirmBlock);
@@ -273,6 +274,9 @@ function ScheduleTab() {
   const sleepTime = useStore((s) => s.sleepTime);
   const { saveSnapshot } = useHistoryStore();
 
+  const weekStartsOnMonday = useStore((s) => s.weekStartsOnMonday);
+
+  const [scheduleView, setScheduleView] = useState<'day' | 'week'>('day');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [tappedBlockId, setTappedBlockId] = useState<string | null>(null);
   const [showStartForm, setShowStartForm] = useState(false);
@@ -282,6 +286,14 @@ function ScheduleTab() {
   const [elapsed, setElapsed] = useState('0:00');
   const gridRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Touch drag state ────────────────────────────────────
+  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
+  const [dragOffsetMins, setDragOffsetMins] = useState(0);
+  const [dragCurrentTop, setDragCurrentTop] = useState(0);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartYRef = useRef(0);
+  const dragBlockInfoRef = useRef<{ durationMins: number; startMins: number } | null>(null);
 
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
@@ -418,6 +430,81 @@ function ScheduleTab() {
     setTappedBlockId(null);
   };
 
+  // ─── Touch drag handlers ──────────────────────────────────
+  const handleBlockTouchStart = useCallback((e: React.TouchEvent, blockId: string, startMins: number, durationMins: number) => {
+    const touch = e.touches[0];
+    touchStartYRef.current = touch.clientY;
+    dragBlockInfoRef.current = { durationMins, startMins };
+
+    // Long press to start drag (300ms)
+    longPressTimerRef.current = setTimeout(() => {
+      setDraggingBlockId(blockId);
+      setDragOffsetMins(0);
+      const top = ((startMins - gridStartMins) / 60) * HOUR_HEIGHT;
+      setDragCurrentTop(top);
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 300);
+  }, [gridStartMins]);
+
+  const handleBlockTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!draggingBlockId || !gridRef.current || !dragBlockInfoRef.current) {
+      // Cancel long press if finger moved before it triggered
+      if (longPressTimerRef.current) {
+        const touch = e.touches[0];
+        const dy = Math.abs(touch.clientY - touchStartYRef.current);
+        if (dy > 8) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+      }
+      return;
+    }
+    e.preventDefault(); // prevent scroll while dragging
+
+    const touch = e.touches[0];
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const scrollTop = gridRef.current.scrollTop;
+    const relativeY = touch.clientY - gridRect.top + scrollTop;
+
+    // Snap to 15-min intervals
+    const totalMins = (relativeY / HOUR_HEIGHT) * 60 + gridStartMins;
+    const snappedMins = Math.round(totalMins / 15) * 15;
+    const clampedMins = Math.max(gridStartMins, Math.min(snappedMins, gridStartMins + gridTotalMins - dragBlockInfoRef.current.durationMins));
+
+    const newTop = ((clampedMins - gridStartMins) / 60) * HOUR_HEIGHT;
+    setDragCurrentTop(newTop);
+    setDragOffsetMins(clampedMins - dragBlockInfoRef.current.startMins);
+  }, [draggingBlockId, gridStartMins, gridTotalMins]);
+
+  const handleBlockTouchEnd = useCallback(() => {
+    // Clear long press timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    if (draggingBlockId && dragBlockInfoRef.current && dragOffsetMins !== 0) {
+      const block = timeBlocks.find((b) => b.id === draggingBlockId);
+      if (block) {
+        const oldStart = parseTimeToMinutes(block.start);
+        const oldEnd = parseTimeToMinutes(block.end);
+        const newStart = oldStart + dragOffsetMins;
+        const newEnd = oldEnd + dragOffsetMins;
+        const fmtTime = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+        saveSnapshot();
+        updateTimeBlock(draggingBlockId, {
+          start: fmtTime(newStart),
+          end: fmtTime(newEnd),
+          editedAt: Date.now(),
+        });
+      }
+    }
+    setDraggingBlockId(null);
+    setDragOffsetMins(0);
+    dragBlockInfoRef.current = null;
+  }, [draggingBlockId, dragOffsetMins, timeBlocks, saveSnapshot, updateTimeBlock]);
+
   // Scroll to now on mount
   useEffect(() => {
     if (selectedDate === today && gridRef.current) {
@@ -433,6 +520,68 @@ function ScheduleTab() {
     if (selectedDate > today) return 0;
     return agenda.filter((i) => i.type === 'block' && !i.confirmationStatus && (selectedDate < today || parseTimeToMinutes(i.end) <= nowMins)).length;
   }, [agenda, today, selectedDate, nowMins]);
+
+  // Week dates for week view
+  const weekDates = useMemo(() => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    const dayOfWeek = d.getDay(); // 0=Sun
+    const startOffset = weekStartsOnMonday
+      ? (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)
+      : -dayOfWeek;
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(d);
+      dt.setDate(d.getDate() + startOffset + i);
+      dates.push(getLocalDateString(dt));
+    }
+    return dates;
+  }, [selectedDate, weekStartsOnMonday]);
+
+  // Build week agenda (all blocks + events for the week)
+  const weekAgenda = useMemo(() => {
+    if (scheduleView !== 'week') return new Map<string, AgendaItem[]>();
+    const dateSet = new Set(weekDates);
+    const byDate = new Map<string, AgendaItem[]>();
+    for (const dateStr of weekDates) byDate.set(dateStr, []);
+
+    for (const b of timeBlocks) {
+      if (!dateSet.has(b.date)) continue;
+      const cat = categories.find((c) => c.id === b.categoryId);
+      byDate.get(b.date)!.push({
+        type: 'block', id: b.id, title: b.title ?? 'Untitled',
+        start: b.start, end: b.end, color: cat?.color ?? THEME.primary,
+        confirmationStatus: b.confirmationStatus, taskId: b.taskId,
+      });
+    }
+    for (const e of events) {
+      if (!dateSet.has(e.date)) continue;
+      const cat = categories.find((c) => c.id === e.categoryId);
+      byDate.get(e.date)!.push({
+        type: 'event', id: e.id, title: e.title,
+        start: e.start, end: e.end, color: cat?.color ?? THEME.primary,
+      });
+    }
+    return byDate;
+  }, [scheduleView, weekDates, timeBlocks, events, categories]);
+
+  const navigateWeek = (dir: -1 | 1) => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + dir * 7);
+    setSelectedDate(getLocalDateString(d));
+    setTappedBlockId(null);
+  };
+
+  const weekLabel = useMemo(() => {
+    if (weekDates.length === 0) return '';
+    const first = new Date(weekDates[0] + 'T00:00:00');
+    const last = new Date(weekDates[6] + 'T00:00:00');
+    const mo = first.toLocaleDateString('en-US', { month: 'long' });
+    if (first.getMonth() === last.getMonth()) {
+      return `${mo} ${first.getDate()}–${last.getDate()}`;
+    }
+    const mo2 = last.toLocaleDateString('en-US', { month: 'short' });
+    return `${first.toLocaleDateString('en-US', { month: 'short' })} ${first.getDate()} – ${mo2} ${last.getDate()}`;
+  }, [weekDates]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -477,44 +626,89 @@ function ScheduleTab() {
         </div>
       )}
 
-      {/* Date navigation */}
-      <div
-        className="flex items-center justify-between flex-shrink-0"
-        style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
-      >
-        <button
-          type="button"
-          onClick={() => navigateDate(-1)}
-          className="touch-manipulation flex items-center justify-center"
-          style={{ width: 36, height: 36, borderRadius: 10, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-        </button>
-        <div className="text-center">
-          <p style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>{formatDateHeader(selectedDate)}</p>
-          <div className="flex items-center justify-center gap-2">
-            {selectedDate !== today && (
-              <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-                style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, marginTop: 2 }}>
-                Go to today
-              </button>
-            )}
-            {pendingCount > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500', marginTop: 2 }}>{pendingCount} to review</span>
-            )}
+      {/* Header: Day/Week toggle + navigation */}
+      <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+        {/* View toggle + title row */}
+        <div className="flex items-center justify-between" style={{ padding: '8px 16px 0' }}>
+          <button
+            type="button"
+            onClick={() => scheduleView === 'day' ? navigateDate(-1) : navigateWeek(-1)}
+            className="touch-manipulation flex items-center justify-center"
+            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <div className="text-center" style={{ flex: 1 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
+              {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              {selectedDate !== today && (
+                <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
+                  style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, marginTop: 1 }}>
+                  Today
+                </button>
+              )}
+              {pendingCount > 0 && scheduleView === 'day' && (
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500', marginTop: 1 }}>{pendingCount} to review</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => scheduleView === 'day' ? navigateDate(1) : navigateWeek(1)}
+            className="touch-manipulation flex items-center justify-center"
+            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        </div>
+        {/* Day/Week segmented control */}
+        <div className="flex items-center justify-center" style={{ padding: '6px 16px 8px' }}>
+          <div style={{ display: 'inline-flex', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 8, padding: 2 }}>
+            {(['day', 'week'] as const).map((v) => {
+              const active = scheduleView === v;
+              return (
+                <button key={v} type="button" onClick={() => setScheduleView(v)} className="touch-manipulation"
+                  style={{
+                    padding: '4px 16px', borderRadius: 6, fontSize: 12, fontWeight: active ? 600 : 400,
+                    border: 'none', backgroundColor: active ? '#FFFFFF' : 'transparent',
+                    color: active ? THEME.textPrimary : '#8E8E93',
+                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigateDate(1)}
-          className="touch-manipulation flex items-center justify-center"
-          style={{ width: 36, height: 36, borderRadius: 10, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-        </button>
+        {/* Week view day headers */}
+        {scheduleView === 'week' && (
+          <div className="flex" style={{ paddingLeft: TIME_COL_WIDTH, borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+            {weekDates.map((dateStr) => {
+              const d = new Date(dateStr + 'T00:00:00');
+              const isToday = dateStr === today;
+              const dayName = d.toLocaleDateString('en-US', { weekday: 'narrow' });
+              const dayNum = d.getDate();
+              return (
+                <div key={dateStr} className="flex-1 flex flex-col items-center" style={{ padding: '4px 0 6px' }}
+                  onClick={() => { setSelectedDate(dateStr); setScheduleView('day'); }}>
+                  <span style={{ fontSize: 10, fontWeight: 500, color: isToday ? THEME.primary : '#8E8E93' }}>{dayName}</span>
+                  <span style={{
+                    fontSize: 14, fontWeight: 600, lineHeight: '22px',
+                    color: isToday ? '#FFFFFF' : THEME.textPrimary,
+                    backgroundColor: isToday ? THEME.primary : 'transparent',
+                    borderRadius: '50%', width: 24, height: 24, textAlign: 'center',
+                  }}>{dayNum}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Timeline grid */}
+      {/* ─── DAY VIEW ─── */}
+      {scheduleView === 'day' && (
       <div ref={gridRef} className="flex-1 overflow-y-auto" style={{ position: 'relative', overflowX: 'hidden' }}>
         <div style={{ position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
           {/* Hour lines */}
@@ -595,24 +789,32 @@ function ScheduleTab() {
                     boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
                   };
 
+              const isDragging = draggingBlockId === item.id;
+              const blockTop = isDragging ? dragCurrentTop : top;
+
               return (
                 <React.Fragment key={item.id}>
                   <div
-                    onClick={() => setTappedBlockId(isTapped ? null : item.id)}
+                    onClick={() => { if (!draggingBlockId) setTappedBlockId(isTapped ? null : item.id); }}
+                    onTouchStart={!isEvent ? (e) => handleBlockTouchStart(e, item.id, startM, endM - startM) : undefined}
+                    onTouchMove={!isEvent ? handleBlockTouchMove : undefined}
+                    onTouchEnd={!isEvent ? handleBlockTouchEnd : undefined}
                     className="touch-manipulation"
                     style={{
                       position: 'absolute',
-                      top,
+                      top: blockTop,
                       left: `${leftPct}%`,
                       width: `calc(${colWidthPct}% - 2px)`,
                       height,
                       padding: isCompact ? '1px 5px' : '4px 6px',
                       overflow: 'hidden',
                       cursor: 'pointer',
-                      opacity: isSkipped ? 0.4 : 1,
-                      zIndex: isTapped ? 15 : 5,
+                      opacity: isDragging ? 0.85 : isSkipped ? 0.4 : 1,
+                      zIndex: isDragging ? 50 : isTapped ? 15 : 5,
+                      transition: isDragging ? 'none' : 'top 0.15s ease',
                       ...blockStyle,
-                      ...(isTapped ? { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : {}),
+                      ...(isDragging ? { boxShadow: '0 4px 16px rgba(0,0,0,0.25)', transform: 'scale(1.03)' } : {}),
+                      ...(isTapped && !isDragging ? { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : {}),
                     }}
                   >
                     <div style={{ height: '100%', overflow: 'hidden' }}>
@@ -680,6 +882,110 @@ function ScheduleTab() {
           )}
         </div>
       </div>
+      )}
+
+      {/* ─── WEEK VIEW ─── */}
+      {scheduleView === 'week' && (
+      <div className="flex-1 overflow-y-auto" style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
+          {/* Time labels column */}
+          <div style={{ width: TIME_COL_WIDTH, flexShrink: 0, position: 'relative' }}>
+            {hours.map((h) => {
+              const top = (h - wakeHour) * HOUR_HEIGHT;
+              return (
+                <div key={h} style={{ position: 'absolute', top, width: '100%', textAlign: 'right', paddingRight: 4 }}>
+                  <span style={{ fontSize: 9, color: '#C7C7CC', fontWeight: 400, lineHeight: '1' }}>
+                    {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Day columns */}
+          <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+            {weekDates.map((dateStr) => {
+              const isToday = dateStr === today;
+              const dayItems = weekAgenda.get(dateStr) ?? [];
+              const overlapMap = computeOverlapLayout(dayItems.map((a) => ({ id: a.id, start: a.start, end: a.end })));
+
+              return (
+                <div key={dateStr} style={{
+                  flex: 1, position: 'relative', minWidth: 0,
+                  borderLeft: '1px solid rgba(0,0,0,0.04)',
+                  backgroundColor: isToday ? `${THEME.primary}06` : 'transparent',
+                }}>
+                  {/* Hour grid lines */}
+                  {hours.map((h) => (
+                    <div key={h} style={{ position: 'absolute', top: (h - wakeHour) * HOUR_HEIGHT, left: 0, right: 0, height: 1, backgroundColor: 'rgba(0,0,0,0.04)' }} />
+                  ))}
+
+                  {/* Blocks & events */}
+                  {dayItems.map((item) => {
+                    const startM = parseTimeToMinutes(item.start);
+                    const endM = parseTimeToMinutes(item.end);
+                    const top = ((startM - gridStartMins) / 60) * HOUR_HEIGHT;
+                    const height = Math.max(((endM - startM) / 60) * HOUR_HEIGHT, 14);
+                    const isEvent = item.type === 'event';
+                    const layout = overlapMap.get(item.id);
+                    const colIdx = layout?.columnIndex ?? 0;
+                    const totalCols = layout?.totalColumns ?? 1;
+                    const colW = 100 / totalCols;
+                    const leftPct = colIdx * colW;
+
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => { setSelectedDate(dateStr); setScheduleView('day'); }}
+                        className="touch-manipulation"
+                        style={{
+                          position: 'absolute',
+                          top,
+                          left: `${leftPct}%`,
+                          width: `calc(${colW}% - 1px)`,
+                          height,
+                          borderRadius: isEvent ? '0 2px 2px 0' : 2,
+                          padding: '1px 2px',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          fontSize: 8,
+                          fontWeight: 500,
+                          lineHeight: 1.2,
+                          color: '#FFFFFF',
+                          backgroundColor: isEvent ? hexToRgba(item.color, 0.75) : item.color,
+                          borderLeft: isEvent ? `2px solid ${item.color}` : 'none',
+                          opacity: item.confirmationStatus === 'skipped' ? 0.35 : 1,
+                        }}
+                      >
+                        <span style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: Math.max(1, Math.floor(height / 11)),
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          wordBreak: 'break-all',
+                        }}>
+                          {item.title}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+            {/* Now line across week */}
+            {weekDates.includes(today) && nowMins >= gridStartMins && nowMins <= gridStartMins + gridTotalMins && (
+              <div style={{
+                position: 'absolute',
+                top: ((nowMins - gridStartMins) / 60) * HOUR_HEIGHT,
+                left: 0, right: 0, zIndex: 10, pointerEvents: 'none',
+                height: 1.5, backgroundColor: '#FF3B30',
+              }} />
+            )}
+          </div>
+        </div>
+      </div>
+      )}
 
       {/* Start timer FAB — bottom right */}
       {!activeTimer && !showStartForm && selectedDate === today && (
@@ -781,6 +1087,138 @@ function ScheduleTab() {
   );
 }
 
+// ─── Duration slider + schedule actions panel ──────────────
+
+function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
+  task: Task; color: string;
+  onScheduleToday: (task: Task) => void;
+  onScheduleLater: (task: Task) => void;
+}) {
+  const updateTask = useStore((s) => s.updateTask);
+  const { saveSnapshot } = useHistoryStore();
+  const [mins, setMins] = useState(task.estimatedMinutes || 30);
+
+  // Snap to preset stops for a nice feel
+  const presets = [15, 30, 45, 60, 90, 120, 180, 240];
+  const snap = (v: number) => {
+    for (const p of presets) { if (Math.abs(v - p) <= 7) return p; }
+    return Math.round(v / 5) * 5;
+  };
+
+  const fmtDuration = (m: number) => {
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const r = m % 60;
+    return r > 0 ? `${h}h ${r}m` : `${h}h`;
+  };
+
+  const commitDuration = (val: number) => {
+    const snapped = snap(val);
+    setMins(snapped);
+    if (snapped !== task.estimatedMinutes) {
+      saveSnapshot();
+      updateTask(task.id, { estimatedMinutes: snapped });
+    }
+  };
+
+  // Update task with adjusted duration before scheduling
+  const scheduleToday = () => {
+    if (mins !== task.estimatedMinutes) {
+      updateTask(task.id, { estimatedMinutes: mins });
+    }
+    onScheduleToday({ ...task, estimatedMinutes: mins });
+  };
+  const scheduleLater = () => {
+    if (mins !== task.estimatedMinutes) {
+      updateTask(task.id, { estimatedMinutes: mins });
+    }
+    onScheduleLater({ ...task, estimatedMinutes: mins });
+  };
+
+  return (
+    <div style={{
+      padding: '10px 12px',
+      borderRadius: '0 0 5px 5px',
+      borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
+      borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
+      borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
+      backgroundColor: '#FFF9EC',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+    }}>
+      {/* Duration slider */}
+      <div style={{ marginBottom: 10 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Duration</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textPrimary }}>{fmtDuration(mins)}</span>
+        </div>
+        <input
+          type="range"
+          min={5}
+          max={240}
+          step={5}
+          value={mins}
+          onChange={(e) => setMins(Number(e.target.value))}
+          onPointerUp={() => commitDuration(mins)}
+          onTouchEnd={() => commitDuration(mins)}
+          onClick={(e) => e.stopPropagation()}
+          className="touch-manipulation"
+          style={{
+            width: '100%',
+            height: 4,
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            background: `linear-gradient(to right, ${color} 0%, ${color} ${((mins - 5) / 235) * 100}%, rgba(0,0,0,0.08) ${((mins - 5) / 235) * 100}%, rgba(0,0,0,0.08) 100%)`,
+            borderRadius: 2,
+            outline: 'none',
+            cursor: 'pointer',
+            accentColor: color,
+          }}
+        />
+        <div className="flex justify-between" style={{ marginTop: 2 }}>
+          <span style={{ fontSize: 9, color: '#AEAEB2' }}>5m</span>
+          <span style={{ fontSize: 9, color: '#AEAEB2' }}>4h</span>
+        </div>
+      </div>
+
+      {/* Schedule buttons */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); scheduleToday(); }}
+          className="touch-manipulation"
+          style={{
+            flex: 1, padding: '8px 10px', borderRadius: 8, border: 'none',
+            backgroundColor: THEME.primary, color: '#FFFFFF',
+            fontSize: 12, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          Schedule today
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); scheduleLater(); }}
+          className="touch-manipulation"
+          style={{
+            flex: 1, padding: '8px 10px', borderRadius: 8,
+            border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent',
+            color: THEME.textPrimary, fontSize: 12, fontWeight: 500,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Later this week
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── TO-DO Tab (Quick capture + task list with scheduling) ──
 
 function TodoTab() {
@@ -811,22 +1249,38 @@ function TodoTab() {
   }, []);
 
   // Hold-to-record: start on pointerdown, stop on pointerup/pointerleave
+  const lastTranscriptRef = useRef('');
+
   const startListening = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     recognitionRef.current?.abort();
+    lastTranscriptRef.current = '';
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onresult = (event: any) => {
-      let transcript = '';
+      let finalTranscript = '';
+      let interimTranscript = '';
       for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
+      const transcript = finalTranscript || interimTranscript;
+      lastTranscriptRef.current = transcript;
       setTitle(transcript);
     };
-    recognition.onend = () => setIsListening(false);
+    recognition.onend = () => {
+      setIsListening(false);
+      // Ensure final transcript is applied
+      if (lastTranscriptRef.current) {
+        setTitle(lastTranscriptRef.current);
+      }
+    };
     recognition.onerror = () => setIsListening(false);
     recognitionRef.current = recognition;
     recognition.start();
@@ -836,6 +1290,8 @@ function TodoTab() {
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
     setIsListening(false);
+    // Focus input so user can review/edit the transcript before saving
+    setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
   const defaultCalendar = calendarContainers[0];
@@ -876,10 +1332,25 @@ function TodoTab() {
   }, [timeBlocks, todayStr]);
 
   const activeTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    const filtered = tasks.filter((t) => {
       if (filter === 'done') return t.status === 'done';
       if (filter === 'today') return t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id);
       return t.status !== 'done' && t.status !== 'archived';
+    });
+    // Sort: priority desc → due date asc (soonest first) → newest first (reverse array order)
+    return [...filtered].sort((a, b) => {
+      // Priority: higher number = more important → show first
+      const pa = a.priority ?? 0;
+      const pb = b.priority ?? 0;
+      if (pb !== pa) return pb - pa;
+      // Due date: tasks with due dates before those without, sooner dates first
+      const da = a.dueDate ?? '';
+      const db = b.dueDate ?? '';
+      if (da && !db) return -1;
+      if (!da && db) return 1;
+      if (da && db && da !== db) return da.localeCompare(db);
+      // Newest first: later index in original array = newer
+      return filtered.indexOf(b) - filtered.indexOf(a);
     });
   }, [tasks, filter, todayTaskIds]);
 
@@ -1131,8 +1602,12 @@ function TodoTab() {
                       </span>
                     )}
                     {task.priority != null && task.priority > 0 && (
-                      <span style={{ fontSize: 10, color: THEME.warningOrange, fontWeight: 600 }}>
-                        {'!'.repeat(Math.min(task.priority, 3))}
+                      <span style={{ display: 'inline-flex', gap: 1 }}>
+                        {Array.from({ length: Math.min(task.priority, 5) }, (_, i) => (
+                          <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill="#F5A623" stroke="none">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                          </svg>
+                        ))}
                       </span>
                     )}
                   </div>
@@ -1149,66 +1624,7 @@ function TodoTab() {
 
               {/* Expanded schedule actions */}
               {isExpanded && !isDone && (
-                <div style={{
-                  display: 'flex',
-                  gap: 8,
-                  padding: '10px 12px',
-                  borderRadius: '0 0 5px 5px',
-                  borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
-                  borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
-                  borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
-                  backgroundColor: '#FFF9EC',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
-                }}>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleScheduleToday(task); }}
-                    className="touch-manipulation"
-                    style={{
-                      flex: 1,
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: 'none',
-                      backgroundColor: THEME.primary,
-                      color: '#FFFFFF',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 5,
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    Schedule today
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleScheduleLater(task); }}
-                    className="touch-manipulation"
-                    style={{
-                      flex: 1,
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: `1px solid rgba(0,0,0,0.10)`,
-                      backgroundColor: 'transparent',
-                      color: THEME.textPrimary,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 5,
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                    Later this week
-                  </button>
-                </div>
+                <TodoExpandedPanel task={task} color={color} onScheduleToday={handleScheduleToday} onScheduleLater={handleScheduleLater} />
               )}
             </div>
           );

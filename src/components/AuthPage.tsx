@@ -25,9 +25,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
   const [showWaitlistPrompt, setShowWaitlistPrompt] = useState(false);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const [referralSource, setReferralSource] = useState('');
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(true); // default: no invite code required
 
-  // Check if waitlist is open (invite code not required)
+  // Check if waitlist gate is active (invite code required)
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -38,8 +38,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
       body: JSON.stringify({ action: 'get-config', key: 'waitlist_open' }),
     })
       .then(r => r.json())
-      .then(data => { if (data.value === 'true') setWaitlistOpen(true); })
-      .catch(() => {}); // non-critical
+      .then(data => { setWaitlistOpen(data.value !== 'false'); })
+      .catch(() => {}); // non-critical — stays open by default
   }, []);
 
   // If parent signals password recovery, switch to reset mode
