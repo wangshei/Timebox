@@ -4,7 +4,8 @@ import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
-import { getGoogleAuthUrl } from '../services/googleCalendar';
+import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle } from '../services/googleCalendar';
+import { useStore } from '../store/useStore';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -400,7 +401,7 @@ export function SettingsPanel({
         </p>
 
         {/* Add member */}
-        <div className="flex gap-1.5">
+        <div style={{ display: 'flex', gap: 6 }}>
           <input
             type="email"
             value={shareEmail}
@@ -412,12 +413,25 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={handleAddShareMember}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex-shrink-0"
-            style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              backgroundColor: PRIMARY,
+              color: '#FFFFFF',
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              whiteSpace: 'nowrap' as const,
+            }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
           >
-            <PlusIcon className="h-3 w-3" /> Invite
+            <PlusIcon style={{ width: 12, height: 12 }} /> Invite
           </button>
         </div>
 
@@ -655,42 +669,61 @@ export function SettingsPanel({
                 {/* ── Google Calendar ── */}
                 <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Google Calendar</span>
-                  <div className="space-y-3">
-                    {/* Connected calendars */}
-                    {gcalConnectedCalendars.length > 0 && (
-                      <div className="space-y-2">
-                        {gcalConnectedCalendars.map((cal, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center gap-2 rounded-lg"
-                            style={{ backgroundColor: '#4285F410', border: '1px solid #4285F428', padding: '8px 10px 8px 12px' }}
-                          >
-                            <CloudIcon className="h-3 w-3 flex-shrink-0" style={{ color: '#4285F4' }} />
-                            <div className="flex-1 min-w-0">
-                              <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{cal.name}</span>
-                              <span className="block truncate" style={{ fontSize: 10, color: TEXT_MUTED }}>
-                                {cal.mode === 'migrate_listen' ? 'Migrated & listening' : cal.mode === 'listen_with_history' ? 'Listening (with history)' : 'Listening (fresh)'}
-                                {cal.lastSync && ` · Last sync: ${new Date(cal.lastSync).toLocaleTimeString()}`}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="p-0.5 rounded transition-all flex-shrink-0"
-                              style={{ color: '#C87868' }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                              onClick={() => setGcalConnectedCalendars((prev) => prev.filter((_, idx) => idx !== i))}
-                              title="Disconnect"
-                            >
-                              <TrashIcon className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* Connected status */}
+                    {isGoogleConnected() && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          backgroundColor: '#4285F410',
+                          border: '1px solid #4285F428',
+                          padding: '8px 10px 8px 12px',
+                          borderRadius: 8,
+                        }}
+                      >
+                        <CloudIcon style={{ width: 14, height: 14, color: '#4285F4', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: TEXT }}>Google Calendar connected</span>
+                          <span style={{ display: 'block', fontSize: 10, color: TEXT_MUTED }}>
+                            {localStorage.getItem('gcal_pending_sync_mode') === 'migrate_listen' ? 'Migrated & listening' : localStorage.getItem('gcal_pending_sync_mode') === 'listen_fresh' ? 'Listening (fresh)' : 'Listening (with history)'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            disconnectGoogle();
+                            // Remove gcal containers/events from store
+                            const state = useStore.getState();
+                            useStore.setState({
+                              calendarContainers: state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
+                              categories: state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
+                              events: state.events.filter(e => !e.googleEventId),
+                            });
+                            setGcalStep('idle');
+                          }}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 500,
+                            color: '#C87868',
+                            background: 'none',
+                            border: '1px solid rgba(200,120,104,0.25)',
+                            borderRadius: 6,
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >
+                          Disconnect
+                        </button>
                       </div>
                     )}
 
-                    {/* Connect new */}
-                    {gcalStep === 'idle' && (
+                    {/* Connect new — only show if not already connected */}
+                    {gcalStep === 'idle' && !isGoogleConnected() && (
                       <button
                         type="button"
                         onClick={() => setGcalStep('choose_mode')}

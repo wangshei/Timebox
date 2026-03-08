@@ -639,7 +639,7 @@ export function AddModal({
                 Add a calendar first
               </button>
             ) : (
-              <div className="flex gap-x-2.5 gap-y-5 flex-wrap">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px' }}>
                 {calendars.map((cal) => {
                   const isSel = selectedCalendar === cal.id;
                   return (
@@ -668,7 +668,7 @@ export function AddModal({
           {/* Category — pill select, with colored dot */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
-            <div className="flex flex-wrap gap-x-2.5 gap-y-5 items-center">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px', alignItems: 'center' }}>
               {categoriesToShow
                 .filter((category) => {
                   if (!selectedCalendar) return true;
@@ -743,7 +743,7 @@ export function AddModal({
           {/* Tags — multi-select pills */}
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
-            <div className="flex flex-wrap gap-x-2.5 gap-y-5 items-center">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px', alignItems: 'center' }}>
               {tags
                 .filter((t) => t.categoryId === selectedCategory?.id)
                 .map((tag) => {
