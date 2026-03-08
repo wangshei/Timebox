@@ -1,19 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { exchangeGoogleCode } from '../services/googleCalendar';
+import { exchangeGoogleCode, importGoogleCalendarEvents } from '../services/googleCalendar';
 
 export function GcalCallbackPage({ code }: { code: string }) {
-  const [status, setStatus] = useState<'exchanging' | 'success' | 'error'>('exchanging');
+  const [status, setStatus] = useState<'exchanging' | 'importing' | 'success' | 'error'>('exchanging');
   const [errorMsg, setErrorMsg] = useState('');
+  const [importCount, setImportCount] = useState(0);
 
   useEffect(() => {
     (async () => {
       try {
+        // Step 1: Exchange code for tokens
         await exchangeGoogleCode(code);
+        setStatus('importing');
+
+        // Step 2: Fetch and import events
+        const result = await importGoogleCalendarEvents();
+        setImportCount(result.events.length);
         setStatus('success');
+
         // Redirect back to app after short delay
         setTimeout(() => {
           window.location.href = '/';
-        }, 1500);
+        }, 2000);
       } catch (err) {
         setStatus('error');
         setErrorMsg(err instanceof Error ? err.message : 'Unknown error');
@@ -44,14 +52,23 @@ export function GcalCallbackPage({ code }: { code: string }) {
             <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1C1C1E', margin: '0 0 8px' }}>
               Connecting Google Calendar...
             </h2>
-            <p style={{ fontSize: 13, color: '#8E8E93' }}>Please wait while we finish setup.</p>
+            <p style={{ fontSize: 13, color: '#8E8E93' }}>Authorizing with Google.</p>
+          </>
+        )}
+        {status === 'importing' && (
+          <>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#128197;</div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: '#4285F4', margin: '0 0 8px' }}>
+              Importing events...
+            </h2>
+            <p style={{ fontSize: 13, color: '#8E8E93' }}>Fetching your Google Calendar events.</p>
           </>
         )}
         {status === 'success' && (
           <>
             <div style={{ fontSize: 32, marginBottom: 12 }}>&#10003;</div>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: '#34C759', margin: '0 0 8px' }}>
-              Connected!
+              Imported {importCount} events!
             </h2>
             <p style={{ fontSize: 13, color: '#8E8E93' }}>Redirecting back to Timebox...</p>
           </>

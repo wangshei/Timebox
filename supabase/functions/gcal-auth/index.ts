@@ -203,7 +203,34 @@ serve(async (req) => {
   }
 
   try {
-    const { action, code, redirect_uri, device_id } = await req.json()
+    const { action, code, redirect_uri, device_id, refresh_token } = await req.json()
+
+    // refresh_token: no auth needed, just exchanges refresh token for new access token
+    if (action === 'refresh_token') {
+      if (!refresh_token) throw new Error('Missing refresh_token')
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          refresh_token,
+          grant_type: 'refresh_token',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`Token refresh failed: ${err}`)
+      }
+      const tokens = await res.json()
+      const result = {
+        access_token: tokens.access_token,
+        expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      }
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // exchange_code can work without Supabase auth
     if (action === 'exchange_code') {

@@ -19,6 +19,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents } from './services/googleCalendar';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -241,6 +242,39 @@ export default function App() {
         setDevSharedCalendars(testSharedCalendars);
       });
     }
+  }, []);
+
+  // Load Google Calendar events on startup
+  useEffect(() => {
+    if (!isGoogleConnected()) return;
+
+    const injectGcalData = (data: { calendars: import('./types').CalendarContainer[]; categories: import('./types').Category[]; events: import('./types').Event[] }) => {
+      const state = useStore.getState();
+      const existingContainerIds = new Set(state.calendarContainers.map(c => c.id));
+      const existingCategoryIds = new Set(state.categories.map(c => c.id));
+      // Remove old gcal events, add fresh ones
+      const nonGcalEvents = state.events.filter(e => !e.googleEventId);
+      useStore.setState({
+        calendarContainers: [
+          ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
+          ...data.calendars.filter(c => !existingContainerIds.has(c.id)),
+        ],
+        categories: [
+          ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
+          ...data.categories.filter(c => !existingCategoryIds.has(c.id)),
+        ],
+        events: [...nonGcalEvents, ...data.events],
+      });
+    };
+
+    // First load cached data for instant display
+    const cached = loadCachedGcalData();
+    if (cached) injectGcalData(cached);
+
+    // Then fetch fresh data in background
+    importGoogleCalendarEvents()
+      .then(injectGcalData)
+      .catch(err => console.warn('[gcal] Background refresh failed:', err));
   }, []);
 
   const {
