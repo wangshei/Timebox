@@ -244,27 +244,28 @@ export default function App() {
     }
   }, []);
 
-  // Load Google Calendar events on startup
+  // Load Google Calendar events — wait for dataReady so Supabase state is loaded first
+  const gcalInjectedRef = useRef(false);
   useEffect(() => {
+    if (!dataReady || gcalInjectedRef.current) return;
     if (!isGoogleConnected()) return;
+    gcalInjectedRef.current = true;
 
     const injectGcalData = (data: { calendars: import('./types').CalendarContainer[]; categories: import('./types').Category[]; events: import('./types').Event[] }) => {
       const state = useStore.getState();
-      const existingContainerIds = new Set(state.calendarContainers.map(c => c.id));
-      const existingCategoryIds = new Set(state.categories.map(c => c.id));
       // Filter out events the user has dismissed (removed from Timebox)
       const dismissedIds = getGcalDismissedIds();
       const freshGcalEvents = data.events.filter(e => !dismissedIds.has(e.id));
-      // Remove old gcal events, add fresh ones
-      const nonGcalEvents = state.events.filter(e => !e.googleEventId);
+      // Remove old gcal events (including any ghosts from Supabase without googleEventId)
+      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
       useStore.setState({
         calendarContainers: [
           ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
-          ...data.calendars.filter(c => !existingContainerIds.has(c.id)),
+          ...data.calendars,
         ],
         categories: [
           ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
-          ...data.categories.filter(c => !existingCategoryIds.has(c.id)),
+          ...data.categories,
         ],
         events: [...nonGcalEvents, ...freshGcalEvents],
       });
@@ -278,7 +279,7 @@ export default function App() {
     importGoogleCalendarEvents()
       .then(injectGcalData)
       .catch(err => console.warn('[gcal] Background refresh failed:', err));
-  }, []);
+  }, [dataReady]);
 
   const {
     viewMode: mode,
@@ -1440,13 +1441,16 @@ export default function App() {
       .catch(() => {}); // non-critical
   }, []);
 
-  // Keyboard shortcuts: d day, w week, m month, p planning, r recording, a all calendars
+  // Keyboard shortcuts: d day, w week, m month, c compare, a all calendars, Ctrl/Cmd+Z undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Undo/redo: always handle, even when focused on inputs
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+
+      // Undo/redo: only handle when NOT focused on an input (let browser handle text undo natively)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (isInput) return; // let native text undo/redo work
         e.preventDefault();
-        console.log('[App] Ctrl/Cmd+Z detected, shiftKey:', e.shiftKey);
         if (e.shiftKey) {
           useHistoryStore.getState().redo();
         } else {
@@ -1454,8 +1458,7 @@ export default function App() {
         }
         return;
       }
-      const target = e.target as HTMLElement;
-      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+
       if (isInput) return;
       const key = e.key.toLowerCase();
       if (key === 'd') { setView('day'); e.preventDefault(); }

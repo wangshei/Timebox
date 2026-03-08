@@ -361,9 +361,11 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       { onConflict: 'id' }
     ));
   }
-  if (state.events.length) {
+  // Filter out gcal events — they're ephemeral, sourced from Google API on each load
+  const nonGcalEvents = state.events.filter(e => !e.googleEventId);
+  if (nonGcalEvents.length) {
     check('events', 'upsert', await supabase.from('events').upsert(
-      state.events.map((e) => ({
+      nonGcalEvents.map((e) => ({
         id: e.id,
         user_id: userId,
         title: e.title ?? '',
@@ -403,7 +405,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   const tagIds = state.tags.map((t) => t.id);
   const taskIds = state.tasks.map((t) => t.id);
   const blockIds = state.timeBlocks.map((b) => b.id);
-  const eventIds = state.events.map((e) => e.id);
+  const eventIds = nonGcalEvents.map((e) => e.id);
 
   // Delete children first (FK order), then parents.
   if (blockIds.length > 0) {
