@@ -940,13 +940,17 @@ export default function App() {
       blockMinutes: durationMins,
       singleBlock: true,
     });
-  }, [tasks, timeBlocks, events, wakeTime, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask]);
+
+    // Navigate calendar to the target date so the user can see the rescheduled block
+    if (targetDate !== selectedDate) {
+      setSelectedDate(targetDate);
+    }
+  }, [tasks, timeBlocks, events, wakeTime, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask, saveSnapshot, selectedDate, setSelectedDate]);
 
   /** Reschedule a calendar block to the next available open slot later today, or next day. */
   const handleRescheduleBlockLater = useCallback((blockId: string) => {
     const block = timeBlocks.find((b) => b.id === blockId);
-    if (!block || !block.taskId) return;
-    saveSnapshot();
+    if (!block) return;
 
     const today = getLocalDateString();
     const now = new Date();
@@ -958,15 +962,26 @@ export default function App() {
     // Exclude this block from occupied list so its time slot is considered free
     const otherBlocks = timeBlocks.filter((b) => b.id !== blockId);
 
-    // Try today first
-    let targetDate = today;
+    // Try the block's own date first (so it stays on the same day if possible)
+    const blockDate = block.date;
+    let targetDate = blockDate;
     let slot: { start: string; end: string } | null = null;
 
-    if (parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime)) {
-      slot = findNextAvailableSlot(otherBlocks, events, today, durationMins, nowTime, sleepTime);
+    // If the block is on today, search after current time; otherwise search from wakeTime
+    const searchAfter = blockDate === today ? nowTime : wakeTime;
+    const searchBefore = sleepTime;
+
+    if (parseTimeToMinutes(searchAfter) < parseTimeToMinutes(searchBefore)) {
+      slot = findNextAvailableSlot(otherBlocks, events, blockDate, durationMins, searchAfter, searchBefore);
     }
 
-    // If no slot today, try subsequent days (up to 7 days ahead)
+    // If no slot on the block's date, try today (if different) then subsequent days
+    if (!slot && blockDate !== today) {
+      if (parseTimeToMinutes(nowTime) < parseTimeToMinutes(sleepTime)) {
+        slot = findNextAvailableSlot(otherBlocks, events, today, durationMins, nowTime, sleepTime);
+        if (slot) targetDate = today;
+      }
+    }
     if (!slot) {
       const d = new Date(now);
       for (let i = 1; i <= 7; i++) {
@@ -980,10 +995,16 @@ export default function App() {
       }
     }
 
-    if (!slot) return;
+    if (!slot) return; // No available slot found anywhere
 
+    saveSnapshot();
     updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: targetDate });
-  }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock]);
+
+    // Navigate calendar to the target date so the user can see the rescheduled block
+    if (targetDate !== selectedDate) {
+      setSelectedDate(targetDate);
+    }
+  }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock, saveSnapshot, selectedDate, setSelectedDate]);
 
   /** Create a continuation task from a time block with a chosen duration, auto-scheduled to next free slot. */
   const handleAddTimeToComplete = useCallback((blockId: string, minutes: number) => {

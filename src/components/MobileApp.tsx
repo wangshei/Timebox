@@ -92,21 +92,15 @@ export function MobileApp() {
 
   return (
     <div className="flex flex-col w-full" style={{ backgroundColor: '#FDFDFB', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}>
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === 'now' && <NowTab />}
-        {activeTab === 'today' && <TodayTab />}
-        {activeTab === 'capture' && <CaptureTab />}
-        {activeTab === 'tasks' && <TasksTab />}
-      </div>
-
-      {/* Bottom tabs */}
+      {/* Top tab bar */}
       <nav
-        className="flex-shrink-0 flex items-stretch w-full"
+        className="flex-shrink-0 flex items-center w-full"
         style={{
-          borderTop: '1px solid rgba(0,0,0,0.08)',
+          padding: '8px 12px',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
           backgroundColor: '#FCFBF7',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          gap: 4,
         }}
       >
         {([
@@ -121,33 +115,31 @@ export function MobileApp() {
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 touch-manipulation"
+              className="flex-1 flex items-center justify-center gap-1.5 touch-manipulation"
               style={{
+                padding: '8px 4px',
+                borderRadius: 10,
                 color: isActive ? THEME.primary : '#AEAEB2',
-                backgroundColor: 'transparent',
+                backgroundColor: isActive ? `${THEME.primary}10` : 'transparent',
                 border: 'none',
                 WebkitTapHighlightColor: 'transparent',
-                position: 'relative',
+                transition: 'all 0.15s ease',
               }}
             >
               <Icon active={isActive} />
-              <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{label}</span>
-              {isActive && (
-                <span style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 20,
-                  height: 2,
-                  borderRadius: 1,
-                  backgroundColor: THEME.primary,
-                }} />
-              )}
+              <span style={{ fontSize: 12, fontWeight: isActive ? 600 : 500 }}>{label}</span>
             </button>
           );
         })}
       </nav>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'now' && <NowTab />}
+        {activeTab === 'today' && <TodayTab />}
+        {activeTab === 'capture' && <CaptureTab />}
+        {activeTab === 'tasks' && <TasksTab />}
+      </div>
     </div>
   );
 }
