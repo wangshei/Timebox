@@ -949,8 +949,9 @@ export default function App() {
 
   /** Reschedule a calendar block to the next available open slot later today, or next day. */
   const handleRescheduleBlockLater = useCallback((blockId: string) => {
+    console.log('[Reschedule] called with blockId:', blockId);
     const block = timeBlocks.find((b) => b.id === blockId);
-    if (!block) return;
+    if (!block) { console.log('[Reschedule] block not found!'); return; }
 
     const today = getLocalDateString();
     const now = new Date();
@@ -995,8 +996,11 @@ export default function App() {
       }
     }
 
-    if (!slot) return; // No available slot found anywhere
+    console.log('[Reschedule] blockDate:', blockDate, 'today:', today, 'nowTime:', nowTime, 'searchAfter:', searchAfter, 'sleepTime:', sleepTime, 'durationMins:', durationMins, 'slot:', slot, 'targetDate:', targetDate);
 
+    if (!slot) { console.log('[Reschedule] NO SLOT FOUND anywhere!'); return; }
+
+    console.log('[Reschedule] Moving block to:', targetDate, slot.start, '-', slot.end);
     saveSnapshot();
     updateTimeBlock(blockId, { start: slot.start, end: slot.end, date: targetDate });
 
@@ -1008,10 +1012,11 @@ export default function App() {
 
   /** Create a continuation task from a time block with a chosen duration, auto-scheduled to next free slot. */
   const handleAddTimeToComplete = useCallback((blockId: string, minutes: number) => {
+    console.log('[AddTime] called with blockId:', blockId, 'minutes:', minutes);
     const block = timeBlocks.find((b) => b.id === blockId);
-    if (!block || !block.taskId) return;
+    if (!block || !block.taskId) { console.log('[AddTime] block not found or no taskId. block:', block?.id, 'taskId:', block?.taskId); return; }
     const task = tasks.find((t) => t.id === block.taskId);
-    if (!task) return;
+    if (!task) { console.log('[AddTime] task not found for taskId:', block.taskId); return; }
     saveSnapshot();
     const newTaskId = addTask({
       title: task.title,
@@ -1067,9 +1072,13 @@ export default function App() {
           mode: 'planned',
           source: 'manual',
         });
+        // Navigate calendar to the target date so the user can see the new block
+        if (targetDate !== selectedDate) {
+          setSelectedDate(targetDate);
+        }
       }
     }
-  }, [timeBlocks, tasks, events, addTask, addTimeBlock, saveSnapshot, wakeTime, sleepTime]);
+  }, [timeBlocks, tasks, events, addTask, addTimeBlock, saveSnapshot, wakeTime, sleepTime, selectedDate, setSelectedDate]);
 
   const handleScheduleSubmit = (params: { date: string; startTime: string; blockMinutes?: number }) => {
     if (schedulingTaskId) {
