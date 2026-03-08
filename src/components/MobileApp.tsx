@@ -91,9 +91,9 @@ export function MobileApp() {
   const [activeTab, setActiveTab] = useState<MobileTab>('now');
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: '#FDFDFB' }}>
+    <div className="flex flex-col w-full" style={{ backgroundColor: '#FDFDFB', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}>
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'now' && <NowTab />}
         {activeTab === 'today' && <TodayTab />}
         {activeTab === 'capture' && <CaptureTab />}
@@ -102,7 +102,7 @@ export function MobileApp() {
 
       {/* Bottom tabs */}
       <nav
-        className="flex-shrink-0 flex items-stretch"
+        className="flex-shrink-0 flex items-stretch w-full"
         style={{
           borderTop: '1px solid rgba(0,0,0,0.08)',
           backgroundColor: '#FCFBF7',
@@ -435,7 +435,7 @@ function NowTab() {
   const hasAnythingToday = todayBlocks.length > 0 || todayEvents.length > 0;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto" style={{ padding: '24px 16px' }}>
+    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden" style={{ padding: '24px 16px' }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 12, color: '#AEAEB2', fontWeight: 500, margin: 0, letterSpacing: '0.03em' }}>
@@ -800,7 +800,10 @@ function SectionLabel({ children, count }: { children: React.ReactNode; count?: 
   );
 }
 
-// ─── TODAY Tab ──────────────────────────────────────────────
+// ─── TODAY Tab — Visual Timeline ────────────────────────────
+
+const HOUR_HEIGHT = 56; // px per hour in the timeline
+const TIME_COL_WIDTH = 42; // px for time labels column
 
 function TodayTab() {
   const timeBlocks = useStore((s) => s.timeBlocks);
@@ -810,42 +813,53 @@ function TodayTab() {
   const skipBlock = useStore((s) => s.skipBlock);
   const tasks = useStore((s) => s.tasks);
   const updateTask = useStore((s) => s.updateTask);
+  const wakeTime = useStore((s) => s.wakeTime);
+  const sleepTime = useStore((s) => s.sleepTime);
   const { saveSnapshot } = useHistoryStore();
 
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+  const [tappedBlockId, setTappedBlockId] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
+  const today = getLocalDateString();
+  const nowMins = useCurrentMinutes();
+
+  // Time range for the grid
+  const wakeHour = Math.floor(parseTimeToMinutes(wakeTime || '8:00') / 60);
+  const sleepHour = Math.ceil(parseTimeToMinutes(sleepTime || '23:00') / 60);
+  const hours = useMemo(() => {
+    const h: number[] = [];
+    for (let i = wakeHour; i <= sleepHour; i++) h.push(i);
+    return h;
+  }, [wakeHour, sleepHour]);
+  const gridStartMins = wakeHour * 60;
+  const gridTotalMins = (sleepHour - wakeHour) * 60;
+
+  // Build agenda items
   const agenda = useMemo(() => {
     const items: AgendaItem[] = [];
     for (const b of timeBlocks.filter((b) => b.date === selectedDate)) {
       const cat = categories.find((c) => c.id === b.categoryId);
       items.push({
-        type: 'block',
-        id: b.id,
-        title: b.title ?? 'Untitled',
-        start: b.start,
-        end: b.end,
-        color: cat?.color ?? THEME.primary,
-        confirmationStatus: b.confirmationStatus,
-        taskId: b.taskId,
+        type: 'block', id: b.id, title: b.title ?? 'Untitled',
+        start: b.start, end: b.end, color: cat?.color ?? THEME.primary,
+        confirmationStatus: b.confirmationStatus, taskId: b.taskId,
       });
     }
     for (const e of events.filter((e) => e.date === selectedDate)) {
       const cat = categories.find((c) => c.id === e.categoryId);
       items.push({
-        type: 'event',
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        color: cat?.color ?? THEME.primary,
+        type: 'event', id: e.id, title: e.title,
+        start: e.start, end: e.end, color: cat?.color ?? THEME.primary,
       });
     }
-    return items.sort((a, b) => parseTimeToMinutes(a.start) - parseTimeToMinutes(b.start));
+    return items;
   }, [timeBlocks, events, selectedDate, categories]);
 
   const handleConfirm = useCallback((blockId: string) => {
     saveSnapshot();
     confirmBlock(blockId);
+    setTappedBlockId(null);
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block?.taskId) return;
     const siblings = timeBlocks.filter((b) => b.taskId === block.taskId && b.id !== blockId);
@@ -857,18 +871,29 @@ function TodayTab() {
   const handleSkip = useCallback((blockId: string) => {
     saveSnapshot();
     skipBlock(blockId);
+    setTappedBlockId(null);
   }, [saveSnapshot, skipBlock]);
 
   const navigateDate = (dir: -1 | 1) => {
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + dir);
     setSelectedDate(getLocalDateString(d));
+    setTappedBlockId(null);
   };
 
-  const today = getLocalDateString();
-  const nowMins = useCurrentMinutes();
+  // Scroll to current time on mount/date change
+  useEffect(() => {
+    if (selectedDate === today && gridRef.current) {
+      const scrollTo = ((nowMins - gridStartMins) / 60) * HOUR_HEIGHT - 100;
+      gridRef.current.scrollTop = Math.max(0, scrollTo);
+    }
+  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Count pending reviews for badge
+  // Current time indicator position
+  const nowLineTop = ((nowMins - gridStartMins) / 60) * HOUR_HEIGHT;
+  const showNowLine = selectedDate === today && nowMins >= gridStartMins && nowMins <= gridStartMins + gridTotalMins;
+
+  // Pending count
   const pendingCount = useMemo(() => {
     if (selectedDate > today) return 0;
     return agenda.filter((i) => i.type === 'block' && !i.confirmationStatus && (selectedDate < today || parseTimeToMinutes(i.end) <= nowMins)).length;
@@ -879,49 +904,27 @@ function TodayTab() {
       {/* Date navigation */}
       <div
         className="flex items-center justify-between flex-shrink-0"
-        style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+        style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
       >
         <button
           type="button"
           onClick={() => navigateDate(-1)}
           className="touch-manipulation flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            border: 'none',
-            backgroundColor: 'rgba(0,0,0,0.04)',
-            color: THEME.textPrimary,
-          }}
+          style={{ width: 36, height: 36, borderRadius: 10, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
         </button>
         <div className="text-center">
-          <p style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
-            {formatDateHeader(selectedDate)}
-          </p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>{formatDateHeader(selectedDate)}</p>
           <div className="flex items-center justify-center gap-2">
             {selectedDate !== today && (
-              <button
-                type="button"
-                onClick={() => setSelectedDate(today)}
-                className="touch-manipulation"
-                style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, marginTop: 2 }}
-              >
+              <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
+                style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, marginTop: 2 }}>
                 Go to today
               </button>
             )}
             {pendingCount > 0 && (
-              <span style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: '#FF9500',
-                marginTop: 2,
-              }}>
-                {pendingCount} to review
-              </span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500', marginTop: 2 }}>{pendingCount} to review</span>
             )}
           </div>
         </div>
@@ -929,107 +932,129 @@ function TodayTab() {
           type="button"
           onClick={() => navigateDate(1)}
           className="touch-manipulation flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            border: 'none',
-            backgroundColor: 'rgba(0,0,0,0.04)',
-            color: THEME.textPrimary,
-          }}
+          style={{ width: 36, height: 36, borderRadius: 10, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
         </button>
       </div>
 
-      {/* Agenda list */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '12px 16px' }}>
-        {agenda.length === 0 && (
-          <div className="flex flex-col items-center justify-center" style={{ height: 200 }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10 }}>
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            <p style={{ fontSize: 14, color: '#AEAEB2', margin: 0 }}>Nothing scheduled</p>
-          </div>
-        )}
-        {agenda.map((item) => {
-          const isPast = selectedDate < today || (selectedDate === today && parseTimeToMinutes(item.end) <= nowMins);
-          const isConfirmed = item.confirmationStatus === 'confirmed';
-          const isSkipped = item.confirmationStatus === 'skipped';
-          const isEvent = item.type === 'event';
-          return (
-            <div
-              key={item.id}
-              className="flex items-center gap-3"
-              style={{
-                ...CARD_STYLE,
-                borderLeft: `3px solid ${item.color}`,
-                opacity: isSkipped ? 0.45 : 1,
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <p style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: THEME.textPrimary,
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  textDecoration: isSkipped ? 'line-through' : 'none',
-                }}>
-                  {item.title}
-                </p>
-                <p style={{ fontSize: 11, color: '#AEAEB2', margin: '2px 0 0' }}>
-                  {formatTime12(item.start)} – {formatTime12(item.end)}
-                  {isEvent && <span style={{ marginLeft: 6, fontSize: 10, fontStyle: 'italic', color: '#C7C7CC' }}>event</span>}
-                </p>
+      {/* Visual timeline grid */}
+      <div ref={gridRef} className="flex-1 overflow-y-auto overflow-x-hidden" style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
+          {/* Hour lines + labels */}
+          {hours.map((h) => {
+            const top = (h - wakeHour) * HOUR_HEIGHT;
+            return (
+              <div key={h} style={{ position: 'absolute', top, left: 0, right: 0, height: HOUR_HEIGHT }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: TIME_COL_WIDTH, textAlign: 'right', paddingRight: 8 }}>
+                  <span style={{ fontSize: 10, color: '#C7C7CC', fontWeight: 400, lineHeight: '1' }}>
+                    {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
+                  </span>
+                </div>
+                <div style={{ position: 'absolute', top: 0, left: TIME_COL_WIDTH, right: 8, height: 1, backgroundColor: 'rgba(0,0,0,0.05)' }} />
               </div>
-              {item.type === 'block' && isPast && !isConfirmed && !isSkipped && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleConfirm(item.id)}
-                    className="touch-manipulation"
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      border: 'none',
-                      backgroundColor: `${item.color}18`,
-                      color: item.color,
-                    }}
-                  >
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSkip(item.id)}
-                    className="touch-manipulation"
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      fontSize: 12,
+            );
+          })}
+
+          {/* Blocks and events */}
+          {agenda.map((item) => {
+            const startM = parseTimeToMinutes(item.start);
+            const endM = parseTimeToMinutes(item.end);
+            const top = ((startM - gridStartMins) / 60) * HOUR_HEIGHT;
+            const height = Math.max(((endM - startM) / 60) * HOUR_HEIGHT, 22);
+            const isEvent = item.type === 'event';
+            const isPast = selectedDate < today || (selectedDate === today && endM <= nowMins);
+            const isConfirmed = item.confirmationStatus === 'confirmed';
+            const isSkipped = item.confirmationStatus === 'skipped';
+            const isTapped = tappedBlockId === item.id;
+            const showActions = isTapped && item.type === 'block' && isPast && !isConfirmed && !isSkipped;
+            const isCompact = height < 38;
+
+            return (
+              <div
+                key={item.id}
+                onClick={() => setTappedBlockId(isTapped ? null : item.id)}
+                className="touch-manipulation"
+                style={{
+                  position: 'absolute',
+                  top,
+                  left: TIME_COL_WIDTH + 4,
+                  right: 8,
+                  height,
+                  borderRadius: 8,
+                  padding: isCompact ? '2px 8px' : '6px 10px',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  opacity: isSkipped ? 0.4 : 1,
+                  transition: 'box-shadow 0.15s ease',
+                  boxShadow: isTapped ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+                  // Block vs event styling
+                  ...(isEvent ? {
+                    borderLeft: `3px solid ${item.color}`,
+                    backgroundColor: `${item.color}12`,
+                  } : isConfirmed ? {
+                    backgroundColor: `${item.color}18`,
+                    border: `1px solid ${item.color}30`,
+                  } : {
+                    backgroundColor: `${item.color}25`,
+                    border: `1.5px dashed ${item.color}50`,
+                  }),
+                }}
+              >
+                <div className="flex items-start justify-between gap-1" style={{ height: '100%' }}>
+                  <div className="min-w-0 flex-1">
+                    <p style={{
+                      fontSize: isCompact ? 11 : 12,
                       fontWeight: 500,
-                      border: '1px solid rgba(0,0,0,0.08)',
-                      backgroundColor: 'transparent',
-                      color: '#AEAEB2',
-                    }}
+                      color: THEME.textPrimary,
+                      margin: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      textDecoration: isSkipped ? 'line-through' : 'none',
+                    }}>
+                      {item.title}
+                    </p>
+                    {!isCompact && (
+                      <p style={{ fontSize: 10, color: '#8E8E93', margin: '1px 0 0' }}>
+                        {formatTime12(item.start)} – {formatTime12(item.end)}
+                      </p>
+                    )}
+                  </div>
+                  {isConfirmed && <CheckBadge color={item.color} />}
+                </div>
+
+                {/* Tap-to-review actions */}
+                {showActions && (
+                  <div
+                    className="flex gap-2"
+                    style={{ position: 'absolute', bottom: 4, right: 6 }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Skip
-                  </button>
-                </>
-              )}
-              {isConfirmed && <CheckBadge color={item.color} />}
+                    <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
+                      style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: 'none', backgroundColor: '#FFFFFF', color: item.color }}>
+                      Done
+                    </button>
+                    <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
+                      style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: 'none', backgroundColor: '#FFFFFF', color: '#AEAEB2' }}>
+                      Skip
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Current time indicator */}
+          {showNowLine && (
+            <div style={{ position: 'absolute', top: nowLineTop, left: TIME_COL_WIDTH - 4, right: 0, zIndex: 10, pointerEvents: 'none' }}>
+              <div className="flex items-center">
+                <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30', flexShrink: 0 }} />
+                <div style={{ flex: 1, height: 1.5, backgroundColor: '#FF3B30' }} />
+              </div>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1120,7 +1145,7 @@ function CaptureTab() {
   }, [isListening]);
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto" style={{ padding: '24px 16px' }}>
+    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden" style={{ padding: '24px 16px' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: THEME.textPrimary, margin: '0 0 4px' }}>
         Quick Capture
       </h1>

@@ -2411,7 +2411,7 @@ export default function App() {
         )}
       </div>
 
-      <div className="flex lg:hidden flex-col flex-1 overflow-hidden relative">
+      <div className="flex lg:hidden flex-col flex-1 min-h-0 w-full overflow-hidden relative">
         <MobileApp />
       </div>
 
