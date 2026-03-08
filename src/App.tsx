@@ -1273,14 +1273,22 @@ export default function App() {
     const event = events.find((e) => e.id === id);
     if (!event) return;
     saveSnapshot();
-    if (scope === 'this' || !event.recurrenceSeriesId) {
+
+    // Determine series grouping key: native recurrence or Google recurring event
+    const seriesKey = event.recurrenceSeriesId
+      ? { field: 'recurrenceSeriesId' as const, value: event.recurrenceSeriesId }
+      : event.recurringGoogleEventId
+        ? { field: 'recurringGoogleEventId' as const, value: event.recurringGoogleEventId }
+        : null;
+
+    if (scope === 'this' || !seriesKey) {
       deleteEvent(id);
     } else if (scope === 'all') {
-      deleteEvents(events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId).map((e) => e.id));
+      deleteEvents(events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value).map((e) => e.id));
     } else if (scope === 'all_after') {
       deleteEvents(
         events
-          .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
+          .filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date)
           .map((e) => e.id)
       );
     }

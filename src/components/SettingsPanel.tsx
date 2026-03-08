@@ -776,7 +776,7 @@ export function SettingsPanel({
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{title}</span>
                             </div>
-                            <p className="mt-1 pl-6" style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>{desc}</p>
+                            <p style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4, textAlign: 'left', paddingLeft: 24, marginTop: 4 }}>{desc}</p>
                           </button>
                         ))}
                         <div className="flex gap-1.5 justify-end pt-1">

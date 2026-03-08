@@ -311,6 +311,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           endDate: start.date !== end.date ? end.date : undefined,
           recurring: false,
           googleEventId: evt.id,
+          recurringGoogleEventId: evt.recurringEventId || undefined,
           readOnly: true,
           source: 'manual',
           description: evt.description || undefined,

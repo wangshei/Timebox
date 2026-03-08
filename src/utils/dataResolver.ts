@@ -106,6 +106,8 @@ export interface ResolvedEvent {
   attendanceStatus?: 'attended' | 'not_attended';
   /** Google Calendar event ID — set for events synced from Google. */
   googleEventId?: string | null;
+  /** Google Calendar recurring event series ID — shared by all instances of a recurring event. */
+  recurringGoogleEventId?: string | null;
   /** When set, this event came from a CalendarShare subscription (read-only for recipient). */
   sharedFromShareId?: string | null;
   /** When true, event is read-only (synced from Google or shared by another user). */

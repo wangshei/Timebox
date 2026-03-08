@@ -72,7 +72,7 @@ export function EventCard({
   isEndSegment = true,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
-  const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm'>(null);
+  const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm' | 'confirm_gcal'>(null);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [showDetails, setShowDetails] = useState(false);
@@ -527,22 +527,77 @@ export function EventCard({
               {event.readOnly && onDeleteEvent && (
                 <>
                   <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                    style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteEvent(event.id);
-                      setShowPopover(false);
-                      onDeselect();
-                    }}
-                  >
-                    <TrashIcon style={{ width: 11, height: 11 }} />
-                    Remove from Timebox
-                  </button>
+                  {deleteConfirmState === 'confirm_gcal' ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Remove which events?</div>
+                      <button
+                        type="button"
+                        className="text-left px-2.5 py-1.5 rounded-lg transition-all"
+                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteEvent(event.id);
+                          setShowPopover(false);
+                          setDeleteConfirmState(null);
+                          onDeselect();
+                        }}
+                      >
+                        <div className="font-medium" style={{ fontSize: 10 }}>This event only</div>
+                        <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>Remove this single occurrence</div>
+                      </button>
+                      <button
+                        type="button"
+                        className="text-left px-2.5 py-1.5 rounded-lg transition-all"
+                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteEventSeries?.(event.id, 'all_after');
+                          setShowPopover(false);
+                          setDeleteConfirmState(null);
+                          onDeselect();
+                        }}
+                      >
+                        <div className="font-medium" style={{ fontSize: 10 }}>This & all following</div>
+                        <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>Remove from this date forward</div>
+                      </button>
+                      <button
+                        type="button"
+                        className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
+                        style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                      style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // If this is a recurring Google event, show scope picker
+                        if (event.googleEventId && event.recurringGoogleEventId && onDeleteEventSeries) {
+                          setDeleteConfirmState('confirm_gcal');
+                        } else {
+                          onDeleteEvent(event.id);
+                          setShowPopover(false);
+                          onDeselect();
+                        }
+                      }}
+                    >
+                      <TrashIcon style={{ width: 11, height: 11 }} />
+                      Remove from Timebox
+                    </button>
+                  )}
                 </>
               )}
 
