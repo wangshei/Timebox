@@ -11,7 +11,6 @@ import type {
   Tag,
   View,
 } from '../types';
-import { getLocalDateString } from '../utils/dateTime';
 import {
   getPlannedMinutes,
   getRecordedMinutes,
@@ -73,34 +72,11 @@ export function selectTimeBlocksForDate(
   );
 }
 
-/** Date string YYYY-MM-DD to set of dates for week containing that date (Sun–Sat). */
-function getWeekDateSet(dateStr: string): Set<string> {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  const day = date.getDay();
-  const start = new Date(date);
-  start.setDate(date.getDate() - day);
-  const set = new Set<string>();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    set.add(getLocalDateString(d));
-  }
-  return set;
-}
 
-/** Date string YYYY-MM-DD to set of dates in that month. */
-function getMonthDateSet(dateStr: string): Set<string> {
-  const [y, m] = dateStr.split('-').map(Number);
-  const set = new Set<string>();
-  const lastDay = new Date(y, m, 0).getDate();
-  for (let d = 1; d <= lastDay; d++) {
-    set.add(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
-  }
-  return set;
-}
-
-/** Blocks visible for the current view range (day, 3day, week, or month). */
+/** Blocks visible for the current view range.
+ *  For day view: filter by exact date. For multi-day views (3day, week, month):
+ *  only filter by container visibility — the view components already filter by date
+ *  internally, matching how events are handled. */
 export function selectTimeBlocksForView(
   timeBlocks: TimeBlock[],
   selectedDate: string,
@@ -111,21 +87,9 @@ export function selectTimeBlocksForView(
   if (view === 'day') {
     return timeBlocks.filter((b) => b.date === selectedDate && visible(b));
   }
-  if (view === '3day') {
-    // Build the exact 3 dates shown (anchor + 2 days). getMonthDateSet would miss
-    // dates that cross into the next month (e.g. anchor = Feb 27, third day = March 1).
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const anchor = new Date(y, (m ?? 1) - 1, d ?? 1);
-    const set = new Set<string>();
-    for (let i = 0; i < 3; i++) {
-      const day = new Date(anchor);
-      day.setDate(anchor.getDate() + i);
-      set.add(getLocalDateString(day));
-    }
-    return timeBlocks.filter((b) => set.has(b.date) && visible(b));
-  }
-  const dateSet = view === 'week' ? getWeekDateSet(selectedDate) : getMonthDateSet(selectedDate);
-  return timeBlocks.filter((b) => dateSet.has(b.date) && visible(b));
+  // For 3day, week, month: pass all visibility-filtered blocks through.
+  // Each view component filters by its own date range (using the user's weekStartsOnMonday pref).
+  return timeBlocks.filter(visible);
 }
 
 /** Planned time by category for a date. */
