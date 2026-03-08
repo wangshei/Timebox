@@ -473,6 +473,7 @@ export default function App() {
 
   type PlanVsActualView = 'category' | 'container' | 'tag';
   const [planVsActualView, setPlanVsActualView] = useState<PlanVsActualView>('category');
+  const [distributionOmitted, setDistributionOmitted] = useState<Set<string>>(new Set());
   const planVsActual =
     planVsActualView === 'category'
       ? planVsActualByCategory
@@ -1872,7 +1873,7 @@ export default function App() {
                             { value: 'tag' as PlanVsActualView, label: 'Tag' },
                           ]}
                           value={planVsActualView}
-                          onChange={setPlanVsActualView}
+                          onChange={(v: PlanVsActualView) => { setPlanVsActualView(v); setDistributionOmitted(new Set()); }}
                           compact
                           style={{ flex: 1, width: '100%' }}
                         />
@@ -1939,6 +1940,89 @@ export default function App() {
                               </div>
                             )}
                           </div>
+
+                          {/* ── Distribution bar graph ── */}
+                          {(() => {
+                            const visibleRows = planVsActual.filter(r => !distributionOmitted.has(r.id) && r.recordedHours > 0);
+                            const visibleTotal = visibleRows.reduce((s, r) => s + r.recordedHours, 0);
+                            if (visibleTotal <= 0) return null;
+                            return (
+                              <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, marginTop: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 600, color: THEME.textPrimary, letterSpacing: '-0.01em' }}>
+                                    Time distribution
+                                  </span>
+                                  {distributionOmitted.size > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDistributionOmitted(new Set())}
+                                      style={{ fontSize: 9, color: '#8DA286', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                    >
+                                      Show all
+                                    </button>
+                                  )}
+                                </div>
+                                {/* Stacked bar */}
+                                <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)' }}>
+                                  {visibleRows.map(row => {
+                                    const pct = (row.recordedHours / visibleTotal) * 100;
+                                    if (pct < 0.5) return null;
+                                    return (
+                                      <div
+                                        key={row.id}
+                                        title={`${row.name}: ${row.recordedHours.toFixed(1)}h (${Math.round(pct)}%)`}
+                                        style={{
+                                          width: `${pct}%`,
+                                          backgroundColor: row.color,
+                                          opacity: 0.8,
+                                          transition: 'width 0.3s ease',
+                                          minWidth: pct > 2 ? 2 : 0,
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                {/* Legend — clickable to omit */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 8px', marginTop: 6 }}>
+                                  {planVsActual.filter(r => r.recordedHours > 0).map(row => {
+                                    const isOmitted = distributionOmitted.has(row.id);
+                                    const pct = isOmitted ? 0 : (row.recordedHours / visibleTotal) * 100;
+                                    return (
+                                      <button
+                                        key={row.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setDistributionOmitted(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(row.id)) next.delete(row.id);
+                                            else next.add(row.id);
+                                            return next;
+                                          });
+                                        }}
+                                        style={{
+                                          display: 'flex', alignItems: 'center', gap: 3, padding: '1px 0',
+                                          background: 'none', border: 'none', cursor: 'pointer',
+                                          opacity: isOmitted ? 0.35 : 1,
+                                          textDecoration: isOmitted ? 'line-through' : 'none',
+                                          transition: 'opacity 0.2s',
+                                        }}
+                                        title={isOmitted ? `Click to show ${row.name}` : `Click to hide ${row.name}`}
+                                      >
+                                        <div style={{
+                                          width: 5, height: 5, borderRadius: '50%',
+                                          backgroundColor: row.color,
+                                          opacity: isOmitted ? 0.4 : 1,
+                                        }} />
+                                        <span style={{ fontSize: 9, color: THEME.textSecondary, whiteSpace: 'nowrap' }}>
+                                          {row.name} {!isOmitted && pct > 0 ? `${Math.round(pct)}%` : ''}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: '14px 0', color: '#AEAEB2', fontSize: 11 }}>
@@ -2004,6 +2088,30 @@ export default function App() {
                         }} />
                       )}
                     </button>
+                  )}
+
+                  {/* Desktop app download button */}
+                  {!isTauri() && (
+                    <a
+                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                        color: THEME.textPrimary, backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        textDecoration: 'none',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      title="Download desktop app"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="2" width="12" height="9" rx="1.5" />
+                        <path d="M5 14h6" />
+                        <path d="M8 11v3" />
+                        <path d="M8 5v3M6 7l2 2 2-2" />
+                      </svg>
+                    </a>
                   )}
 
                   {/* Bug report button */}
