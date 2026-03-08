@@ -957,7 +957,7 @@ function TodoTab() {
   }, [timeBlocks, events, saveSnapshot, addTimeBlock, updateTask]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {/* Quick capture input — always visible at top */}
       <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
         <div className="flex items-center gap-2">
@@ -967,46 +967,18 @@ function TodoTab() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleCapture(); }}
-            placeholder={isListening ? 'Listening...' : 'Add task... (e.g. "Read book 30min")'}
+            placeholder='Add task... (e.g. "Read book 30min")'
             style={{
               flex: 1,
               padding: '10px 12px',
               borderRadius: 10,
-              border: isListening ? `1.5px solid #FF3B30` : '1px solid rgba(0,0,0,0.10)',
+              border: '1px solid rgba(0,0,0,0.10)',
               fontSize: 14,
               color: THEME.textPrimary,
-              backgroundColor: isListening ? 'rgba(255,59,48,0.03)' : '#FFFFFF',
+              backgroundColor: '#FFFFFF',
               outline: 'none',
             }}
           />
-          {speechSupported && (
-            <button
-              type="button"
-              onPointerDown={(e) => { e.preventDefault(); startListening(); }}
-              onPointerUp={stopListening}
-              onPointerLeave={stopListening}
-              onContextMenu={(e) => e.preventDefault()}
-              className="touch-manipulation flex-shrink-0"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                border: 'none',
-                backgroundColor: isListening ? 'rgba(255,59,48,0.12)' : 'rgba(0,0,0,0.04)',
-                color: isListening ? '#FF3B30' : '#AEAEB2',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-              </svg>
-            </button>
-          )}
           <button
             type="button"
             onClick={handleCapture}
@@ -1242,6 +1214,90 @@ function TodoTab() {
           );
         })}
       </div>
+
+      {/* Floating mic FAB */}
+      {speechSupported && !isListening && (
+        <button
+          type="button"
+          onPointerDown={(e) => { e.preventDefault(); startListening(); }}
+          onContextMenu={(e) => e.preventDefault()}
+          className="touch-manipulation"
+          style={{
+            position: 'absolute',
+            bottom: 20,
+            right: 20,
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: THEME.primary,
+            color: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.10)',
+            zIndex: 30,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Full-screen listening overlay */}
+      {isListening && (
+        <div
+          onPointerUp={stopListening}
+          onPointerLeave={stopListening}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+        >
+          {/* Pulsing mic circle */}
+          <div style={{
+            width: 96,
+            height: 96,
+            borderRadius: '50%',
+            backgroundColor: '#FF3B30',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 0 12px rgba(255,59,48,0.20), 0 0 0 24px rgba(255,59,48,0.10)',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="#FFFFFF">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+            </svg>
+          </div>
+          <p style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 600, marginTop: 24, letterSpacing: '0.02em' }}>
+            Listening...
+          </p>
+          {title && (
+            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 8, padding: '0 32px', textAlign: 'center', lineHeight: 1.4 }}>
+              "{title}"
+            </p>
+          )}
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 16 }}>
+            Release to stop
+          </p>
+        </div>
+      )}
     </div>
   );
 }
