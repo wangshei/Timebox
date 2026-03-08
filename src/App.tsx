@@ -19,7 +19,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds } from './services/googleCalendar';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -253,19 +253,27 @@ export default function App() {
 
     const injectGcalData = (data: { calendars: import('./types').CalendarContainer[]; categories: import('./types').Category[]; events: import('./types').Event[] }) => {
       const state = useStore.getState();
+      // Filter out calendars the user has deleted from Timebox
+      const dismissedCalIds = getGcalDismissedCalendarIds();
+      const freshCalendars = data.calendars.filter(c => !dismissedCalIds.has(c.id));
+      const freshCalendarIds = new Set(freshCalendars.map(c => c.id));
+      const freshCategories = data.categories.filter(c => freshCalendarIds.has(c.calendarContainerId));
       // Filter out events the user has dismissed (removed from Timebox)
+      // AND events belonging to dismissed calendars
       const dismissedIds = getGcalDismissedIds();
-      const freshGcalEvents = data.events.filter(e => !dismissedIds.has(e.id));
+      const freshGcalEvents = data.events.filter(e =>
+        !dismissedIds.has(e.id) && freshCalendarIds.has(e.calendarContainerId)
+      );
       // Remove old gcal events (including any ghosts from Supabase without googleEventId)
       const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
       useStore.setState({
         calendarContainers: [
           ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
-          ...data.calendars,
+          ...freshCalendars,
         ],
         categories: [
           ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
-          ...data.categories,
+          ...freshCategories,
         ],
         events: [...nonGcalEvents, ...freshGcalEvents],
       });
@@ -459,6 +467,17 @@ export default function App() {
       displayTasks.filter((t) => fixedTasks.some((f) => f.id === t.id)),
     [displayTasks, fixedTasks]
   );
+
+  /** Delete a calendar container; if it's a gcal calendar, dismiss it so it won't reappear on re-import. */
+  const handleDeleteCalendarContainer = (id: string) => {
+    if (id.startsWith('gcal-')) {
+      dismissGcalCalendarId(id);
+      // Also dismiss all events belonging to this calendar so they don't reappear
+      const eventsToDiscard = events.filter(e => e.calendarContainerId === id && e.googleEventId);
+      if (eventsToDiscard.length) dismissGcalEventIds(eventsToDiscard.map(e => e.id));
+    }
+    deleteCalendarContainer(id);
+  };
 
   const handleMarkTaskDone = (taskId: string) => {
     const coreTask = tasks.find((t) => t.id === taskId);
@@ -1668,7 +1687,7 @@ export default function App() {
                 onToggleVisibility={toggleContainerVisibility}
                 onUpdateCalendar={updateCalendarContainer}
                 onAddCalendar={addCalendarContainer}
-                onDeleteCalendar={deleteCalendarContainer}
+                onDeleteCalendar={handleDeleteCalendarContainer}
                 onUpdateCategory={updateCategory}
                 onAddCategory={addCategory}
                 onDeleteCategory={deleteCategory}
@@ -2423,7 +2442,7 @@ export default function App() {
                   onToggleVisibility={toggleContainerVisibility}
                   onUpdateCalendar={updateCalendarContainer}
                   onAddCalendar={addCalendarContainer}
-                  onDeleteCalendar={deleteCalendarContainer}
+                  onDeleteCalendar={handleDeleteCalendarContainer}
                   onUpdateCategory={updateCategory}
                   onAddCategory={addCategory}
                   onDeleteCategory={deleteCategory}
@@ -2785,7 +2804,7 @@ export default function App() {
         tags={tags}
         onAddCalendar={addCalendarContainer}
         onUpdateCalendar={updateCalendarContainer}
-        onDeleteCalendar={deleteCalendarContainer}
+        onDeleteCalendar={handleDeleteCalendarContainer}
         onAddCategory={addCategory}
         onUpdateCategory={updateCategory}
         onDeleteCategory={deleteCategory}
