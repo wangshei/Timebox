@@ -196,8 +196,8 @@ serve(async (req) => {
       if (!code) throw new Error('Missing code')
       const effectiveRedirectUri = redirect_uri || GOOGLE_REDIRECT_URI
       if (!effectiveRedirectUri) throw new Error('No redirect_uri configured')
-      // Use authenticated user ID if available, otherwise device_id
-      const userId = await getUserId(req) || (device_id ? `device:${device_id}` : null)
+      // Use authenticated user ID if available, otherwise device_id (must be valid UUID)
+      const userId = await getUserId(req) || device_id || null
       if (!userId) throw new Error('Missing user identity')
       const result = await exchangeCode(code, userId, effectiveRedirectUri)
       return new Response(JSON.stringify(result), {
