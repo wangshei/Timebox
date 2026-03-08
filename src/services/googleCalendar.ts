@@ -15,6 +15,7 @@ const GCAL_EVENTS_KEY = 'gcal_imported_events';
 const GCAL_CALENDARS_KEY = 'gcal_imported_calendars';
 const GCAL_DISMISSED_KEY = 'gcal_dismissed_event_ids';
 const GCAL_DISMISSED_CALS_KEY = 'gcal_dismissed_calendar_ids';
+const GCAL_SELECTED_CALS_KEY = 'gcal_selected_calendar_ids';
 
 function getRedirectUri(): string {
   return `${window.location.origin}/gcal-callback`;
@@ -51,6 +52,7 @@ export function disconnectGoogle(): void {
   localStorage.removeItem(GCAL_CALENDARS_KEY);
   localStorage.removeItem(GCAL_DISMISSED_KEY);
   localStorage.removeItem(GCAL_DISMISSED_CALS_KEY);
+  localStorage.removeItem(GCAL_SELECTED_CALS_KEY);
   localStorage.removeItem('gcal_pending_sync_mode');
   localStorage.removeItem('gcal_connected_at');
   localStorage.removeItem('gcal_device_id');
@@ -89,6 +91,21 @@ export function dismissGcalCalendarId(calendarId: string): void {
   const ids = getGcalDismissedCalendarIds();
   ids.add(calendarId);
   localStorage.setItem(GCAL_DISMISSED_CALS_KEY, JSON.stringify([...ids]));
+}
+
+/**
+ * Get the set of Google Calendar IDs the user has chosen to import.
+ * Returns null if no selection has been made yet (import all by default for backwards compat).
+ */
+export function getGcalSelectedCalendarIds(): Set<string> | null {
+  const raw = localStorage.getItem(GCAL_SELECTED_CALS_KEY);
+  if (!raw) return null;
+  try { return new Set(JSON.parse(raw)); } catch { return null; }
+}
+
+/** Save the set of Google Calendar IDs the user wants to import. Uses raw gcal IDs (not container IDs). */
+export function setGcalSelectedCalendarIds(ids: string[]): void {
+  localStorage.setItem(GCAL_SELECTED_CALS_KEY, JSON.stringify(ids));
 }
 
 /** Get a valid access token, refreshing if expired. */
@@ -348,7 +365,13 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
     localStorage.setItem('gcal_connected_at', connectedAt);
   }
 
-  const gcalCalendars = await fetchGoogleCalendars();
+  const allGcalCalendars = await fetchGoogleCalendars();
+
+  // Filter to only user-selected calendars (null = no selection yet = import all)
+  const selectedIds = getGcalSelectedCalendarIds();
+  const gcalCalendars = selectedIds
+    ? allGcalCalendars.filter(c => selectedIds.has(c.id))
+    : allGcalCalendars;
   const containers: CalendarContainer[] = [];
   const categories: Category[] = [];
   const events: Event[] = [];

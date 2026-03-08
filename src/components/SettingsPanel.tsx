@@ -4,7 +4,7 @@ import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
-import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle } from '../services/googleCalendar';
+import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle, fetchGoogleCalendars, getGcalSelectedCalendarIds, setGcalSelectedCalendarIds } from '../services/googleCalendar';
 import { useStore } from '../store/useStore';
 
 interface SettingsPanelProps {
@@ -150,6 +150,55 @@ export function SettingsPanel({
     // Dev: show a test connected calendar
     ...(import.meta.env.DEV ? [{ name: 'Work (Google)', mode: 'migrate_listen', lastSync: new Date().toISOString() }] : []),
   ]);
+
+  // ── Google Calendar picker state (manage which calendars are imported) ──
+  const [gcalPickerOpen, setGcalPickerOpen] = useState(false);
+  const [gcalAvailable, setGcalAvailable] = useState<Array<{ id: string; summary: string; backgroundColor: string; primary?: boolean }>>([]);
+  const [gcalPickerSelected, setGcalPickerSelected] = useState<Set<string>>(new Set());
+  const [gcalPickerLoading, setGcalPickerLoading] = useState(false);
+  const [gcalPickerSaving, setGcalPickerSaving] = useState(false);
+
+  const openGcalPicker = async () => {
+    setGcalPickerLoading(true);
+    setGcalPickerOpen(true);
+    try {
+      const cals = await fetchGoogleCalendars();
+      setGcalAvailable(cals);
+      const savedSelection = getGcalSelectedCalendarIds();
+      setGcalPickerSelected(savedSelection ?? new Set(cals.map(c => c.id)));
+    } catch {
+      // If fetch fails, close picker
+      setGcalPickerOpen(false);
+    } finally {
+      setGcalPickerLoading(false);
+    }
+  };
+
+  const saveGcalPicker = async () => {
+    setGcalPickerSaving(true);
+    setGcalSelectedCalendarIds([...gcalPickerSelected]);
+    // Remove unselected gcal calendars from the store immediately
+    const state = useStore.getState();
+    const selectedContainerIds = new Set(
+      gcalAvailable.filter(c => gcalPickerSelected.has(c.id)).map(c => `gcal-${c.id.replace(/[^a-zA-Z0-9]/g, '-')}`)
+    );
+    useStore.setState({
+      calendarContainers: state.calendarContainers.filter(c => !c.id.startsWith('gcal-') || selectedContainerIds.has(c.id)),
+      categories: state.categories.filter(c => {
+        if (!c.id.startsWith('gcal-cat-')) return true;
+        // Keep category if its parent container is selected
+        return state.calendarContainers.some(
+          cont => selectedContainerIds.has(cont.id) && c.calendarContainerId === cont.id
+        );
+      }),
+      events: state.events.filter(e => {
+        if (!e.googleEventId) return true;
+        return selectedContainerIds.has(e.calendarContainerId);
+      }),
+    });
+    setGcalPickerSaving(false);
+    setGcalPickerOpen(false);
+  };
 
   if (!isOpen) return null;
 
@@ -721,6 +770,162 @@ export function SettingsPanel({
                         >
                           Disconnect
                         </button>
+                      </div>
+                    )}
+
+                    {/* Manage which calendars are imported */}
+                    {isGoogleConnected() && !gcalPickerOpen && (
+                      <button
+                        type="button"
+                        onClick={openGcalPicker}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '7px 0',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: '#4285F4',
+                          backgroundColor: 'transparent',
+                          border: '1px solid #4285F430',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4285F408'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <CalendarIcon style={{ width: 12, height: 12 }} />
+                        Manage imported calendars
+                      </button>
+                    )}
+
+                    {/* Calendar picker */}
+                    {isGoogleConnected() && gcalPickerOpen && (
+                      <div
+                        style={{
+                          backgroundColor: '#4285F406',
+                          border: '1.5px solid #4285F420',
+                          borderRadius: 10,
+                          padding: 12,
+                        }}
+                      >
+                        <p style={{ fontSize: 11, fontWeight: 600, color: TEXT, marginBottom: 8 }}>
+                          Imported calendars
+                        </p>
+                        {gcalPickerLoading ? (
+                          <p style={{ fontSize: 11, color: TEXT_MUTED, textAlign: 'center', padding: '12px 0' }}>Loading calendars...</p>
+                        ) : (
+                          <>
+                            <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                              {gcalAvailable.map(cal => {
+                                const checked = gcalPickerSelected.has(cal.id);
+                                return (
+                                  <button
+                                    key={cal.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setGcalPickerSelected(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(cal.id)) next.delete(cal.id);
+                                        else next.add(cal.id);
+                                        return next;
+                                      });
+                                    }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 8,
+                                      width: '100%',
+                                      padding: '6px 8px',
+                                      borderRadius: 7,
+                                      border: checked ? `1.5px solid ${cal.backgroundColor}50` : '1px solid rgba(0,0,0,0.05)',
+                                      backgroundColor: checked ? `${cal.backgroundColor}08` : '#FFFFFF',
+                                      cursor: 'pointer',
+                                      marginBottom: 4,
+                                      transition: 'all 0.12s',
+                                      textAlign: 'left',
+                                    }}
+                                  >
+                                    <div style={{
+                                      width: 14,
+                                      height: 14,
+                                      borderRadius: 4,
+                                      border: checked ? `2px solid ${cal.backgroundColor}` : '2px solid rgba(0,0,0,0.18)',
+                                      backgroundColor: checked ? cal.backgroundColor : 'transparent',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0,
+                                    }}>
+                                      {checked && (
+                                        <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                                          <path d="M1 4L3.5 6.5L9 1" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                      )}
+                                    </div>
+                                    <div style={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: '50%',
+                                      backgroundColor: cal.backgroundColor,
+                                      flexShrink: 0,
+                                    }} />
+                                    <span style={{
+                                      fontSize: 11,
+                                      fontWeight: 500,
+                                      color: checked ? TEXT : TEXT_MUTED,
+                                      flex: 1,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}>
+                                      {cal.summary}{cal.primary ? ' (Primary)' : ''}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                onClick={() => setGcalPickerOpen(false)}
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 500,
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  backgroundColor: 'rgba(0,0,0,0.06)',
+                                  color: TEXT_SECONDARY,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={saveGcalPicker}
+                                disabled={gcalPickerSaving}
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  padding: '4px 12px',
+                                  borderRadius: 6,
+                                  backgroundColor: '#4285F4',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  cursor: gcalPickerSaving ? 'default' : 'pointer',
+                                  opacity: gcalPickerSaving ? 0.6 : 1,
+                                }}
+                              >
+                                {gcalPickerSaving ? 'Saving...' : 'Save'}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
