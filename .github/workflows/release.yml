@@ -14,14 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS ARM (M1+) — native build on ARM runner
+          # macOS ARM (M1+) — Intel Macs run via Rosetta 2
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
             rust-target: aarch64-apple-darwin
-          # macOS Intel — use older Intel runner
-          - platform: macos-13
-            args: '--target x86_64-apple-darwin'
-            rust-target: x86_64-apple-darwin
           # Linux
           - platform: ubuntu-22.04
             args: ''
