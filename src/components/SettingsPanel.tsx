@@ -4,6 +4,7 @@ import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
+import { getGoogleAuthUrl } from '../services/googleCalendar';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -756,18 +757,25 @@ export function SettingsPanel({
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              setGcalStep('connected');
-                              setGcalConnectedCalendars((prev) => [
-                                ...prev,
-                                { name: `Google Calendar (${gcalSyncMode})`, mode: gcalSyncMode, lastSync: new Date().toISOString() },
-                              ]);
-                              setTimeout(() => setGcalStep('idle'), 100);
+                            onClick={async () => {
+                              setGcalStep('connecting');
+                              try {
+                                // Store sync mode for after callback
+                                localStorage.setItem('gcal_pending_sync_mode', gcalSyncMode);
+                                const url = await getGoogleAuthUrl();
+                                window.location.href = url;
+                              } catch (err) {
+                                // eslint-disable-next-line no-console
+                                console.error('[gcal] Failed to get auth URL:', err);
+                                setGcalStep('choose_mode');
+                                alert('Failed to connect to Google. Make sure you are logged in.');
+                              }
                             }}
+                            disabled={gcalStep === 'connecting'}
                             className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                            style={{ backgroundColor: '#4285F4', color: '#FFFFFF' }}
+                            style={{ backgroundColor: '#4285F4', color: '#FFFFFF', opacity: gcalStep === 'connecting' ? 0.6 : 1 }}
                           >
-                            <CloudIcon className="h-3 w-3" /> Connect
+                            <CloudIcon className="h-3 w-3" /> {gcalStep === 'connecting' ? 'Connecting…' : 'Connect'}
                           </button>
                         </div>
                       </div>

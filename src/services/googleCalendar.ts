@@ -24,15 +24,27 @@ async function callEdgeFunction(fnName: string, body: Record<string, unknown>) {
   return data;
 }
 
+/** Build the callback URL for the current environment. */
+function getRedirectUri(): string {
+  return `${window.location.origin}/gcal-callback`;
+}
+
 /** Get the Google OAuth consent URL. Opens in a new window. */
 export async function getGoogleAuthUrl(): Promise<string> {
-  const result = await callEdgeFunction('gcal-auth', { action: 'get_auth_url' });
+  const result = await callEdgeFunction('gcal-auth', {
+    action: 'get_auth_url',
+    redirect_uri: getRedirectUri(),
+  });
   return result.url;
 }
 
 /** Exchange the OAuth authorization code for tokens after redirect. */
 export async function exchangeGoogleCode(code: string): Promise<void> {
-  await callEdgeFunction('gcal-auth', { action: 'exchange_code', code });
+  await callEdgeFunction('gcal-auth', {
+    action: 'exchange_code',
+    code,
+    redirect_uri: getRedirectUri(),
+  });
 }
 
 /** List the user's Google Calendars for selection. */

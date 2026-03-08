@@ -53,10 +53,10 @@ async function getUserId(req: Request): Promise<string | null> {
 
 // --- OAuth URL ---
 
-function getAuthUrl(userId: string): string {
+function getAuthUrl(userId: string, redirectUri: string): string {
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: GOOGLE_REDIRECT_URI,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPES,
     access_type: 'offline',
@@ -68,7 +68,7 @@ function getAuthUrl(userId: string): string {
 
 // --- Token Exchange ---
 
-async function exchangeCode(code: string, userId: string) {
+async function exchangeCode(code: string, userId: string, redirectUri: string) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -76,7 +76,7 @@ async function exchangeCode(code: string, userId: string) {
       code,
       client_id: GOOGLE_CLIENT_ID,
       client_secret: GOOGLE_CLIENT_SECRET,
-      redirect_uri: GOOGLE_REDIRECT_URI,
+      redirect_uri: redirectUri,
       grant_type: 'authorization_code',
     }),
   })
@@ -197,16 +197,21 @@ serve(async (req) => {
       })
     }
 
-    const { action, code } = await req.json()
+    const { action, code, redirect_uri } = await req.json()
+    // Allow client to pass redirect_uri, fall back to env var
+    const effectiveRedirectUri = redirect_uri || GOOGLE_REDIRECT_URI
+    if (!effectiveRedirectUri && (action === 'get_auth_url' || action === 'exchange_code')) {
+      throw new Error('No redirect_uri configured')
+    }
 
     let result: unknown
     switch (action) {
       case 'get_auth_url':
-        result = { url: getAuthUrl(userId) }
+        result = { url: getAuthUrl(userId, effectiveRedirectUri) }
         break
       case 'exchange_code':
         if (!code) throw new Error('Missing code')
-        result = await exchangeCode(code, userId)
+        result = await exchangeCode(code, userId, effectiveRedirectUri)
         break
       case 'list_calendars':
         result = { calendars: await listCalendars(userId) }
