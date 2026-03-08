@@ -924,7 +924,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         {mode !== 'reset' && !waitlistJoined && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <a
-              href="https://github.com/timeboxing-club/desktop/releases/latest"
+              href="https://timeboxing.club/desktop"
               target="_blank"
               rel="noopener noreferrer"
               style={{
