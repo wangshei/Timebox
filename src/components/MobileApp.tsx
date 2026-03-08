@@ -430,7 +430,7 @@ function NowTab() {
   const hasContent = activeTimer || currentBlock || showStartForm || pendingReview.length > 0 || upNext.length > 0;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden" style={{ padding: '24px 16px' }}>
+    <div className="flex flex-col h-full overflow-y-auto" style={{ padding: '24px 16px', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box' }}>
       {/* Header — always visible */}
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 12, color: '#AEAEB2', fontWeight: 500, margin: 0, letterSpacing: '0.03em' }}>
@@ -508,11 +508,11 @@ function NowTab() {
 
       {/* Idle state — centered CTA */}
       {!activeTimer && !currentBlock && !showStartForm && (
-        <>
-          {/* Spacer to push content to ~40% from top */}
-          <div style={{ flex: '0 0 15%' }} />
+        <div style={{ width: '100%' }}>
+          {/* Spacer to push content down a bit */}
+          <div style={{ height: 40 }} />
 
-          <div className="flex flex-col items-center" style={{ padding: '0 16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
             {/* Clock icon */}
             <div style={{
               width: 72,
@@ -537,9 +537,13 @@ function NowTab() {
             <button
               type="button"
               onClick={() => setShowStartForm(true)}
-              className="touch-manipulation flex items-center justify-center gap-2"
+              className="touch-manipulation"
               style={{
-                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: 'calc(100% - 32px)',
                 maxWidth: 280,
                 padding: '14px',
                 borderRadius: 14,
@@ -579,9 +583,7 @@ function NowTab() {
               ))}
             </div>
           )}
-
-          <div style={{ flex: 1 }} />
-        </>
+        </div>
       )}
 
       {/* Start timer form */}
@@ -975,7 +977,7 @@ function TodayTab() {
                     {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
                   </span>
                 </div>
-                <div style={{ position: 'absolute', top: 0, left: TIME_COL_WIDTH, right: 8, height: 1, backgroundColor: 'rgba(0,0,0,0.05)' }} />
+                <div style={{ position: 'absolute', top: 0, left: TIME_COL_WIDTH, right: 16, height: 1, backgroundColor: 'rgba(0,0,0,0.05)' }} />
               </div>
             );
           })}
@@ -1003,7 +1005,7 @@ function TodayTab() {
                   position: 'absolute',
                   top,
                   left: TIME_COL_WIDTH + 4,
-                  right: 8,
+                  right: 16,
                   height,
                   borderRadius: 8,
                   padding: isCompact ? '2px 8px' : '6px 10px',
@@ -1056,7 +1058,7 @@ function TodayTab() {
                   style={{
                     position: 'absolute',
                     top: top + height + 4,
-                    right: 10,
+                    right: 16,
                     zIndex: 20,
                   }}
                   onClick={(e) => e.stopPropagation()}
@@ -1077,7 +1079,7 @@ function TodayTab() {
 
           {/* Current time indicator */}
           {showNowLine && (
-            <div style={{ position: 'absolute', top: nowLineTop, left: 0, right: 8, zIndex: 10, pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', top: nowLineTop, left: 0, right: 16, zIndex: 10, pointerEvents: 'none' }}>
               <div className="flex items-center">
                 {/* Time label */}
                 <span style={{ fontSize: 9, fontWeight: 600, color: '#FF3B30', width: TIME_COL_WIDTH, textAlign: 'right', paddingRight: 6, flexShrink: 0 }}>
@@ -1096,18 +1098,49 @@ function TodayTab() {
 
 // ─── CAPTURE Tab ───────────────────────────────────────────
 
+/** Parse natural language time from task input.
+ *  E.g. "Read book 30min" → { title: "Read book", minutes: 30 }
+ *  "Meeting 1.5h" → { title: "Meeting", minutes: 90 }
+ *  "Call Jake 2 hours" → { title: "Call Jake", minutes: 120 }
+ */
+function parseTaskInput(input: string): { title: string; minutes: number } {
+  const trimmed = input.trim();
+  // Match patterns like: 30m, 30min, 1h, 1.5h, 1hr, 2 hours, 45 minutes, etc.
+  const timeRegex = /\s+(\d+(?:\.\d+)?)\s*(?:h(?:(?:ou)?rs?)?|m(?:in(?:ute)?s?)?)\s*$/i;
+  const match = trimmed.match(timeRegex);
+  if (match) {
+    const title = trimmed.slice(0, match.index!).trim();
+    const val = parseFloat(match[1]);
+    const unit = match[0].toLowerCase();
+    const isHours = /h/.test(unit);
+    const minutes = isHours ? Math.round(val * 60) : Math.round(val);
+    if (title && minutes > 0 && minutes <= 480) {
+      return { title, minutes };
+    }
+  }
+  return { title: trimmed, minutes: 30 };
+}
+
 function CaptureTab() {
   const addTask = useStore((s) => s.addTask);
+  const tasks = useStore((s) => s.tasks);
   const calendarContainers = useStore((s) => s.calendarContainers);
   const categories = useStore((s) => s.categories);
   const { saveSnapshot } = useHistoryStore();
 
   const [title, setTitle] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [recentCaptures, setRecentCaptures] = useState<string[]>([]);
   const [speechSupported, setSpeechSupported] = useState(false);
   const recognitionRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Show recently captured inbox tasks (persisted, not local state)
+  const recentCaptures = useMemo(() => {
+    return tasks
+      .filter((t) => t.status === 'inbox')
+      .slice(-10)
+      .reverse();
+  }, [tasks]);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1125,22 +1158,24 @@ function CaptureTab() {
     }) ?? categories[0];
   }, [defaultCalendar, categories]);
 
+  // Parse title + time from input
+  const parsed = useMemo(() => parseTaskInput(title), [title]);
+
   const handleCapture = useCallback(() => {
-    if (!title.trim() || !defaultCategory || !defaultCalendar) return;
+    if (!parsed.title || !defaultCategory || !defaultCalendar) return;
     saveSnapshot();
     addTask({
-      title: title.trim(),
-      estimatedMinutes: 30,
+      title: parsed.title,
+      estimatedMinutes: parsed.minutes,
       calendarContainerId: defaultCalendar.id,
       categoryId: defaultCategory.id,
       tagIds: [],
       flexible: true,
       status: 'inbox',
     });
-    setRecentCaptures((prev) => [title.trim(), ...prev.slice(0, 9)]);
     setTitle('');
     inputRef.current?.focus();
-  }, [title, defaultCalendar, defaultCategory, saveSnapshot, addTask]);
+  }, [parsed, defaultCalendar, defaultCategory, saveSnapshot, addTask]);
 
   const toggleVoice = useCallback(() => {
     if (isListening && recognitionRef.current) {
@@ -1260,10 +1295,22 @@ function CaptureTab() {
           </div>
         )}
 
+        {/* Parsed time hint */}
+        {title.trim() && parsed.minutes !== 30 && (
+          <p style={{ fontSize: 11, color: THEME.primary, margin: '6px 0 0', fontWeight: 500 }}>
+            {parsed.minutes}min estimated
+          </p>
+        )}
+        {title.trim() && parsed.minutes === 30 && (
+          <p style={{ fontSize: 11, color: '#C7C7CC', margin: '6px 0 0' }}>
+            Tip: add time like "30min" or "1h" at the end
+          </p>
+        )}
+
         <button
           type="button"
           onClick={handleCapture}
-          disabled={!title.trim()}
+          disabled={!parsed.title}
           className="touch-manipulation"
           style={{
             width: '100%',
@@ -1273,26 +1320,31 @@ function CaptureTab() {
             fontSize: 15,
             fontWeight: 600,
             border: 'none',
-            backgroundColor: title.trim() ? THEME.primary : 'rgba(0,0,0,0.06)',
-            color: title.trim() ? '#FFFFFF' : '#AEAEB2',
+            backgroundColor: parsed.title ? THEME.primary : 'rgba(0,0,0,0.06)',
+            color: parsed.title ? '#FFFFFF' : '#AEAEB2',
           }}
         >
           Add to Inbox
         </button>
       </div>
 
-      {/* Recent captures */}
+      {/* Recent inbox tasks */}
       {recentCaptures.length > 0 ? (
         <div>
-          <SectionLabel count={recentCaptures.length}>Just captured</SectionLabel>
-          {recentCaptures.map((item, i) => (
+          <SectionLabel count={recentCaptures.length}>Inbox</SectionLabel>
+          {recentCaptures.map((task) => (
             <div
-              key={`${item}-${i}`}
+              key={task.id}
               className="flex items-center gap-2"
               style={CARD_STYLE}
             >
               <CheckBadge color={THEME.primary} />
-              <p style={{ fontSize: 13, color: THEME.textPrimary, margin: 0 }}>{item}</p>
+              <div className="flex-1 min-w-0">
+                <p style={{ fontSize: 13, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
+                {task.estimatedMinutes !== 30 && (
+                  <p style={{ fontSize: 10, color: '#AEAEB2', margin: '1px 0 0' }}>{task.estimatedMinutes}min</p>
+                )}
+              </div>
             </div>
           ))}
         </div>

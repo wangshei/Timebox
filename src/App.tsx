@@ -2464,7 +2464,7 @@ export default function App() {
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
           <div
             className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+            style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
             onClick={() => setRecurrenceEditScopePending(null)}
           />
           <div className="relative rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4" style={{ backgroundColor: '#FFFFFF' }}>
