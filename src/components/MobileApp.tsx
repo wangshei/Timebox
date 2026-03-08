@@ -971,8 +971,8 @@ function TodayTab() {
             const isCompact = height < 38;
 
             return (
+              <React.Fragment key={item.id}>
               <div
-                key={item.id}
                 onClick={() => setTappedBlockId(isTapped ? null : item.id)}
                 className="touch-manipulation"
                 style={{
@@ -988,6 +988,7 @@ function TodayTab() {
                   opacity: isSkipped ? 0.4 : 1,
                   transition: 'box-shadow 0.15s ease',
                   boxShadow: isTapped ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+                  zIndex: isTapped ? 15 : 5,
                   // Block vs event styling
                   ...(isEvent ? {
                     borderLeft: `3px solid ${item.color}`,
@@ -1023,25 +1024,30 @@ function TodayTab() {
                   </div>
                   {isConfirmed && <CheckBadge color={item.color} />}
                 </div>
-
-                {/* Tap-to-review actions */}
-                {showActions && (
-                  <div
-                    className="flex gap-2"
-                    style={{ position: 'absolute', bottom: 4, right: 6 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
-                      style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: 'none', backgroundColor: '#FFFFFF', color: item.color }}>
-                      Done
-                    </button>
-                    <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
-                      style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: 'none', backgroundColor: '#FFFFFF', color: '#AEAEB2' }}>
-                      Skip
-                    </button>
-                  </div>
-                )}
               </div>
+              {/* Floating review actions — outside block to avoid overflow:hidden */}
+              {showActions && (
+                <div
+                  className="flex gap-2"
+                  style={{
+                    position: 'absolute',
+                    top: top + height + 4,
+                    right: 10,
+                    zIndex: 20,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
+                    style={{ padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: 'none', backgroundColor: '#FFFFFF', color: item.color, boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                    Done
+                  </button>
+                  <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
+                    style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500, border: 'none', backgroundColor: '#FFFFFF', color: '#AEAEB2', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                    Skip
+                  </button>
+                </div>
+              )}
+              </React.Fragment>
             );
           })}
 
