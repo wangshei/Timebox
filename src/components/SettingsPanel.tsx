@@ -1186,7 +1186,7 @@ export function SettingsPanel({
                       </div>
                     </div>
                     <a
-                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      href="https://timeboxing.club/desktop"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 mt-3 py-2 px-3 rounded-lg cursor-pointer transition-colors"
