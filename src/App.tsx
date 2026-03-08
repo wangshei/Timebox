@@ -2094,7 +2094,7 @@ export default function App() {
                   {/* Desktop app download button */}
                   {!isTauri() && (
                     <a
-                      href="https://github.com/timeboxing-club/desktop/releases/latest"
+                      href="https://timeboxing.club/desktop"
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
