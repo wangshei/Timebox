@@ -757,25 +757,15 @@ export function SettingsPanel({
                           </button>
                           <button
                             type="button"
-                            onClick={async () => {
-                              setGcalStep('connecting');
-                              try {
-                                // Store sync mode for after callback
-                                localStorage.setItem('gcal_pending_sync_mode', gcalSyncMode);
-                                const url = await getGoogleAuthUrl();
-                                window.location.href = url;
-                              } catch (err) {
-                                // eslint-disable-next-line no-console
-                                console.error('[gcal] Failed to get auth URL:', err);
-                                setGcalStep('choose_mode');
-                                alert('Failed to connect to Google. Make sure you are logged in.');
-                              }
+                            onClick={() => {
+                              // Store sync mode for after callback
+                              localStorage.setItem('gcal_pending_sync_mode', gcalSyncMode);
+                              window.location.href = getGoogleAuthUrl();
                             }}
-                            disabled={gcalStep === 'connecting'}
                             className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                            style={{ backgroundColor: '#4285F4', color: '#FFFFFF', opacity: gcalStep === 'connecting' ? 0.6 : 1 }}
+                            style={{ backgroundColor: '#4285F4', color: '#FFFFFF' }}
                           >
-                            <CloudIcon className="h-3 w-3" /> {gcalStep === 'connecting' ? 'Connecting…' : 'Connect'}
+                            <CloudIcon className="h-3 w-3" /> Connect
                           </button>
                         </div>
                       </div>

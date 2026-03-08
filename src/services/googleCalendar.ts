@@ -24,18 +24,26 @@ async function callEdgeFunction(fnName: string, body: Record<string, unknown>) {
   return data;
 }
 
+// Google Client ID (public, safe for frontend)
+const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+
 /** Build the callback URL for the current environment. */
 function getRedirectUri(): string {
   return `${window.location.origin}/gcal-callback`;
 }
 
-/** Get the Google OAuth consent URL. Opens in a new window. */
-export async function getGoogleAuthUrl(): Promise<string> {
-  const result = await callEdgeFunction('gcal-auth', {
-    action: 'get_auth_url',
+/** Get the Google OAuth consent URL. Built client-side — no auth needed. */
+export function getGoogleAuthUrl(): string {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
     redirect_uri: getRedirectUri(),
+    response_type: 'code',
+    scope: GOOGLE_SCOPES,
+    access_type: 'offline',
+    prompt: 'consent',
   });
-  return result.url;
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 /** Exchange the OAuth authorization code for tokens after redirect. */
