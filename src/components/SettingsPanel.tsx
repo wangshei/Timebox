@@ -1006,13 +1006,14 @@ export function SettingsPanel({
             style={{ backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 14, zIndex: 10 }}
           >
             <div
-              className="rounded-2xl p-5 mx-4"
+              className="rounded-2xl mx-4"
               style={{
                 backgroundColor: '#FFFFFF',
                 border: '1px solid rgba(0,0,0,0.09)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
                 maxWidth: 300,
                 width: '100%',
+                padding: 24,
               }}
             >
               <p style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 8 }}>Delete "{confirmDeleteName}"?</p>

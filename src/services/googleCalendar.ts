@@ -13,6 +13,7 @@ const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 const GCAL_TOKENS_KEY = 'gcal_tokens';
 const GCAL_EVENTS_KEY = 'gcal_imported_events';
 const GCAL_CALENDARS_KEY = 'gcal_imported_calendars';
+const GCAL_DISMISSED_KEY = 'gcal_dismissed_event_ids';
 
 function getRedirectUri(): string {
   return `${window.location.origin}/gcal-callback`;
@@ -47,9 +48,31 @@ export function disconnectGoogle(): void {
   localStorage.removeItem(GCAL_TOKENS_KEY);
   localStorage.removeItem(GCAL_EVENTS_KEY);
   localStorage.removeItem(GCAL_CALENDARS_KEY);
+  localStorage.removeItem(GCAL_DISMISSED_KEY);
   localStorage.removeItem('gcal_pending_sync_mode');
   localStorage.removeItem('gcal_connected_at');
   localStorage.removeItem('gcal_device_id');
+}
+
+/** Get the set of gcal event IDs the user has dismissed (removed from Timebox). */
+export function getGcalDismissedIds(): Set<string> {
+  const raw = localStorage.getItem(GCAL_DISMISSED_KEY);
+  if (!raw) return new Set();
+  try { return new Set(JSON.parse(raw)); } catch { return new Set(); }
+}
+
+/** Mark a gcal event ID as dismissed so it won't come back on re-import. */
+export function dismissGcalEventId(eventId: string): void {
+  const ids = getGcalDismissedIds();
+  ids.add(eventId);
+  localStorage.setItem(GCAL_DISMISSED_KEY, JSON.stringify([...ids]));
+}
+
+/** Mark multiple gcal event IDs as dismissed. */
+export function dismissGcalEventIds(eventIds: string[]): void {
+  const ids = getGcalDismissedIds();
+  for (const id of eventIds) ids.add(id);
+  localStorage.setItem(GCAL_DISMISSED_KEY, JSON.stringify([...ids]));
 }
 
 /** Get a valid access token, refreshing if expired. */

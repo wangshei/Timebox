@@ -19,7 +19,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents } from './services/googleCalendar';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds } from './services/googleCalendar';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -252,6 +252,9 @@ export default function App() {
       const state = useStore.getState();
       const existingContainerIds = new Set(state.calendarContainers.map(c => c.id));
       const existingCategoryIds = new Set(state.categories.map(c => c.id));
+      // Filter out events the user has dismissed (removed from Timebox)
+      const dismissedIds = getGcalDismissedIds();
+      const freshGcalEvents = data.events.filter(e => !dismissedIds.has(e.id));
       // Remove old gcal events, add fresh ones
       const nonGcalEvents = state.events.filter(e => !e.googleEventId);
       useStore.setState({
@@ -263,7 +266,7 @@ export default function App() {
           ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
           ...data.categories.filter(c => !existingCategoryIds.has(c.id)),
         ],
-        events: [...nonGcalEvents, ...data.events],
+        events: [...nonGcalEvents, ...freshGcalEvents],
       });
     };
 
@@ -1266,6 +1269,9 @@ export default function App() {
 
   const handleDeleteEvent = (eventId: string) => {
     saveSnapshot();
+    // If it's a gcal event, dismiss it so it won't come back on re-import
+    const evt = events.find(e => e.id === eventId);
+    if (evt?.googleEventId) dismissGcalEventId(eventId);
     deleteEvent(eventId);
   };
 
@@ -1282,15 +1288,18 @@ export default function App() {
         : null;
 
     if (scope === 'this' || !seriesKey) {
+      if (event.googleEventId) dismissGcalEventId(id);
       deleteEvent(id);
     } else if (scope === 'all') {
-      deleteEvents(events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value).map((e) => e.id));
+      const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value);
+      const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
+      if (gcalIds.length) dismissGcalEventIds(gcalIds);
+      deleteEvents(toDelete.map((e) => e.id));
     } else if (scope === 'all_after') {
-      deleteEvents(
-        events
-          .filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date)
-          .map((e) => e.id)
-      );
+      const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date);
+      const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
+      if (gcalIds.length) dismissGcalEventIds(gcalIds);
+      deleteEvents(toDelete.map((e) => e.id));
     }
   };
 
