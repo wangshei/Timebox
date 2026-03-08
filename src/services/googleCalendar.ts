@@ -48,11 +48,31 @@ export function getGoogleAuthUrl(): string {
 
 /** Exchange the OAuth authorization code for tokens after redirect. */
 export async function exchangeGoogleCode(code: string): Promise<void> {
-  await callEdgeFunction('gcal-auth', {
-    action: 'exchange_code',
-    code,
-    redirect_uri: getRedirectUri(),
+  // Call edge function directly (bypasses supabase auth check)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  if (!supabaseUrl) throw new Error('Supabase not configured');
+
+  // Get device ID for unauthenticated users
+  let deviceId = localStorage.getItem('gcal_device_id');
+  if (!deviceId) {
+    deviceId = crypto.randomUUID();
+    localStorage.setItem('gcal_device_id', deviceId);
+  }
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/gcal-auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'exchange_code',
+      code,
+      redirect_uri: getRedirectUri(),
+      device_id: deviceId,
+    }),
   });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Edge Function returned a non-2xx status code`);
+  }
 }
 
 /** List the user's Google Calendars for selection. */

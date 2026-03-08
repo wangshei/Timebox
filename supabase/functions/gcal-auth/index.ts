@@ -189,6 +189,23 @@ serve(async (req) => {
   }
 
   try {
+    const { action, code, redirect_uri, device_id } = await req.json()
+
+    // exchange_code can work without auth (uses device_id)
+    if (action === 'exchange_code') {
+      if (!code) throw new Error('Missing code')
+      const effectiveRedirectUri = redirect_uri || GOOGLE_REDIRECT_URI
+      if (!effectiveRedirectUri) throw new Error('No redirect_uri configured')
+      // Use authenticated user ID if available, otherwise device_id
+      const userId = await getUserId(req) || (device_id ? `device:${device_id}` : null)
+      if (!userId) throw new Error('Missing user identity')
+      const result = await exchangeCode(code, userId, effectiveRedirectUri)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // All other actions require auth
     const userId = await getUserId(req)
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -197,21 +214,13 @@ serve(async (req) => {
       })
     }
 
-    const { action, code, redirect_uri } = await req.json()
-    // Allow client to pass redirect_uri, fall back to env var
     const effectiveRedirectUri = redirect_uri || GOOGLE_REDIRECT_URI
-    if (!effectiveRedirectUri && (action === 'get_auth_url' || action === 'exchange_code')) {
-      throw new Error('No redirect_uri configured')
-    }
 
     let result: unknown
     switch (action) {
       case 'get_auth_url':
+        if (!effectiveRedirectUri) throw new Error('No redirect_uri configured')
         result = { url: getAuthUrl(userId, effectiveRedirectUri) }
-        break
-      case 'exchange_code':
-        if (!code) throw new Error('Missing code')
-        result = await exchangeCode(code, userId, effectiveRedirectUri)
         break
       case 'list_calendars':
         result = { calendars: await listCalendars(userId) }
