@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { getLocalDateString } from '../utils/dateTime';
 import { parseTimeToMinutes } from '../utils/taskHelpers';
+import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
 import type { TimeBlock, Task } from '../types';
 
@@ -110,16 +111,20 @@ export function MobileApp() {
   const [activeTab, setActiveTab] = useState<MobileTab>('schedule');
 
   return (
-    <div className="flex flex-col w-full" style={{ backgroundColor: '#FDFDFB', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}>
-      {/* Top tab bar — 2 tabs */}
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw' }}>
+      {/* Top tab bar — fixed at top */}
       <nav
-        className="flex-shrink-0 flex items-center w-full"
         style={{
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
           padding: '8px 16px',
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
           backgroundColor: '#FCFBF7',
           borderBottom: '1px solid rgba(0,0,0,0.06)',
           gap: 8,
+          zIndex: 50,
         }}
       >
         {([
@@ -132,8 +137,13 @@ export function MobileApp() {
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className="flex-1 flex items-center justify-center gap-2 touch-manipulation"
+              className="touch-manipulation"
               style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
                 padding: '10px 4px',
                 borderRadius: 12,
                 color: isActive ? THEME.primary : '#AEAEB2',
@@ -150,8 +160,8 @@ export function MobileApp() {
         })}
       </nav>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      {/* Content — fills remaining height */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'tasks' && <TasksTab />}
       </div>
@@ -424,7 +434,7 @@ function ScheduleTab() {
   }, [agenda, today, selectedDate, nowMins]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {/* Active timer banner — persistent when running */}
       {activeTimer && currentBlock && (
         <div
@@ -521,55 +531,64 @@ function ScheduleTab() {
             );
           })}
 
-          {/* Blocks and events */}
-          {agenda.map((item) => {
-            const startM = parseTimeToMinutes(item.start);
-            const endM = parseTimeToMinutes(item.end);
-            const top = ((startM - gridStartMins) / 60) * HOUR_HEIGHT;
-            const height = Math.max(((endM - startM) / 60) * HOUR_HEIGHT, 22);
-            const isEvent = item.type === 'event';
-            const isPast = selectedDate < today || (selectedDate === today && endM <= nowMins);
-            const isConfirmed = item.confirmationStatus === 'confirmed';
-            const isSkipped = item.confirmationStatus === 'skipped';
-            const isTapped = tappedBlockId === item.id;
-            const showActions = isTapped && item.type === 'block' && isPast && !isConfirmed && !isSkipped;
-            const isCompact = height < 38;
+          {/* Content area for blocks — positioned to the right of time labels */}
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: TIME_COL_WIDTH + 4, right: 16 }}>
+          {(() => {
+            const overlapMap = computeOverlapLayout(agenda.map((a) => ({ id: a.id, start: a.start, end: a.end })));
 
-            return (
-              <React.Fragment key={item.id}>
-                <div
-                  onClick={() => setTappedBlockId(isTapped ? null : item.id)}
-                  className="touch-manipulation"
-                  style={{
-                    position: 'absolute',
-                    top,
-                    left: TIME_COL_WIDTH + 4,
-                    right: 16,
-                    height,
-                    borderRadius: 8,
-                    padding: isCompact ? '2px 8px' : '6px 10px',
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    opacity: isSkipped ? 0.4 : 1,
-                    transition: 'box-shadow 0.15s ease',
-                    boxShadow: isTapped ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
-                    zIndex: isTapped ? 15 : 5,
-                    ...(isEvent ? {
-                      borderLeft: `3px solid ${item.color}`,
-                      backgroundColor: `${item.color}12`,
-                    } : isConfirmed ? {
-                      backgroundColor: `${item.color}18`,
-                      border: `1px solid ${item.color}30`,
-                    } : {
-                      backgroundColor: `${item.color}25`,
-                      border: `1.5px dashed ${item.color}50`,
-                    }),
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-1" style={{ height: '100%' }}>
-                    <div className="min-w-0 flex-1">
+            return agenda.map((item) => {
+              const startM = parseTimeToMinutes(item.start);
+              const endM = parseTimeToMinutes(item.end);
+              const top = ((startM - gridStartMins) / 60) * HOUR_HEIGHT;
+              const height = Math.max(((endM - startM) / 60) * HOUR_HEIGHT, 22);
+              const isEvent = item.type === 'event';
+              const isPast = selectedDate < today || (selectedDate === today && endM <= nowMins);
+              const isConfirmed = item.confirmationStatus === 'confirmed';
+              const isSkipped = item.confirmationStatus === 'skipped';
+              const isTapped = tappedBlockId === item.id;
+              const showActions = isTapped && item.type === 'block' && isPast && !isConfirmed && !isSkipped;
+              const isCompact = height < 38;
+
+              const layout = overlapMap.get(item.id);
+              const colIdx = layout?.columnIndex ?? 0;
+              const totalCols = layout?.totalColumns ?? 1;
+              const colWidthPct = 100 / totalCols;
+              const leftPct = colIdx * colWidthPct;
+
+              return (
+                <React.Fragment key={item.id}>
+                  <div
+                    onClick={() => setTappedBlockId(isTapped ? null : item.id)}
+                    className="touch-manipulation"
+                    style={{
+                      position: 'absolute',
+                      top,
+                      left: `${leftPct}%`,
+                      width: `calc(${colWidthPct}% - 2px)`,
+                      height,
+                      borderRadius: 8,
+                      padding: isCompact ? '2px 6px' : '6px 8px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      opacity: isSkipped ? 0.4 : 1,
+                      transition: 'box-shadow 0.15s ease',
+                      boxShadow: isTapped ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+                      zIndex: isTapped ? 15 : 5,
+                      ...(isEvent ? {
+                        borderLeft: `3px solid ${item.color}`,
+                        backgroundColor: `${item.color}12`,
+                      } : isConfirmed ? {
+                        backgroundColor: `${item.color}18`,
+                        border: `1px solid ${item.color}30`,
+                      } : {
+                        backgroundColor: `${item.color}25`,
+                        border: `1.5px dashed ${item.color}50`,
+                      }),
+                    }}
+                  >
+                    <div style={{ height: '100%', overflow: 'hidden' }}>
                       <p style={{
-                        fontSize: isCompact ? 11 : 12,
+                        fontSize: isCompact ? 10 : 12,
                         fontWeight: 500,
                         color: THEME.textPrimary,
                         margin: 0,
@@ -580,35 +599,36 @@ function ScheduleTab() {
                       }}>
                         {item.title}
                       </p>
-                      {!isCompact && (
+                      {!isCompact && height >= 44 && (
                         <p style={{ fontSize: 10, color: '#8E8E93', margin: '1px 0 0' }}>
                           {formatTime12(item.start)} – {formatTime12(item.end)}
                         </p>
                       )}
+                      {isConfirmed && <CheckBadge color={item.color} />}
                     </div>
-                    {isConfirmed && <CheckBadge color={item.color} />}
                   </div>
-                </div>
-                {/* Floating review buttons */}
-                {showActions && (
-                  <div
-                    className="flex gap-2"
-                    style={{ position: 'absolute', top: top + height + 4, right: 16, zIndex: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
-                      style={{ padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: 'none', backgroundColor: '#FFFFFF', color: item.color, boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
-                      Done
-                    </button>
-                    <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
-                      style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500, border: 'none', backgroundColor: '#FFFFFF', color: '#AEAEB2', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
-                      Skip
-                    </button>
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+                  {/* Floating review buttons */}
+                  {showActions && (
+                    <div
+                      className="flex gap-2"
+                      style={{ position: 'absolute', top: top + height + 4, right: 0, zIndex: 20 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
+                        style={{ padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: 'none', backgroundColor: '#FFFFFF', color: item.color, boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                        Done
+                      </button>
+                      <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
+                        style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500, border: 'none', backgroundColor: '#FFFFFF', color: '#AEAEB2', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                        Skip
+                      </button>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            });
+          })()}
+          </div>
 
           {/* Now line */}
           {showNowLine && (
@@ -825,9 +845,9 @@ function TasksTab() {
   }, [saveSnapshot, updateTask]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Quick capture input — always visible at top */}
-      <div className="flex-shrink-0" style={{ padding: '14px 16px 0' }}>
+      <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
@@ -936,7 +956,7 @@ function TasksTab() {
       </div>
 
       {/* Task list */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '0 16px 16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
         {activeTasks.length === 0 && (
           <div className="flex flex-col items-center" style={{ paddingTop: 48 }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
