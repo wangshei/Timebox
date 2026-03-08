@@ -73,6 +73,7 @@ export function SettingsPanel({
   const [editCalendarIds, setEditCalendarIds] = useState<string[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
+  const [confirmDeleteInput, setConfirmDeleteInput] = useState('');
 
   // ── Sharing state ──
   const [sharingId, setSharingId] = useState<string | null>(null); // id of item being shared
@@ -226,6 +227,7 @@ export function SettingsPanel({
     else if (activeTab === 'tags' && onDeleteTag) onDeleteTag(confirmDeleteId);
     setConfirmDeleteId(null);
     setConfirmDeleteName('');
+    setConfirmDeleteInput('');
   };
 
   const tabs = [
@@ -1017,13 +1019,44 @@ export function SettingsPanel({
               }}
             >
               <p style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 8 }}>Delete "{confirmDeleteName}"?</p>
-              <p style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 20, lineHeight: 1.5 }}>
-                This cannot be undone. Are you sure you want to delete this {activeTab.slice(0, -1)}?
-              </p>
-              <div className="flex gap-2 justify-end">
+              {activeTab === 'calendars' ? (
+                <>
+                  <p style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 12, lineHeight: 1.5 }}>
+                    Type the following to confirm:
+                  </p>
+                  <p style={{ fontSize: 11, color: TEXT, marginBottom: 12, lineHeight: 1.5, fontWeight: 500, backgroundColor: 'rgba(0,0,0,0.04)', padding: '8px 10px', borderRadius: 8, userSelect: 'all' }}>
+                    I understand the {confirmDeleteName} and events in it will be deleted forever
+                  </p>
+                  <input
+                    type="text"
+                    value={confirmDeleteInput}
+                    onChange={(e) => setConfirmDeleteInput(e.target.value)}
+                    placeholder="Type confirmation here..."
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      fontSize: 11,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(0,0,0,0.12)',
+                      outline: 'none',
+                      marginBottom: 16,
+                      color: TEXT,
+                      backgroundColor: '#FAFAFA',
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = PRIMARY; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+                  />
+                </>
+              ) : (
+                <p style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 20, lineHeight: 1.5 }}>
+                  This cannot be undone. Are you sure you want to delete this {activeTab.slice(0, -1)}?
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button
                   type="button"
-                  onClick={() => { setConfirmDeleteId(null); setConfirmDeleteName(''); }}
+                  onClick={() => { setConfirmDeleteId(null); setConfirmDeleteName(''); setConfirmDeleteInput(''); }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
@@ -1034,10 +1067,15 @@ export function SettingsPanel({
                 <button
                   type="button"
                   onClick={handleDeleteConfirm}
+                  disabled={activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever`}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                  style={{ backgroundColor: '#FF3B30', color: '#FFFFFF' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#D93025'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FF3B30'; }}
+                  style={{
+                    backgroundColor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'rgba(255,59,48,0.35)' : '#FF3B30',
+                    color: '#FFFFFF',
+                    cursor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'not-allowed' : 'pointer',
+                  }}
+                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#D93025'; }}
+                  onMouseLeave={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#FF3B30'; }}
                 >
                   Delete
                 </button>

@@ -5,7 +5,7 @@
  */
 
 import { supabase } from '../supabaseClient';
-import type { Event, CalendarContainer, Category } from '../types';
+import type { Event, CalendarContainer, Category, RecurrencePattern } from '../types';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
@@ -255,6 +255,60 @@ function parseGcalDateTime(dt: { dateTime?: string; date?: string }): { date: st
   return { date: dt.date ?? '', time: '00:00' };
 }
 
+// ─── Recurrence detection ────────────────────────────────────────────────────
+
+/**
+ * Detect the recurrence pattern from a set of expanded Google Calendar instances.
+ * Analyzes the gaps between occurrence dates to determine daily/weekly/monthly/custom.
+ */
+function detectRecurrencePattern(instances: GcalEvent[]): { pattern: RecurrencePattern; days?: number[] } {
+  if (instances.length < 2) return { pattern: 'weekly' }; // Default for single instance
+
+  // Parse dates
+  const dates = instances
+    .map(e => {
+      if (!e.start.dateTime) return null;
+      const d = new Date(e.start.dateTime);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    })
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (dates.length < 2) return { pattern: 'weekly' };
+
+  // Calculate gaps in days between consecutive occurrences
+  const gaps: number[] = [];
+  for (let i = 1; i < dates.length; i++) {
+    gaps.push(Math.round((dates[i].getTime() - dates[i - 1].getTime()) / 86400000));
+  }
+
+  // Check if all gaps are the same
+  const allSame = gaps.every(g => g === gaps[0]);
+
+  if (allSame && gaps[0] === 1) return { pattern: 'daily' };
+  if (allSame && gaps[0] === 2) return { pattern: 'every_other_day' };
+  if (allSame && gaps[0] === 7) return { pattern: 'weekly' };
+
+  // Check monthly: gaps ~28-31 days
+  if (allSame && gaps[0] >= 28 && gaps[0] <= 31) return { pattern: 'monthly' };
+
+  // Check for custom weekly pattern (repeats on specific days of the week)
+  const weekdays = new Set(dates.map(d => d.getDay()));
+  // If all gaps are multiples of 7 or fit a weekly cycle, treat as custom days
+  const maxGap = Math.max(...gaps);
+  if (maxGap <= 7 && weekdays.size > 1) {
+    return { pattern: 'custom', days: [...weekdays].sort() };
+  }
+
+  // If gaps are consistent within a 7-day cycle, it's custom days
+  if (weekdays.size >= 1 && weekdays.size <= 5 && gaps.every(g => g <= 7)) {
+    return { pattern: 'custom', days: [...weekdays].sort() };
+  }
+
+  // Fallback: weekly
+  return { pattern: 'weekly' };
+}
+
 // ─── Import flow ─────────────────────────────────────────────────────────────
 
 export interface GcalImportResult {
@@ -303,26 +357,37 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
     // Fetch events for this calendar
     try {
       const gcalEvents = await fetchCalendarEvents(gcal.id);
+
+      // Separate recurring vs one-off events
+      const recurringGroups = new Map<string, GcalEvent[]>();
+      const oneOffEvents: GcalEvent[] = [];
+
       for (const evt of gcalEvents) {
         if (evt.status === 'cancelled' || !evt.summary) continue;
-        // Skip all-day events (no time-based display)
         if (!evt.start.dateTime) continue;
 
         // Apply sync mode filter
         if (syncMode === 'listen_with_history') {
-          // Only import events where others invited the user
           if (!isInviteFromOthers(evt)) continue;
         } else if (syncMode === 'listen_fresh') {
-          // Only import future invites from others (after connection date)
           if (!isInviteFromOthers(evt)) continue;
           const evtStart = new Date(evt.start.dateTime);
           if (evtStart < new Date(connectedAt)) continue;
         }
-        // migrate_listen: import everything (no filter)
 
+        if (evt.recurringEventId) {
+          const group = recurringGroups.get(evt.recurringEventId) ?? [];
+          group.push(evt);
+          recurringGroups.set(evt.recurringEventId, group);
+        } else {
+          oneOffEvents.push(evt);
+        }
+      }
+
+      // Process one-off events
+      for (const evt of oneOffEvents) {
         const start = parseGcalDateTime(evt.start);
         const end = parseGcalDateTime(evt.end);
-
         events.push({
           id: `gcal-evt-${evt.id}`,
           title: evt.summary,
@@ -334,11 +399,46 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           endDate: start.date !== end.date ? end.date : undefined,
           recurring: false,
           googleEventId: evt.id,
-          recurringGoogleEventId: evt.recurringEventId || undefined,
           readOnly: true,
           source: 'manual',
           description: evt.description || undefined,
         });
+      }
+
+      // Process recurring event groups — create one Timebox series per group
+      for (const [recurringId, instances] of recurringGroups) {
+        if (instances.length === 0) continue;
+        // Sort by start date
+        instances.sort((a, b) => (a.start.dateTime ?? '').localeCompare(b.start.dateTime ?? ''));
+
+        const first = instances[0];
+        const { pattern, days } = detectRecurrencePattern(instances);
+        const seriesId = `gcal-series-${recurringId}`;
+
+        // Create one Timebox event per instance, all sharing the series ID
+        for (const evt of instances) {
+          const start = parseGcalDateTime(evt.start);
+          const end = parseGcalDateTime(evt.end);
+          events.push({
+            id: `gcal-evt-${evt.id}`,
+            title: evt.summary ?? first.summary ?? 'Event',
+            calendarContainerId: containerId,
+            categoryId,
+            start: start.time,
+            end: end.time,
+            date: start.date,
+            endDate: start.date !== end.date ? end.date : undefined,
+            recurring: true,
+            recurrencePattern: pattern,
+            recurrenceDays: days,
+            recurrenceSeriesId: seriesId,
+            googleEventId: evt.id,
+            recurringGoogleEventId: recurringId,
+            readOnly: true,
+            source: 'manual',
+            description: evt.description || first.description || undefined,
+          });
+        }
       }
     } catch (err) {
       // eslint-disable-next-line no-console
