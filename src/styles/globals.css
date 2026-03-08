@@ -306,6 +306,11 @@ html {
   animation: slideInLeft 0.25s ease-out;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* === Segmented control base === */
 .segmented-control {
   display: inline-flex;
