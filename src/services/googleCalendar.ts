@@ -48,6 +48,7 @@ export function disconnectGoogle(): void {
   localStorage.removeItem(GCAL_EVENTS_KEY);
   localStorage.removeItem(GCAL_CALENDARS_KEY);
   localStorage.removeItem('gcal_pending_sync_mode');
+  localStorage.removeItem('gcal_connected_at');
   localStorage.removeItem('gcal_device_id');
 }
 
@@ -146,11 +147,28 @@ interface GcalEvent {
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   status: string;
+  creator?: { email: string; self?: boolean };
   organizer?: { email: string; self?: boolean };
+  attendees?: Array<{ email: string; self?: boolean; responseStatus?: string }>;
   description?: string;
   htmlLink?: string;
   recurringEventId?: string;
 }
+
+/** Check if an event is one that others invited the user to (not self-organized). */
+function isInviteFromOthers(evt: GcalEvent): boolean {
+  // If the user is the organizer, it's their own event
+  if (evt.organizer?.self) return false;
+  // If the user is the creator and there's no separate organizer, it's their own
+  if (evt.creator?.self && !evt.organizer) return false;
+  // If there are attendees and the user is one of them, it's an invite
+  if (evt.attendees?.some(a => a.self)) return true;
+  // If there's an organizer that isn't self, treat as invite
+  if (evt.organizer && !evt.organizer.self) return true;
+  return false;
+}
+
+type SyncMode = 'migrate_listen' | 'listen_with_history' | 'listen_fresh';
 
 /** Fetch the user's Google Calendar list. */
 export async function fetchGoogleCalendars(): Promise<GcalCalendar[]> {
@@ -224,10 +242,19 @@ export interface GcalImportResult {
 
 /**
  * Fetch all calendars and events from Google, returning them as Timebox entities.
- * Each Google calendar → one CalendarContainer + one Category.
- * Each Google event → one read-only Event.
+ * Respects the sync mode chosen by the user:
+ *   - migrate_listen: Import ALL existing events, then only invites going forward
+ *   - listen_with_history: Only events others invited the user to (past + future)
+ *   - listen_fresh: Only future invites from others (no history)
  */
 export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
+  const syncMode = (localStorage.getItem('gcal_pending_sync_mode') || 'listen_with_history') as SyncMode;
+  const connectedAt = localStorage.getItem('gcal_connected_at') || new Date().toISOString();
+  // Store connection timestamp for listen_fresh mode
+  if (!localStorage.getItem('gcal_connected_at')) {
+    localStorage.setItem('gcal_connected_at', connectedAt);
+  }
+
   const gcalCalendars = await fetchGoogleCalendars();
   const containers: CalendarContainer[] = [];
   const categories: Category[] = [];
@@ -255,10 +282,23 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
       const gcalEvents = await fetchCalendarEvents(gcal.id);
       for (const evt of gcalEvents) {
         if (evt.status === 'cancelled' || !evt.summary) continue;
+        // Skip all-day events (no time-based display)
+        if (!evt.start.dateTime) continue;
+
+        // Apply sync mode filter
+        if (syncMode === 'listen_with_history') {
+          // Only import events where others invited the user
+          if (!isInviteFromOthers(evt)) continue;
+        } else if (syncMode === 'listen_fresh') {
+          // Only import future invites from others (after connection date)
+          if (!isInviteFromOthers(evt)) continue;
+          const evtStart = new Date(evt.start.dateTime);
+          if (evtStart < new Date(connectedAt)) continue;
+        }
+        // migrate_listen: import everything (no filter)
+
         const start = parseGcalDateTime(evt.start);
         const end = parseGcalDateTime(evt.end);
-        // Skip all-day events for now (they don't have times)
-        if (!evt.start.dateTime) continue;
 
         events.push({
           id: `gcal-evt-${evt.id}`,
