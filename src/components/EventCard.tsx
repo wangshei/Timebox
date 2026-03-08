@@ -463,6 +463,45 @@ export function EventCard({
                 </div>
               )}
 
+              {/* Attendees */}
+              {event.attendees && event.attendees.length > 0 && (
+                <div className="mt-1 mb-1">
+                  <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                      <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4H4zm9-7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm1 7c0-.7-.1-1.4-.4-2h2.4c.6 0 1 .4 1 1v1h-3z" />
+                    </svg>
+                    <span style={{ fontWeight: 500 }}>{event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="pl-4 flex flex-col gap-0.5">
+                    {event.attendees.slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex items-center gap-1.5" style={{ fontSize: 10, color: THEME.textSecondary }}>
+                        <div
+                          className="flex-shrink-0 rounded-full flex items-center justify-center"
+                          style={{
+                            width: 14, height: 14, fontSize: 7, fontWeight: 600,
+                            backgroundColor: a.self ? hexToRgba(categoryColor, 0.15) : 'rgba(0,0,0,0.06)',
+                            color: a.self ? categoryColor : THEME.textMuted,
+                          }}
+                        >
+                          {(a.name || a.email).charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate" style={{ maxWidth: 140 }}>
+                          {a.self ? 'You' : (a.name || a.email)}
+                        </span>
+                        {a.responseStatus && a.responseStatus !== 'needsAction' && (
+                          <span style={{ fontSize: 8, color: a.responseStatus === 'accepted' ? '#34C759' : a.responseStatus === 'declined' ? '#FF3B30' : THEME.textMuted }}>
+                            {a.responseStatus === 'accepted' ? '✓' : a.responseStatus === 'declined' ? '✕' : '?'}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {event.attendees.length > 5 && (
+                      <div style={{ fontSize: 9, color: THEME.textMuted }}>+{event.attendees.length - 5} more</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Details toggle — grouped with info above */}
               {(event.notes || event.description || event.link) && (
                 <div className="mt-0.5 mb-1">
@@ -563,13 +602,32 @@ export function EventCard({
                 </button>
               )}
 
-              {/* Read-only badge for synced/shared events */}
-              {event.readOnly && (
+              {/* Source badge for synced/shared events */}
+              {event.googleEventId && (
+                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                  {event.readOnly ? (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                        <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
+                      </svg>
+                      <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Synced from Google Calendar'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
+                        <path d="M8 16A8 8 0 108 0a8 8 0 000 16zm1-11v2h2a1 1 0 110 2H9v2a1 1 0 11-2 0V9H5a1 1 0 010-2h2V5a1 1 0 012 0z" />
+                      </svg>
+                      <span>Your event · Google Calendar</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {!event.googleEventId && event.readOnly && (
                 <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
                     <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
                   </svg>
-                  <span>{event.googleEventId ? 'Synced from Google Calendar' : event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
+                  <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
                 </div>
               )}
 

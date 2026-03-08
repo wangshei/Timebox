@@ -112,6 +112,10 @@ export interface ResolvedEvent {
   sharedFromShareId?: string | null;
   /** When true, event is read-only (synced from Google or shared by another user). */
   readOnly?: boolean;
+  /** Attendees for this event. */
+  attendees?: Array<{ email: string; name?: string; self?: boolean; responseStatus?: string }> | null;
+  /** Whether the current user is the organizer. */
+  isOrganizer?: boolean;
 }
 
 export function resolveEvent(

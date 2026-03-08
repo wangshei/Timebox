@@ -146,6 +146,10 @@ export interface Event {
   sharedFromShareId?: string | null;
   /** When set, this event is read-only (synced from Google or shared by another user). */
   readOnly?: boolean;
+  /** Attendees for this event (from Google Calendar or manually added). */
+  attendees?: Array<{ email: string; name?: string; self?: boolean; responseStatus?: string }> | null;
+  /** Whether the current user is the organizer of this event. */
+  isOrganizer?: boolean;
 }
 
 export interface User {

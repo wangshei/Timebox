@@ -77,3 +77,13 @@ export async function getSharedWithMe(): Promise<unknown[]> {
   const result = await callEdgeFunction({ action: 'shared_with_me' });
   return result.shares;
 }
+
+/** Notify attendees when the organizer updates an event. */
+export async function notifyEventUpdate(params: {
+  eventTitle: string;
+  attendeeEmails: string[];
+  changes: string;
+  senderName?: string;
+}): Promise<{ success: boolean; notified: number }> {
+  return callEdgeFunction({ action: 'notify_event_update', ...params });
+}

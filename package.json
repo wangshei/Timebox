@@ -32,6 +32,7 @@
             "@radix-ui/react-tooltip": "^1.1.8",
             "@supabase/supabase-js": "^2.49.1",
             "@tauri-apps/api": "^2.10.1",
+            "@tauri-apps/plugin-notification": "^2.3.3",
             "class-variance-authority": "^0.7.1",
             "clsx": "*",
             "cmdk": "^1.1.1",

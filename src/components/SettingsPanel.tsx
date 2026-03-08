@@ -29,6 +29,12 @@ interface SettingsPanelProps {
   onWakeTimeChange?: (time: string) => void;
   onSleepTimeChange?: (time: string) => void;
   onExploreFeaturesClick?: () => void;
+  notificationScope?: 'events' | 'events_and_tasks' | 'off';
+  onNotificationScopeChange?: (scope: 'events' | 'events_and_tasks' | 'off') => void;
+  notificationLeadMinutes?: number;
+  onNotificationLeadMinutesChange?: (minutes: number) => void;
+  emailNotificationsEnabled?: boolean;
+  onEmailNotificationsEnabledChange?: (val: boolean) => void;
 }
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
@@ -62,6 +68,12 @@ export function SettingsPanel({
   onWakeTimeChange,
   onSleepTimeChange,
   onExploreFeaturesClick,
+  notificationScope = 'events',
+  onNotificationScopeChange,
+  notificationLeadMinutes = 5,
+  onNotificationLeadMinutesChange,
+  emailNotificationsEnabled = true,
+  onEmailNotificationsEnabledChange,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -715,6 +727,110 @@ export function SettingsPanel({
                     className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
                     style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
                   />
+                </div>
+
+                {/* ── Notifications ── */}
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Notifications</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Push notification scope */}
+                    <div
+                      className="py-3 px-3 rounded-lg"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <p style={{ fontSize: 12, fontWeight: 500, color: TEXT, marginBottom: 2 }}>Push notifications</p>
+                      <p style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 8 }}>Get reminded before events and tasks start</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { value: 'events' as const, label: 'Events only' },
+                          { value: 'events_and_tasks' as const, label: 'Events & tasks' },
+                          { value: 'off' as const, label: 'Off' },
+                        ]).map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onNotificationScopeChange?.(opt.value)}
+                            className="px-2.5 py-1 rounded-md transition-colors"
+                            style={{
+                              fontSize: 11,
+                              fontWeight: notificationScope === opt.value ? 600 : 400,
+                              backgroundColor: notificationScope === opt.value ? PRIMARY : 'rgba(0,0,0,0.05)',
+                              color: notificationScope === opt.value ? '#FFFFFF' : TEXT_SECONDARY,
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Lead time */}
+                    {notificationScope !== 'off' && (
+                      <div
+                        className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Remind before</p>
+                          <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Minutes before event starts</p>
+                        </div>
+                        <select
+                          value={notificationLeadMinutes}
+                          onChange={(e) => onNotificationLeadMinutesChange?.(Number(e.target.value))}
+                          className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                          style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 90 }}
+                        >
+                          <option value={0}>At start</option>
+                          <option value={1}>1 min</option>
+                          <option value={2}>2 min</option>
+                          <option value={5}>5 min</option>
+                          <option value={10}>10 min</option>
+                          <option value={15}>15 min</option>
+                          <option value={30}>30 min</option>
+                          <option value={60}>1 hour</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Email notifications */}
+                    <label
+                      htmlFor="email-notif-toggle"
+                      className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg cursor-pointer"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Email notifications</p>
+                        <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Notify attendees by email when you change an event</p>
+                      </div>
+                      <button
+                        id="email-notif-toggle"
+                        type="button"
+                        role="switch"
+                        aria-checked={emailNotificationsEnabled}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onEmailNotificationsEnabledChange?.(!emailNotificationsEnabled);
+                        }}
+                        className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        style={{
+                          backgroundColor: emailNotificationsEnabled ? PRIMARY : 'rgba(0,0,0,0.2)',
+                          minWidth: 44,
+                          minHeight: 24,
+                        }}
+                      >
+                        <span
+                          className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+                          style={{
+                            marginLeft: 2,
+                            marginTop: 2,
+                            transform: emailNotificationsEnabled ? 'translateX(20px)' : 'translateX(0)',
+                          }}
+                        />
+                      </button>
+                    </label>
+                  </div>
                 </div>
 
                 {/* ── Google Calendar ── */}

@@ -61,6 +61,12 @@ export interface AppState {
   wakeTime: string;
   /** User's sleep time — latest scheduling boundary. "HH:mm", default "23:00". */
   sleepTime: string;
+  /** Push notification scope: events only, events+tasks, or off. */
+  notificationScope: 'events' | 'events_and_tasks' | 'off';
+  /** Minutes before event to send push notification. 0 = at event time. */
+  notificationLeadMinutes: number;
+  /** Whether to send email notifications to attendees on event changes. */
+  emailNotificationsEnabled: boolean;
   // Onboarding
   hasCompletedSetup: boolean;
   userName: string;
@@ -108,6 +114,9 @@ function getInitialState(): AppState {
     weekStartsOnMonday: false,
     wakeTime: '08:00',
     sleepTime: '23:00',
+    notificationScope: 'events',
+    notificationLeadMinutes: 5,
+    emailNotificationsEnabled: true,
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
@@ -156,6 +165,9 @@ export interface AppActions {
   setWeekStartsOnMonday: (val: boolean) => void;
   setWakeTime: (time: string) => void;
   setSleepTime: (time: string) => void;
+  setNotificationScope: (scope: 'events' | 'events_and_tasks' | 'off') => void;
+  setNotificationLeadMinutes: (minutes: number) => void;
+  setEmailNotificationsEnabled: (val: boolean) => void;
   setHasCompletedSetup: (val: boolean) => void;
   setUserName: (name: string) => void;
   setOnboardingTourComplete: (val: boolean) => void;
@@ -456,6 +468,9 @@ export const useStore = create<AppState & AppActions>()(
   setWeekStartsOnMonday: (val) => set({ weekStartsOnMonday: val }),
   setWakeTime: (time) => set({ wakeTime: time }),
   setSleepTime: (time) => set({ sleepTime: time }),
+  setNotificationScope: (scope) => set({ notificationScope: scope }),
+  setNotificationLeadMinutes: (minutes) => set({ notificationLeadMinutes: minutes }),
+  setEmailNotificationsEnabled: (val) => set({ emailNotificationsEnabled: val }),
   setHasCompletedSetup: (val) => set({ hasCompletedSetup: val }),
   setUserName: (name) => set({ userName: name }),
   setOnboardingTourComplete: (val) => set({ onboardingTourComplete: val }),
@@ -751,6 +766,9 @@ type PersistedSlice = Pick<
   | 'weekStartsOnMonday'
   | 'wakeTime'
   | 'sleepTime'
+  | 'notificationScope'
+  | 'notificationLeadMinutes'
+  | 'emailNotificationsEnabled'
   | 'hasCompletedSetup'
   | 'userName'
   | 'onboardingTourComplete'
@@ -796,6 +814,9 @@ export function startLocalStoragePersistence() {
       weekStartsOnMonday: state.weekStartsOnMonday,
       wakeTime: state.wakeTime,
       sleepTime: state.sleepTime,
+      notificationScope: state.notificationScope,
+      notificationLeadMinutes: state.notificationLeadMinutes,
+      emailNotificationsEnabled: state.emailNotificationsEnabled,
       hasCompletedSetup: state.hasCompletedSetup,
       userName: state.userName,
       onboardingTourComplete: state.onboardingTourComplete,

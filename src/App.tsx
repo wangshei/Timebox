@@ -23,6 +23,8 @@ import { isTauri, getActivityBlocks, ActivityBlock } from './services/desktopAct
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
+import { notifyEventUpdate } from './services/sharing';
+import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
   selectPlanVsActualByCategory,
@@ -362,6 +364,12 @@ export default function App() {
     sessionExpired,
     setSaveError,
     setSessionExpired,
+    notificationScope,
+    notificationLeadMinutes,
+    emailNotificationsEnabled,
+    setNotificationScope,
+    setNotificationLeadMinutes,
+    setEmailNotificationsEnabled,
   } = useStore();
 
   const { saveSnapshot } = useHistoryStore();
@@ -435,6 +443,16 @@ export default function App() {
     }
     return visible;
   }, [events, selectedDate, view, containerVisibility]);
+
+  // Schedule push notifications for upcoming events/tasks
+  useEffect(() => {
+    if (notificationScope === 'off') return;
+    requestNotificationPermission();
+    scheduleNotifications(events, timeBlocks);
+    // Re-schedule every 5 minutes to pick up new/changed events
+    const interval = setInterval(() => scheduleNotifications(events, timeBlocks), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [events, timeBlocks, notificationScope, notificationLeadMinutes]);
 
   const analyticsDateRange = useMemo(
     () => getViewDateRange(selectedDate, view),
@@ -815,6 +833,32 @@ export default function App() {
     setIsDraftTimeBlock(false);
     setAddModalMode('task');
     setIsAddModalOpen(true);
+  };
+
+  /** Notify attendees when organizer updates their own event. Fire-and-forget. */
+  const notifyAttendeesIfNeeded = (event: import('./types').Event, updates: Record<string, unknown>) => {
+    if (!emailNotificationsEnabled) return;
+    if (!event.isOrganizer || !event.attendees?.length) return;
+    const otherEmails = event.attendees
+      .filter(a => !a.self && a.email)
+      .map(a => a.email);
+    if (otherEmails.length === 0) return;
+
+    // Build human-readable change summary
+    const parts: string[] = [];
+    if (updates.title && updates.title !== event.title) parts.push(`Title: ${updates.title}`);
+    if (updates.date && updates.date !== event.date) parts.push(`Date: ${updates.date}`);
+    if (updates.start && updates.start !== event.start) parts.push(`Start: ${updates.start}`);
+    if (updates.end && updates.end !== event.end) parts.push(`End: ${updates.end}`);
+    if (updates.description !== undefined && updates.description !== event.description) parts.push('Description updated');
+    if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
+    if (parts.length === 0) parts.push('Event details have been updated.');
+
+    notifyEventUpdate({
+      eventTitle: (updates.title as string) || event.title,
+      attendeeEmails: otherEmails,
+      changes: parts.join('\n'),
+    }).catch((err) => console.warn('[notify] Failed to notify attendees:', err));
   };
 
   const handleEditEvent = (id: string) => {
@@ -2639,6 +2683,8 @@ export default function App() {
         onUpdateEvent={(id, updates) => {
           const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
           const event = events.find((e) => e.id === id);
+          // Notify attendees if this is the organizer's own event
+          if (event) notifyAttendeesIfNeeded(event, eventUpdates);
           if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
             const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
             updateEvents(
@@ -2769,6 +2815,12 @@ export default function App() {
         sleepTime={sleepTime}
         onWakeTimeChange={(val) => { setWakeTime(val); persistUserPreferencesToSupabase({ wake_time: val }); }}
         onSleepTimeChange={(val) => { setSleepTime(val); persistUserPreferencesToSupabase({ sleep_time: val }); }}
+        notificationScope={notificationScope}
+        onNotificationScopeChange={setNotificationScope}
+        notificationLeadMinutes={notificationLeadMinutes}
+        onNotificationLeadMinutesChange={setNotificationLeadMinutes}
+        emailNotificationsEnabled={emailNotificationsEnabled}
+        onEmailNotificationsEnabledChange={setEmailNotificationsEnabled}
         onExploreFeaturesClick={() => {
           setIsSettingsOpen(false);
           setShowTour(true);
