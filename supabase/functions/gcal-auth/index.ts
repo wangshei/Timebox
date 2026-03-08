@@ -87,7 +87,8 @@ async function exchangeCode(code: string, userId: string | null, redirectUri: st
   const tokens = await res.json()
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-  // If authenticated, store tokens in DB
+  // If authenticated, also store tokens in DB
+  let storedServer = false
   if (userId) {
     const supabase = getSupabaseAdmin()
     const { error } = await supabase.from('google_tokens').upsert({
@@ -97,14 +98,13 @@ async function exchangeCode(code: string, userId: string | null, redirectUri: st
       expires_at: expiresAt,
       scope: tokens.scope,
     }, { onConflict: 'user_id' })
-    if (error) throw new Error(`Failed to store tokens: ${error.message}`)
-    return { success: true, stored: 'server' }
+    if (!error) storedServer = true
   }
 
-  // Not authenticated — return tokens to client for localStorage storage
+  // Always return tokens to client for localStorage storage
   return {
     success: true,
-    stored: 'client',
+    stored: storedServer ? 'both' : 'client',
     tokens: {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
