@@ -19,6 +19,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { MobileApp } from './components/MobileApp';
 import ActivityPanel from './components/ActivityPanel';
+import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
@@ -3070,6 +3071,7 @@ export default function App() {
         </div>
       )}
 
+      <UpdateChecker />
     </div >
   );
 }

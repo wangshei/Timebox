@@ -28,6 +28,15 @@
     "targets": "all",
     "icon": [
       "icons/icon.png"
-    ]
+    ],
+    "createUpdaterArtifacts": "v2Compatible"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/wangshei/Timebox/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2QjczNTA4NjU2QkRERUMKUldUczNXdGxDRFczSm1nODR1NUM2a2VPS3V0cm9YeVhCUUttT0pSY3ZiQ0FVaW9MZ3lMeE9zZ1MK"
+    }
   }
 }
