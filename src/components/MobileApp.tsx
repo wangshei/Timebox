@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { getLocalDateString } from '../utils/dateTime';
-import { parseTimeToMinutes } from '../utils/taskHelpers';
+import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
-import type { TimeBlock, Task } from '../types';
+import type { TimeBlock, Task, Event } from '../types';
 
 /** Hook that returns current time in minutes, updating every 30s. */
 function useCurrentMinutes(): number {
@@ -93,7 +93,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 // ─── Types ─────────────────────────────────────────────────
 
-type MobileTab = 'schedule' | 'tasks';
+type MobileTab = 'schedule' | 'todo';
 
 interface AgendaItem {
   type: 'block' | 'event';
@@ -130,7 +130,7 @@ export function MobileApp() {
       >
         {([
           { id: 'schedule' as const, label: 'Schedule', icon: ScheduleIcon },
-          { id: 'tasks' as const, label: 'Tasks', icon: TasksIcon },
+          { id: 'todo' as const, label: 'To-Do', icon: TasksIcon },
         ]).map(({ id, label, icon: Icon }) => {
           const isActive = activeTab === id;
           return (
@@ -164,7 +164,7 @@ export function MobileApp() {
       {/* Content — fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {activeTab === 'schedule' && <ScheduleTab />}
-        {activeTab === 'tasks' && <TasksTab />}
+        {activeTab === 'todo' && <TodoTab />}
       </div>
     </div>
   );
@@ -781,22 +781,28 @@ function ScheduleTab() {
   );
 }
 
-// ─── TASKS Tab (Quick capture + task list) ─────────────────
+// ─── TO-DO Tab (Quick capture + task list with scheduling) ──
 
-function TasksTab() {
+function TodoTab() {
   const tasks = useStore((s) => s.tasks);
+  const timeBlocks = useStore((s) => s.timeBlocks);
   const categories = useStore((s) => s.categories);
   const calendarContainers = useStore((s) => s.calendarContainers);
+  const events = useStore((s) => s.events);
   const addTask = useStore((s) => s.addTask);
   const updateTask = useStore((s) => s.updateTask);
+  const addTimeBlock = useStore((s) => s.addTimeBlock);
   const { saveSnapshot } = useHistoryStore();
 
   const [title, setTitle] = useState('');
-  const [filter, setFilter] = useState<'all' | 'inbox' | 'done'>('all');
+  const [filter, setFilter] = useState<'all' | 'today' | 'done'>('all');
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
+
+  const todayStr = getLocalDateString();
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -808,7 +814,6 @@ function TasksTab() {
   const startListening = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
-    // Stop any existing
     recognitionRef.current?.abort();
     const recognition = new SR();
     recognition.continuous = true;
@@ -861,24 +866,95 @@ function TasksTab() {
     inputRef.current?.focus();
   }, [parsed, defaultCalendar, defaultCategory, saveSnapshot, addTask]);
 
+  // Tasks with blocks scheduled for today
+  const todayTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of timeBlocks) {
+      if (b.date === todayStr && b.taskId) ids.add(b.taskId);
+    }
+    return ids;
+  }, [timeBlocks, todayStr]);
+
   const activeTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (filter === 'done') return t.status === 'done';
-      if (filter === 'inbox') return t.status === 'inbox' || !t.status;
+      if (filter === 'today') return t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id);
       return t.status !== 'done' && t.status !== 'archived';
     });
-  }, [tasks, filter]);
+  }, [tasks, filter, todayTaskIds]);
 
   const counts = useMemo(() => ({
     all: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived').length,
-    inbox: tasks.filter((t) => t.status === 'inbox' || !t.status).length,
+    today: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id)).length,
     done: tasks.filter((t) => t.status === 'done').length,
-  }), [tasks]);
+  }), [tasks, todayTaskIds]);
 
   const handleToggleDone = useCallback((task: Task) => {
     saveSnapshot();
     updateTask(task.id, { status: task.status === 'done' ? 'inbox' : 'done' });
   }, [saveSnapshot, updateTask]);
+
+  const handleScheduleToday = useCallback((task: Task) => {
+    const now = new Date();
+    const currentTime = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const duration = task.estimatedMinutes || 30;
+    const slot = findNextAvailableSlot(timeBlocks, events, todayStr, duration, currentTime, '23:00');
+    if (!slot) {
+      alert('No available time slot today. Try scheduling later.');
+      return;
+    }
+    saveSnapshot();
+    addTimeBlock({
+      taskId: task.id,
+      title: task.title,
+      date: todayStr,
+      start: slot.start,
+      end: slot.end,
+      mode: 'planned',
+      source: 'manual',
+      categoryId: task.categoryId,
+      calendarContainerId: task.calendarContainerId,
+      tagIds: task.tagIds ?? [],
+    });
+    setExpandedTaskId(null);
+    if (task.status === 'inbox' || !task.status) {
+      updateTask(task.id, { status: 'planned' });
+    }
+  }, [timeBlocks, events, todayStr, saveSnapshot, addTimeBlock, updateTask]);
+
+  const handleScheduleLater = useCallback((task: Task) => {
+    // Find next available slot across the next 7 days (skip today)
+    const duration = task.estimatedMinutes || 30;
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const slot = findNextAvailableSlot(timeBlocks, events, dateStr, duration, '9:00', '18:00');
+      if (slot) {
+        saveSnapshot();
+        addTimeBlock({
+          taskId: task.id,
+          title: task.title,
+          date: dateStr,
+          start: slot.start,
+          end: slot.end,
+          mode: 'planned',
+          source: 'manual',
+          categoryId: task.categoryId,
+          calendarContainerId: task.calendarContainerId,
+          tagIds: task.tagIds ?? [],
+        });
+        setExpandedTaskId(null);
+        if (task.status === 'inbox' || !task.status) {
+          updateTask(task.id, { status: 'planned' });
+        }
+        const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        setTimeout(() => alert(`Scheduled for ${dayLabel} at ${formatTime12(slot.start)}`), 50);
+        return;
+      }
+    }
+    alert('No available slots found this week.');
+  }, [timeBlocks, events, saveSnapshot, addTimeBlock, updateTask]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -962,7 +1038,7 @@ function TasksTab() {
 
         {/* Filter chips */}
         <div className="flex gap-2" style={{ marginTop: 12, marginBottom: 10 }}>
-          {(['all', 'inbox', 'done'] as const).map((f) => {
+          {(['all', 'today', 'done'] as const).map((f) => {
             const isActive = filter === f;
             const count = counts[f];
             return (
@@ -999,7 +1075,7 @@ function TasksTab() {
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <p style={{ fontSize: 14, color: '#AEAEB2', margin: 0 }}>
-              {filter === 'done' ? 'No completed tasks' : filter === 'inbox' ? 'Inbox is empty' : 'No tasks yet'}
+              {filter === 'done' ? 'No completed tasks' : filter === 'today' ? 'Nothing scheduled today' : 'No tasks yet'}
             </p>
           </div>
         )}
@@ -1007,85 +1083,161 @@ function TasksTab() {
           const cat = categories.find((c) => c.id === task.categoryId);
           const color = cat?.color ?? THEME.primary;
           const isDone = task.status === 'done';
+          const isExpanded = expandedTaskId === task.id;
+          // Find if this task has blocks scheduled
+          const taskBlocks = timeBlocks.filter((b) => b.taskId === task.id && b.mode === 'planned');
+          const nextBlock = taskBlocks.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))[0];
           return (
-            <div
-              key={task.id}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                borderRadius: 5,
-                padding: '10px 12px',
-                marginBottom: 8,
-                borderTop: `3px solid ${isDone ? hexToRgba(color, 0.35) : color}`,
-                borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
-                borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
-                borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
-                backgroundColor: isDone ? hexToRgba(color, 0.12) : '#FFF9EC',
-                boxShadow: isDone ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
-                opacity: isDone ? 0.6 : 1,
-              }}
-            >
-              {/* Checkbox */}
-              <button
-                type="button"
-                onClick={() => handleToggleDone(task)}
-                className="touch-manipulation"
+            <div key={task.id} style={{ marginBottom: 8 }}>
+              <div
+                onClick={() => !isDone && setExpandedTaskId(isExpanded ? null : task.id)}
                 style={{
-                  flexShrink: 0,
-                  width: 22,
-                  height: 22,
-                  marginTop: 1,
-                  borderRadius: 6,
-                  border: isDone ? 'none' : `1.5px solid ${hexToRgba(color, 0.5)}`,
-                  backgroundColor: isDone ? color : 'transparent',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 10,
+                  borderRadius: isExpanded ? '5px 5px 0 0' : 5,
+                  padding: '10px 12px',
+                  borderTop: `3px solid ${isDone ? hexToRgba(color, 0.35) : color}`,
+                  borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
+                  borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
+                  borderBottom: isExpanded ? 'none' : `1px solid ${hexToRgba(color, 0.22)}`,
+                  backgroundColor: isDone ? hexToRgba(color, 0.12) : '#FFF9EC',
+                  boxShadow: isDone ? 'none' : isExpanded ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                  opacity: isDone ? 0.6 : 1,
+                  cursor: isDone ? 'default' : 'pointer',
                 }}
               >
-                {isDone && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
+                {/* Checkbox */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
+                  className="touch-manipulation"
+                  style={{
+                    flexShrink: 0,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    border: isDone ? 'none' : `1.5px solid ${hexToRgba(color, 0.5)}`,
+                    backgroundColor: isDone ? color : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {isDone && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{
+                    fontSize: 13, fontWeight: 500, color: THEME.textPrimary, margin: 0,
+                    wordBreak: 'break-word', lineHeight: 1.35,
+                    textDecoration: isDone ? 'line-through' : 'none',
+                  }}>
+                    {task.title}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+                    {task.estimatedMinutes > 0 && (
+                      <span style={{ fontSize: 10, color: '#8E8E93' }}>
+                        {task.estimatedMinutes >= 60
+                          ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`
+                          : `${task.estimatedMinutes}m`
+                        }
+                      </span>
+                    )}
+                    {nextBlock && (
+                      <span style={{ fontSize: 10, color: THEME.primary }}>
+                        {nextBlock.date === todayStr ? formatTime12(nextBlock.start) : formatDateHeader(nextBlock.date)}
+                      </span>
+                    )}
+                    {task.dueDate && (
+                      <span style={{ fontSize: 10, color: THEME.warningOrange }}>
+                        Due {formatDateHeader(task.dueDate)}
+                      </span>
+                    )}
+                    {task.priority != null && task.priority > 0 && (
+                      <span style={{ fontSize: 10, color: THEME.warningOrange, fontWeight: 600 }}>
+                        {'!'.repeat(Math.min(task.priority, 3))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chevron */}
+                {!isDone && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
                 )}
-              </button>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{
-                  fontSize: 13, fontWeight: 500, color: THEME.textPrimary, margin: 0,
-                  wordBreak: 'break-word', lineHeight: 1.35,
-                  textDecoration: isDone ? 'line-through' : 'none',
-                }}>
-                  {task.title}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                  {cat && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
-                      {cat.name}
-                    </span>
-                  )}
-                  {task.estimatedMinutes > 0 && (
-                    <span style={{ fontSize: 10, color: THEME.textSecondary }}>
-                      {task.estimatedMinutes >= 60
-                        ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`
-                        : `${task.estimatedMinutes}m`
-                      }
-                    </span>
-                  )}
-                  {task.dueDate && (
-                    <span style={{ fontSize: 10, color: THEME.warningOrange }}>
-                      Due {formatDateHeader(task.dueDate)}
-                    </span>
-                  )}
-                  {task.priority != null && task.priority > 0 && (
-                    <span style={{ fontSize: 10, color: THEME.warningOrange, fontWeight: 600 }}>
-                      {'!'.repeat(Math.min(task.priority, 3))}
-                    </span>
-                  )}
-                </div>
               </div>
+
+              {/* Expanded schedule actions */}
+              {isExpanded && !isDone && (
+                <div style={{
+                  display: 'flex',
+                  gap: 8,
+                  padding: '10px 12px',
+                  borderRadius: '0 0 5px 5px',
+                  borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
+                  borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
+                  borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
+                  backgroundColor: '#FFF9EC',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                }}>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleScheduleToday(task); }}
+                    className="touch-manipulation"
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: 'none',
+                      backgroundColor: THEME.primary,
+                      color: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Schedule today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleScheduleLater(task); }}
+                    className="touch-manipulation"
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: `1px solid rgba(0,0,0,0.10)`,
+                      backgroundColor: 'transparent',
+                      color: THEME.textPrimary,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Later this week
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
