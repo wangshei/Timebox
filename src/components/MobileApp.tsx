@@ -5,6 +5,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { parseTimeToMinutes } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
+import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task } from '../types';
 
 /** Hook that returns current time in minutes, updating every 30s. */
@@ -555,6 +556,45 @@ function ScheduleTab() {
               const colWidthPct = 100 / totalCols;
               const leftPct = colIdx * colWidthPct;
 
+              // Desktop-matching styles
+              const blockStyle: React.CSSProperties = isEvent
+                ? {
+                    // Event: left stripe + light fill (matches EventCard)
+                    borderLeft: `3px solid ${isPast ? hexToRgba(item.color, 0.4) : item.color}`,
+                    backgroundColor: isPast ? hexToRgba(item.color, 0.08) : hexToRgba(item.color, 0.10),
+                    borderRadius: '0 5px 5px 0',
+                  }
+                : isPast && isConfirmed
+                ? {
+                    // Past confirmed task (matches TimeBlockCard confirmed)
+                    borderTop: `3px solid ${hexToRgba(item.color, 0.35)}`,
+                    borderLeft: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                    borderRight: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                    borderBottom: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                    backgroundColor: hexToRgba(item.color, 0.12),
+                    borderRadius: 5,
+                  }
+                : isPast
+                ? {
+                    // Past unconfirmed task (matches TimeBlockCard past)
+                    borderTop: `3px solid ${hexToRgba(item.color, 0.30)}`,
+                    borderLeft: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                    borderRight: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                    borderBottom: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                    backgroundColor: 'rgba(0,0,0,0.03)',
+                    borderRadius: 5,
+                  }
+                : {
+                    // Future task (matches TimeBlockCard future — sticky note)
+                    borderTop: `3px solid ${item.color}`,
+                    borderLeft: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                    borderRight: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                    borderBottom: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                    backgroundColor: '#FFF9EC',
+                    borderRadius: 5,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+                  };
+
               return (
                 <React.Fragment key={item.id}>
                   <div
@@ -566,45 +606,41 @@ function ScheduleTab() {
                       left: `${leftPct}%`,
                       width: `calc(${colWidthPct}% - 2px)`,
                       height,
-                      borderRadius: 8,
-                      padding: isCompact ? '2px 6px' : '6px 8px',
+                      padding: isCompact ? '1px 5px' : '4px 6px',
                       overflow: 'hidden',
                       cursor: 'pointer',
                       opacity: isSkipped ? 0.4 : 1,
-                      transition: 'box-shadow 0.15s ease',
-                      boxShadow: isTapped ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
                       zIndex: isTapped ? 15 : 5,
-                      ...(isEvent ? {
-                        borderLeft: `3px solid ${item.color}`,
-                        backgroundColor: `${item.color}12`,
-                      } : isConfirmed ? {
-                        backgroundColor: `${item.color}18`,
-                        border: `1px solid ${item.color}30`,
-                      } : {
-                        backgroundColor: `${item.color}25`,
-                        border: `1.5px dashed ${item.color}50`,
-                      }),
+                      ...blockStyle,
+                      ...(isTapped ? { boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : {}),
                     }}
                   >
                     <div style={{ height: '100%', overflow: 'hidden' }}>
                       <p style={{
-                        fontSize: isCompact ? 10 : 12,
+                        fontSize: isCompact ? 10 : 11,
                         fontWeight: 500,
                         color: THEME.textPrimary,
                         margin: 0,
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.3,
                         textDecoration: isSkipped ? 'line-through' : 'none',
+                        display: '-webkit-box',
+                        WebkitLineClamp: isCompact ? 1 : 2,
+                        WebkitBoxOrient: 'vertical',
                       }}>
                         {item.title}
                       </p>
                       {!isCompact && height >= 44 && (
-                        <p style={{ fontSize: 10, color: '#8E8E93', margin: '1px 0 0' }}>
+                        <p style={{ fontSize: 9, color: THEME.textSecondary, margin: '1px 0 0', whiteSpace: 'nowrap' }}>
                           {formatTime12(item.start)} – {formatTime12(item.end)}
                         </p>
                       )}
-                      {isConfirmed && <CheckBadge color={item.color} />}
+                      {isConfirmed && (
+                        <div style={{ position: 'absolute', top: 2, right: 4 }}>
+                          <CheckBadge color={item.color} />
+                        </div>
+                      )}
                     </div>
                   </div>
                   {/* Floating review buttons */}
@@ -974,18 +1010,34 @@ function TasksTab() {
           return (
             <div
               key={task.id}
-              className="flex items-center gap-3"
-              style={{ ...CARD_STYLE, opacity: isDone ? 0.55 : 1 }}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                borderRadius: 5,
+                padding: '10px 12px',
+                marginBottom: 8,
+                borderTop: `3px solid ${isDone ? hexToRgba(color, 0.35) : color}`,
+                borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
+                borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
+                borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
+                backgroundColor: isDone ? hexToRgba(color, 0.12) : '#FFF9EC',
+                boxShadow: isDone ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                opacity: isDone ? 0.6 : 1,
+              }}
             >
+              {/* Checkbox */}
               <button
                 type="button"
                 onClick={() => handleToggleDone(task)}
-                className="touch-manipulation flex-shrink-0"
+                className="touch-manipulation"
                 style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 7,
-                  border: isDone ? 'none' : `1.5px solid ${color}60`,
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  marginTop: 1,
+                  borderRadius: 6,
+                  border: isDone ? 'none' : `1.5px solid ${hexToRgba(color, 0.5)}`,
                   backgroundColor: isDone ? color : 'transparent',
                   display: 'flex',
                   alignItems: 'center',
@@ -993,29 +1045,29 @@ function TasksTab() {
                 }}
               >
                 {isDone && (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 )}
               </button>
 
-              <div className="flex-1 min-w-0">
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
-                  fontSize: 14, fontWeight: 500, color: THEME.textPrimary, margin: 0,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  fontSize: 13, fontWeight: 500, color: THEME.textPrimary, margin: 0,
+                  wordBreak: 'break-word', lineHeight: 1.35,
                   textDecoration: isDone ? 'line-through' : 'none',
                 }}>
                   {task.title}
                 </p>
-                <div className="flex items-center gap-2" style={{ marginTop: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                   {cat && (
-                    <span className="flex items-center gap-1" style={{ fontSize: 11, color }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color }}>
                       <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
                       {cat.name}
                     </span>
                   )}
                   {task.estimatedMinutes > 0 && (
-                    <span style={{ fontSize: 10, color: '#C7C7CC' }}>
+                    <span style={{ fontSize: 10, color: THEME.textSecondary }}>
                       {task.estimatedMinutes >= 60
                         ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`
                         : `${task.estimatedMinutes}m`
@@ -1023,18 +1075,17 @@ function TasksTab() {
                     </span>
                   )}
                   {task.dueDate && (
-                    <span style={{ fontSize: 10, color: '#FF9500' }}>
+                    <span style={{ fontSize: 10, color: THEME.warningOrange }}>
                       Due {formatDateHeader(task.dueDate)}
+                    </span>
+                  )}
+                  {task.priority != null && task.priority > 0 && (
+                    <span style={{ fontSize: 10, color: THEME.warningOrange, fontWeight: 600 }}>
+                      {'!'.repeat(Math.min(task.priority, 3))}
                     </span>
                   )}
                 </div>
               </div>
-
-              {task.priority != null && task.priority > 0 && (
-                <span style={{ fontSize: 10, color: '#FF9500', fontWeight: 600 }}>
-                  {'!'.repeat(Math.min(task.priority, 3))}
-                </span>
-              )}
             </div>
           );
         })}
