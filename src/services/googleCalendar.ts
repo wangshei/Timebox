@@ -48,30 +48,35 @@ export function getGoogleAuthUrl(): string {
 
 /** Exchange the OAuth authorization code for tokens after redirect. */
 export async function exchangeGoogleCode(code: string): Promise<void> {
-  // Call edge function directly (bypasses supabase auth check)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   if (!supabaseUrl) throw new Error('Supabase not configured');
 
-  // Get device ID for unauthenticated users
-  let deviceId = localStorage.getItem('gcal_device_id');
-  if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    localStorage.setItem('gcal_device_id', deviceId);
+  // Build headers — include auth token if we have a session
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
   }
 
   const res = await fetch(`${supabaseUrl}/functions/v1/gcal-auth`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       action: 'exchange_code',
       code,
       redirect_uri: getRedirectUri(),
-      device_id: deviceId,
     }),
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Edge Function returned a non-2xx status code`);
+    throw new Error(data.error || 'Edge Function returned a non-2xx status code');
+  }
+
+  // If tokens returned (no Supabase auth), store in localStorage
+  if (data.stored === 'client' && data.tokens) {
+    localStorage.setItem('gcal_tokens', JSON.stringify(data.tokens));
   }
 }
 

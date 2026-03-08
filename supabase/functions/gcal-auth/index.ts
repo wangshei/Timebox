@@ -68,7 +68,7 @@ function getAuthUrl(userId: string, redirectUri: string): string {
 
 // --- Token Exchange ---
 
-async function exchangeCode(code: string, userId: string, redirectUri: string) {
+async function exchangeCode(code: string, userId: string | null, redirectUri: string) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -85,19 +85,33 @@ async function exchangeCode(code: string, userId: string, redirectUri: string) {
     throw new Error(`Token exchange failed: ${err}`)
   }
   const tokens = await res.json()
+  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-  // Store tokens in Supabase
-  const supabase = getSupabaseAdmin()
-  const { error } = await supabase.from('google_tokens').upsert({
-    user_id: userId,
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    scope: tokens.scope,
-  }, { onConflict: 'user_id' })
+  // If authenticated, store tokens in DB
+  if (userId) {
+    const supabase = getSupabaseAdmin()
+    const { error } = await supabase.from('google_tokens').upsert({
+      user_id: userId,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      scope: tokens.scope,
+    }, { onConflict: 'user_id' })
+    if (error) throw new Error(`Failed to store tokens: ${error.message}`)
+    return { success: true, stored: 'server' }
+  }
 
-  if (error) throw new Error(`Failed to store tokens: ${error.message}`)
-  return { success: true }
+  // Not authenticated — return tokens to client for localStorage storage
+  return {
+    success: true,
+    stored: 'client',
+    tokens: {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: expiresAt,
+      scope: tokens.scope,
+    },
+  }
 }
 
 // --- Refresh Token ---
@@ -191,14 +205,12 @@ serve(async (req) => {
   try {
     const { action, code, redirect_uri, device_id } = await req.json()
 
-    // exchange_code can work without auth (uses device_id)
+    // exchange_code can work without Supabase auth
     if (action === 'exchange_code') {
       if (!code) throw new Error('Missing code')
       const effectiveRedirectUri = redirect_uri || GOOGLE_REDIRECT_URI
       if (!effectiveRedirectUri) throw new Error('No redirect_uri configured')
-      // Use authenticated user ID if available, otherwise device_id (must be valid UUID)
-      const userId = await getUserId(req) || device_id || null
-      if (!userId) throw new Error('Missing user identity')
+      const userId = await getUserId(req)
       const result = await exchangeCode(code, userId, effectiveRedirectUri)
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
