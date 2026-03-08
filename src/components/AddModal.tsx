@@ -62,6 +62,7 @@ interface AddModalProps {
     description?: string | null;
     notes?: string | null;
     inviteEmails?: string[];
+    excludedSubscribers?: string[];
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -69,6 +70,8 @@ interface AddModalProps {
   onAddCategory?: (c: Omit<Category, 'id'>) => Category;
   /** Create a tag under a category; return the new tag. Used for type-to-add. */
   onAddTag?: (t: Omit<Tag, 'id'>) => Tag;
+  /** Existing subscribers inherited from the selected calendar/category/tags. */
+  existingSubscribers?: Array<{ email: string; source: string; sourceId: string }>;
 }
 
 const PANEL_WIDTH = 380;
@@ -97,6 +100,7 @@ export function AddModal({
   initialDate = null,
   initialStartTime = null,
   initialEndTime = null,
+  existingSubscribers = [],
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -142,6 +146,7 @@ export function AddModal({
   const [inviteEmails, setInviteEmails] = useState<string[]>([]);
   const [inviteInput, setInviteInput] = useState('');
   const [showInviteSection, setShowInviteSection] = useState(false);
+  const [excludedSubscribers, setExcludedSubscribers] = useState<Set<string>>(new Set());
 
   const handleAddInvite = () => {
     const email = inviteInput.trim().toLowerCase();
@@ -401,6 +406,7 @@ export function AddModal({
         description: description.trim() || null,
         notes: notes.trim() || null,
         inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
+        excludedSubscribers: excludedSubscribers.size > 0 ? [...excludedSubscribers] : undefined,
       });
     }
 
@@ -424,6 +430,7 @@ export function AddModal({
     setInviteEmails([]);
     setInviteInput('');
     setShowInviteSection(false);
+    setExcludedSubscribers(new Set());
     onClose();
   };
 
@@ -896,14 +903,58 @@ export function AddModal({
                 type="button"
                 onClick={() => setShowInviteSection((o) => !o)}
                 className="w-full flex items-center gap-1.5 py-1 text-xs font-semibold transition-colors"
-                style={{ color: inviteEmails.length > 0 ? '#8DA286' : '#636366' }}
+                style={{ color: (inviteEmails.length > 0 || existingSubscribers.length > 0) ? '#8DA286' : '#636366' }}
               >
                 <UserPlusIcon className="h-3.5 w-3.5" />
-                <span>Invite people{inviteEmails.length > 0 ? ` (${inviteEmails.length})` : ''}</span>
+                <span>Invite people{(inviteEmails.length + existingSubscribers.filter(s => !excludedSubscribers.has(s.email)).length) > 0 ? ` (${inviteEmails.length + existingSubscribers.filter(s => !excludedSubscribers.has(s.email)).length})` : ''}</span>
                 {showInviteSection ? <ChevronUpIcon className="h-3 w-3 ml-auto" /> : <ChevronDownIcon className="h-3 w-3 ml-auto" />}
               </button>
               {showInviteSection && (
                 <div className="mt-2 space-y-2">
+                  {/* Existing subscribers from calendar/category/tag */}
+                  {existingSubscribers.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 4px' }}>
+                        Subscribers
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {existingSubscribers.map((sub) => {
+                          const isExcluded = excludedSubscribers.has(sub.email);
+                          return (
+                            <span
+                              key={sub.email}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                              style={{
+                                backgroundColor: isExcluded ? 'rgba(0,0,0,0.04)' : 'rgba(141,162,134,0.12)',
+                                color: isExcluded ? '#AEAEB2' : '#636366',
+                                border: `1px solid ${isExcluded ? 'rgba(0,0,0,0.06)' : 'rgba(141,162,134,0.25)'}`,
+                                textDecoration: isExcluded ? 'line-through' : 'none',
+                              }}
+                            >
+                              {sub.email}
+                              <span style={{ fontSize: 9, color: '#AEAEB2' }}>({sub.source})</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExcludedSubscribers(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(sub.email)) next.delete(sub.email);
+                                    else next.add(sub.email);
+                                    return next;
+                                  });
+                                }}
+                                className="rounded-full p-0.5 transition-colors hover:bg-black/10"
+                                title={isExcluded ? 'Re-include in this event' : 'Exclude from this event'}
+                              >
+                                <XMarkIcon className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* Add new invitees */}
                   <div className="flex gap-1.5">
                     <input
                       type="email"

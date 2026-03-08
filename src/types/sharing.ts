@@ -103,4 +103,15 @@ export interface SharedCalendarView {
   scope: ShareScope;
   color: string;                 // inherited from source calendar/category
   eventCount: number;            // for the "3 events this week" label
+  events?: SharedEventPreview[]; // preview of events in this share
+}
+
+/** Minimal event info for sidebar preview under shared calendars. */
+export interface SharedEventPreview {
+  title: string;
+  date: string;                  // YYYY-MM-DD or description like "Every Monday"
+  start: string;                 // HH:MM
+  end: string;                   // HH:MM
+  recurring?: boolean;
+  recurrenceLabel?: string;      // "Every Monday", "Every weekday", etc.
 }

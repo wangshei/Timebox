@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { getLocalDateString } from '../utils/dateTime';
 import { parseTimeToMinutes } from '../utils/taskHelpers';
@@ -42,7 +43,9 @@ export function TimerWidget() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [elapsed, setElapsed] = useState('0:00');
   const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const filteredCategories = selectedCalendarId
@@ -78,11 +81,15 @@ export function TimerWidget() {
     return () => document.removeEventListener('pointerdown', handler, true);
   }, [showPopover]);
 
-  // Focus input when popover opens
+  // Position popover and focus input when it opens
   useEffect(() => {
     if (showPopover) {
       if (calendarContainers.length > 0 && !selectedCalendarId) {
         setSelectedCalendarId(calendarContainers[0].id);
+      }
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
       }
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -175,6 +182,7 @@ export function TimerWidget() {
   return (
     <div className="relative flex items-center">
       <button
+        ref={triggerRef}
         type="button"
         onClick={handlePlayClick}
         className="p-1 rounded transition-colors flex-shrink-0"
@@ -192,21 +200,25 @@ export function TimerWidget() {
         <PlayIcon className="w-3.5 h-3.5" />
       </button>
 
-      {/* New block popover */}
-      {showPopover && (
+      {/* New block popover (portal to avoid overflow clipping) */}
+      {showPopover && createPortal(
         <div
           ref={popoverRef}
-          className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-lg"
+          className="rounded-xl shadow-lg"
           style={{
+            position: 'fixed',
+            top: popoverPos.top,
+            right: popoverPos.right,
+            zIndex: 200,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
-            width: 270,
+            width: 260,
             maxHeight: 400,
             overflowY: 'auto',
-            padding: '14px 18px',
+            padding: '14px 14px',
           }}
         >
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Title input */}
             <input
               ref={inputRef}
@@ -232,7 +244,7 @@ export function TimerWidget() {
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Calendar
                 </label>
-                <div className="flex flex-wrap gap-x-2 gap-y-3">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px' }}>
                   {calendarContainers.map((cal) => {
                     const isSel = selectedCalendarId === cal.id;
                     return (
@@ -240,7 +252,7 @@ export function TimerWidget() {
                         key={cal.id}
                         type="button"
                         onClick={() => setSelectedCalendarId(cal.id)}
-                        className="rounded-full transition-all"
+                        style={{ borderRadius: 9999 }}
                       >
                         <Chip
                           variant={isSel ? 'subtle' : 'outline'}
@@ -263,7 +275,7 @@ export function TimerWidget() {
               <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                 Category
               </label>
-              <div className="flex flex-wrap gap-x-2 gap-y-3">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px' }}>
                 {filteredCategories.map((cat) => {
                   const isSel = selectedCategoryId === cat.id;
                   return (
@@ -271,7 +283,7 @@ export function TimerWidget() {
                       key={cat.id}
                       type="button"
                       onClick={() => setSelectedCategoryId(cat.id)}
-                      className="rounded-full transition-all"
+                      style={{ borderRadius: 9999 }}
                     >
                       <Chip
                         variant={isSel ? 'subtle' : 'outline'}
@@ -294,7 +306,7 @@ export function TimerWidget() {
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
                   Tags <span style={{ fontWeight: 400, color: '#8E8E93' }}>(optional)</span>
                 </label>
-                <div className="flex flex-wrap gap-x-2 gap-y-3">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px' }}>
                   {categoryTags.map((tag) => {
                     const isSel = selectedTagIds.includes(tag.id);
                     const catColor = selectedCategory.color ?? THEME.primary;
@@ -303,7 +315,7 @@ export function TimerWidget() {
                         key={tag.id}
                         type="button"
                         onClick={() => toggleTag(tag.id)}
-                        className="rounded-full transition-all"
+                        style={{ borderRadius: 9999 }}
                       >
                         <Chip
                           variant={isSel ? 'subtle' : 'outline'}
@@ -335,7 +347,8 @@ export function TimerWidget() {
               Start Timer
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

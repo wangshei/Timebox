@@ -754,6 +754,7 @@ type PersistedSlice = Pick<
   | 'hasCompletedSetup'
   | 'userName'
   | 'onboardingTourComplete'
+  | 'activeTimer'
 >;
 
 /** Hydrate store from localStorage on app startup (no-op on server). */
@@ -798,6 +799,7 @@ export function startLocalStoragePersistence() {
       hasCompletedSetup: state.hasCompletedSetup,
       userName: state.userName,
       onboardingTourComplete: state.onboardingTourComplete,
+      activeTimer: state.activeTimer,
     }),
     (slice) => {
       try {

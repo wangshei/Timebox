@@ -46,6 +46,18 @@ interface LeftSidebarProps {
   onExitCompare?: () => void;
   /** Shared calendars from other Timebox users. */
   sharedCalendars?: SharedCalendarView[];
+  /** Map of item id → subscriber count (calendars, categories, tags that have been shared). */
+  subscriberCounts?: Record<string, number>;
+  /** Called when user clicks the subscriber icon to manage subscribers. */
+  onManageSubscribers?: (id: string, scope: 'calendar' | 'category' | 'tag') => void;
+  /** Visibility state for shared calendars (shareId → visible). */
+  sharedVisibility?: Record<string, boolean>;
+  /** Toggle visibility of a shared calendar. */
+  onToggleSharedVisibility?: (shareId: string) => void;
+  /** Mapping of shareId → { calendarId, categoryId } for "set to my calendar". */
+  sharedMappings?: Record<string, { calendarId: string; categoryId: string }>;
+  /** Called when user maps a shared calendar to a local calendar+category. */
+  onSetSharedMapping?: (shareId: string, calendarId: string, categoryId: string) => void;
 }
 
 // Stable component — defined outside LeftSidebar so React doesn't remount on every render
@@ -117,6 +129,12 @@ export function LeftSidebar({
   isCompareMode = false,
   onExitCompare,
   sharedCalendars = [],
+  subscriberCounts = {},
+  onManageSubscribers,
+  sharedVisibility = {},
+  onToggleSharedVisibility,
+  sharedMappings = {},
+  onSetSharedMapping,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -133,6 +151,11 @@ export function LeftSidebar({
   const [addColor, setAddColor] = useState(DEFAULT_PALETTE_COLOR);
   const [addExistingCategoryId, setAddExistingCategoryId] = useState<string | null>(null);
   const [isPlanVsActualOpen, setIsPlanVsActualOpen] = useState(true);
+  const [isSharedOpen, setIsSharedOpen] = useState(true);
+  const [expandedSharedId, setExpandedSharedId] = useState<string | null>(null);
+  const [mappingShareId, setMappingShareId] = useState<string | null>(null);
+  const [mappingCalId, setMappingCalId] = useState<string>('');
+  const [mappingCatId, setMappingCatId] = useState<string>('');
   const [dragCategoryId, setDragCategoryId] = useState<string | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
   const [dragCalendarId, setDragCalendarId] = useState<string | null>(null);
@@ -442,18 +465,30 @@ export function LeftSidebar({
                   actions={
                     isEditMode ? (
                       <>
+                        {(subscriberCounts[calendar.id] ?? 0) > 0 && iconBtn(
+                          () => onManageSubscribers?.(calendar.id, 'calendar'),
+                          <UserGroupIcon className="h-3.5 w-3.5" />,
+                          '#8DA286', 'rgba(141,162,134,0.12)'
+                        )}
                         {iconBtn(() => startEdit('calendar', calendar), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => onToggleVisibility(calendar.id)}
-                        className="flex-shrink-0 p-0.5 rounded transition-colors"
-                        style={{ color: isVisible ? calendar.color : '#AEAEB2' }}
-                        title={isVisible ? 'Hide' : 'Show'}
-                      >
-                        {isVisible ? <EyeIcon className="h-3.5 w-3.5" /> : <EyeSlashIcon className="h-3.5 w-3.5" />}
-                      </button>
+                      <>
+                        {(subscriberCounts[calendar.id] ?? 0) > 0 && iconBtn(
+                          () => onManageSubscribers?.(calendar.id, 'calendar'),
+                          <UserGroupIcon className="h-3.5 w-3.5" />,
+                          calendar.color, `${calendar.color}18`
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onToggleVisibility(calendar.id)}
+                          className="flex-shrink-0 p-0.5 rounded transition-colors"
+                          style={{ color: isVisible ? calendar.color : '#AEAEB2' }}
+                          title={isVisible ? 'Hide' : 'Show'}
+                        >
+                          {isVisible ? <EyeIcon className="h-3.5 w-3.5" /> : <EyeSlashIcon className="h-3.5 w-3.5" />}
+                        </button>
+                      </>
                     )
                   }
                 />
@@ -519,11 +554,16 @@ export function LeftSidebar({
                             chevron={categoryTags.length > 0 ? (catExpanded ? 'open' : 'closed') : 'none'}
                             onChevronClick={() => toggleExpandCategory(category.id)}
                             onLabelClick={() => onFocusCategory?.(category.id)}
-                            actions={isEditMode ? (
+                            actions={
                               <>
-                                {iconBtn(() => startEdit('category', category), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
+                                {(subscriberCounts[category.id] ?? 0) > 0 && iconBtn(
+                                  () => onManageSubscribers?.(category.id, 'category'),
+                                  <UserGroupIcon className="h-3.5 w-3.5" />,
+                                  category.color ?? '#8DA286', `${category.color ?? '#8DA286'}18`
+                                )}
+                                {isEditMode && iconBtn(() => startEdit('category', category), <PencilIcon className="h-3.5 w-3.5" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                               </>
-                            ) : undefined}
+                            }
                           />
                         )}
 
@@ -558,9 +598,14 @@ export function LeftSidebar({
                                       >
                                         {tag.name}
                                       </span>
-                                      {isEditMode && (
+                                      {((subscriberCounts[tag.id] ?? 0) > 0 || isEditMode) && (
                                         <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                                          {iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2 w-2" />, '#8DA286', 'rgba(141,162,134,0.12)')}
+                                          {(subscriberCounts[tag.id] ?? 0) > 0 && iconBtn(
+                                            () => onManageSubscribers?.(tag.id, 'tag'),
+                                            <UserGroupIcon className="h-2 w-2" />,
+                                            category.color, `${category.color}18`
+                                          )}
+                                          {isEditMode && iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2 w-2" />, '#8DA286', 'rgba(141,162,134,0.12)')}
                                         </div>
                                       )}
                                     </div>
@@ -630,34 +675,300 @@ export function LeftSidebar({
       {/* Shared with me */}
       {sharedCalendars.length > 0 && (
         <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-          <div className="px-3 pt-3 pb-1">
-            <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', margin: 0 }}>
+          <button
+            type="button"
+            onClick={() => setIsSharedOpen(!isSharedOpen)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 12px 4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
               Shared with me
-            </h2>
-          </div>
-          <div className="px-2 pb-2 space-y-0.5">
-            {sharedCalendars.map((shared) => (
-              <div
-                key={shared.shareId}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors hover:bg-black/[0.03] cursor-default"
-              >
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${shared.color}20`, color: shared.color }}
-                >
-                  <UserGroupIcon style={{ width: 10, height: 10 }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E' }}>
-                    {shared.displayName}
-                  </span>
-                  <span className="block truncate" style={{ fontSize: 10, color: '#8E8E93' }}>
-                    from {shared.ownerName} · {shared.eventCount} event{shared.eventCount !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+            </span>
+            <ChevronRightIcon
+              style={{
+                width: 10,
+                height: 10,
+                color: '#AEAEB2',
+                transform: isSharedOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 150ms',
+                flexShrink: 0,
+              }}
+            />
+          </button>
+          {isSharedOpen && (
+            <div style={{ padding: '2px 0 4px' }}>
+              {sharedCalendars.map((shared) => {
+                const isExpanded = expandedSharedId === shared.shareId;
+                const isVisible = sharedVisibility[shared.shareId] ?? true;
+                const events = shared.events ?? [];
+                return (
+                  <div key={shared.shareId}>
+                    {/* Shared calendar header row — mirrors calendar Row pattern */}
+                    <Row
+                      depth={0}
+                      color={shared.color}
+                      label={shared.displayName}
+                      chevron={events.length > 0 ? (isExpanded ? 'open' : 'closed') : 'none'}
+                      muted={!isVisible}
+                      onChevronClick={() => setExpandedSharedId(isExpanded ? null : shared.shareId)}
+                      onLabelClick={() => setExpandedSharedId(isExpanded ? null : shared.shareId)}
+                      actions={
+                        <button
+                          type="button"
+                          onClick={() => onToggleSharedVisibility?.(shared.shareId)}
+                          style={{
+                            padding: 2,
+                            borderRadius: 4,
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            color: isVisible ? shared.color : '#AEAEB2',
+                            flexShrink: 0,
+                          }}
+                          title={isVisible ? 'Hide' : 'Show'}
+                        >
+                          {isVisible
+                            ? <EyeIcon style={{ width: 14, height: 14 }} />
+                            : <EyeSlashIcon style={{ width: 14, height: 14 }} />}
+                        </button>
+                      }
+                    />
+                    {/* Subtitle: from owner */}
+                    <div style={{ paddingLeft: 18, marginTop: -2, marginBottom: isExpanded ? 2 : 4 }}>
+                      <span style={{ fontSize: 10, color: '#AEAEB2' }}>
+                        from {shared.ownerName}
+                      </span>
+                    </div>
+                    {/* Expanded: mapping label + event list + set to my calendar */}
+                    {isExpanded && (
+                      <div style={{ paddingLeft: 18, paddingRight: 8, paddingBottom: 6 }}>
+                        {/* Mapping label pill */}
+                        {(() => {
+                          const mapping = sharedMappings[shared.shareId];
+                          const mappedCal = mapping ? calendarContainers.find(c => c.id === mapping.calendarId) : null;
+                          const mappedCat = mapping ? categories.find(c => c.id === mapping.categoryId) : null;
+                          if (!mappedCal || !mappedCat) return null;
+                          return (
+                            <div style={{ marginBottom: 6 }}>
+                              <span style={{
+                                fontSize: 9,
+                                color: mappedCat.color,
+                                backgroundColor: `${mappedCat.color}12`,
+                                border: `1px solid ${mappedCat.color}25`,
+                                borderRadius: 8,
+                                padding: '2px 6px',
+                                fontWeight: 500,
+                              }}>
+                                {mappedCal.name} → {mappedCat.name}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        {events.length > 0 && events.map((evt, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '4px 8px',
+                              marginBottom: 2,
+                              borderRadius: 6,
+                              borderLeft: `2px solid ${shared.color}`,
+                              backgroundColor: isVisible ? `${shared.color}08` : 'rgba(0,0,0,0.02)',
+                              opacity: isVisible ? 1 : 0.5,
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{
+                                display: 'block',
+                                fontSize: 11,
+                                fontWeight: 500,
+                                color: '#1C1C1E',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap' as const,
+                              }}>
+                                {evt.title}
+                              </span>
+                              <span style={{ display: 'block', fontSize: 10, color: '#8E8E93' }}>
+                                {evt.recurring && evt.recurrenceLabel
+                                  ? evt.recurrenceLabel
+                                  : `${evt.date} · ${evt.start}–${evt.end}`}
+                                {evt.recurring && evt.recurrenceLabel && ` · ${evt.start}–${evt.end}`}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Set to my calendar */}
+                        {mappingShareId === shared.shareId ? (
+                          <div style={{
+                            marginTop: 6,
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            backgroundColor: 'rgba(0,0,0,0.03)',
+                            border: '1px solid rgba(0,0,0,0.06)',
+                          }}>
+                            <p style={{ fontSize: 10, fontWeight: 600, color: '#636366', margin: '0 0 6px' }}>
+                              Show events from "{shared.displayName}" under:
+                            </p>
+                            {/* Calendar picker */}
+                            <select
+                              value={mappingCalId}
+                              onChange={(e) => {
+                                setMappingCalId(e.target.value);
+                                // Auto-pick first category of chosen calendar
+                                const calCats = categories.filter(c => {
+                                  const ids = (c.calendarContainerIds && c.calendarContainerIds.length > 0)
+                                    ? c.calendarContainerIds : (c.calendarContainerId ? [c.calendarContainerId] : []);
+                                  return ids.includes(e.target.value);
+                                });
+                                if (calCats.length > 0) setMappingCatId(calCats[0].id);
+                                else setMappingCatId('');
+                              }}
+                              style={{
+                                width: '100%',
+                                fontSize: 11,
+                                padding: '4px 6px',
+                                borderRadius: 6,
+                                border: '1px solid rgba(0,0,0,0.10)',
+                                backgroundColor: '#FFFFFF',
+                                color: '#1C1C1E',
+                                marginBottom: 4,
+                                outline: 'none',
+                              }}
+                            >
+                              <option value="">Calendar…</option>
+                              {calendarContainers.map(cal => (
+                                <option key={cal.id} value={cal.id}>{cal.name}</option>
+                              ))}
+                            </select>
+                            {/* Category picker — filtered by selected calendar */}
+                            {mappingCalId && (() => {
+                              const calCats = categories.filter(c => {
+                                const ids = (c.calendarContainerIds && c.calendarContainerIds.length > 0)
+                                  ? c.calendarContainerIds : (c.calendarContainerId ? [c.calendarContainerId] : []);
+                                return ids.includes(mappingCalId);
+                              });
+                              return calCats.length > 0 ? (
+                                <select
+                                  value={mappingCatId}
+                                  onChange={(e) => setMappingCatId(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    fontSize: 11,
+                                    padding: '4px 6px',
+                                    borderRadius: 6,
+                                    border: '1px solid rgba(0,0,0,0.10)',
+                                    backgroundColor: '#FFFFFF',
+                                    color: '#1C1C1E',
+                                    marginBottom: 6,
+                                    outline: 'none',
+                                  }}
+                                >
+                                  {calCats.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 6px' }}>No categories in this calendar</p>
+                              );
+                            })()}
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (mappingCalId && mappingCatId) {
+                                    onSetSharedMapping?.(shared.shareId, mappingCalId, mappingCatId);
+                                  }
+                                  setMappingShareId(null);
+                                }}
+                                disabled={!mappingCalId || !mappingCatId}
+                                style={{
+                                  flex: 1,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  border: 'none',
+                                  backgroundColor: (mappingCalId && mappingCatId) ? '#8DA286' : 'rgba(0,0,0,0.06)',
+                                  color: (mappingCalId && mappingCatId) ? '#FFFFFF' : '#AEAEB2',
+                                  cursor: (mappingCalId && mappingCatId) ? 'pointer' : 'default',
+                                }}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setMappingShareId(null)}
+                                style={{
+                                  fontSize: 11,
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  border: 'none',
+                                  backgroundColor: 'rgba(0,0,0,0.06)',
+                                  color: '#636366',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMappingShareId(shared.shareId);
+                              const existing = sharedMappings[shared.shareId];
+                              setMappingCalId(existing?.calendarId ?? (calendarContainers[0]?.id ?? ''));
+                              // Pre-select category
+                              const preCalId = existing?.calendarId ?? (calendarContainers[0]?.id ?? '');
+                              if (existing?.categoryId) {
+                                setMappingCatId(existing.categoryId);
+                              } else {
+                                const calCats = categories.filter(c => {
+                                  const ids = (c.calendarContainerIds && c.calendarContainerIds.length > 0)
+                                    ? c.calendarContainerIds : (c.calendarContainerId ? [c.calendarContainerId] : []);
+                                  return ids.includes(preCalId);
+                                });
+                                setMappingCatId(calCats[0]?.id ?? '');
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              marginTop: 4,
+                              fontSize: 10,
+                              fontWeight: 500,
+                              color: sharedMappings[shared.shareId] ? '#8DA286' : '#AEAEB2',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '2px 0',
+                            }}
+                          >
+                            <PlusIcon style={{ width: 10, height: 10 }} />
+                            {sharedMappings[shared.shareId] ? 'Change calendar mapping' : 'Set to my calendar'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

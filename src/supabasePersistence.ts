@@ -493,6 +493,9 @@ export function startSupabasePersistence() {
   let saving = false;
   let pendingSlice: PersistableState | null = null;
   let lastSaveCompletedAt = 0;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  // Cache userId to avoid async getUser() call in beforeunload
+  let cachedUserId: string | null = null;
 
   async function flush(slice: PersistableState) {
     if (!supabaseLoaded) {
@@ -501,7 +504,8 @@ export function startSupabasePersistence() {
       saving = false;
       return;
     }
-    const userId = await getCurrentUserId();
+    const userId = cachedUserId ?? await getCurrentUserId();
+    if (userId) cachedUserId = userId;
     if (!userId) {
       // eslint-disable-next-line no-console
       console.warn('[supabasePersistence] Skipping save — user deleted or not signed in. Forcing sign-out.');
@@ -534,6 +538,24 @@ export function startSupabasePersistence() {
     }
   }
 
+  function scheduleFlush(slice: PersistableState) {
+    pendingSlice = slice;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      if (!pendingSlice) return;
+      const next = pendingSlice;
+      pendingSlice = null;
+      if (saving) {
+        // A save is already in flight — re-queue so it picks up after
+        pendingSlice = next;
+        return;
+      }
+      saving = true;
+      void flush(next);
+    }, 500); // 500ms debounce — batches rapid changes (drag, typing)
+  }
+
   const unsubscribeStore = useStore.subscribe<PersistableState>(
     (state) => ({
       tasks: state.tasks,
@@ -544,17 +566,49 @@ export function startSupabasePersistence() {
       events: state.events,
     }),
     (slice) => {
-      if (saving) {
-        pendingSlice = slice;
-        return;
-      }
-      // Set saving SYNCHRONOUSLY before the async flush starts,
-      // so a second change arriving before getCurrentUserId() returns
-      // will be queued instead of starting a parallel save.
-      saving = true;
-      void flush(slice);
+      scheduleFlush(slice);
     }
   );
+
+  // Flush pending saves before the user leaves the page
+  const handleBeforeUnload = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    // If there's a pending slice that hasn't been saved yet, save it synchronously
+    // using sendBeacon as a best-effort (Supabase REST upserts are too complex for
+    // sendBeacon, so we do a synchronous XHR as last resort).
+    const sliceToSave = pendingSlice;
+    if (!sliceToSave || !cachedUserId || !supabaseLoaded) return;
+    // Persist to localStorage immediately so the data survives even if Supabase
+    // save doesn't complete in time.
+    try {
+      const state = useStore.getState();
+      const localSlice = {
+        tasks: state.tasks,
+        timeBlocks: state.timeBlocks,
+        calendarContainers: state.calendarContainers,
+        categories: state.categories,
+        tags: state.tags,
+        events: state.events,
+        viewMode: state.viewMode,
+        view: state.view,
+        selectedDate: state.selectedDate,
+        containerVisibility: state.containerVisibility,
+        defaultBlockMinutes: state.defaultBlockMinutes,
+        weekStartsOnMonday: state.weekStartsOnMonday,
+        wakeTime: state.wakeTime,
+        sleepTime: state.sleepTime,
+        hasCompletedSetup: state.hasCompletedSetup,
+        userName: state.userName,
+        onboardingTourComplete: state.onboardingTourComplete,
+      };
+      window.localStorage.setItem('timebox-state-v2', JSON.stringify(localSlice));
+    } catch { /* ignore */ }
+    // Fire the Supabase save (best-effort, browser may kill it)
+    pendingSlice = null;
+    saving = true;
+    void flush(sliceToSave);
+  };
+  window.addEventListener('beforeunload', handleBeforeUnload);
 
   // Realtime: reload state when another client makes a change.
   // Queue changes while the tab is hidden and do ONE reload when it becomes visible.
@@ -581,6 +635,15 @@ export function startSupabasePersistence() {
   }
 
   const handleVisibilityChange = () => {
+    // When tab becomes hidden, flush any pending save immediately
+    if (document.hidden && pendingSlice && !saving) {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = null;
+      const next = pendingSlice;
+      pendingSlice = null;
+      saving = true;
+      void flush(next);
+    }
     if (!document.hidden && pendingRemoteChange) {
       pendingRemoteChange = false;
       // Debounce slightly so multiple queued events collapse into one reload
@@ -603,9 +666,11 @@ export function startSupabasePersistence() {
 
   return () => {
     unsubscribeStore();
+    window.removeEventListener('beforeunload', handleBeforeUnload);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     void supabase!.removeChannel(channel);
     if (reloadTimer) clearTimeout(reloadTimer);
+    if (debounceTimer) clearTimeout(debounceTimer);
   };
 }
 

@@ -29,7 +29,7 @@ interface SettingsPanelProps {
   onExploreFeaturesClick?: () => void;
 }
 
-type TabType = 'calendars' | 'categories' | 'tags' | 'general' | 'google';
+type TabType = 'calendars' | 'categories' | 'tags' | 'general';
 
 const PRIMARY = '#8DA286';
 const BG = '#FCFBF7';
@@ -231,7 +231,6 @@ export function SettingsPanel({
     { id: 'calendars' as const, label: 'Calendars', icon: CalendarIcon },
     { id: 'categories' as const, label: 'Categories', icon: FolderIcon },
     { id: 'tags' as const, label: 'Tags', icon: TagIcon },
-    { id: 'google' as const, label: 'Google', icon: CloudIcon },
   ];
 
   const inputStyle: React.CSSProperties = {
@@ -651,8 +650,144 @@ export function SettingsPanel({
                     style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
                   />
                 </div>
-              </>
-            )}
+
+                {/* ── Google Calendar ── */}
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Google Calendar</span>
+                  <div className="space-y-3">
+                    {/* Connected calendars */}
+                    {gcalConnectedCalendars.length > 0 && (
+                      <div className="space-y-2">
+                        {gcalConnectedCalendars.map((cal, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 rounded-lg"
+                            style={{ backgroundColor: '#4285F410', border: '1px solid #4285F428', padding: '8px 10px 8px 12px' }}
+                          >
+                            <CloudIcon className="h-3 w-3 flex-shrink-0" style={{ color: '#4285F4' }} />
+                            <div className="flex-1 min-w-0">
+                              <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{cal.name}</span>
+                              <span className="block truncate" style={{ fontSize: 10, color: TEXT_MUTED }}>
+                                {cal.mode === 'migrate_listen' ? 'Migrated & listening' : cal.mode === 'listen_with_history' ? 'Listening (with history)' : 'Listening (fresh)'}
+                                {cal.lastSync && ` · Last sync: ${new Date(cal.lastSync).toLocaleTimeString()}`}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="p-0.5 rounded transition-all flex-shrink-0"
+                              style={{ color: '#C87868' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                              onClick={() => setGcalConnectedCalendars((prev) => prev.filter((_, idx) => idx !== i))}
+                              title="Disconnect"
+                            >
+                              <TrashIcon className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Connect new */}
+                    {gcalStep === 'idle' && (
+                      <button
+                        type="button"
+                        onClick={() => setGcalStep('choose_mode')}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: '#4285F4',
+                          border: '1.5px dashed #4285F450',
+                          backgroundColor: '#4285F406',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4285F40F'; e.currentTarget.style.borderColor = '#4285F4'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#4285F406'; e.currentTarget.style.borderColor = '#4285F450'; }}
+                      >
+                        <CloudIcon className="h-4 w-4" />
+                        Connect Google Calendar
+                      </button>
+                    )}
+
+                    {/* Choose sync mode */}
+                    {gcalStep === 'choose_mode' && (
+                      <div
+                        className="space-y-3 p-3 rounded-xl"
+                        style={{ backgroundColor: '#4285F406', border: '1.5px solid #4285F430' }}
+                      >
+                        <p style={{ fontSize: 12, fontWeight: 600, color: TEXT }}>How would you like to connect?</p>
+                        {([
+                          { mode: 'migrate_listen' as const, title: 'Migrate & Listen', desc: 'Import all existing events, then only get new invites from others. Best if you\'re switching to Timebox.' },
+                          { mode: 'listen_with_history' as const, title: 'Listen (with history)', desc: 'Import past invites from others + listen for new ones. Your own events stay in Google.' },
+                          { mode: 'listen_fresh' as const, title: 'Listen (fresh start)', desc: 'No import. Only new invites from others show up going forward.' },
+                        ]).map(({ mode, title, desc }) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 rounded-lg transition-all"
+                            style={{
+                              border: gcalSyncMode === mode ? '1.5px solid #4285F4' : '1px solid rgba(0,0,0,0.08)',
+                              backgroundColor: gcalSyncMode === mode ? '#4285F40A' : '#FFFFFF',
+                            }}
+                            onClick={() => setGcalSyncMode(mode)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                style={{ borderColor: gcalSyncMode === mode ? '#4285F4' : 'rgba(0,0,0,0.2)' }}
+                              >
+                                {gcalSyncMode === mode && (
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4285F4' }} />
+                                )}
+                              </div>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{title}</span>
+                            </div>
+                            <p className="mt-1 pl-6" style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>{desc}</p>
+                          </button>
+                        ))}
+                        <div className="flex gap-1.5 justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setGcalStep('idle')}
+                            className="px-2.5 py-1 rounded-md text-xs transition-colors"
+                            style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGcalStep('connected');
+                              setGcalConnectedCalendars((prev) => [
+                                ...prev,
+                                { name: `Google Calendar (${gcalSyncMode})`, mode: gcalSyncMode, lastSync: new Date().toISOString() },
+                              ]);
+                              setTimeout(() => setGcalStep('idle'), 100);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                            style={{ backgroundColor: '#4285F4', color: '#FFFFFF' }}
+                          >
+                            <CloudIcon className="h-3 w-3" /> Connect
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Info box */}
+                    <div
+                      className="rounded-lg p-3"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                    >
+                      <p style={{ fontSize: 11, fontWeight: 500, color: TEXT_SECONDARY, marginBottom: 4 }}>How it works</p>
+                      <ul className="space-y-1.5" style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>
+                        <li>Timebox reads your Google Calendar using read-only access</li>
+                        <li>After initial import, only invites from other people sync in</li>
+                        <li>Events synced from Google appear as read-only on your calendar</li>
+                        <li>Your Timebox events are never sent back to Google</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
 
                 {onExploreFeaturesClick && (
                   <button
@@ -660,6 +795,7 @@ export function SettingsPanel({
                     onClick={onExploreFeaturesClick}
                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-colors"
                     style={{
+                      gridColumn: '1 / -1',
                       marginTop: 8,
                       backgroundColor: 'rgba(141,162,134,0.08)',
                       border: `1px solid rgba(141,162,134,0.25)`,
@@ -674,6 +810,8 @@ export function SettingsPanel({
                     Explore features
                   </button>
                 )}
+              </>
+            )}
 
             {/* ── Calendars ── */}
             {activeTab === 'calendars' && calendarContainers.map((calendar) => {
@@ -759,147 +897,7 @@ export function SettingsPanel({
             })}
 
             {/* ── Add new form (calendars, categories, tags only) ── */}
-            {/* ── Google Calendar ── */}
-            {activeTab === 'google' && (
-              <div style={{ gridColumn: '1 / -1' }} className="space-y-3">
-                {/* Connected calendars */}
-                {gcalConnectedCalendars.length > 0 && (
-                  <div className="space-y-2">
-                    <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Connected</span>
-                    {gcalConnectedCalendars.map((cal, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 rounded-lg"
-                        style={{ backgroundColor: '#4285F410', border: '1px solid #4285F428', padding: '8px 10px 8px 12px' }}
-                      >
-                        <CloudIcon className="h-3 w-3 flex-shrink-0" style={{ color: '#4285F4' }} />
-                        <div className="flex-1 min-w-0">
-                          <span className="block truncate" style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{cal.name}</span>
-                          <span className="block truncate" style={{ fontSize: 10, color: TEXT_MUTED }}>
-                            {cal.mode === 'migrate_listen' ? 'Migrated & listening' : cal.mode === 'listen_with_history' ? 'Listening (with history)' : 'Listening (fresh)'}
-                            {cal.lastSync && ` · Last sync: ${new Date(cal.lastSync).toLocaleTimeString()}`}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="p-0.5 rounded transition-all flex-shrink-0"
-                          style={{ color: '#C87868' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                          onClick={() => setGcalConnectedCalendars((prev) => prev.filter((_, idx) => idx !== i))}
-                          title="Disconnect"
-                        >
-                          <TrashIcon className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Connect new */}
-                {gcalStep === 'idle' && (
-                  <button
-                    type="button"
-                    onClick={() => setGcalStep('choose_mode')}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#4285F4',
-                      border: '1.5px dashed #4285F450',
-                      backgroundColor: '#4285F406',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4285F40F'; e.currentTarget.style.borderColor = '#4285F4'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#4285F406'; e.currentTarget.style.borderColor = '#4285F450'; }}
-                  >
-                    <CloudIcon className="h-4 w-4" />
-                    Connect Google Calendar
-                  </button>
-                )}
-
-                {/* Choose sync mode */}
-                {gcalStep === 'choose_mode' && (
-                  <div
-                    className="space-y-3 p-3 rounded-xl"
-                    style={{ backgroundColor: '#4285F406', border: '1.5px solid #4285F430' }}
-                  >
-                    <p style={{ fontSize: 12, fontWeight: 600, color: TEXT }}>How would you like to connect?</p>
-                    {([
-                      { mode: 'migrate_listen' as const, title: 'Migrate & Listen', desc: 'Import all existing events, then only get new invites from others. Best if you\'re switching to Timebox.' },
-                      { mode: 'listen_with_history' as const, title: 'Listen (with history)', desc: 'Import past invites from others + listen for new ones. Your own events stay in Google.' },
-                      { mode: 'listen_fresh' as const, title: 'Listen (fresh start)', desc: 'No import. Only new invites from others show up going forward.' },
-                    ]).map(({ mode, title, desc }) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        className="w-full text-left px-3 py-2.5 rounded-lg transition-all"
-                        style={{
-                          border: gcalSyncMode === mode ? '1.5px solid #4285F4' : '1px solid rgba(0,0,0,0.08)',
-                          backgroundColor: gcalSyncMode === mode ? '#4285F40A' : '#FFFFFF',
-                        }}
-                        onClick={() => setGcalSyncMode(mode)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                            style={{ borderColor: gcalSyncMode === mode ? '#4285F4' : 'rgba(0,0,0,0.2)' }}
-                          >
-                            {gcalSyncMode === mode && (
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4285F4' }} />
-                            )}
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>{title}</span>
-                        </div>
-                        <p className="mt-1 pl-6" style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>{desc}</p>
-                      </button>
-                    ))}
-                    <div className="flex gap-1.5 justify-end pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setGcalStep('idle')}
-                        className="px-2.5 py-1 rounded-md text-xs transition-colors"
-                        style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // In production: call getGoogleAuthUrl() and redirect
-                          // For dev: simulate connection
-                          setGcalStep('connected');
-                          setGcalConnectedCalendars((prev) => [
-                            ...prev,
-                            { name: `Google Calendar (${gcalSyncMode})`, mode: gcalSyncMode, lastSync: new Date().toISOString() },
-                          ]);
-                          setTimeout(() => setGcalStep('idle'), 100);
-                        }}
-                        className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                        style={{ backgroundColor: '#4285F4', color: '#FFFFFF' }}
-                      >
-                        <CloudIcon className="h-3 w-3" /> Connect
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Info box */}
-                <div
-                  className="rounded-lg p-3"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
-                >
-                  <p style={{ fontSize: 11, fontWeight: 500, color: TEXT_SECONDARY, marginBottom: 4 }}>How it works</p>
-                  <ul className="space-y-1.5" style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.4 }}>
-                    <li>Timebox reads your Google Calendar using read-only access</li>
-                    <li>After initial import, only invites from other people sync in</li>
-                    <li>Events synced from Google appear as read-only on your calendar</li>
-                    <li>Your Timebox events are never sent back to Google</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab !== 'general' && activeTab !== 'google' && (isAdding ? (
+            {activeTab !== 'general' && (isAdding ? (
               <div
                 className="space-y-2 p-3 rounded-xl"
                 style={{ gridColumn: '1 / -1', border: `1.5px dashed ${PRIMARY}50`, backgroundColor: `${PRIMARY}06` }}

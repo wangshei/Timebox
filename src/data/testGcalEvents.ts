@@ -188,6 +188,10 @@ export const testSharedCalendars: SharedCalendarView[] = [
     scope: 'tag',
     color: '#4285F4',
     eventCount: 2,
+    events: [
+      { title: 'Project Alpha Kickoff', date: '2026-03-11', start: '10:00', end: '11:00' },
+      { title: 'Alpha Weekly Sync', date: '2026-03-09', start: '14:00', end: '14:30', recurring: true, recurrenceLabel: 'Every Monday' },
+    ],
   },
   {
     shareId: 'share-def',
@@ -197,6 +201,9 @@ export const testSharedCalendars: SharedCalendarView[] = [
     scope: 'category',
     color: '#EA4335',
     eventCount: 1,
+    events: [
+      { title: '1:1 with Mike', date: '2026-03-10', start: '15:00', end: '15:30', recurring: true, recurrenceLabel: 'Every Tuesday' },
+    ],
   },
 ];
 

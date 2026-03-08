@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 
 interface OnboardingWizardProps {
-  onComplete: (opts: { name: string; choice: 'template' | 'blank'; showTour: boolean }) => void;
+  onComplete: (opts: { name: string; choice: 'template' | 'blank' | 'google'; showTour: boolean }) => void;
   initialName?: string;
 }
 
-type SetupChoice = 'template' | 'blank' | null;
+type SetupChoice = 'template' | 'blank' | 'google' | null;
 
 // ── Inline SVG icons (no external deps) ────────────────────────────────────
 
@@ -88,7 +88,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
 
   const handleSetupContinue = () => {
     if (!choice) return;
-    onComplete({ name: name.trim(), choice, showTour: choice === 'template' });
+    onComplete({ name: name.trim(), choice, showTour: choice === 'template' || choice === 'google' });
   };
 
   // ── Shared styles ──────────────────────────────────────────────────────
@@ -275,11 +275,11 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
           </p>
         </div>
 
-        {/* Option cards — side by side */}
+        {/* Option cards */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: 16,
             marginBottom: 32,
           }}
@@ -424,6 +424,70 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
             </h3>
             <p style={{ fontSize: 14, color: '#8E8E93', margin: 0, lineHeight: 1.6 }}>
               Build your own structure exactly how you want it.
+            </p>
+          </button>
+
+          {/* ── Google Calendar card ── */}
+          <button
+            type="button"
+            onClick={() => setChoice('google')}
+            style={{
+              position: 'relative',
+              padding: 32,
+              borderRadius: 16,
+              border: choice === 'google'
+                ? '2px solid #4285F4'
+                : '2px solid rgba(0,0,0,0.08)',
+              backgroundColor: choice === 'google'
+                ? 'rgba(66,133,244,0.05)'
+                : '#FFFFFF',
+              textAlign: 'left',
+              cursor: 'pointer',
+              transition: 'all 200ms',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }}
+            onMouseEnter={(e) => {
+              if (choice !== 'google') {
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.16)';
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (choice !== 'google') {
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)';
+              }
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            {choice === 'google' && <CheckCircle color="#4285F4" />}
+
+            {/* Google Calendar icon */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 48,
+                height: 48,
+                backgroundColor: '#E8F0FE',
+                borderRadius: 12,
+                marginBottom: 16,
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: 20, fontWeight: 600, color: '#1C1C1E', margin: '0 0 8px' }}>
+              Import from Google
+            </h3>
+            <p style={{ fontSize: 14, color: '#8E8E93', margin: 0, lineHeight: 1.6 }}>
+              Bring in your Google Calendar events and start fresh here.
             </p>
           </button>
         </div>

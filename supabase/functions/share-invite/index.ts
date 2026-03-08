@@ -278,6 +278,94 @@ async function removeMember(userId: string, body: Record<string, unknown>) {
   return { success: true }
 }
 
+// --- Get Invite Details (no auth required) ---
+
+async function getInviteDetails(body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { token } = body
+
+  if (!token) throw new Error('Missing token')
+
+  // Fetch the member by token
+  const { data: member, error: memberError } = await supabase
+    .from('share_members')
+    .select('*')
+    .eq('token', token)
+    .single()
+
+  if (memberError || !member) throw new Error('Invite not found or expired')
+
+  // Fetch the share
+  const { data: share, error: shareError } = await supabase
+    .from('calendar_shares')
+    .select('*')
+    .eq('id', member.share_id)
+    .single()
+
+  if (shareError || !share) throw new Error('Share not found')
+
+  // Get sender name
+  const senderName = await getUserName(share.owner_id)
+
+  // Get events for preview — find events matching the share scope
+  let events: Array<{ title: string; date: string; start: string; end: string }> = []
+  let eventCount = 0
+
+  if (share.scope === 'event' && share.event_id) {
+    const { data: evt } = await supabase
+      .from('events')
+      .select('title, date, start_time, end_time')
+      .eq('id', share.event_id)
+      .single()
+    if (evt) {
+      events = [{ title: evt.title, date: evt.date, start: evt.start_time, end: evt.end_time }]
+      eventCount = 1
+    }
+  } else if (share.scope === 'calendar' && share.calendar_container_id) {
+    const { data: evts, count } = await supabase
+      .from('events')
+      .select('title, date, start_time, end_time', { count: 'exact' })
+      .eq('calendar_container_id', share.calendar_container_id)
+      .gte('date', new Date().toISOString().split('T')[0])
+      .order('date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(5)
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    eventCount = count ?? events.length
+  } else if (share.scope === 'category' && share.category_id) {
+    const { data: evts, count } = await supabase
+      .from('events')
+      .select('title, date, start_time, end_time', { count: 'exact' })
+      .eq('category_id', share.category_id)
+      .gte('date', new Date().toISOString().split('T')[0])
+      .order('date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(5)
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    eventCount = count ?? events.length
+  } else if (share.scope === 'tag' && share.tag_id) {
+    const { data: evts, count } = await supabase
+      .from('events')
+      .select('title, date, start_time, end_time', { count: 'exact' })
+      .eq('tag_id', share.tag_id)
+      .gte('date', new Date().toISOString().split('T')[0])
+      .order('date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(5)
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    eventCount = count ?? events.length
+  }
+
+  return {
+    shareName: share.display_name ?? 'Shared Calendar',
+    senderName,
+    scope: share.scope,
+    eventCount,
+    events,
+    status: member.status,
+  }
+}
+
 // --- Respond to invite (no auth required) ---
 
 async function respondToInvite(body: Record<string, unknown>) {
@@ -341,6 +429,12 @@ serve(async (req) => {
     const { action } = body
 
     // respond and send_test_invite actions don't need auth
+    if (action === 'get_invite_details') {
+      const result = await getInviteDetails(body)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
     if (action === 'respond') {
       const result = await respondToInvite(body)
       return new Response(JSON.stringify(result), {

@@ -219,6 +219,21 @@ export default function App() {
 
   // Dev only: inject test Google Calendar events and shared calendars for localhost testing
   const [devSharedCalendars, setDevSharedCalendars] = useState<import('./types/sharing').SharedCalendarView[]>([]);
+  // Subscriber counts: map of item id → number of subscribers (from shares)
+  const [subscriberCounts, setSubscriberCounts] = useState<Record<string, number>>({});
+  // Visibility for shared calendars (shareId → visible)
+  const [sharedVisibility, setSharedVisibility] = useState<Record<string, boolean>>({});
+  const toggleSharedVisibility = (shareId: string) => {
+    setSharedVisibility(prev => ({ ...prev, [shareId]: !(prev[shareId] ?? true) }));
+  };
+  // Mapping of shared calendars to local calendar+category
+  const [sharedMappings, setSharedMappings] = useState<Record<string, { calendarId: string; categoryId: string }>>({});
+  const handleSetSharedMapping = (shareId: string, calendarId: string, categoryId: string) => {
+    setSharedMappings(prev => ({ ...prev, [shareId]: { calendarId, categoryId } }));
+    // TODO: persist mapping to Supabase and import shared events under this calendar/category
+    // eslint-disable-next-line no-console
+    console.log('[shared-mapping] Set', shareId, '→', calendarId, categoryId);
+  };
   useEffect(() => {
     if (import.meta.env.DEV) {
       import('./data/testGcalEvents').then(({ injectTestGcalEvents, testSharedCalendars }) => {
@@ -545,6 +560,7 @@ export default function App() {
     description?: string | null;
     notes?: string | null;
     inviteEmails?: string[];
+    excludedSubscribers?: string[];
   }) => {
     saveSnapshot();
     // Events added for past time slots are retroactive → mark as 'unplanned' so they
@@ -1438,12 +1454,17 @@ export default function App() {
   // ── Onboarding wizard handler ─────────────────────────────────────────────
   const handleWizardComplete = ({ name, choice, showTour: doShowTour }: {
     name: string;
-    choice: 'template' | 'blank';
+    choice: 'template' | 'blank' | 'google';
     showTour: boolean;
   }) => {
     setUserName(name);
     if (choice === 'template') applyTemplate();
-    else applyBlankSetup();
+    else if (choice === 'google') {
+      // Start with blank setup, then open Google Calendar settings
+      applyBlankSetup();
+      // Open settings to Google tab after setup completes
+      setTimeout(() => setIsSettingsOpen(true), 300);
+    } else applyBlankSetup();
     setHasCompletedSetup(true);
     void persistOnboardingToSupabase(true);
     if (doShowTour) setShowTour(true);
@@ -1608,6 +1629,12 @@ export default function App() {
                 isCompareMode={mode === 'compare'}
                 onExitCompare={() => setViewMode('overall')}
                 sharedCalendars={devSharedCalendars}
+                subscriberCounts={subscriberCounts}
+                onManageSubscribers={(id, scope) => { setIsSettingsOpen(true); }}
+                sharedVisibility={sharedVisibility}
+                onToggleSharedVisibility={toggleSharedVisibility}
+                sharedMappings={sharedMappings}
+                onSetSharedMapping={handleSetSharedMapping}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -2357,6 +2384,8 @@ export default function App() {
                   isCompareMode={mode === 'compare'}
                   onExitCompare={() => setViewMode('overall')}
                   sharedCalendars={devSharedCalendars}
+                  subscriberCounts={subscriberCounts}
+                  onManageSubscribers={(id, scope) => { setIsSettingsOpen(true); }}
                   endDayLabel={`Confirm all (${selectedDate})`}
                   onEndDay={() => batchConfirmDay(selectedDate)}
                 />
