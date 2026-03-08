@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Cog6ToothIcon,
   CheckIcon,
@@ -2688,7 +2689,7 @@ export default function App() {
       />
 
       {/* Recurrence edit scope picker — shown before AddModal for recurring events */}
-      {recurrenceEditScopePending && (
+      {recurrenceEditScopePending && createPortal(
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
           <div
             className="absolute inset-0"
@@ -2737,7 +2738,8 @@ export default function App() {
               Cancel
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <AddModal
