@@ -70,7 +70,19 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: 'The Timeboxing Club v__VERSION__'
-          releaseBody: 'See the assets to download and install this version.'
+          releaseBody: |
+            ## Download
+
+            | Platform | File |
+            |----------|------|
+            | **macOS** (Apple Silicon & Intel) | `.dmg` file |
+            | **Windows** | `.msi` installer |
+            | **Linux** | `.deb` or `.AppImage` |
+
+            ### macOS first launch
+            Since the app is not yet notarized with Apple, macOS may show a warning. To open it:
+            1. Right-click the app → **Open** → click **Open** in the dialog
+            2. Or run in Terminal: `xattr -cr /Applications/The\ Timeboxing\ Club.app`
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
