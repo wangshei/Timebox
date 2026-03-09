@@ -5,7 +5,7 @@ import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
-import { activeDrag } from '../utils/dragState';
+import { activeDrag, initPointerDrag } from '../utils/dragState';
 import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
@@ -532,27 +532,27 @@ function TimeBlockCardInner({
     return (endHour * 60 + endMin) - (startHour * 60 + startMin);
   };
 
-  const handleBlockDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/x-timebox-block-id', block.id);
-    e.dataTransfer.setData('application/x-timebox-block-duration', String(getDurationMinutes()));
-    e.dataTransfer.setData('application/x-timebox-block-color', getBlockColor());
-    e.dataTransfer.setData('text/plain', block.title || 'Block');
-    e.dataTransfer.effectAllowed = 'move';
-    activeDrag.type = block.taskId ? 'task' : 'event';
-    activeDrag.duration = getDurationMinutes();
-    activeDrag.color = getBlockColor();
-    if (e.dataTransfer.setDragImage) {
-      const ghost = document.createElement('div');
-      const color = getBlockColor();
-      ghost.style.cssText = `position:absolute;top:-9999px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;`;
-      ghost.textContent = block.title || 'Block';
-      ghost.style.color = THEME.textPrimary;
-      ghost.style.backgroundColor = hexToRgba(color, 0.15);
-      ghost.style.border = `2px solid ${color}`;
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 8, 8);
-      requestAnimationFrame(() => document.body.removeChild(ghost));
-    }
+  const handlePointerDragStart = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, textarea, [data-no-drag]')) return;
+    const color = getBlockColor();
+    initPointerDrag(e, {
+      type: 'block' as const,
+      id: block.id,
+      duration: getDurationMinutes(),
+      color,
+      title: block.title || 'Block',
+      createGhost: () => {
+        const ghost = document.createElement('div');
+        ghost.style.cssText = `padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px rgba(0,0,0,0.15);`;
+        ghost.textContent = block.title || 'Block';
+        ghost.style.color = THEME.textPrimary;
+        ghost.style.backgroundColor = hexToRgba(color, 0.15);
+        ghost.style.border = `2px solid ${color}`;
+        return ghost;
+      },
+      onDragStart: () => { setShowPopover(false); },
+      onDragEnd: () => { dragEndedRef.current = true; },
+    });
   };
 
   // Shared popover content — same layout as EventCard detail popup
@@ -787,9 +787,7 @@ function TimeBlockCardInner({
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
-        draggable={!noDrag}
-        onDragStart={!noDrag ? (e: React.DragEvent) => { setShowPopover(false); handleBlockDragStart(e); } : undefined}
-        onDragEnd={!noDrag ? () => { activeDrag.type = null; dragEndedRef.current = true; } : undefined}
+        onPointerDown={!noDrag ? handlePointerDragStart : undefined}
       >
         <div
           data-slot="block-container"
@@ -924,9 +922,7 @@ function TimeBlockCardInner({
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
-      draggable={!noDragFull}
-      onDragStart={!noDragFull ? (e: React.DragEvent) => { setShowPopover(false); handleBlockDragStart(e); } : undefined}
-      onDragEnd={!noDragFull ? () => { activeDrag.type = null; dragEndedRef.current = true; } : undefined}
+      onPointerDown={!noDragFull ? handlePointerDragStart : undefined}
     >
       <div
         data-slot="block-container"

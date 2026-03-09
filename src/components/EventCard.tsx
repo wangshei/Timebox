@@ -8,7 +8,7 @@ import { getTextClassForBackground, getContrastTextColor, hexToRgba, desaturate,
 import { getLocalDateString } from '../utils/dateTime';
 import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
-import { activeDrag } from '../utils/dragState';
+import { activeDrag, initPointerDrag } from '../utils/dragState';
 import { useNow, useNowFrozen } from '../contexts/NowContext';
 
 const POPOVER_WIDTH = 220;
@@ -186,29 +186,27 @@ export function EventCard({
     return (endHour * 60 + endMin) - (startHour * 60 + startMin);
   };
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handlePointerDragStart = (e: React.PointerEvent) => {
     if (!draggable) return;
-    e.dataTransfer.setData('application/x-timebox-event-id', event.id);
-    e.dataTransfer.setData('application/x-timebox-event-duration', String(getDurationMinutes()));
-    e.dataTransfer.setData('application/x-timebox-event-color', categoryColor);
-    e.dataTransfer.setData('text/plain', event.title || 'Event');
-    e.dataTransfer.effectAllowed = 'move';
-    activeDrag.type = 'event';
-    activeDrag.duration = getDurationMinutes();
-    activeDrag.color = categoryColor;
-    if (e.dataTransfer.setDragImage && event.title) {
-      const ghost = document.createElement('div');
-      ghost.className = 'rounded-lg shadow-lg px-3 py-2 text-sm font-medium';
-      ghost.textContent = event.title;
-      ghost.style.position = 'absolute';
-      ghost.style.top = '-9999px';
-      ghost.style.backgroundColor = hexToRgba(categoryColor, 0.95);
-      ghost.style.borderLeft = `4px solid ${calendarColor}`;
-      ghost.style.color = getTextClassForBackground(categoryColor) === 'text-white' ? '#fff' : '#1f2937';
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 8, 8);
-      requestAnimationFrame(() => document.body.removeChild(ghost));
-    }
+    if ((e.target as HTMLElement).closest('button, input, textarea, [data-no-drag]')) return;
+    initPointerDrag(e, {
+      type: 'event',
+      id: event.id,
+      duration: getDurationMinutes(),
+      color: categoryColor,
+      title: event.title || 'Event',
+      createGhost: () => {
+        const ghost = document.createElement('div');
+        ghost.style.cssText = `padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px rgba(0,0,0,0.15);`;
+        ghost.textContent = event.title || 'Event';
+        ghost.style.backgroundColor = hexToRgba(categoryColor, 0.95);
+        ghost.style.borderLeft = `4px solid ${calendarColor}`;
+        ghost.style.color = getTextClassForBackground(categoryColor) === 'text-white' ? '#fff' : '#1f2937';
+        return ghost;
+      },
+      onDragStart: () => { setShowPopover(false); },
+      onDragEnd: () => { dragEndedRef.current = true; },
+    });
   };
 
   // Close popover when clicking outside (portal-based — popover is NOT inside cardRef)
@@ -285,9 +283,7 @@ export function EventCard({
         setShowPopover(true);
         setShowDetails(false);
       }}
-      draggable={draggable}
-      onDragStart={(e: React.DragEvent) => { setShowPopover(false); handleDragStart(e); }}
-      onDragEnd={() => { activeDrag.type = null; dragEndedRef.current = true; }}
+      onPointerDown={draggable ? handlePointerDragStart : undefined}
     >
       <div
         className={cn(

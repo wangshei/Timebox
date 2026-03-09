@@ -492,6 +492,64 @@ serve(async (req) => {
       return json({ success: true, results })
     }
 
+    // ── send-email-all ──────────────────────────────────────────────────
+    if (action === 'send-email-all') {
+      const { subject, html } = body
+      if (!subject || !html) return json({ error: 'Missing subject or html' }, 400)
+
+      const resendApiKey = Deno.env.get('RESEND_API_KEY')
+      const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
+
+      if (!resendApiKey) {
+        return json({ error: 'RESEND_API_KEY not configured' }, 500)
+      }
+
+      // Get all confirmed users
+      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+      if (usersError) return json({ error: usersError.message }, 500)
+
+      const confirmedEmails = usersData.users
+        .filter(u => u.email_confirmed_at && u.email)
+        .map(u => u.email!)
+
+      if (confirmedEmails.length === 0) {
+        return json({ error: 'No confirmed users to email' }, 400)
+      }
+
+      const results: { email: string; success: boolean; error?: string }[] = []
+
+      for (const email of confirmedEmails) {
+        try {
+          const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${resendApiKey}`,
+            },
+            body: JSON.stringify({
+              from: fromEmail,
+              to: [email],
+              subject,
+              html,
+            }),
+          })
+
+          if (!res.ok) {
+            const errBody = await res.text()
+            results.push({ email, success: false, error: errBody })
+          } else {
+            results.push({ email, success: true })
+          }
+        } catch (err) {
+          results.push({ email, success: false, error: (err as Error).message })
+        }
+      }
+
+      const succeeded = results.filter(r => r.success).length
+      const failed = results.filter(r => !r.success).length
+      return json({ success: true, sent: succeeded, failed, total: confirmedEmails.length, results })
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400)
   } catch (err) {
     return json({ error: (err as Error).message }, 500)

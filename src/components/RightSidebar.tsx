@@ -6,6 +6,7 @@ import { PlusIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, BoltIcon } from
 import type { TimeBlock, Event, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
+import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 
 const BORDER = 'rgba(0,0,0,0.08)';
 const BG_PANEL = '#FCFBF7';
@@ -270,23 +271,25 @@ export function RightSidebar({
     [unscheduledTasks, todayStr],
   );
 
-  // ─── Drag & drop ──────────────────────────────────────────────────────────
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!onDropBlock || !e.dataTransfer.types.includes('application/x-timebox-block-id')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOverBlock(true);
-  };
-  const handleDragLeave = () => setIsDragOverBlock(false);
-  const handleDrop = (e: React.DragEvent) => {
-    const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-    setIsDragOverBlock(false);
-    if (onDropBlock && blockId) {
-      e.preventDefault();
-      onDropBlock(blockId);
-    }
-  };
+  // ─── Drag & drop (pointer-based) ──────────────────────────────────────────
+  const sidebarDropRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const el = sidebarDropRef.current;
+    if (!el || !onDropBlock) return;
+    registerDropZone(el, {
+      onOver: () => {
+        if (activeDrag.type === 'block') setIsDragOverBlock(true);
+      },
+      onLeave: () => setIsDragOverBlock(false),
+      onDrop: () => {
+        setIsDragOverBlock(false);
+        if (activeDrag.type === 'block' && activeDrag.id && onDropBlock) {
+          onDropBlock(activeDrag.id);
+        }
+      },
+    });
+    return () => unregisterDropZone(el);
+  }, [onDropBlock]);
 
   // ─── Shared helpers ───────────────────────────────────────────────────────
 
@@ -519,9 +522,7 @@ export function RightSidebar({
         outlineOffset: '-2px',
         borderLeft: isMobile ? `1px solid ${BORDER}` : 'none',
       }}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      ref={sidebarDropRef}
     >
       {/* Plan / Overview toggle + date range filter */}
       <div className="px-3 pt-2 pb-2.5 flex-shrink-0">

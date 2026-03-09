@@ -12,7 +12,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
-import { activeDrag } from '../utils/dragState';
+import { activeDrag, initPointerDrag } from '../utils/dragState';
 import { THEME } from '../constants/colors';
 
 interface TaskCardProps {
@@ -170,33 +170,39 @@ export function TaskCard({
     };
   }, [showPopover, viewMode, popoverSide]);
 
-  const handleDragStart = (e: React.DragEvent) => {
-    setShowPopover(false);
-    dragEndedRef.current = false;
-    e.dataTransfer.setData('application/x-timebox-task-id', task.id);
+  const handlePointerDragStart = (e: React.PointerEvent) => {
+    // Don't interfere with interactive children (buttons, inputs)
+    if ((e.target as HTMLElement).closest('button, input, textarea, [data-no-drag]')) return;
     const durationMins = Math.max(15, recordedMins > 0 ? remainingMins : estimatedMins);
-    e.dataTransfer.setData('application/x-timebox-task-duration', String(durationMins));
-    e.dataTransfer.setData('application/x-timebox-task-color', catColor);
-    e.dataTransfer.setData('text/plain', task.title);
-    e.dataTransfer.effectAllowed = 'copy';
-    activeDrag.type = 'task';
-    activeDrag.duration = durationMins;
-    activeDrag.color = catColor;
-    if (e.dataTransfer.setDragImage) {
-      const ghost = document.createElement('div');
-      ghost.style.cssText = [
-        'position:absolute', 'top:-9999px',
-        `padding:5px 12px`, `border-radius:8px`, `font-size:13px`, `font-weight:500`,
-        `color:${catColor}`,
-        `background:${hexRgba(catColor, 0.12)}`,
-        `border:1.5px solid ${hexRgba(catColor, 0.4)}`,
-        'font-family:system-ui,sans-serif',
-      ].join(';');
-      ghost.textContent = task.title;
-      document.body.appendChild(ghost);
-      e.dataTransfer.setDragImage(ghost, 8, 14);
-      requestAnimationFrame(() => document.body.removeChild(ghost));
-    }
+    initPointerDrag(e, {
+      type: 'task',
+      id: task.id,
+      duration: durationMins,
+      color: catColor,
+      title: task.title,
+      createGhost: () => {
+        const ghost = document.createElement('div');
+        ghost.style.cssText = [
+          `padding:5px 12px`, `border-radius:8px`, `font-size:13px`, `font-weight:500`,
+          `color:${catColor}`,
+          `background:${hexRgba(catColor, 0.12)}`,
+          `border:1.5px solid ${hexRgba(catColor, 0.4)}`,
+          'font-family:system-ui,sans-serif',
+          'white-space:nowrap', 'max-width:200px', 'overflow:hidden', 'text-overflow:ellipsis',
+          'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
+        ].join(';');
+        ghost.textContent = task.title;
+        return ghost;
+      },
+      onDragStart: () => {
+        setShowPopover(false);
+        dragEndedRef.current = false;
+      },
+      onDragEnd: () => {
+        dragEndedRef.current = true;
+        window.setTimeout(() => { dragEndedRef.current = false; }, 200);
+      },
+    });
   };
 
   // Shared popover content (overview + plan modes)
@@ -402,13 +408,7 @@ export function TaskCard({
             popoverOpenedAtRef.current = Date.now();
             setShowPopover((v) => !v);
           }}
-          draggable
-          onDragStart={handleDragStart}
-          onDragEnd={() => {
-            activeDrag.type = null;
-            dragEndedRef.current = true;
-            window.setTimeout(() => { dragEndedRef.current = false; }, 200);
-          }}
+          onPointerDown={handlePointerDragStart}
         >
           {/* Done: category color bg + checkmark. Not done: beige (cream) bg. Urgent: red tint. */}
           <div
@@ -573,13 +573,7 @@ export function TaskCard({
           popoverOpenedAtRef.current = Date.now();
           setShowPopover((v) => !v);
         }}
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={() => {
-          activeDrag.type = null;
-          dragEndedRef.current = true;
-          window.setTimeout(() => { dragEndedRef.current = false; }, 200);
-        }}
+        onPointerDown={handlePointerDragStart}
       >
         <div
           className="flex items-start gap-2 px-2 py-2 rounded-lg transition-colors"

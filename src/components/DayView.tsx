@@ -15,7 +15,7 @@ import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import { DueBadge } from './DueBadge';
 import { useNow, useNowFrozen } from '../contexts/NowContext';
-import { activeDrag } from '../utils/dragState';
+import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { useStore } from '../store/useStore';
 import { getEventSegmentsForDate } from '../utils/crossDateEvents';
 import { computeOverlapTruncation, TruncationItem } from '../utils/overlapTruncation';
@@ -128,94 +128,70 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
 
   const offsetYToMinutes = (offsetY: number): number => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
-    const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-    const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
-    if (!hasTask && !hasBlock && !hasEvent) return;
-    if (hasTask && !onDropTask) return;
-    if (hasBlock && !onMoveBlock) return;
-    if (hasEvent && !onMoveEvent) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
+  // Pointer-based drag over: compute preview from cursor position + activeDrag
+  const handlePointerOver = React.useCallback((clientX: number, clientY: number) => {
+    if (!activeDrag.type) return;
+    const dragType = activeDrag.type;
+    if (dragType === 'task' && !onDropTask) return;
+    if (dragType === 'block' && !onMoveBlock) return;
+    if (dragType === 'event' && !onMoveEvent) return;
     setIsDragOver(true);
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const offsetY = e.clientY - rect.top;
+    const offsetY = clientY - rect.top;
     if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
     const currentMins = offsetYToMinutes(offsetY);
-    if (hasEvent) {
-      const duration = activeDrag.type === 'event' && activeDrag.duration > 0 ? activeDrag.duration : DEFAULT_DROP_MINUTES;
-      const color = activeDrag.color || BLOCK_PREVIEW.color;
-      if (color) setDragColor(color);
-      setDragPreviewType('event');
-      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
-    } else if (hasBlock) {
-      const duration = activeDrag.type === 'block' || activeDrag.type === 'task' ? (activeDrag.duration || DEFAULT_DROP_MINUTES) : DEFAULT_DROP_MINUTES;
-      const color = activeDrag.color || BLOCK_PREVIEW.color;
-      if (color) setDragColor(color);
-      setDragPreviewType('block');
-      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
-    } else {
-      const duration = activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : DEFAULT_DROP_MINUTES;
-      const color = activeDrag.color || BLOCK_PREVIEW.color;
-      if (color) setDragColor(color);
-      setDragPreviewType('task');
-      setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
-    }
-  };
+    const duration = activeDrag.duration > 0 ? activeDrag.duration : DEFAULT_DROP_MINUTES;
+    const color = activeDrag.color || BLOCK_PREVIEW.color;
+    if (color) setDragColor(color);
+    setDragPreviewType(dragType === 'block' ? 'block' : dragType === 'event' ? 'event' : 'task');
+    setDragPreview({ startMins: currentMins, endMins: currentMins + duration });
+  }, [onDropTask, onMoveBlock, onMoveEvent, offsetYToMinutes]);
 
-  const handleDragLeave = () => {
+  const handlePointerLeave = React.useCallback(() => {
     setIsDragOver(false);
     setDragPreview(null);
     setDragColor(BLOCK_PREVIEW.color);
-  };
+  }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
-    const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
-    const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-    const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
+  // Pointer-based drop: use activeDrag for item ID and duration
+  const handlePointerDrop = React.useCallback((clientX: number, clientY: number) => {
+    const { type: dragType, id: dragId, duration: dragDuration } = activeDrag;
     const preview = dragPreviewRef.current ?? dragPreview;
     setIsDragOver(false);
     setDragPreview(null);
     setDragColor(BLOCK_PREVIEW.color);
     dragPreviewRef.current = null;
-    e.preventDefault();
+
+    if (!dragType || !dragId) return;
 
     const rect = gridRef.current?.getBoundingClientRect();
     const fallbackMins = rect
-      ? offsetYToMinutes(Math.max(0, Math.min(e.clientY - rect.top, GRID_HEIGHT)))
+      ? offsetYToMinutes(Math.max(0, Math.min(clientY - rect.top, GRID_HEIGHT)))
       : 9 * 60;
     const startMins = preview?.startMins ?? fallbackMins;
     const startTime = minutesToTimeString(startMins);
+    const duration = Math.max(MIN_CREATE_MINUTES, dragDuration > 0 ? dragDuration : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES));
 
-    if (blockId && onMoveBlock) {
-      const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-      const duration = durStr && !Number.isNaN(parseInt(durStr, 10))
-        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
-        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
+    if (dragType === 'block' && onMoveBlock) {
       const endTime = minutesToTimeString(startMins + duration);
-      onMoveBlock(blockId, { date: selectedDate, startTime, endTime });
-      return;
-    }
-    if (eventId && onMoveEvent) {
-      const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
-      const duration = durStr && !Number.isNaN(parseInt(durStr, 10))
-        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
-        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
+      onMoveBlock(dragId, { date: selectedDate, startTime, endTime });
+    } else if (dragType === 'event' && onMoveEvent) {
       const endTime = minutesToTimeString(startMins + duration);
-      onMoveEvent(eventId, { date: selectedDate, startTime, endTime });
-      return;
+      onMoveEvent(dragId, { date: selectedDate, startTime, endTime });
+    } else if (dragType === 'task' && onDropTask) {
+      onDropTask(dragId, { date: selectedDate, startTime, blockMinutes: duration });
     }
-    if (taskId && onDropTask) {
-      const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-      const droppedMins = durStr && !Number.isNaN(parseInt(durStr, 10))
-        ? Math.max(MIN_CREATE_MINUTES, parseInt(durStr, 10))
-        : (preview ? preview.endMins - preview.startMins : DEFAULT_DROP_MINUTES);
-      const blockMinutes = Math.max(MIN_CREATE_MINUTES, droppedMins);
-      onDropTask(taskId, { date: selectedDate, startTime, blockMinutes });
-    }
-  };
+  }, [onDropTask, onMoveBlock, onMoveEvent, selectedDate, dragPreview, offsetYToMinutes]);
+
+  // Register grid as pointer-drag drop zone
+  React.useEffect(() => {
+    const el = gridRef.current;
+    if (!el || locked) return;
+    if (!onDropTask && !onMoveBlock && !onMoveEvent) return;
+    registerDropZone(el, { onOver: handlePointerOver, onLeave: handlePointerLeave, onDrop: handlePointerDrop });
+    return () => unregisterDropZone(el);
+  }, [locked, handlePointerOver, handlePointerLeave, handlePointerDrop, onDropTask, onMoveBlock, onMoveEvent]);
 
   // Drag-to-create: mouseDown on the grid (drag down or up to set range)
   const handleGridMouseDown = (e: React.MouseEvent) => {
@@ -374,16 +350,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     [events, selectedDate]
   );
 
-  // Overlap layout for ALL blocks and events (tasks share column with events using overlap algorithm).
-  const overlapMap = React.useMemo(() => {
-    const allItems = [
-      ...timeBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
-      ...eventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
-    ];
-    return computeOverlapLayout(allItems);
-  }, [timeBlocks, eventSegments]);
-
-  // Overlap truncation — only past items; future items overlap freely
+  // Overlap truncation — computed FIRST so hidden items can be excluded from overlap layout.
+  // Only past items get truncated; future items overlap freely.
   const truncationMap = React.useMemo(() => {
     if (locked) return new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
     const curNowMins = now.getHours() * 60 + now.getMinutes();
@@ -408,6 +376,34 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     for (const r of results) map.set(r.id, r);
     return map;
   }, [locked, timeBlocks, eventSegments, now, todayStr]);
+
+  // Overlap layout — excludes hidden (truncated) items so they don't steal column space.
+  // Uses effective (truncated) times for visible past items so layout matches visual rendering.
+  const overlapMap = React.useMemo(() => {
+    const allItems = [
+      ...timeBlocks
+        .filter((b) => !truncationMap.get(b.id)?.hidden)
+        .map((b) => {
+          const trunc = truncationMap.get(b.id);
+          return {
+            id: b.id,
+            start: trunc ? trunc.effectiveStart : b.start,
+            end: trunc ? trunc.effectiveEnd : b.end,
+          };
+        }),
+      ...eventSegments
+        .filter((seg) => !truncationMap.get(`event-${seg.event.id}`)?.hidden)
+        .map((seg) => {
+          const trunc = truncationMap.get(`event-${seg.event.id}`);
+          return {
+            id: `event-${seg.event.id}`,
+            start: trunc ? trunc.effectiveStart : seg.displayStart,
+            end: trunc ? trunc.effectiveEnd : seg.displayEnd,
+          };
+        }),
+    ];
+    return computeOverlapLayout(allItems);
+  }, [timeBlocks, eventSegments, truncationMap]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();
@@ -495,9 +491,6 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         className={`relative ${!locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
         onMouseDown={!locked ? handleGridMouseDown : undefined}
-        onDragOver={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragOver : undefined}
-        onDragLeave={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDragLeave : undefined}
-        onDrop={!locked && (onDropTask || onMoveBlock || onMoveEvent) ? handleDrop : undefined}
       >
         {/* Today green tint for future portion of current day */}
         {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (

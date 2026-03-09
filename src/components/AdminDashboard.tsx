@@ -161,6 +161,12 @@ export function AdminDashboard() {
   // Broadcast message composer
   const [broadcastDraft, setBroadcastDraft] = useState('');
 
+  // Email all users
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(false);
+
   // Admin todo / notes
   const [adminTodo, setAdminTodo] = useState('');
   const [todoSaveStatus, setTodoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -345,6 +351,56 @@ export function AdminDashboard() {
       setActionMessage(`Error: ${(err as Error).message}`);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const wrapInEmailTemplate = (bodyHtml: string) => `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+    <tr><td align="center" style="padding:48px 24px;">
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+        <tr><td align="center" style="padding-bottom:32px;">
+          <span style="font-size:24px;font-weight:700;color:#1C1C1E;letter-spacing:-0.02em;">The Timeboxing Club</span>
+        </td></tr>
+        <tr><td style="background-color:#FFFFFF;border-radius:16px;border:1px solid rgba(0,0,0,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.04);padding:40px 32px;">
+          ${bodyHtml}
+        </td></tr>
+        <tr><td align="center" style="padding-top:24px;">
+          <p style="margin:0;font-size:12px;color:#C7C7CC;">The Timeboxing Club — plan your day, own your time.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const handleSendEmailAll = async () => {
+    if (!emailSubject.trim() || !emailBody.trim()) return;
+    const confirmedCount = users.filter(u => u.email_confirmed_at).length;
+    if (confirmedCount === 0) {
+      setActionMessage('No confirmed users to email');
+      return;
+    }
+    if (!window.confirm(`Send this email to ${confirmedCount} confirmed user(s)?`)) return;
+    setEmailSending(true);
+    setActionMessage(null);
+    try {
+      // Convert plain text body to HTML paragraphs
+      const bodyHtml = emailBody.trim().split('\n\n').map(p =>
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#636366;">${p.replace(/\n/g, '<br/>')}</p>`
+      ).join('');
+      const html = wrapInEmailTemplate(bodyHtml);
+      const data = await adminFetch('send-email-all', { subject: emailSubject.trim(), html });
+      if (data.error) throw new Error(data.error);
+      setActionMessage(`Email sent to ${data.sent} user(s)${data.failed > 0 ? `, ${data.failed} failed` : ''}`);
+      setEmailSubject('');
+      setEmailBody('');
+      setEmailPreview(false);
+    } catch (err) {
+      setActionMessage(`Error: ${(err as Error).message}`);
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -679,6 +735,107 @@ export function AdminDashboard() {
                 ? 'The invite code field is hidden. Anyone can create an account.'
                 : 'Users need a valid invite code to sign up. Those without one can join the waitlist.'}
             </p>
+          </div>
+        </div>
+
+        {/* Email All Users */}
+        <div style={{ ...cardStyle, marginBottom: 24 }}>
+          <div style={{ ...sectionLabel, marginBottom: 12 }}>
+            Email All Users ({users.filter(u => u.email_confirmed_at).length} confirmed)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <input
+              type="text"
+              value={emailSubject}
+              onChange={(e) => setEmailSubject(e.target.value)}
+              placeholder="Subject line"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 14,
+                border: '1px solid rgba(0,0,0,0.12)',
+                borderRadius: 8,
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+            <textarea
+              value={emailBody}
+              onChange={(e) => setEmailBody(e.target.value)}
+              placeholder={"Write your email body here...\n\nUse double line breaks for new paragraphs."}
+              rows={6}
+              style={{
+                width: '100%',
+                fontSize: 14,
+                lineHeight: 1.6,
+                resize: 'vertical',
+                borderRadius: 8,
+                padding: 12,
+                outline: 'none',
+                backgroundColor: 'rgba(0,0,0,0.02)',
+                border: '1px solid rgba(0,0,0,0.09)',
+                color: '#1C1C1E',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+              }}
+            />
+            {emailPreview && emailBody.trim() && (
+              <div style={{
+                padding: 20,
+                borderRadius: 12,
+                backgroundColor: '#FFFFFF',
+                border: '1px solid rgba(0,0,0,0.08)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 12 }}>
+                  Preview
+                </div>
+                <div style={{ fontSize: 12, color: '#8E8E93', marginBottom: 4 }}>
+                  Subject: <span style={{ color: '#1C1C1E', fontWeight: 500 }}>{emailSubject || '(no subject)'}</span>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.06)', margin: '12px 0' }} />
+                {emailBody.trim().split('\n\n').map((p, i) => (
+                  <p key={i} style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.6, color: '#636366' }}>
+                    {p.split('\n').map((line, j) => (
+                      <React.Fragment key={j}>
+                        {j > 0 && <br />}
+                        {line}
+                      </React.Fragment>
+                    ))}
+                  </p>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                onClick={() => setEmailPreview(!emailPreview)}
+                disabled={!emailBody.trim()}
+                style={{
+                  ...btnSecondary,
+                  fontSize: 12,
+                  padding: '8px 14px',
+                  opacity: emailBody.trim() ? 1 : 0.4,
+                }}
+              >
+                {emailPreview ? 'Hide Preview' : 'Preview'}
+              </button>
+              <button
+                onClick={handleSendEmailAll}
+                disabled={!emailSubject.trim() || !emailBody.trim() || emailSending}
+                style={{
+                  ...btnPrimary,
+                  fontSize: 12,
+                  padding: '8px 14px',
+                  opacity: (!emailSubject.trim() || !emailBody.trim() || emailSending) ? 0.5 : 1,
+                }}
+              >
+                {emailSending ? 'Sending...' : 'Send to All Users'}
+              </button>
+              <span style={{ fontSize: 11, color: '#AEAEB2', marginLeft: 4 }}>
+                Sends to all confirmed users via Resend
+              </span>
+            </div>
           </div>
         </div>
 

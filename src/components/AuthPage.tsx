@@ -96,6 +96,17 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
     }
   };
 
+  const sendWelcomeEmail = (userEmail: string, userName: string) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    if (!supabaseUrl || !supabaseAnonKey) return;
+    fetch(`${supabaseUrl}/functions/v1/send-welcome-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseAnonKey}` },
+      body: JSON.stringify({ email: userEmail, name: userName }),
+    }).catch(() => {}); // fire-and-forget
+  };
+
   const joinWaitlist = async () => {
     if (!supabase || !email.trim()) return;
     setLoading(true);
@@ -218,12 +229,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
           if (data.user && inviteCode.trim()) {
             await markInviteCodeUsed(inviteCode, data.user.id);
           }
+          // Send welcome email (fire-and-forget)
+          sendWelcomeEmail(email.trim(), name.trim());
           setMessage({ text: 'Account created! Setting up your workspace…', isError: false });
         } else {
           // Email confirmation required — mark code as used with the user ID
           if (data.user && inviteCode.trim()) {
             await markInviteCodeUsed(inviteCode, data.user.id);
           }
+          // Send welcome email (fire-and-forget)
+          sendWelcomeEmail(email.trim(), name.trim());
           setAwaitingConfirmation(true);
           setMessage({
             text: 'Check your inbox — we sent a confirmation link. Once confirmed, come back and log in.',

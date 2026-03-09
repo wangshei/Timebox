@@ -12,7 +12,7 @@ import {
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
-import { activeDrag } from '../utils/dragState';
+import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { DueBadge } from './DueBadge';
 import { useStore } from '../store/useStore';
 import { getEventSegmentsForDate } from '../utils/crossDateEvents';
@@ -108,6 +108,15 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const offsetYToMinutes = (offsetY: number) => offsetYToMinsUtil(offsetY, PX_PER_HOUR);
 
   const [dragPreview, setDragPreview] = React.useState<{ date: string; startMins: number; endMins: number } | null>(null);
+
+  // Track registered drop zone elements for cleanup
+  const registeredGridsRef = React.useRef<Set<HTMLElement>>(new Set());
+  React.useEffect(() => {
+    return () => {
+      for (const el of registeredGridsRef.current) unregisterDropZone(el);
+      registeredGridsRef.current.clear();
+    };
+  }, []);
 
   // Drag-to-create state
   const MIN_CREATE_MINUTES = 15;
@@ -327,57 +336,38 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       data-week-grid
                       className={`relative ${!locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                       style={{ height: GRID_HEIGHT }}
-                      onDragOver={locked ? undefined : (e) => {
-                        const hasTask = e.dataTransfer.types.includes('application/x-timebox-task-id');
-                        const hasBlock = e.dataTransfer.types.includes('application/x-timebox-block-id');
-                        const hasEvent = e.dataTransfer.types.includes('application/x-timebox-event-id');
-                        if (!hasTask && !hasBlock && !hasEvent) return;
-                        if (hasTask && !onDropTask) return;
-                        if (hasBlock && !onMoveBlock) return;
-                        if (hasEvent && !onMoveEvent) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.dataTransfer.dropEffect = hasBlock || hasEvent ? 'move' : 'copy';
-                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const offsetY = e.clientY - rect.top;
-                        if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
-                        const startMins = offsetYToMinutes(offsetY);
-                        const duration = hasEvent
-                          ? (activeDrag.type === 'event' && activeDrag.duration > 0 ? activeDrag.duration : 15)
-                          : hasBlock
-                            ? (activeDrag.type === 'block' || activeDrag.type === 'task' ? (activeDrag.duration || 15) : 15)
-                            : (activeDrag.type === 'task' && activeDrag.duration > 0 ? activeDrag.duration : 15);
-                        setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
-                      }}
-                      onDragLeave={locked ? undefined : (e) => {
-                        const grid = e.currentTarget as HTMLDivElement;
-                        const related = e.relatedTarget as Node | null;
-                        if (!related || !grid.contains(related)) setDragPreview(null);
-                      }}
-                      onDrop={locked ? undefined : (e) => {
-                        const taskId = e.dataTransfer.getData('application/x-timebox-task-id');
-                        const blockId = e.dataTransfer.getData('application/x-timebox-block-id');
-                        const eventId = e.dataTransfer.getData('application/x-timebox-event-id');
-                        if (!taskId && !blockId && !eventId) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                        const offsetY = e.clientY - rect.top;
-                        const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
-                        if (blockId && onMoveBlock) {
-                          const durStr = e.dataTransfer.getData('application/x-timebox-block-duration');
-                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                          onMoveBlock(blockId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
-                        } else if (eventId && onMoveEvent) {
-                          const durStr = e.dataTransfer.getData('application/x-timebox-event-duration');
-                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                          onMoveEvent(eventId, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
-                        } else if (taskId && onDropTask) {
-                          const durStr = e.dataTransfer.getData('application/x-timebox-task-duration');
-                          const dur = durStr ? Math.max(15, parseInt(durStr, 10)) : 15;
-                          onDropTask(taskId, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
-                        }
-                        setDragPreview(null);
+                      ref={(el: HTMLDivElement | null) => {
+                        if (!el || locked) return;
+                        if (!onDropTask && !onMoveBlock && !onMoveEvent) return;
+                        registeredGridsRef.current.add(el);
+                        registerDropZone(el, {
+                          onOver: (_: number, clientY: number) => {
+                            if (!activeDrag.type) return;
+                            const rect = el.getBoundingClientRect();
+                            const offsetY = clientY - rect.top;
+                            if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                            const startMins = offsetYToMinutes(offsetY);
+                            const duration = activeDrag.duration > 0 ? activeDrag.duration : 15;
+                            setDragPreview({ date: dateStr, startMins, endMins: startMins + duration });
+                          },
+                          onLeave: () => setDragPreview(null),
+                          onDrop: (_: number, clientY: number) => {
+                            const { type: dt, id: did, duration: ddur } = activeDrag;
+                            if (!dt || !did) return;
+                            const rect = el.getBoundingClientRect();
+                            const offsetY = clientY - rect.top;
+                            const startMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+                            const dur = Math.max(15, ddur > 0 ? ddur : 15);
+                            if (dt === 'block' && onMoveBlock) {
+                              onMoveBlock(did, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                            } else if (dt === 'event' && onMoveEvent) {
+                              onMoveEvent(did, { date: dateStr, startTime: minsToTime(startMins), endTime: minsToTime(startMins + dur) });
+                            } else if (dt === 'task' && onDropTask) {
+                              onDropTask(did, { date: dateStr, startTime: minsToTime(startMins), blockMinutes: dur });
+                            }
+                            setDragPreview(null);
+                          },
+                        });
                       }}
                       onMouseDown={!locked && onCreateBlock ? (e: React.MouseEvent) => {
                         if (creatingBlock) return;
@@ -399,12 +389,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       {/* Blocks + events */}
                       <div className="absolute left-0 right-0 top-0 pointer-events-none" style={{ minHeight: GRID_HEIGHT }}>
                         {(() => {
-                          const allItems = [
-                            ...dayBlocks.map((b) => ({ id: b.id, start: b.start, end: b.end })),
-                            ...dayEventSegments.map((seg) => ({ id: `event-${seg.event.id}`, start: seg.displayStart, end: seg.displayEnd })),
-                          ];
-                          const dayOverlapMap = computeOverlapLayout(allItems);
-                          // Overlap truncation — only past items; future items overlap freely
+                          // Compute truncation FIRST so hidden items can be excluded from overlap layout
                           const dayTruncMap = new Map<string, { effectiveStart: string; effectiveEnd: string; hidden: boolean }>();
                           if (!locked) {
                             const isPast = (date: string, end: string) =>
@@ -421,6 +406,22 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                             ];
                             for (const r of computeOverlapTruncation(truncItems)) dayTruncMap.set(r.id, r);
                           }
+                          // Overlap layout — excludes hidden items, uses effective (truncated) times
+                          const allItems = [
+                            ...dayBlocks
+                              .filter((b) => !dayTruncMap.get(b.id)?.hidden)
+                              .map((b) => {
+                                const trunc = dayTruncMap.get(b.id);
+                                return { id: b.id, start: trunc ? trunc.effectiveStart : b.start, end: trunc ? trunc.effectiveEnd : b.end };
+                              }),
+                            ...dayEventSegments
+                              .filter((seg) => !dayTruncMap.get(`event-${seg.event.id}`)?.hidden)
+                              .map((seg) => {
+                                const trunc = dayTruncMap.get(`event-${seg.event.id}`);
+                                return { id: `event-${seg.event.id}`, start: trunc ? trunc.effectiveStart : seg.displayStart, end: trunc ? trunc.effectiveEnd : seg.displayEnd };
+                              }),
+                          ];
+                          const dayOverlapMap = computeOverlapLayout(allItems);
                           return (
                             <>
                               {dayBlocks.map((block) => {
