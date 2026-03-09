@@ -431,9 +431,10 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   }
   if (tagIds.length > 0) {
     check('tags', 'delete-orphans', await supabase.from('tags').delete().eq('user_id', userId).not('id', 'in', `(${tagIds.join(',')})`));
-  } else {
-    check('tags', 'delete-all', await supabase.from('tags').delete().eq('user_id', userId));
   }
+  // When tagIds is empty, do NOT delete all tags from Supabase.
+  // An empty local tags array likely means data hasn't loaded yet (e.g. fresh
+  // desktop app session or onboarding). Deleting would wipe user's tags.
   if (categoryIds.length > 0) {
     check('categories', 'delete-orphans', await supabase.from('categories').delete().eq('user_id', userId).not('id', 'in', `(${categoryIds.join(',')})`));
   } else {
