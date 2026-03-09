@@ -10,6 +10,7 @@ import type {
   Category,
   Tag,
   View,
+  Event,
 } from '../types';
 import {
   getPlannedMinutes,
@@ -188,11 +189,17 @@ function recordedMins(b: TimeBlock): number {
  * Plan vs Actual by category across a set of dates (day, week, or month range).
  * Pass all dates in the current view window as `dates`.
  */
+/** Get duration in minutes from an event's start/end times. */
+function eventMins(e: Event): number {
+  return parseTimeToMinutes(e.end) - parseTimeToMinutes(e.start);
+}
+
 export function selectPlanVsActualByCategory(
   timeBlocks: TimeBlock[],
   dates: string[],
   categories: Category[],
-  todayStr?: string
+  todayStr?: string,
+  events?: Event[]
 ): SummaryRow[] {
   const dateSet = new Set(dates);
   const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
@@ -212,6 +219,23 @@ export function selectPlanVsActualByCategory(
       byCategory.set(cat.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
     }
   }
+  // Include events
+  if (events) {
+    const eventsInRange = events.filter((e) => dateSet.has(e.date));
+    for (const e of eventsInRange) {
+      const cat = categories.find((c) => c.id === e.categoryId);
+      if (!cat) continue;
+      const prev = byCategory.get(cat.id) ?? { category: cat, plannedMins: 0, recordedMins: 0 };
+      const mins = eventMins(e);
+      // Events are always planned
+      prev.plannedMins += mins;
+      // Attended events count as recorded
+      if (e.attendanceStatus === 'attended') {
+        prev.recordedMins += mins;
+      }
+      byCategory.set(cat.id, prev);
+    }
+  }
   return Array.from(byCategory.values())
     .map(({ category, plannedMins, recordedMins }) => ({
       id: category.id,
@@ -229,7 +253,8 @@ export function selectPlanVsActualByContainer(
   timeBlocks: TimeBlock[],
   dates: string[],
   containers: CalendarContainer[],
-  todayStr?: string
+  todayStr?: string,
+  events?: Event[]
 ): SummaryRow[] {
   const dateSet = new Set(dates);
   const inRange = timeBlocks.filter((b) => dateSet.has(b.date));
@@ -247,6 +272,20 @@ export function selectPlanVsActualByContainer(
     }
     if (isRecordedBlock(b, todayStr)) {
       byContainer.set(container.id, { ...prev, recordedMins: prev.recordedMins + recordedMins(b) });
+    }
+  }
+  if (events) {
+    const eventsInRange = events.filter((e) => dateSet.has(e.date));
+    for (const e of eventsInRange) {
+      const container = containers.find((c) => c.id === e.calendarContainerId);
+      if (!container) continue;
+      const prev = byContainer.get(container.id) ?? { container, plannedMins: 0, recordedMins: 0 };
+      const mins = eventMins(e);
+      prev.plannedMins += mins;
+      if (e.attendanceStatus === 'attended') {
+        prev.recordedMins += mins;
+      }
+      byContainer.set(container.id, prev);
     }
   }
   return Array.from(byContainer.values())

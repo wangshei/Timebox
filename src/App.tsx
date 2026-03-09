@@ -461,12 +461,12 @@ export default function App() {
     [selectedDate, view]
   );
   const planVsActualByCategory = useMemo(
-    () => selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories),
-    [timeBlocks, analyticsDateRange, categories]
+    () => selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories, undefined, events),
+    [timeBlocks, analyticsDateRange, categories, events]
   );
   const planVsActualByContainer = useMemo(
-    () => selectPlanVsActualByContainer(timeBlocks, analyticsDateRange, calendarContainers),
-    [timeBlocks, analyticsDateRange, calendarContainers]
+    () => selectPlanVsActualByContainer(timeBlocks, analyticsDateRange, calendarContainers, undefined, events),
+    [timeBlocks, analyticsDateRange, calendarContainers, events]
   );
   const planVsActualByTag = useMemo(
     () => selectPlanVsActualByTag(timeBlocks, analyticsDateRange, tags),
