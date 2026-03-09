@@ -256,6 +256,25 @@ function SummaryView({ summary, totalMinutes }: { summary: CategorySummary[]; to
   );
 }
 
+/** Merge consecutive entries of the same app (within 60s gap) into single rows. */
+function mergeConsecutiveEntries(entries: ActivityEntry[]): ActivityEntry[] {
+  if (entries.length === 0) return [];
+  const merged: ActivityEntry[] = [{ ...entries[0] }];
+  for (let i = 1; i < entries.length; i++) {
+    const prev = merged[merged.length - 1];
+    const curr = entries[i];
+    const gap = (new Date(curr.start_time).getTime() - new Date(prev.end_time).getTime()) / 1000;
+    if (curr.app_name === prev.app_name && curr.category === prev.category && gap <= 60) {
+      // Extend previous entry
+      prev.end_time = curr.end_time;
+      prev.duration_secs += curr.duration_secs;
+    } else {
+      merged.push({ ...curr });
+    }
+  }
+  return merged;
+}
+
 function TimelineView({ entries }: { entries: ActivityEntry[] }) {
   if (entries.length === 0) {
     return (
@@ -265,16 +284,18 @@ function TimelineView({ entries }: { entries: ActivityEntry[] }) {
     );
   }
 
+  const merged = mergeConsecutiveEntries(entries);
+
   return (
     <div className="space-y-1">
-      {entries.map((entry) => {
+      {merged.map((entry) => {
         const startTime = new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const endTime = new Date(entry.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const color = CATEGORY_COLORS[entry.category] || '#C0C0C0';
 
         return (
           <div
-            key={entry.id}
+            key={`${entry.id}-${entry.end_time}`}
             className="flex items-start gap-2 py-1.5 px-2 rounded-md"
             style={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
           >
