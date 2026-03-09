@@ -416,18 +416,13 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   // Delete children first (FK order), then parents.
   if (blockIds.length > 0) {
     check('time_blocks', 'delete-orphans', await supabase.from('time_blocks').delete().eq('user_id', userId).not('id', 'in', `(${blockIds.join(',')})`));
-  } else {
-    check('time_blocks', 'delete-all', await supabase.from('time_blocks').delete().eq('user_id', userId));
   }
+  // When empty, do NOT delete all — empty local state likely means data hasn't loaded yet.
   if (eventIds.length > 0) {
     check('events', 'delete-orphans', await supabase.from('events').delete().eq('user_id', userId).not('id', 'in', `(${eventIds.join(',')})`));
-  } else {
-    check('events', 'delete-all', await supabase.from('events').delete().eq('user_id', userId));
   }
   if (taskIds.length > 0) {
     check('tasks', 'delete-orphans', await supabase.from('tasks').delete().eq('user_id', userId).not('id', 'in', `(${taskIds.join(',')})`));
-  } else {
-    check('tasks', 'delete-all', await supabase.from('tasks').delete().eq('user_id', userId));
   }
   if (tagIds.length > 0) {
     check('tags', 'delete-orphans', await supabase.from('tags').delete().eq('user_id', userId).not('id', 'in', `(${tagIds.join(',')})`));
@@ -437,13 +432,9 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   // desktop app session or onboarding). Deleting would wipe user's tags.
   if (categoryIds.length > 0) {
     check('categories', 'delete-orphans', await supabase.from('categories').delete().eq('user_id', userId).not('id', 'in', `(${categoryIds.join(',')})`));
-  } else {
-    check('categories', 'delete-all', await supabase.from('categories').delete().eq('user_id', userId));
   }
   if (containerIds.length > 0) {
     check('calendar_containers', 'delete-orphans', await supabase.from('calendar_containers').delete().eq('user_id', userId).not('id', 'in', `(${containerIds.join(',')})`));
-  } else {
-    check('calendar_containers', 'delete-all', await supabase.from('calendar_containers').delete().eq('user_id', userId));
   }
 
   if (errors.length > 0) {

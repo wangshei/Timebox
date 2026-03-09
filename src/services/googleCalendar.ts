@@ -18,7 +18,13 @@ const GCAL_DISMISSED_CALS_KEY = 'gcal_dismissed_calendar_ids';
 const GCAL_SELECTED_CALS_KEY = 'gcal_selected_calendar_ids';
 
 function getRedirectUri(): string {
-  return `${window.location.origin}/gcal-callback`;
+  // In Tauri desktop app, window.location.origin is tauri://localhost which
+  // Google OAuth won't accept. Redirect through the web app instead.
+  const origin = window.location.origin;
+  if (origin.includes('tauri://') || origin.includes('localhost')) {
+    return 'https://app.timeboxing.club/gcal-callback';
+  }
+  return `${origin}/gcal-callback`;
 }
 
 // ─── Token helpers ───────────────────────────────────────────────────────────
