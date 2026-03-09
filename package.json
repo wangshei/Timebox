@@ -3,6 +3,11 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
+            "@capacitor/cli": "^8.2.0",
+            "@capacitor/core": "^8.2.0",
+            "@capacitor/ios": "^8.2.0",
+            "@capacitor/splash-screen": "^8.0.1",
+            "@capacitor/status-bar": "^8.0.1",
             "@heroicons/react": "^2.2.0",
             "@radix-ui/react-accordion": "^1.2.3",
             "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -66,6 +71,10 @@
       "scripts": {
             "dev": "vite",
             "build": "vite build",
-            "tauri": "tauri"
+            "tauri": "tauri",
+            "cap:init": "npx cap init Timebox club.timeboxing.app --web-dir dist",
+            "cap:build": "vite build && npx cap sync",
+            "cap:open": "npx cap open ios",
+            "cap:sync": "npx cap sync"
       }
 }

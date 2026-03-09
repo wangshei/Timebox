@@ -186,6 +186,28 @@ html, body {
   max-width: 100vw;
 }
 
+/* Prevent iOS overscroll bounce / rubber-banding on mobile */
+@media (max-width: 1023px) {
+  html {
+    overflow: hidden;
+    height: 100%;
+    height: 100dvh;
+  }
+  body {
+    overflow: hidden;
+    height: 100%;
+    height: 100dvh;
+    overscroll-behavior: none;
+    position: fixed;
+    width: 100%;
+    touch-action: pan-x pan-y;
+  }
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 /* === Slim, clean scrollbars === */
 ::-webkit-scrollbar {
   width: 5px;
@@ -311,6 +333,11 @@ html, body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* === Segmented control base === */

@@ -1165,6 +1165,42 @@ export function SettingsPanel({
                   </button>
                 )}
 
+                {/* ── Install on Phone ── */}
+                <div style={{ marginTop: 20, gridColumn: '1 / -1' }}>
+                  <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 10 }}>Install on Phone</h2>
+                  <div
+                    className="p-3 rounded-xl"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8DA286" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                          <line x1="12" y1="18" x2="12.01" y2="18" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>Add to Home Screen</p>
+                        <p style={{ fontSize: 11, color: '#8E8E93', margin: '2px 0 0' }}>Use Timebox as a full-screen app on your phone.</p>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 12, color: '#3A3A3C', lineHeight: 1.6 }}>
+                      <p style={{ fontWeight: 600, fontSize: 11, color: '#8E8E93', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>iPhone / iPad (Safari)</p>
+                      <ol style={{ margin: 0, paddingLeft: 18 }}>
+                        <li>Tap the <strong>Share</strong> button <span style={{ display: 'inline-block', width: 16, height: 16, verticalAlign: 'middle', marginLeft: 2 }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3A3A3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span></li>
+                        <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                        <li>Tap <strong>Add</strong></li>
+                      </ol>
+                      <p style={{ fontWeight: 600, fontSize: 11, color: '#8E8E93', margin: '12px 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Android (Chrome)</p>
+                      <ol style={{ margin: 0, paddingLeft: 18 }}>
+                        <li>Tap the <strong>⋮</strong> menu (top right)</li>
+                        <li>Tap <strong>Add to Home screen</strong></li>
+                        <li>Tap <strong>Install</strong></li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+
                 {/* ── Get the Desktop App ── */}
                 <div style={{ marginTop: 20, gridColumn: '1 / -1' }}>
                   <h2 style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', marginBottom: 10 }}>Desktop App</h2>

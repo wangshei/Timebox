@@ -111,8 +111,27 @@ interface AgendaItem {
 export function MobileApp() {
   const [activeTab, setActiveTab] = useState<MobileTab>('schedule');
 
+  // Prevent iOS rubber-band / pull-to-refresh on the document level
+  useEffect(() => {
+    const handler = (e: TouchEvent) => {
+      // Allow scrolling inside scrollable containers
+      let el = e.target as HTMLElement | null;
+      while (el) {
+        const { overflowY } = window.getComputedStyle(el);
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+          return; // allow native scroll
+        }
+        el = el.parentElement;
+      }
+      // No scrollable ancestor — prevent bounce
+      if (e.touches.length === 1) e.preventDefault();
+    };
+    document.addEventListener('touchmove', handler, { passive: false });
+    return () => document.removeEventListener('touchmove', handler);
+  }, []);
+
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw', overscrollBehavior: 'none' }}>
       {/* Top tab bar — fixed at top */}
       <nav
         style={{
@@ -162,7 +181,7 @@ export function MobileApp() {
       </nav>
 
       {/* Content — fills remaining height */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'todo' && <TodoTab />}
       </div>
@@ -626,52 +645,53 @@ function ScheduleTab() {
         </div>
       )}
 
-      {/* Header: Day/Week toggle + navigation */}
+      {/* Header: Date + Day/Week toggle on same row */}
       <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-        {/* View toggle + title row */}
-        <div className="flex items-center justify-between" style={{ padding: '8px 16px 0' }}>
-          <button
-            type="button"
-            onClick={() => scheduleView === 'day' ? navigateDate(-1) : navigateWeek(-1)}
-            className="touch-manipulation flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
-          <div className="text-center" style={{ flex: 1 }}>
-            <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
-              {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              {selectedDate !== today && (
-                <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-                  style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, marginTop: 1 }}>
-                  Today
-                </button>
-              )}
-              {pendingCount > 0 && scheduleView === 'day' && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500', marginTop: 1 }}>{pendingCount} to review</span>
-              )}
+        <div className="flex items-center justify-between" style={{ padding: '8px 16px' }}>
+          {/* Left: nav arrows + date */}
+          <div className="flex items-center gap-1" style={{ flex: 1, minWidth: 0 }}>
+            <button
+              type="button"
+              onClick={() => scheduleView === 'day' ? navigateDate(-1) : navigateWeek(-1)}
+              className="touch-manipulation flex items-center justify-center"
+              style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
+                {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
+              </p>
+              <div className="flex items-center gap-2">
+                {selectedDate !== today && (
+                  <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
+                    style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, padding: 0 }}>
+                    Today
+                  </button>
+                )}
+                {pendingCount > 0 && scheduleView === 'day' && (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500' }}>{pendingCount} to review</span>
+                )}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => scheduleView === 'day' ? navigateDate(1) : navigateWeek(1)}
+              className="touch-manipulation flex items-center justify-center"
+              style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => scheduleView === 'day' ? navigateDate(1) : navigateWeek(1)}
-            className="touch-manipulation flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'rgba(0,0,0,0.04)', color: THEME.textPrimary }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
-        </div>
-        {/* Day/Week segmented control */}
-        <div className="flex items-center justify-center" style={{ padding: '6px 16px 8px' }}>
-          <div style={{ display: 'inline-flex', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 8, padding: 2 }}>
+
+          {/* Right: Day/Week toggle */}
+          <div style={{ display: 'inline-flex', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 8, padding: 2, flexShrink: 0 }}>
             {(['day', 'week'] as const).map((v) => {
               const active = scheduleView === v;
               return (
                 <button key={v} type="button" onClick={() => setScheduleView(v)} className="touch-manipulation"
                   style={{
-                    padding: '4px 16px', borderRadius: 6, fontSize: 12, fontWeight: active ? 600 : 400,
+                    padding: '4px 14px', borderRadius: 6, fontSize: 12, fontWeight: active ? 600 : 400,
                     border: 'none', backgroundColor: active ? '#FFFFFF' : 'transparent',
                     color: active ? THEME.textPrimary : '#8E8E93',
                     boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
@@ -709,7 +729,7 @@ function ScheduleTab() {
 
       {/* ─── DAY VIEW ─── */}
       {scheduleView === 'day' && (
-      <div ref={gridRef} className="flex-1 overflow-y-auto" style={{ position: 'relative', overflowX: 'hidden' }}>
+      <div ref={gridRef} className="flex-1 overflow-y-auto" style={{ position: 'relative', overflowX: 'hidden', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div style={{ position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
           {/* Hour lines */}
           {hours.map((h) => {
@@ -886,7 +906,7 @@ function ScheduleTab() {
 
       {/* ─── WEEK VIEW ─── */}
       {scheduleView === 'week' && (
-      <div className="flex-1 overflow-y-auto" style={{ position: 'relative' }}>
+      <div className="flex-1 overflow-y-auto" style={{ position: 'relative', overscrollBehavior: 'contain' } as React.CSSProperties}>
         <div style={{ display: 'flex', position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
           {/* Time labels column */}
           <div style={{ width: TIME_COL_WIDTH, flexShrink: 0, position: 'relative' }}>
@@ -1236,6 +1256,7 @@ function TodoTab() {
   const [filter, setFilter] = useState<'all' | 'today' | 'done'>('all');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
@@ -1248,6 +1269,13 @@ function TodoTab() {
     return () => { recognitionRef.current?.abort(); };
   }, []);
 
+  // Auto-dismiss mic error toast
+  useEffect(() => {
+    if (!micError) return;
+    const t = setTimeout(() => setMicError(null), 3500);
+    return () => clearTimeout(t);
+  }, [micError]);
+
   // Hold-to-record: start on pointerdown, stop on pointerup/pointerleave
   const lastTranscriptRef = useRef('');
 
@@ -1256,6 +1284,7 @@ function TodoTab() {
     if (!SR) return;
     recognitionRef.current?.abort();
     lastTranscriptRef.current = '';
+    setMicError(null);
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -1281,10 +1310,31 @@ function TodoTab() {
         setTitle(lastTranscriptRef.current);
       }
     };
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = (e: any) => {
+      setIsListening(false);
+      const err = e?.error || '';
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        setMicError('Microphone access denied. Check Settings → Privacy.');
+      } else if (err === 'audio-capture') {
+        setMicError('Mic unavailable — close FaceTime or other apps using it.');
+      } else if (err === 'network') {
+        setMicError('No internet connection for speech recognition.');
+      } else if (err === 'no-speech') {
+        // Silent timeout — not really an error, ignore
+      } else if (err === 'aborted') {
+        // User-initiated abort, ignore
+      } else {
+        setMicError('Voice input failed. Try again.');
+      }
+    };
     recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      setIsListening(false);
+      setMicError('Mic unavailable — it may be in use by another app.');
+    }
   }, []);
 
   const stopListening = useCallback(() => {
@@ -1511,7 +1561,7 @@ function TodoTab() {
       </div>
 
       {/* Task list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px', overscrollBehavior: 'contain' } as React.CSSProperties}>
         {activeTasks.length === 0 && (
           <div className="flex flex-col items-center" style={{ paddingTop: 48 }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
@@ -1635,7 +1685,7 @@ function TodoTab() {
       {speechSupported && !isListening && (
         <button
           type="button"
-          onPointerDown={(e) => { e.preventDefault(); startListening(); }}
+          onClick={(e) => { e.preventDefault(); startListening(); }}
           onContextMenu={(e) => e.preventDefault()}
           className="touch-manipulation"
           style={{
@@ -1668,7 +1718,7 @@ function TodoTab() {
       {isListening && (
         <div
           onPointerUp={stopListening}
-          onPointerLeave={stopListening}
+          onClick={stopListening}
           style={{
             position: 'absolute',
             inset: 0,
@@ -1710,8 +1760,33 @@ function TodoTab() {
             </p>
           )}
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 16 }}>
-            Release to stop
+            Tap anywhere to stop
           </p>
+        </div>
+      )}
+
+      {/* Mic error toast */}
+      {micError && (
+        <div
+          onClick={() => setMicError(null)}
+          style={{
+            position: 'absolute',
+            bottom: 84,
+            left: 16,
+            right: 16,
+            backgroundColor: '#1C1C1E',
+            color: '#FFFFFF',
+            fontSize: 13,
+            fontWeight: 500,
+            padding: '12px 16px',
+            borderRadius: 12,
+            zIndex: 110,
+            textAlign: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          {micError}
         </div>
       )}
     </div>
