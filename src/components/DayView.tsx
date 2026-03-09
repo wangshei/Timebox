@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -687,27 +688,36 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           </div>
         )}
 
-        {/* Pending create-block preview (shown while AddModal is open) */}
+        {/* Pending create-block preview (portaled above modal backdrop z-50) */}
         {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === selectedDate && (() => {
           const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
           const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
-          return (
+          const rect = gridRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const topPx = rect.top + ((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
+          const heightPx = ((pEndMins - pStartMins) / 60) * PX_PER_HOUR;
+          return createPortal(
             <div
-              className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
+              className="pointer-events-none rounded-r-md overflow-hidden"
               style={{
-                top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
-                height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
-                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
-                borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
-                borderTop: '1px dashed rgba(0,0,0,0.08)',
-                borderRight: '1px dashed rgba(0,0,0,0.08)',
-                borderBottom: '1px dashed rgba(0,0,0,0.08)',
+                position: 'fixed',
+                zIndex: 51,
+                top: `${topPx}px`,
+                height: `${heightPx}px`,
+                left: `${rect.left + 56}px`,
+                right: `${window.innerWidth - rect.right + 8}px`,
+                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.18),
+                borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, 0.6)}`,
+                border: `1.5px dashed ${hexToRgba(BLOCK_PREVIEW.color, 0.45)}`,
+                borderLeftWidth: '3px',
+                borderLeftStyle: 'solid',
               }}
             >
               <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
                 {minutesToTimeString(pStartMins)}–{minutesToTimeString(pEndMins)} ({pEndMins - pStartMins}m)
               </span>
-            </div>
+            </div>,
+            document.body,
           );
         })()}
 
