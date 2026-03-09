@@ -38,6 +38,16 @@ npx tauri build      # Outputs .dmg (macOS), .msi (Windows), .deb/.AppImage (Lin
 
 The built app is at `src-tauri/target/release/bundle/`.
 
+### "App is damaged and can't be opened"
+
+macOS Gatekeeper blocks unsigned apps. Fix it by running:
+
+```bash
+xattr -cr "/Applications/The Timeboxing Club.app"
+```
+
+If the app is elsewhere (e.g. Downloads), adjust the path accordingly.
+
 ### Release (CI)
 
 Releases are automated via GitHub Actions. To publish a new version:

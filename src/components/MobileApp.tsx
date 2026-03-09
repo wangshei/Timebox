@@ -123,8 +123,8 @@ export function MobileApp() {
         }
         el = el.parentElement;
       }
-      // No scrollable ancestor — prevent bounce
-      if (e.touches.length === 1) e.preventDefault();
+      // No scrollable ancestor — prevent bounce (but not during block drags, those handle their own prevention)
+      if (e.touches.length === 1 && !e.defaultPrevented) e.preventDefault();
     };
     document.addEventListener('touchmove', handler, { passive: false });
     return () => document.removeEventListener('touchmove', handler);
@@ -466,35 +466,54 @@ function ScheduleTab() {
     }, 300);
   }, [gridStartMins]);
 
-  const handleBlockTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!draggingBlockId || !gridRef.current || !dragBlockInfoRef.current) {
-      // Cancel long press if finger moved before it triggered
-      if (longPressTimerRef.current) {
-        const touch = e.touches[0];
-        const dy = Math.abs(touch.clientY - touchStartYRef.current);
-        if (dy > 8) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
+  // Store drag state in refs so the native touchmove listener can access current values
+  const draggingBlockIdRef = useRef<string | null>(null);
+  useEffect(() => { draggingBlockIdRef.current = draggingBlockId; }, [draggingBlockId]);
+
+  const gridStartMinsRef = useRef(gridStartMins);
+  useEffect(() => { gridStartMinsRef.current = gridStartMins; }, [gridStartMins]);
+
+  const gridTotalMinsRef = useRef(gridTotalMins);
+  useEffect(() => { gridTotalMinsRef.current = gridTotalMins; }, [gridTotalMins]);
+
+  // Native non-passive touchmove on the grid — React's onTouchMove is passive and can't preventDefault
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const handler = (e: TouchEvent) => {
+      if (!draggingBlockIdRef.current || !gridRef.current || !dragBlockInfoRef.current) {
+        // Cancel long press if finger moved before it triggered
+        if (longPressTimerRef.current) {
+          const touch = e.touches[0];
+          const dy = Math.abs(touch.clientY - touchStartYRef.current);
+          if (dy > 8) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
         }
+        return;
       }
-      return;
-    }
-    e.preventDefault(); // prevent scroll while dragging
+      e.preventDefault(); // actually works because { passive: false }
+      e.stopPropagation();
 
-    const touch = e.touches[0];
-    const gridRect = gridRef.current.getBoundingClientRect();
-    const scrollTop = gridRef.current.scrollTop;
-    const relativeY = touch.clientY - gridRect.top + scrollTop;
+      const touch = e.touches[0];
+      const gridRect = gridRef.current.getBoundingClientRect();
+      const scrollTop = gridRef.current.scrollTop;
+      const relativeY = touch.clientY - gridRect.top + scrollTop;
 
-    // Snap to 15-min intervals
-    const totalMins = (relativeY / HOUR_HEIGHT) * 60 + gridStartMins;
-    const snappedMins = Math.round(totalMins / 15) * 15;
-    const clampedMins = Math.max(gridStartMins, Math.min(snappedMins, gridStartMins + gridTotalMins - dragBlockInfoRef.current.durationMins));
+      const totalMins = (relativeY / HOUR_HEIGHT) * 60 + gridStartMinsRef.current;
+      const snappedMins = Math.round(totalMins / 15) * 15;
+      const clampedMins = Math.max(gridStartMinsRef.current, Math.min(snappedMins, gridStartMinsRef.current + gridTotalMinsRef.current - dragBlockInfoRef.current.durationMins));
 
-    const newTop = ((clampedMins - gridStartMins) / 60) * HOUR_HEIGHT;
-    setDragCurrentTop(newTop);
-    setDragOffsetMins(clampedMins - dragBlockInfoRef.current.startMins);
-  }, [draggingBlockId, gridStartMins, gridTotalMins]);
+      const newTop = ((clampedMins - gridStartMinsRef.current) / 60) * HOUR_HEIGHT;
+      setDragCurrentTop(newTop);
+      setDragOffsetMins(clampedMins - dragBlockInfoRef.current.startMins);
+    };
+
+    grid.addEventListener('touchmove', handler, { passive: false });
+    return () => grid.removeEventListener('touchmove', handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBlockTouchEnd = useCallback(() => {
     // Clear long press timer
@@ -817,7 +836,6 @@ function ScheduleTab() {
                   <div
                     onClick={() => { if (!draggingBlockId) setTappedBlockId(isTapped ? null : item.id); }}
                     onTouchStart={!isEvent ? (e) => handleBlockTouchStart(e, item.id, startM, endM - startM) : undefined}
-                    onTouchMove={!isEvent ? handleBlockTouchMove : undefined}
                     onTouchEnd={!isEvent ? handleBlockTouchEnd : undefined}
                     className="touch-manipulation"
                     style={{
