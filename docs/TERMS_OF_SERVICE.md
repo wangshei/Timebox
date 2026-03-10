@@ -61,7 +61,7 @@ As stated in Section 5, you retain ownership of all content you create within th
 
 ## 9. Account Termination
 
-You may stop using the Service and request account deletion at any time by contacting us at hello@timeboxing.club.
+You may stop using the Service and request account deletion at any time by contacting us at hi@timeboxing.club.
 
 We may suspend or terminate your account if you violate these Terms, engage in abusive behavior, or if required by law. If we terminate your account, we will make reasonable efforts to notify you and provide an opportunity to export your data, unless prohibited by law or if the termination is due to a serious violation.
 
@@ -88,4 +88,4 @@ We may update these Terms from time to time. When we make material changes, we w
 ## 14. Contact
 
 If you have questions about these Terms, contact us at:
-hello@timeboxing.club
+hi@timeboxing.club

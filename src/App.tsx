@@ -2398,7 +2398,7 @@ export default function App() {
                   >
                     <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
                     <p style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0', color: THEME.textPrimary, margin: 0 }}>Report a bug</p>
-                      <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at wangsheila.work@gmail.com</p>
+                      <p style={{ fontSize: 10, color: '#AEAEB2', margin: '2px 0 0' }}>We'll reply at hi@timeboxing.club</p>
                     </div>
                     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <BugReportPopoverBody

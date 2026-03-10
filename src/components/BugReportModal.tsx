@@ -11,7 +11,7 @@ interface BugReportModalProps {
 
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
-const SUPPORT_EMAIL = 'wangsheila.work@gmail.com';
+const SUPPORT_EMAIL = 'hi@timeboxing.club';
 
 export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugReportModalProps) {
   const [description, setDescription] = useState('');

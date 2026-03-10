@@ -1133,6 +1133,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
   onScheduleLater: (task: Task) => void;
 }) {
   const updateTask = useStore((s) => s.updateTask);
+  const categories = useStore((s) => s.categories);
   const { saveSnapshot } = useHistoryStore();
   const [mins, setMins] = useState(task.estimatedMinutes || 30);
 
@@ -1173,6 +1174,9 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
     onScheduleLater({ ...task, estimatedMinutes: mins });
   };
 
+  const cat = categories.find((c) => c.id === task.categoryId);
+  const catColor = cat?.color ?? color;
+
   return (
     <div style={{
       padding: '10px 12px',
@@ -1183,6 +1187,30 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
       backgroundColor: '#FFF9EC',
       boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
     }}>
+      {/* Task details */}
+      {task.tags && task.tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+          {task.tags.map(tag => (
+            <span key={tag.id} style={{
+              fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 99,
+              backgroundColor: hexToRgba(catColor, 0.08), color: catColor,
+              border: `1px solid ${hexToRgba(catColor, 0.18)}`,
+            }}>{tag.name}</span>
+          ))}
+        </div>
+      )}
+      {task.description && (
+        <p style={{ fontSize: 12, color: '#636366', margin: '0 0 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{task.description}</p>
+      )}
+      {task.notes && (
+        <p style={{ fontSize: 12, fontStyle: 'italic', color: '#636366', margin: '0 0 8px', lineHeight: 1.4, paddingTop: 4, borderTop: '1px solid rgba(0,0,0,0.05)', whiteSpace: 'pre-wrap' }}>{task.notes}</p>
+      )}
+      {'link' in task && (task as any).link && (
+        <a href={(task as any).link} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 11, color: '#8DA286', display: 'block', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {(task as any).link}
+        </a>
+      )}
       {/* Duration slider */}
       <div style={{ marginBottom: 10 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
@@ -1601,7 +1629,7 @@ function TodoTab() {
           return (
             <div key={task.id} style={{ marginBottom: 8 }}>
               <div
-                onClick={() => !isDone && setExpandedTaskId(isExpanded ? null : task.id)}
+                onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1615,7 +1643,7 @@ function TodoTab() {
                   backgroundColor: isDone ? hexToRgba(color, 0.12) : '#FFF9EC',
                   boxShadow: isDone ? 'none' : isExpanded ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
                   opacity: isDone ? 0.6 : 1,
-                  cursor: isDone ? 'default' : 'pointer',
+                  cursor: 'pointer',
                 }}
               >
                 {/* Checkbox */}
@@ -1682,12 +1710,10 @@ function TodoTab() {
                 </div>
 
                 {/* Chevron */}
-                {!isDone && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </div>
 
               {/* Expanded schedule actions */}

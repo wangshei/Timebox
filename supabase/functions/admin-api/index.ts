@@ -118,7 +118,7 @@ serve(async (req) => {
 
     // ── get-dashboard-data ─────────────────────────────────────────────────
     if (action === 'get-dashboard-data') {
-      const [waitlistRes, codesRes, usersRes, configRes, bugReportsRes, broadcastRes, adminTodoRes, eventsRes, tasksRes, settingsRes] = await Promise.all([
+      const [waitlistRes, codesRes, usersRes, configRes, bugReportsRes, broadcastRes, adminTodoRes, eventsRes, tasksRes, settingsRes, gcalLinksRes] = await Promise.all([
         supabaseAdmin.from('waitlist').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('invite_codes').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
@@ -129,6 +129,7 @@ serve(async (req) => {
         supabaseAdmin.from('events').select('user_id, recurring, recurrence_series_id').limit(10000),
         supabaseAdmin.from('tasks').select('user_id, status').limit(10000),
         supabaseAdmin.from('user_settings').select('user_id, session_count, session_dates'),
+        supabaseAdmin.from('google_calendar_links').select('user_id, sync_mode, connected_at'),
       ])
 
       if (waitlistRes.error) return json({ error: waitlistRes.error.message }, 500)
@@ -145,9 +146,9 @@ serve(async (req) => {
       if (settingsRes.error) statsErrors.push(`user_settings: ${settingsRes.error.message}`)
 
       // Build per-user stats
-      const userStats: Record<string, { activeDates: number; sessions: number; events: number; tasks: number }> = {}
+      const userStats: Record<string, { activeDates: number; sessions: number; events: number; tasks: number; gcalSyncMode: string | null; gcalConnectedAt: string | null }> = {}
       const ensure = (uid: string) => {
-        if (!userStats[uid]) userStats[uid] = { activeDates: 0, sessions: 0, events: 0, tasks: 0 }
+        if (!userStats[uid]) userStats[uid] = { activeDates: 0, sessions: 0, events: 0, tasks: 0, gcalSyncMode: null, gcalConnectedAt: null }
       }
 
       // Session counts + active dates from user_settings.session_dates
@@ -178,10 +179,17 @@ serve(async (req) => {
         userStats[t.user_id].tasks++
       }
 
+      // Google Calendar links
+      for (const g of gcalLinksRes.data ?? []) {
+        ensure(g.user_id)
+        userStats[g.user_id].gcalSyncMode = g.sync_mode
+        userStats[g.user_id].gcalConnectedAt = g.connected_at
+      }
+
       // Clean up internal tracking and build JSON response
-      const userStatsJson: Record<string, { activeDates: number; sessions: number; events: number; tasks: number }> = {}
+      const userStatsJson: Record<string, { activeDates: number; sessions: number; events: number; tasks: number; gcalSyncMode: string | null; gcalConnectedAt: string | null }> = {}
       for (const [uid, s] of Object.entries(userStats)) {
-        userStatsJson[uid] = { activeDates: s.activeDates, sessions: s.sessions, events: s.events, tasks: s.tasks }
+        userStatsJson[uid] = { activeDates: s.activeDates, sessions: s.sessions, events: s.events, tasks: s.tasks, gcalSyncMode: s.gcalSyncMode, gcalConnectedAt: s.gcalConnectedAt }
       }
 
       return json({

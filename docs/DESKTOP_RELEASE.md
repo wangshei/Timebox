@@ -19,7 +19,7 @@ Go to https://github.com/wangshei/Timebox/settings/secrets/actions and add:
 | Secret | Value |
 |--------|-------|
 | `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/timebox.key` (run `cat ~/.tauri/timebox.key \| pbcopy`) |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | `Timeboxing@0307` |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Your signing key password |
 
 #### 2. Apple Developer Program (for macOS notarization)
 Without this, macOS users get "unidentified developer" warnings. To fix:

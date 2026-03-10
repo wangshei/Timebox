@@ -149,7 +149,7 @@ supabase secrets set FROM_EMAIL="The Timeboxing Club <noreply@yourdomain.com>"
 supabase secrets set APP_URL=https://app.timeboxing.club
 ```
 
-View deployed functions: https://supabase.com/dashboard/project/ncytumkcrqudybidndmy/functions
+View deployed functions: https://supabase.com/dashboard/project/<your-project-id>/functions
 
 ---
 

@@ -126,11 +126,11 @@ You additionally have the right to data portability, the right to restrict proce
 
 We collect, use, and disclose your personal information only for the purposes described in this policy. You may withdraw consent at any time by deleting your account.
 
-To exercise any of these rights, contact us at hello@timeboxing.club. We will respond within 30 days.
+To exercise any of these rights, contact us at hi@timeboxing.club. We will respond within 30 days.
 
 ## 9. Children's Privacy
 
-The Timeboxing Club is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected data from a child under 13, we will delete that data promptly. If you believe a child under 13 has provided us with personal information, please contact us at hello@timeboxing.club.
+The Timeboxing Club is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected data from a child under 13, we will delete that data promptly. If you believe a child under 13 has provided us with personal information, please contact us at hi@timeboxing.club.
 
 ## 10. Communications
 
@@ -149,4 +149,4 @@ We may update this Privacy Policy from time to time. When we make material chang
 ## 12. Contact
 
 If you have questions about this Privacy Policy or want to exercise your data rights, contact us at:
-hello@timeboxing.club
+hi@timeboxing.club

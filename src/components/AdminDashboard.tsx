@@ -1084,6 +1084,7 @@ export function AdminDashboard() {
                   <th style={thStyle}>Active Days</th>
                   <th style={thStyle}>To-Dos</th>
                   <th style={thStyle}>Events</th>
+                  <th style={thStyle}>GCal</th>
                 </tr>
               </thead>
               <tbody>
@@ -1115,12 +1116,25 @@ export function AdminDashboard() {
                       <td style={{ ...tdStyle, fontSize: 13, color: stats?.events ? '#3A3A3C' : '#C7C7CC' }}>
                         {stats?.events ?? 0}
                       </td>
+                      <td style={tdStyle}>
+                        {stats?.gcalSyncMode ? (
+                          <span style={{
+                            ...badgeBase,
+                            backgroundColor: stats.gcalSyncMode === 'migrate_listen' ? '#E8F5E9' : '#E3F2FD',
+                            color: stats.gcalSyncMode === 'migrate_listen' ? '#2E7D32' : '#1565C0',
+                          }} title={stats.gcalConnectedAt ? `Connected ${new Date(stats.gcalConnectedAt).toLocaleDateString()}` : ''}>
+                            {stats.gcalSyncMode === 'migrate_listen' ? 'Migrated' : stats.gcalSyncMode === 'listen_with_history' ? 'History' : 'Fresh'}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#C7C7CC', fontSize: 12 }}>—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
+                    <td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
                       No users.
                     </td>
                   </tr>
