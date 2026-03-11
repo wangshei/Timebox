@@ -6,6 +6,8 @@ import {
   isTracking as checkIsTracking,
   getActivitySummary,
   getActivityLog,
+  getSwitchCount,
+  checkAccessibility,
   CategorySummary,
   ActivityEntry,
 } from '../services/desktopActivity';
@@ -19,6 +21,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Browsing: '#D4A574',
   Design: '#C27BA0',
   Writing: '#9B8EC0',
+  Productivity: '#F5A623',
   Entertainment: '#E8806A',
   Music: '#5BBFBF',
   System: '#A0A0A0',
@@ -43,12 +46,15 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
   const [tracking, setTracking] = useState(false);
   const [summary, setSummary] = useState<CategorySummary[]>([]);
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
+  const [switchCount, setSwitchCount] = useState(0);
+  const [hasAccessibility, setHasAccessibility] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('summary');
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      // Load core data first — these must succeed
       const [summaryData, entriesData, trackingStatus] = await Promise.all([
         getActivitySummary(selectedDate),
         getActivityLog(selectedDate, selectedDate),
@@ -57,6 +63,10 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
       setSummary(summaryData);
       setEntries(entriesData);
       setTracking(trackingStatus);
+
+      // Load optional data — don't let failures block the panel
+      try { setSwitchCount(await getSwitchCount(selectedDate)); } catch { /* ignore */ }
+      try { setHasAccessibility(await checkAccessibility()); } catch { /* ignore */ }
     } catch (err) {
       console.error('[activity] Failed to load data:', err);
     } finally {
@@ -157,13 +167,36 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
           </button>
         </div>
 
-        {/* Total time */}
+        {/* Accessibility permission warning */}
+        {tracking && hasAccessibility === false && (
+          <div className="mb-3 px-3 py-2.5 rounded-lg" style={{ backgroundColor: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#E65100', margin: '0 0 4px' }}>Accessibility permission required</p>
+            <p style={{ fontSize: 11, color: '#8E8E93', margin: '0 0 6px', lineHeight: 1.5 }}>
+              The app needs permission to see which window is active. Go to:
+            </p>
+            <p style={{ fontSize: 11, color: '#3A3A3C', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
+              System Settings → Privacy & Security → Accessibility → enable The Timeboxing Club
+            </p>
+          </div>
+        )}
+
+        {/* Total time + switch count */}
         {totalMinutes > 0 && (
-          <div className="mb-4">
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', lineHeight: 1 }}>
-              {formatDuration(totalMinutes)}
+          <div className="mb-4 flex items-end gap-4">
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', lineHeight: 1 }}>
+                {formatDuration(totalMinutes)}
+              </div>
+              <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>total screen time</div>
             </div>
-            <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>total screen time</div>
+            {switchCount > 0 && (
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#1C1C1E', lineHeight: 1 }}>
+                  {switchCount}
+                </div>
+                <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>switches</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -189,8 +222,28 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
         </div>
 
         {loading && summary.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
-            <span style={{ fontSize: 12, color: '#8E8E93' }}>Loading...</span>
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    backgroundColor: '#8DA286',
+                    animation: 'activityDotPulse 1.2s ease-in-out infinite',
+                    animationDelay: `${i * 0.2}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <style>{`
+              @keyframes activityDotPulse {
+                0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+                40% { opacity: 1; transform: scale(1); }
+              }
+            `}</style>
           </div>
         ) : viewMode === 'summary' ? (
           <SummaryView summary={summary} totalMinutes={totalMinutes} />

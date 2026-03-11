@@ -96,7 +96,10 @@ fn categorize_app(app_name: &str, window_title: &str) -> String {
     let app = app_name.to_lowercase();
     let title = window_title.to_lowercase();
 
-    // AI Agent — detect by terminal/editor title patterns that indicate an AI tool is active
+    // AI Agent — detect by app name or terminal/editor title patterns
+    if app.contains("claude") || app == "chatgpt" || app == "copilot" {
+        return "AI Agent".to_string();
+    }
     let is_terminal = app.contains("terminal") || app.contains("iterm") || app.contains("warp");
     if is_terminal && (title.contains("claude") || title.contains("aider")) {
         return "AI Agent".to_string();
@@ -164,6 +167,21 @@ fn categorize_app(app_name: &str, window_title: &str) -> String {
         return "Music".to_string();
     }
 
+    // Productivity / Planning
+    if app.contains("timeboxing") || app.contains("timebox") || app.contains("todoist")
+        || app.contains("things") || app.contains("ticktick") || app.contains("calendar")
+        || app.contains("fantastical") || app.contains("reminders")
+    {
+        return "Productivity".to_string();
+    }
+
+    // Dev tools (non-editor)
+    if app.contains("github desktop") || app.contains("tower") || app.contains("sourcetree")
+        || app.contains("docker") || app.contains("postman") || app.contains("insomnia")
+    {
+        return "Coding".to_string();
+    }
+
     // System / Other
     if app.contains("finder") || app.contains("system") || app.contains("preview")
         || app.contains("activity monitor")
@@ -211,12 +229,15 @@ fn flush_segment(
     }
 
     let date = start.format("%Y-%m-%d").to_string();
+    eprintln!("[tracker] Flushing: app='{app_name}', cat='{category}', dur={duration}s, date={date}");
     if let Err(e) = conn.execute(
         "INSERT INTO activity (app_name, window_title, category, start_time, end_time, duration_secs, date)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![app_name, window_title, category, start.to_rfc3339(), end.to_rfc3339(), duration, date],
     ) {
         eprintln!("[tracker] DB insert error: {e}");
+    } else {
+        eprintln!("[tracker] Flushed OK");
     }
 }
 
@@ -275,9 +296,11 @@ impl ActivityTracker {
         let db_path = self.db_path.clone();
 
         self.thread_handle = Some(thread::spawn(move || {
+            eprintln!("[tracker] Thread started, db_path={db_path:?}");
             let conn = match Connection::open(&db_path) {
                 Ok(c) => {
                     let _ = c.busy_timeout(Duration::from_secs(5));
+                    eprintln!("[tracker] DB opened successfully");
                     c
                 }
                 Err(e) => {
@@ -294,6 +317,7 @@ impl ActivityTracker {
             let mut last_flush = Local::now();
             let mut idle = false;
             let mut signals = SegmentSignals::default();
+            let mut consecutive_errors: u32 = 0;
             let min_segment_secs = 5;
             let idle_threshold_secs = 120;
             let input_idle_short = 10;
@@ -319,8 +343,18 @@ impl ActivityTracker {
 
                 let now = Local::now();
                 let win = match get_active_win() {
-                    Ok(w) => w,
-                    Err(_) => {
+                    Ok(w) => {
+                        if consecutive_errors > 0 || last_app.is_empty() {
+                            eprintln!("[tracker] Active window: app='{}', title='{}'", w.app_name, w.title);
+                        }
+                        consecutive_errors = 0;
+                        w
+                    }
+                    Err(e) => {
+                        consecutive_errors += 1;
+                        if consecutive_errors <= 3 || consecutive_errors % 20 == 0 {
+                            eprintln!("[tracker] get_active_window failed (#{consecutive_errors}): {e:?} — grant Accessibility permission in System Settings > Privacy & Security > Accessibility");
+                        }
                         let since_last = (now - last_seen).num_seconds();
                         if !idle && since_last >= idle_threshold_secs && !last_app.is_empty() {
                             let duration = (last_seen - segment_start).num_seconds();
@@ -487,6 +521,22 @@ impl ActivityTracker {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
         Ok(entries)
+    }
+
+    /// Count how many app/tab switches occurred on a given date.
+    /// Each row in the activity table represents a segment — so switches = rows - 1 (minimum 0).
+    pub fn get_switch_count(&self, date: &str) -> Result<i64, String> {
+        if !is_valid_date(date) {
+            return Err("Invalid date format. Expected YYYY-MM-DD.".to_string());
+        }
+        let conn = Connection::open(&self.db_path).map_err(|e| e.to_string())?;
+        conn.busy_timeout(Duration::from_secs(5)).map_err(|e| e.to_string())?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM activity WHERE date = ?1",
+            params![date],
+            |row| row.get(0),
+        ).map_err(|e| e.to_string())?;
+        Ok((count - 1).max(0))
     }
 
     pub fn get_summary(&self, date: &str) -> Result<Vec<CategorySummary>, String> {

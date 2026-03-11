@@ -1404,6 +1404,11 @@ export function SettingsPanel({
           </div>
         </div>
 
+        {/* Version label */}
+        <div className="flex-shrink-0 text-center py-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+          <span style={{ fontSize: 10, color: TEXT_MUTED, letterSpacing: '0.02em' }}>v0.1.2</span>
+        </div>
+
         {/* ── Delete confirmation overlay ── */}
         {confirmDeleteId && (
           <div

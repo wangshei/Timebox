@@ -65,3 +65,14 @@ export async function getActivityBlocks(date: string): Promise<ActivityBlock[]> 
   if (!isTauri()) return [];
   return invoke<ActivityBlock[]>('get_activity_blocks', { date });
 }
+
+export async function getSwitchCount(date: string): Promise<number> {
+  if (!isTauri()) return 0;
+  return invoke<number>('get_switch_count', { date });
+}
+
+/** Check if the app has Accessibility permission to read active windows */
+export async function checkAccessibility(): Promise<boolean> {
+  if (!isTauri()) return false;
+  return invoke<boolean>('check_accessibility');
+}

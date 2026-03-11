@@ -1697,8 +1697,28 @@ export default function App() {
   // ── Pre-app screens ───────────────────────────────────────────────────────
   if (appScreen === 'loading') {
     return (
-      <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: '#FDFDFB' }}>
-        <div className="text-sm" style={{ color: '#636366' }}>Loading your data…</div>
+      <div className="h-screen w-full flex flex-col items-center justify-center gap-4" style={{ backgroundColor: '#FDFDFB' }}>
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: '#8DA286',
+                animation: 'dotPulse 1.2s ease-in-out infinite',
+                animationDelay: `${i * 0.2}s`,
+              }}
+            />
+          ))}
+        </div>
+        <style>{`
+          @keyframes dotPulse {
+            0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
       </div>
     );
   }
