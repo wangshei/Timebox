@@ -94,8 +94,23 @@ export interface TimeBlock {
   originalEnd?: string | null;
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
-  /** Emoji stamps — user-placed feeling stickers on this block. */
+  /** @deprecated Use Sticker entity instead. Kept for migration. */
   stamps?: string[];
+}
+
+/** A placed emoji sticker on the calendar grid. */
+export interface Sticker {
+  id: string;
+  emoji: string;
+  date: string; // YYYY-MM-DD
+  /** Block-anchored: sticker moves with this block. */
+  blockId?: string | null;
+  /** For block-anchored: horizontal offset 0–100% within block. */
+  offsetXPercent: number;
+  /** For block-anchored: vertical offset 0–100% within block. */
+  offsetYPercent: number;
+  /** For time-anchored (no blockId): minutes from midnight. */
+  timeMinutes?: number;
 }
 
 /** Recurrence pattern for events. */

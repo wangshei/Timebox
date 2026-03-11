@@ -95,13 +95,24 @@ function TimeBlockCardInner({
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [showDetails, setShowDetails] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const blockStamps = block.stamps ?? [];
+  const addSticker = useStore((s) => s.addSticker);
+  const blockStickers = useStore((s) => s.stickers.filter((st) => st.blockId === block.id), (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.offsetYPercent === b[i].offsetYPercent));
+  const deleteSticker = useStore((s) => s.deleteSticker);
   const [stampBounce, setStampBounce] = useState(false);
+  const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
 
-  const handleStamp = () => {
-    if (!activeStampEmoji) return;
-    const next = [...blockStamps, activeStampEmoji];
-    updateTimeBlock(block.id, { stamps: next });
+  const handleStamp = (e: React.MouseEvent) => {
+    if (!activeStampEmoji || !blockRef.current) return;
+    const rect = blockRef.current.getBoundingClientRect();
+    const offsetXPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+    const offsetYPercent = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+    addSticker({
+      emoji: activeStampEmoji,
+      date: block.date,
+      blockId: block.id,
+      offsetXPercent,
+      offsetYPercent,
+    });
     setStampBounce(true);
     setTimeout(() => setStampBounce(false), 300);
   };
@@ -640,24 +651,20 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Stamps — show existing stamps with remove */}
-        {blockStamps.length > 0 && (
+        {/* Stickers on this block — show in popover with remove */}
+        {blockStickers.length > 0 && (
           <div className="-mx-3 px-3 pt-1.5 pb-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
             <div className="flex items-center gap-1 flex-wrap">
-              {blockStamps.map((emoji, i) => (
+              {blockStickers.map((sticker) => (
                 <button
-                  key={i}
+                  key={sticker.id}
                   type="button"
                   className="relative group/stamp rounded-md transition-all hover:scale-110"
                   style={{ fontSize: 18, lineHeight: 1, padding: '2px 1px' }}
                   title="Click to remove"
-                  onClick={() => {
-                    const next = [...blockStamps];
-                    next.splice(i, 1);
-                    updateTimeBlock(block.id, { stamps: next.length > 0 ? next : undefined });
-                  }}
+                  onClick={() => deleteSticker(sticker.id)}
                 >
-                  {emoji}
+                  {sticker.emoji}
                   <span
                     className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-400 text-white flex items-center justify-center opacity-0 group-hover/stamp:opacity-100 transition-opacity"
                     style={{ fontSize: 8, lineHeight: 1 }}
@@ -832,7 +839,7 @@ function TimeBlockCardInner({
         className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(); return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+        onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
         onPointerDown={!noDrag && !activeStampEmoji ? handlePointerDragStart : undefined}
       >
         <div
@@ -888,22 +895,22 @@ function TimeBlockCardInner({
             </div>
           )}
 
-          {/* Emoji stamps — bottom-left corner, compact */}
-          {blockStamps.length > 0 && compactTier !== 'micro' && compactTier !== 'tiny' && (
+          {/* Stickers — compact, bottom-left */}
+          {blockStickers.length > 0 && compactTier !== 'micro' && compactTier !== 'tiny' && (
             <div
               className="absolute flex items-center pointer-events-none"
               style={{ bottom: 1, left: 3, gap: 0 }}
             >
-              {blockStamps.slice(0, 3).map((emoji, i) => (
+              {blockStickers.slice(0, 3).map((sticker, i) => (
                 <span
-                  key={i}
+                  key={sticker.id}
                   style={{
                     fontSize: 10,
                     lineHeight: 1,
                     transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (4 + i * 3)}deg)`,
                   }}
                 >
-                  {emoji}
+                  {sticker.emoji}
                 </span>
               ))}
             </div>
@@ -991,7 +998,7 @@ function TimeBlockCardInner({
       className={cn('absolute group pointer-events-auto', 'overflow-hidden', activeStampEmoji ? 'cursor-pointer' : noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(); return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+      onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
       onPointerDown={!noDragFull && !activeStampEmoji ? handlePointerDragStart : undefined}
     >
       <div
@@ -1108,26 +1115,45 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Emoji stamps — bottom-left corner, sticker style */}
-        {blockStamps.length > 0 && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
-          <div
-            className="absolute flex items-center pointer-events-none"
-            style={{ bottom: 3, left: 5, gap: 1 }}
-          >
-            {blockStamps.slice(0, 4).map((emoji, i) => (
+        {/* Positioned stickers — placed at exact click position */}
+        {blockStickers.length > 0 && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+          <>
+            {blockStickers.map((sticker) => (
               <span
-                key={i}
+                key={sticker.id}
+                className={`absolute z-10 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
                 style={{
-                  fontSize: 13,
+                  left: `${sticker.offsetXPercent}%`,
+                  top: `${sticker.offsetYPercent}%`,
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: 16,
                   lineHeight: 1,
-                  filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.1))',
-                  transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (5 + i * 3)}deg)`,
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                  transition: 'transform 0.1s',
                 }}
+                onClick={(e) => {
+                  if (activeStampEmoji) return;
+                  e.stopPropagation();
+                  setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                }}
+                onMouseEnter={(e) => { if (!activeStampEmoji) (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
               >
-                {emoji}
+                {sticker.emoji}
+                {/* Delete badge */}
+                {selectedStickerId === sticker.id && (
+                  <button
+                    type="button"
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
+                    style={{ fontSize: 9, lineHeight: 1 }}
+                    onClick={(e) => { e.stopPropagation(); deleteSticker(sticker.id); setSelectedStickerId(null); }}
+                  >
+                    ×
+                  </button>
+                )}
               </span>
             ))}
-          </div>
+          </>
         )}
 
         {/* Priority stars — bottom-right corner, tasks only, category color */}

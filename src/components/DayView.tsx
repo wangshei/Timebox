@@ -197,7 +197,33 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   }, [locked, handlePointerOver, handlePointerLeave, handlePointerDrop, onDropTask, onMoveBlock, onMoveEvent]);
 
   // Drag-to-create: mouseDown on the grid (drag down or up to set range)
+  const addSticker = useStore((s) => s.addSticker);
+  const deleteStickerAction = useStore((s) => s.deleteSticker);
+  const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
+  // Time-anchored stickers for this date (scoped selector avoids re-renders from block-anchored sticker changes)
+  const timeStickers = useStore(
+    (s) => s.stickers.filter((st) => st.date === selectedDate && !st.blockId),
+    (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.timeMinutes === b[i].timeMinutes),
+  );
+
   const handleGridMouseDown = (e: React.MouseEvent) => {
+    // Stamp mode: place time-anchored sticker
+    if (activeStampEmoji) {
+      const rect = gridRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const offsetY = e.clientY - rect.top;
+      if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+      const timeMins = offsetYToMinutes(offsetY);
+      const xPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+      addSticker({
+        emoji: activeStampEmoji,
+        date: selectedDate,
+        timeMinutes: timeMins,
+        offsetXPercent: xPercent,
+        offsetYPercent: 0, // not used for time-anchored
+      });
+      return;
+    }
     if (!onCreateBlock || creatingBlock) return;
     const rect = gridRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -491,9 +517,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           Clicks on empty space (not caught by cards) bubble up to this element. */}
       <div
         ref={gridRef}
-        className={`relative ${!locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+        className={`relative ${activeStampEmoji ? 'cursor-crosshair' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
-        onMouseDown={!locked ? handleGridMouseDown : undefined}
+        onMouseDown={activeStampEmoji ? handleGridMouseDown : !locked ? handleGridMouseDown : undefined}
       >
         {/* Today green tint for future portion of current day */}
         {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (
@@ -564,6 +590,47 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onAddTimeToComplete={onAddTimeToComplete}
                 activeStampEmoji={activeStampEmoji}
               />
+            );
+          })}
+
+          {/* Time-anchored stickers — placed on empty grid space */}
+          {timeStickers.map((sticker) => {
+            const top = ((sticker.timeMinutes ?? 0) / 60) * PX_PER_HOUR;
+            return (
+              <span
+                key={sticker.id}
+                className={`absolute z-20 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
+                style={{
+                  left: `${sticker.offsetXPercent ?? 50}%`,
+                  top: `${top}px`,
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: 20,
+                  lineHeight: 1,
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                  transition: 'transform 0.1s',
+                }}
+                onClick={(e) => {
+                  if (activeStampEmoji) return;
+                  e.stopPropagation();
+                  setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseEnter={(e) => { if (!activeStampEmoji) (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
+              >
+                {sticker.emoji}
+                {selectedStickerId === sticker.id && (
+                  <button
+                    type="button"
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
+                    style={{ fontSize: 9, lineHeight: 1, pointerEvents: 'auto' }}
+                    onClick={(e) => { e.stopPropagation(); deleteStickerAction(sticker.id); setSelectedStickerId(null); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
             );
           })}
 

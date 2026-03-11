@@ -81,6 +81,15 @@ export function ThreeDayView({
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
+  const addStickerAction = useStore((s) => s.addSticker);
+  const deleteStickerAction = useStore((s) => s.deleteSticker);
+  const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
+  // All time-anchored stickers for the visible 3-day range (scoped to avoid re-renders from block sticker changes)
+  const threeDayDateStrs = React.useMemo(() => threeDays.map((d) => getLocalDateString(d)), [threeDays]);
+  const visibleTimeStickers = useStore(
+    (s) => s.stickers.filter((st) => !st.blockId && threeDayDateStrs.includes(st.date)),
+    (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.timeMinutes === b[i].timeMinutes),
+  );
 
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
@@ -426,7 +435,20 @@ export function ThreeDayView({
                         },
                       });
                     }}
-                    onMouseDown={!locked && onCreateBlock ? (e: React.MouseEvent) => {
+                    onMouseDown={activeStampEmoji ? (e: React.MouseEvent) => {
+                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                      const offsetY = e.clientY - rect.top;
+                      if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                      const timeMins = offsetYToMinutes(offsetY);
+                      const xPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+                      addStickerAction({
+                        emoji: activeStampEmoji,
+                        date: dateStr,
+                        timeMinutes: timeMins,
+                        offsetXPercent: xPercent,
+                        offsetYPercent: 0,
+                      });
+                    } : !locked && onCreateBlock ? (e: React.MouseEvent) => {
                       if (creatingBlock) return;
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                       const offsetY = e.clientY - rect.top;
@@ -491,8 +513,46 @@ export function ThreeDayView({
                             }),
                         ];
                         const dayOverlapMap = computeOverlapLayout(allItems);
+                        const dayTimeStickers = visibleTimeStickers.filter((s) => s.date === dateStr);
                         return (
                           <>
+                            {/* Time-anchored stickers */}
+                            {dayTimeStickers.map((sticker) => {
+                              const top = ((sticker.timeMinutes ?? 0) / 60) * PX_PER_HOUR;
+                              return (
+                                <span
+                                  key={sticker.id}
+                                  className={`absolute z-20 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
+                                  style={{
+                                    left: `${sticker.offsetXPercent ?? 50}%`,
+                                    top: `${top}px`,
+                                    transform: 'translate(-50%, -50%)',
+                                    fontSize: 16,
+                                    lineHeight: 1,
+                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                                  }}
+                                  onClick={(e) => {
+                                    if (activeStampEmoji) return;
+                                    e.stopPropagation();
+                                    setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                >
+                                  {sticker.emoji}
+                                  {selectedStickerId === sticker.id && (
+                                    <button
+                                      type="button"
+                                      className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
+                                      style={{ fontSize: 9, lineHeight: 1, pointerEvents: 'auto' }}
+                                      onClick={(e) => { e.stopPropagation(); deleteStickerAction(sticker.id); setSelectedStickerId(null); }}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </span>
+                              );
+                            })}
                             {dayBlocks.map((block) => {
                               const bTrunc = dayTruncMap.get(block.id);
                               const bStartMins = bTrunc && !bTrunc.hidden ? parseTimeToMins(bTrunc.effectiveStart) : parseTimeToMins(block.start);

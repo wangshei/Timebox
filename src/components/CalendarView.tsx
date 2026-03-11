@@ -18,8 +18,8 @@ const TEXT_PRIMARY = '#5F615F';
 const TEXT_MUTED = '#8E8E93';
 const TEXT_SECONDARY = '#636366';
 
-/** Stamp emojis for the radial picker */
-const STAMP_EMOJIS = ['⚡', '🔋', '🪫', '❤️', '💔', '🔥', '😴', '🧊', '✨', '💪', '🧠', '😤'];
+/** Default stamp emojis */
+const STAMP_DEFAULTS = ['🔋', '🪫', '❤️', '🤍'];
 
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
@@ -132,6 +132,16 @@ export function CalendarView({
       onViewChange('day');
     }
   }, [isMobile, view, onViewChange]);
+
+  // Escape key exits stamp mode
+  useEffect(() => {
+    if (!stampMode) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setStampMode(false); setActiveStampEmoji(null); }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [stampMode]);
 
   // Reset state when leaving compare mode
   useEffect(() => {
@@ -599,17 +609,19 @@ export function CalendarView({
           <button
             type="button"
             onClick={() => {
-              if (stampMode) {
+              if (activeStampEmoji) {
+                // Exit stamp mode
                 setStampMode(false);
                 setActiveStampEmoji(null);
               } else {
-                setStampMode(true);
+                setStampMode((v) => !v);
+                if (stampMode) setActiveStampEmoji(null);
               }
             }}
             className="flex items-center justify-center shadow-md transition-all active:scale-90"
             style={{
               width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: '50%',
-              backgroundColor: stampMode ? '#FFFFFF' : '#FFFFFF',
+              backgroundColor: '#FFFFFF',
               border: stampMode ? `2px solid ${PRIMARY}` : '1.5px solid rgba(0,0,0,0.08)',
               boxShadow: stampMode
                 ? `0 4px 16px rgba(141,162,134,0.35), 0 0 0 3px rgba(141,162,134,0.12)`
@@ -618,77 +630,83 @@ export function CalendarView({
             aria-label="Stamp mode"
           >
             <span style={{ fontSize: stampMode ? 18 : 16, lineHeight: 1 }}>
-              {activeStampEmoji || '🩹'}
+              {activeStampEmoji || '📎'}
             </span>
           </button>
 
-          {/* Radial emoji picker — appears when stamp mode is on but no emoji selected */}
+          {/* Emoji shelf — pops out left of button */}
           {stampMode && !activeStampEmoji && (
             <>
-              {/* Backdrop to close */}
+              <div className="fixed inset-0 z-40" onClick={() => { setStampMode(false); setActiveStampEmoji(null); }} />
               <div
-                className="fixed inset-0 z-40"
-                onClick={() => { setStampMode(false); setActiveStampEmoji(null); }}
-              />
-              <div
-                className="absolute z-50"
+                className="absolute z-50 flex items-center gap-1 rounded-full py-1.5 px-2"
                 style={{
-                  bottom: isMobile ? 44 : 46,
-                  right: -4,
-                  width: 200, height: 200,
-                  pointerEvents: 'none',
+                  right: isMobile ? 44 : 46,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid rgba(0,0,0,0.06)',
+                  boxShadow: '0 6px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
                 }}
               >
-                {/* Circular background */}
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1.5px solid rgba(0,0,0,0.06)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
-                    pointerEvents: 'auto',
-                  }}
-                />
-                {/* Emoji items arranged in a circle */}
-                {STAMP_EMOJIS.map((emoji, i) => {
-                  const angle = (i / STAMP_EMOJIS.length) * 2 * Math.PI - Math.PI / 2;
-                  const radius = 68;
-                  const x = 100 + Math.cos(angle) * radius - 16;
-                  const y = 100 + Math.sin(angle) * radius - 16;
-                  return (
-                    <button
-                      key={emoji}
-                      type="button"
-                      className="absolute flex items-center justify-center rounded-full transition-all hover:scale-130 active:scale-95"
-                      style={{
-                        left: x, top: y, width: 32, height: 32,
-                        fontSize: 20, lineHeight: 1,
-                        pointerEvents: 'auto',
-                        backgroundColor: 'transparent',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                      onClick={() => setActiveStampEmoji(emoji)}
-                    >
-                      {emoji}
-                    </button>
-                  );
-                })}
+                {STAMP_DEFAULTS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-125 active:scale-95"
+                    style={{ width: 32, height: 32, fontSize: 20, lineHeight: 1 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onClick={() => setActiveStampEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                {/* Plus for custom emoji */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+                    style={{
+                      width: 32, height: 32, fontSize: 16, lineHeight: 1,
+                      color: TEXT_MUTED,
+                      backgroundColor: 'rgba(0,0,0,0.04)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    onClick={() => {
+                      const val = prompt('Enter an emoji:');
+                      if (val && val.trim()) {
+                        // Take first grapheme cluster (emoji can be multi-codepoint)
+                        const segments = typeof Intl !== 'undefined' && Intl.Segmenter
+                          ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(val.trim())]
+                          : null;
+                        const emoji = segments && segments.length > 0 ? segments[0].segment : val.trim().slice(0, 2);
+                        setActiveStampEmoji(emoji);
+                      }
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </>
           )}
 
-          {/* Active stamp indicator — "tap blocks to stamp" hint */}
+          {/* Active stamp hint */}
           {stampMode && activeStampEmoji && (
             <div
-              className="absolute -left-28 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1"
+              className="absolute whitespace-nowrap rounded-full px-3 py-1"
               style={{
+                right: isMobile ? 44 : 46,
+                top: '50%',
+                transform: 'translateY(-50%)',
                 fontSize: 10, fontWeight: 500, color: PRIMARY,
                 backgroundColor: 'rgba(141,162,134,0.08)',
                 border: '1px solid rgba(141,162,134,0.15)',
               }}
             >
-              Tap blocks to stamp
+              Click to place · Esc to exit
             </div>
           )}
         </div>

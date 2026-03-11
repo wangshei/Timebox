@@ -15,6 +15,7 @@ import type {
   Mode,
   View,
   CalendarContainerVisibility,
+  Sticker,
 } from '../types';
 import {
   getPlannedMinutes,
@@ -49,6 +50,7 @@ export interface AppState {
   categories: Category[];
   tags: Tag[];
   events: Event[];
+  stickers: Sticker[];
   // UI
   viewMode: Mode;
   view: View;
@@ -86,6 +88,7 @@ export const ENTITY_LIMITS = {
   calendarContainers: 20,
   categories: 100,
   tags: 200,
+  stickers: 500,
 } as const;
 
 // --- Initial state from seed ---
@@ -106,6 +109,7 @@ function getInitialState(): AppState {
     categories,
     tags,
     events: [],
+    stickers: [],
     viewMode: 'overall',
     view: '3day',
     selectedDate: getLocalDateString(),
@@ -206,6 +210,10 @@ export interface AppActions {
   setCategories: (categories: Category[]) => void;
   setTags: (tags: Tag[]) => void;
 
+  addSticker: (s: Omit<Sticker, 'id'>) => string;
+  updateSticker: (id: string, updates: Partial<Sticker>) => void;
+  deleteSticker: (id: string) => void;
+
   resetToSeed: () => void;
 
   startTimer: (blockId: string) => void;
@@ -280,12 +288,25 @@ export const useStore = create<AppState & AppActions>()(
     return id;
   },
   updateTimeBlock: (id, updates) =>
-    set((s) => ({
-      timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates, editedAt: Date.now() } : b)),
-    })),
+    set((s) => {
+      const result: Partial<AppState> = {
+        timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates, editedAt: Date.now() } : b)),
+      };
+      // When a block moves to a different date, sync its stickers' dates
+      if (updates.date) {
+        const oldBlock = s.timeBlocks.find((b) => b.id === id);
+        if (oldBlock && oldBlock.date !== updates.date) {
+          result.stickers = s.stickers.map((st) =>
+            st.blockId === id ? { ...st, date: updates.date! } : st
+          );
+        }
+      }
+      return result;
+    }),
   deleteTimeBlock: (id) =>
     set((s) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.id !== id),
+      stickers: s.stickers.filter((st) => st.blockId !== id),
     })),
 
   createPlannedBlocksFromTask: (taskId, { date, startTime, blockMinutes, splitTask, singleBlock }) => {
@@ -713,6 +734,18 @@ export const useStore = create<AppState & AppActions>()(
   setCategories: (categories) => set({ categories }),
   setTags: (tags) => set({ tags }),
 
+  addSticker: (s) => {
+    const current = get();
+    if (current.stickers.length >= ENTITY_LIMITS.stickers) return '';
+    const id = generateId();
+    set((state) => ({ stickers: [...state.stickers, { ...s, id }] }));
+    return id;
+  },
+  updateSticker: (id, updates) =>
+    set((s) => ({ stickers: s.stickers.map((st) => (st.id === id ? { ...st, ...updates } : st)) })),
+  deleteSticker: (id) =>
+    set((s) => ({ stickers: s.stickers.filter((st) => st.id !== id) })),
+
   resetToSeed: () => set(getInitialState()),
 
   startTimer: (blockId) => set({ activeTimer: { blockId, startedAt: Date.now() } }),
@@ -758,6 +791,7 @@ type PersistedSlice = Pick<
   | 'categories'
   | 'tags'
   | 'events'
+  | 'stickers'
   | 'viewMode'
   | 'view'
   | 'selectedDate'
@@ -806,6 +840,7 @@ export function startLocalStoragePersistence() {
       categories: state.categories,
       tags: state.tags,
       events: state.events,
+      stickers: state.stickers,
       viewMode: state.viewMode,
       view: state.view,
       selectedDate: state.selectedDate,
