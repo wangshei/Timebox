@@ -139,19 +139,19 @@ function TimeBlockCardInner({
     };
   }, [showPopover, isSelected]);
 
-  const handlePopoverDragStart = (e: React.MouseEvent) => {
+  const handlePopoverDragStart = (e: React.PointerEvent) => {
     e.preventDefault();
     const startX = e.clientX - popoverDragOffset.x;
     const startY = e.clientY - popoverDragOffset.y;
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
       setPopoverDragOffset({ x: ev.clientX - startX, y: ev.clientY - startY });
     };
     const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   };
 
   const isCompareMode = mode === 'compare';
@@ -242,7 +242,7 @@ function TimeBlockCardInner({
         className={cn(
           'absolute flex items-center justify-center transition-all z-10',
           isClickable ? 'cursor-pointer' : 'cursor-default pointer-events-none',
-          isFutureTask && !confirmed && 'opacity-0 group-hover:opacity-100',
+          isFutureTask && !confirmed && 'opacity-0 group-hover:opacity-100 group-active:opacity-100',
         )}
         style={{
           top: 0,
@@ -856,7 +856,7 @@ function TimeBlockCardInner({
         {/* Resize handle — compact mode (all blocks, not locked/past; or confirmed past) */}
         {onResizeStart && (!noDrag || allowResizePast) && compactTier !== 'micro' && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
@@ -936,7 +936,7 @@ function TimeBlockCardInner({
       >
         {/* Lock hover overlay for plan panel only */}
         {locked && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity rounded-sm z-10 pointer-events-none"
             style={{ backgroundColor: 'rgba(0,0,0,0.06)' }}>
             <LockClosedIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12, color: '#636366' }} />
           </div>
@@ -1052,7 +1052,7 @@ function TimeBlockCardInner({
         {/* Resize handle (all blocks, small+, not locked/past; or confirmed past) */}
         {onResizeStart && (!noDragFull || allowResizePast) && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />

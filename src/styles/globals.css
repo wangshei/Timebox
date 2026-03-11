@@ -208,6 +208,15 @@ html, body {
   }
 }
 
+/* Touch devices: make hover-only interactive elements subtly visible */
+@media (hover: none) {
+  /* Resize handles and confirm circles should be slightly visible on touch */
+  .group .opacity-0.group-hover\:opacity-100[class*="cursor-ns-resize"],
+  .group .opacity-0.group-hover\:opacity-100[class*="z-10"] {
+    opacity: 0.4 !important;
+  }
+}
+
 /* === Slim, clean scrollbars === */
 ::-webkit-scrollbar {
   width: 5px;
@@ -338,6 +347,11 @@ html, body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* === Segmented control base === */

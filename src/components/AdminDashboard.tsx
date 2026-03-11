@@ -167,6 +167,9 @@ export function AdminDashboard() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailPreview, setEmailPreview] = useState(false);
 
+  // Welcome email
+  const [welcomeEmailSending, setWelcomeEmailSending] = useState<string | null>(null);
+
   // Admin todo / notes
   const [adminTodo, setAdminTodo] = useState('');
   const [todoSaveStatus, setTodoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -401,6 +404,21 @@ export function AdminDashboard() {
       setActionMessage(`Error: ${(err as Error).message}`);
     } finally {
       setEmailSending(false);
+    }
+  };
+
+  const handleSendWelcomeEmail = async (email: string) => {
+    if (!window.confirm(`Send welcome email to ${email}?`)) return;
+    setWelcomeEmailSending(email);
+    setActionMessage(null);
+    try {
+      const data = await adminFetch('send-welcome-email', { email });
+      if (data.error) throw new Error(data.error);
+      setActionMessage(`Welcome email sent to ${email}`);
+    } catch (err) {
+      setActionMessage(`Error: ${(err as Error).message}`);
+    } finally {
+      setWelcomeEmailSending(null);
     }
   };
 
@@ -1085,6 +1103,7 @@ export function AdminDashboard() {
                   <th style={thStyle}>To-Dos</th>
                   <th style={thStyle}>Events</th>
                   <th style={thStyle}>GCal</th>
+                  <th style={thStyle}>Welcome</th>
                 </tr>
               </thead>
               <tbody>
@@ -1129,12 +1148,26 @@ export function AdminDashboard() {
                           <span style={{ color: '#C7C7CC', fontSize: 12 }}>—</span>
                         )}
                       </td>
+                      <td style={tdStyle}>
+                        <button
+                          onClick={() => handleSendWelcomeEmail(user.email)}
+                          disabled={welcomeEmailSending === user.email}
+                          style={{
+                            ...btnSecondary,
+                            fontSize: 11,
+                            padding: '4px 10px',
+                            opacity: welcomeEmailSending === user.email ? 0.5 : 1,
+                          }}
+                        >
+                          {welcomeEmailSending === user.email ? 'Sending...' : 'Send'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
+                    <td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: '#8E8E93', padding: 24 }}>
                       No users.
                     </td>
                   </tr>

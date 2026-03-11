@@ -152,10 +152,19 @@ export function TaskCard({
     const gap = 8;
     const update = () => {
       const rect = el.getBoundingClientRect();
-      let left = popoverSide === 'left' ? rect.left - popoverWidth - gap : rect.right + gap;
-      let top = rect.top;
-      left = Math.max(gap, Math.min(left, window.innerWidth - popoverWidth - gap));
-      top = Math.max(gap, Math.min(top, window.innerHeight - popoverMaxHeight - gap));
+      const isMobileWidth = window.innerWidth < 768;
+      let left: number;
+      let top: number;
+      if (isMobileWidth) {
+        // Center popover horizontally on mobile
+        left = Math.max(gap, (window.innerWidth - popoverWidth) / 2);
+        top = Math.max(gap, Math.min(rect.bottom + gap, window.innerHeight - popoverMaxHeight - gap));
+      } else {
+        left = popoverSide === 'left' ? rect.left - popoverWidth - gap : rect.right + gap;
+        top = rect.top;
+        left = Math.max(gap, Math.min(left, window.innerWidth - popoverWidth - gap));
+        top = Math.max(gap, Math.min(top, window.innerHeight - popoverMaxHeight - gap));
+      }
       setPopoverRect({ top, left });
     };
     update();
@@ -295,8 +304,8 @@ export function TaskCard({
                     onClick={() => { onBreakIntoChunks(task.id, mins); setShowPopover(false); }}
                     className="px-2 py-1 text-xs font-medium rounded-md transition-colors"
                     style={{ border: '1px solid rgba(0,0,0,0.10)', color: '#636366', backgroundColor: 'transparent' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.06))}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.06))}
+                    onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
                     {mins < 60 ? `${mins}m` : `${mins / 60}h`}
                   </button>
                 ))}
@@ -336,8 +345,8 @@ export function TaskCard({
         <button type="button"
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
           style={{ color: '#636366' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
+          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onScheduleTask?.(); setShowPopover(false); }}>
           <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           {recordedMins > 0 ? 'Schedule again' : 'Schedule todo'}
@@ -347,8 +356,8 @@ export function TaskCard({
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
             style={{ color: '#636366' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
+            onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             onClick={() => { onRescheduleLater(); setShowPopover(false); }}>
             <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             Reschedule later
@@ -359,8 +368,8 @@ export function TaskCard({
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
             style={{ color: isDone ? THEME.textPrimary : '#6A8C5A' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)')}
+            onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             onClick={() => { onMarkTaskDone(); setShowPopover(false); }}>
             <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             {isDone ? 'Mark as not done' : 'Mark as done'}
@@ -370,8 +379,8 @@ export function TaskCard({
         <button type="button"
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
           style={{ color: '#636366' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
+          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onEditTask?.(); setShowPopover(false); }}>
           <PencilIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Edit details
@@ -380,8 +389,8 @@ export function TaskCard({
         <button type="button"
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
           style={{ color: '#C87868' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)')}
+          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           onClick={() => { onDeleteTask?.(); setShowPopover(false); }}>
           <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Delete todo
@@ -499,7 +508,7 @@ export function TaskCard({
             {/* Resize handle */}
             {onResizeTask && (
               <div
-                className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -581,10 +590,10 @@ export function TaskCard({
             backgroundColor: isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : 'transparent',
             ...(isUrgent ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
           }}
-          onMouseEnter={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
-          onMouseLeave={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'transparent'; }}
+          onPointerEnter={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
+          onPointerLeave={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
-          {/* Done circle — left side */}
+          {/* Done circle — left side, with larger touch target */}
           {onMarkTaskDone ? (
             <button
               type="button"
@@ -592,20 +601,28 @@ export function TaskCard({
                 e.stopPropagation();
                 onMarkTaskDone();
               }}
-              className="flex-shrink-0 flex items-center justify-center rounded-full transition-all mt-0.5"
+              className="flex-shrink-0 flex items-center justify-center transition-all mt-0.5 touch-manipulation"
               style={{
-                width: 16,
-                height: 16,
-                border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.22)'}`,
-                backgroundColor: isDone ? catColor : 'transparent',
+                width: 28,
+                height: 28,
+                padding: 0,
+                border: 'none',
+                backgroundColor: 'transparent',
               }}
               title={isDone ? 'Mark as not done' : 'Mark as done'}
               aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
             >
-              {isDone && <CheckIcon className="h-2.5 w-2.5" style={{ color: '#FFFFFF' }} />}
+              <div className="flex items-center justify-center rounded-full" style={{
+                width: 16,
+                height: 16,
+                border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.22)'}`,
+                backgroundColor: isDone ? catColor : 'transparent',
+              }}>
+                {isDone && <CheckIcon className="h-2.5 w-2.5" style={{ color: '#FFFFFF' }} />}
+              </div>
             </button>
           ) : (
-            <div className="flex-shrink-0 mt-0.5" style={{ width: 16, height: 16 }} />
+            <div className="flex-shrink-0 mt-0.5" style={{ width: 28, height: 28 }} />
           )}
 
           {/* Content */}
@@ -638,8 +655,8 @@ export function TaskCard({
                       color: '#F5A623',
                       opacity: priority > 0 ? 1 : 0,
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = priority > 0 ? '1' : '0'; }}
+                    onPointerEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                    onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = priority > 0 ? '1' : '0'; }}
                     title="Cycle priority"
                     aria-label="Cycle priority"
                   >

@@ -7,6 +7,15 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
+import {
+  CheckIcon,
+  XMarkIcon,
+  ClockIcon,
+  CalendarIcon,
+  StarIcon,
+  PencilIcon,
+  TrashIcon,
+} from '@heroicons/react/24/solid';
 
 /** Hook that returns current time in minutes, updating every 30s. */
 function useCurrentMinutes(): number {
@@ -270,6 +279,253 @@ function CheckBadge({ color }: { color: string }) {
   );
 }
 
+// ─── Block/Event Detail Sheet (mobile) ──────────────────────
+
+interface DetailSheetProps {
+  item: AgendaItem;
+  onClose: () => void;
+  onConfirm?: (id: string) => void;
+  onSkip?: (id: string) => void;
+}
+
+function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
+  const categories = useStore((s) => s.categories);
+  const timeBlocks = useStore((s) => s.timeBlocks);
+  const events = useStore((s) => s.events);
+  const tasks = useStore((s) => s.tasks);
+  const deleteTimeBlock = useStore((s) => s.deleteTimeBlock);
+  const deleteEvent = useStore((s) => s.deleteEvent);
+  const updateTask = useStore((s) => s.updateTask);
+  const { saveSnapshot } = useHistoryStore();
+
+  const today = getLocalDateString();
+  const nowMins = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+
+  // Find full block/event data
+  const fullBlock = item.type === 'block' ? timeBlocks.find((b) => b.id === item.id) : null;
+  const fullEvent = item.type === 'event' ? events.find((e) => e.id === item.id) : null;
+  const linkedTask = fullBlock?.taskId ? tasks.find((t) => t.id === fullBlock.taskId) : null;
+  const cat = categories.find((c) => c.id === (fullBlock?.categoryId ?? fullEvent?.categoryId));
+
+  const startM = parseTimeToMinutes(item.start);
+  const endM = parseTimeToMinutes(item.end);
+  const durationMins = endM - startM;
+  const isPast = (fullBlock?.date ?? fullEvent?.date ?? '') < today ||
+    ((fullBlock?.date ?? fullEvent?.date ?? '') === today && endM <= nowMins);
+  const isConfirmed = item.confirmationStatus === 'confirmed';
+  const isSkipped = item.confirmationStatus === 'skipped';
+  const isBlock = item.type === 'block';
+
+  const handleDelete = () => {
+    saveSnapshot();
+    if (isBlock) deleteTimeBlock(item.id);
+    else deleteEvent(item.id);
+    onClose();
+  };
+
+  const handleToggleTaskDone = () => {
+    if (!linkedTask) return;
+    saveSnapshot();
+    updateTask(linkedTask.id, { status: linkedTask.status === 'done' ? 'inbox' : 'done' });
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 90,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      />
+      {/* Sheet */}
+      <div
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+          backgroundColor: '#FFFFFF',
+          borderRadius: '16px 16px 0 0',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          animation: 'slideUp 0.2s ease-out',
+        }}
+      >
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
+        </div>
+
+        <div style={{ padding: '4px 20px 16px' }}>
+          {/* Category + color accent */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
+            {cat && <span style={{ fontSize: 12, fontWeight: 500, color: item.color }}>{cat.name}</span>}
+            <span style={{ fontSize: 11, color: '#8E8E93', marginLeft: 'auto' }}>
+              {item.type === 'event' ? 'Event' : 'Block'}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3 style={{
+            fontSize: 17, fontWeight: 600, color: THEME.textPrimary,
+            margin: '0 0 8px', lineHeight: 1.3, wordBreak: 'break-word',
+            textDecoration: (isConfirmed || isSkipped) ? 'line-through' : 'none',
+          }}>
+            {item.title}
+          </h3>
+
+          {/* Time + duration */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: THEME.textSecondary }}>
+              <ClockIcon style={{ width: 14, height: 14 }} />
+              {formatTime12(item.start)} – {formatTime12(item.end)}
+            </span>
+            <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 500 }}>
+              {durationMins >= 60
+                ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
+                : `${durationMins}m`
+              }
+            </span>
+          </div>
+
+          {/* Priority stars */}
+          {linkedTask && linkedTask.priority != null && linkedTask.priority > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 8 }}>
+              {Array.from({ length: Math.min(linkedTask.priority, 5) }, (_, i) => (
+                <StarIcon key={i} style={{ width: 12, height: 12, color: '#F5A623' }} />
+              ))}
+            </div>
+          )}
+
+          {/* Description */}
+          {linkedTask?.description && (
+            <p style={{ fontSize: 13, color: '#636366', margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {linkedTask.description}
+            </p>
+          )}
+
+          {/* Notes */}
+          {linkedTask?.notes && (
+            <p style={{ fontSize: 13, fontStyle: 'italic', color: '#636366', margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap', paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+              {linkedTask.notes}
+            </p>
+          )}
+
+          {/* Tags */}
+          {linkedTask?.tags && linkedTask.tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {linkedTask.tags.map(tag => (
+                <span key={tag.id} style={{
+                  fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 99,
+                  backgroundColor: hexToRgba(item.color, 0.08), color: item.color,
+                  border: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                }}>{tag.name}</span>
+              ))}
+            </div>
+          )}
+
+          {/* Due date */}
+          {linkedTask?.dueDate && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10, fontSize: 12 }}>
+              <CalendarIcon style={{ width: 13, height: 13, color: '#8E8E93' }} />
+              <span style={{ color: THEME.textSecondary }}>Due {formatDateHeader(linkedTask.dueDate)}</span>
+            </div>
+          )}
+
+          {/* Status indicator */}
+          {(isConfirmed || isSkipped) && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+              borderRadius: 8, marginBottom: 12, fontSize: 12, fontWeight: 500,
+              backgroundColor: isConfirmed ? hexToRgba(item.color, 0.08) : 'rgba(0,0,0,0.04)',
+              color: isConfirmed ? item.color : '#8E8E93',
+            }}>
+              {isConfirmed ? <CheckIcon style={{ width: 13, height: 13 }} /> : <XMarkIcon style={{ width: 13, height: 13 }} />}
+              {isConfirmed ? 'Confirmed' : 'Skipped'}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 12, marginTop: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Confirm / Skip for past unconfirmed blocks */}
+              {isBlock && isPast && !isConfirmed && !isSkipped && onConfirm && (
+                <button
+                  type="button"
+                  onClick={() => { onConfirm(item.id); onClose(); }}
+                  className="touch-manipulation"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                    border: 'none', backgroundColor: 'transparent',
+                    fontSize: 14, fontWeight: 500, color: item.color,
+                    borderRadius: 8, width: '100%', textAlign: 'left',
+                  }}
+                >
+                  <CheckIcon style={{ width: 18, height: 18 }} />
+                  Mark as done
+                </button>
+              )}
+              {isBlock && isPast && !isConfirmed && !isSkipped && onSkip && (
+                <button
+                  type="button"
+                  onClick={() => { onSkip(item.id); onClose(); }}
+                  className="touch-manipulation"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                    border: 'none', backgroundColor: 'transparent',
+                    fontSize: 14, fontWeight: 500, color: '#8E8E93',
+                    borderRadius: 8, width: '100%', textAlign: 'left',
+                  }}
+                >
+                  <XMarkIcon style={{ width: 18, height: 18 }} />
+                  Skip
+                </button>
+              )}
+
+              {/* Mark linked task done/undone */}
+              {linkedTask && (
+                <button
+                  type="button"
+                  onClick={() => { handleToggleTaskDone(); onClose(); }}
+                  className="touch-manipulation"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                    border: 'none', backgroundColor: 'transparent',
+                    fontSize: 14, fontWeight: 500, color: linkedTask.status === 'done' ? '#8E8E93' : '#6A8C5A',
+                    borderRadius: 8, width: '100%', textAlign: 'left',
+                  }}
+                >
+                  <CheckIcon style={{ width: 18, height: 18 }} />
+                  {linkedTask.status === 'done' ? 'Mark task not done' : 'Mark task done'}
+                </button>
+              )}
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="touch-manipulation"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                  border: 'none', backgroundColor: 'transparent',
+                  fontSize: 14, fontWeight: 500, color: '#C87868',
+                  borderRadius: 8, width: '100%', textAlign: 'left',
+                }}
+              >
+                <TrashIcon style={{ width: 18, height: 18 }} />
+                Delete {item.type === 'event' ? 'event' : 'block'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── SCHEDULE Tab (Timeline + Timer + Review) ──────────────
 
 const HOUR_HEIGHT = 56;
@@ -298,6 +554,7 @@ function ScheduleTab() {
   const [scheduleView, setScheduleView] = useState<'day' | 'week'>('day');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [tappedBlockId, setTappedBlockId] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
   const [showStartForm, setShowStartForm] = useState(false);
   const [timerTitle, setTimerTitle] = useState('');
   const [selectedCalendarId, setSelectedCalendarId] = useState('');
@@ -834,7 +1091,19 @@ function ScheduleTab() {
               return (
                 <React.Fragment key={item.id}>
                   <div
-                    onClick={() => { if (!draggingBlockId) setTappedBlockId(isTapped ? null : item.id); }}
+                    onClick={() => {
+                      if (draggingBlockId) return;
+                      // Past unconfirmed blocks: first tap shows quick Done/Skip, second tap opens detail
+                      if (showActions) {
+                        setDetailItem(item);
+                        setTappedBlockId(null);
+                      } else if (isPast && !isConfirmed && !isSkipped && item.type === 'block') {
+                        setTappedBlockId(isTapped ? null : item.id);
+                      } else {
+                        // Events + future blocks + confirmed/skipped: open detail directly
+                        setDetailItem(item);
+                      }
+                    }}
                     onTouchStart={!isEvent ? (e) => handleBlockTouchStart(e, item.id, startM, endM - startM) : undefined}
                     onTouchEnd={!isEvent ? handleBlockTouchEnd : undefined}
                     className="touch-manipulation"
@@ -883,7 +1152,7 @@ function ScheduleTab() {
                       )}
                     </div>
                   </div>
-                  {/* Floating review buttons */}
+                  {/* Floating review buttons — quick confirm/skip for past pending blocks */}
                   {showActions && (
                     <div
                       className="flex gap-2"
@@ -1050,6 +1319,16 @@ function ScheduleTab() {
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
         </button>
+      )}
+
+      {/* Detail sheet for tapped block/event */}
+      {detailItem && (
+        <DetailSheet
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+          onConfirm={(id) => { handleConfirm(id); setDetailItem(null); }}
+          onSkip={(id) => { handleSkip(id); setDetailItem(null); }}
+        />
       )}
 
       {/* Start timer sheet */}
