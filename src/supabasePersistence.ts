@@ -413,29 +413,43 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   const blockIds = state.timeBlocks.map((b) => b.id);
   const eventIds = nonGcalEvents.map((e) => e.id);
 
+  // Max IDs that fit in a `not('id', 'in', ...)` URL without exceeding PostgREST limits.
+  // Each UUID is ~36 chars + comma; PostgREST URL limit is ~8KB.
+  const MAX_NOT_IN_IDS = 150;
+
+  /**
+   * Delete orphans for a table. When the keep-list is small enough, use `not('id','in',...)`.
+   * When too large (would exceed URL length), fetch server IDs and delete specific orphans.
+   */
+  async function deleteOrphans(table: string, keepIds: string[]) {
+    if (keepIds.length === 0) return; // Don't delete all — empty likely means data not loaded
+    if (keepIds.length <= MAX_NOT_IN_IDS) {
+      check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).not('id', 'in', `(${keepIds.join(',')})`));
+      return;
+    }
+    // Too many IDs for URL — fetch server IDs and compute diff
+    const keepSet = new Set(keepIds);
+    const { data: serverRows, error: fetchErr } = await supabase!.from(table).select('id').eq('user_id', userId);
+    if (fetchErr) {
+      check(table, 'delete-orphans-fetch', { error: fetchErr });
+      return;
+    }
+    const orphanIds = (serverRows || []).map((r: { id: string }) => r.id).filter((id: string) => !keepSet.has(id));
+    if (orphanIds.length === 0) return;
+    // Delete orphans in batches of 150
+    for (let i = 0; i < orphanIds.length; i += MAX_NOT_IN_IDS) {
+      const batch = orphanIds.slice(i, i + MAX_NOT_IN_IDS);
+      check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).in('id', batch));
+    }
+  }
+
   // Delete children first (FK order), then parents.
-  if (blockIds.length > 0) {
-    check('time_blocks', 'delete-orphans', await supabase.from('time_blocks').delete().eq('user_id', userId).not('id', 'in', `(${blockIds.join(',')})`));
-  }
-  // When empty, do NOT delete all — empty local state likely means data hasn't loaded yet.
-  if (eventIds.length > 0) {
-    check('events', 'delete-orphans', await supabase.from('events').delete().eq('user_id', userId).not('id', 'in', `(${eventIds.join(',')})`));
-  }
-  if (taskIds.length > 0) {
-    check('tasks', 'delete-orphans', await supabase.from('tasks').delete().eq('user_id', userId).not('id', 'in', `(${taskIds.join(',')})`));
-  }
-  if (tagIds.length > 0) {
-    check('tags', 'delete-orphans', await supabase.from('tags').delete().eq('user_id', userId).not('id', 'in', `(${tagIds.join(',')})`));
-  }
-  // When tagIds is empty, do NOT delete all tags from Supabase.
-  // An empty local tags array likely means data hasn't loaded yet (e.g. fresh
-  // desktop app session or onboarding). Deleting would wipe user's tags.
-  if (categoryIds.length > 0) {
-    check('categories', 'delete-orphans', await supabase.from('categories').delete().eq('user_id', userId).not('id', 'in', `(${categoryIds.join(',')})`));
-  }
-  if (containerIds.length > 0) {
-    check('calendar_containers', 'delete-orphans', await supabase.from('calendar_containers').delete().eq('user_id', userId).not('id', 'in', `(${containerIds.join(',')})`));
-  }
+  await deleteOrphans('time_blocks', blockIds);
+  await deleteOrphans('events', eventIds);
+  await deleteOrphans('tasks', taskIds);
+  await deleteOrphans('tags', tagIds);
+  await deleteOrphans('categories', categoryIds);
+  await deleteOrphans('calendar_containers', containerIds);
 
   if (errors.length > 0) {
     // eslint-disable-next-line no-console
