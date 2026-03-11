@@ -96,8 +96,9 @@ function TimeBlockCardInner({
   const [showDetails, setShowDetails] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const addSticker = useStore((s) => s.addSticker);
-  const blockStickers = useStore((s) => s.stickers.filter((st) => st.blockId === block.id), (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.offsetYPercent === b[i].offsetYPercent));
+  const stickers = useStore((s) => s.stickers);
   const deleteSticker = useStore((s) => s.deleteSticker);
+  const blockStickers = React.useMemo(() => stickers.filter((s) => s.blockId === block.id), [stickers, block.id]);
   const [stampBounce, setStampBounce] = useState(false);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
 

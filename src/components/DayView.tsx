@@ -198,12 +198,13 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
 
   // Drag-to-create: mouseDown on the grid (drag down or up to set range)
   const addSticker = useStore((s) => s.addSticker);
+  const allStickers = useStore((s) => s.stickers);
   const deleteStickerAction = useStore((s) => s.deleteSticker);
   const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
-  // Time-anchored stickers for this date (scoped selector avoids re-renders from block-anchored sticker changes)
-  const timeStickers = useStore(
-    (s) => s.stickers.filter((st) => st.date === selectedDate && !st.blockId),
-    (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.timeMinutes === b[i].timeMinutes),
+  // Time-anchored stickers for this date
+  const timeStickers = React.useMemo(
+    () => allStickers.filter((s) => s.date === selectedDate && !s.blockId),
+    [allStickers, selectedDate],
   );
 
   const handleGridMouseDown = (e: React.MouseEvent) => {

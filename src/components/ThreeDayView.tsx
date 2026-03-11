@@ -82,14 +82,9 @@ export function ThreeDayView({
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
   const addStickerAction = useStore((s) => s.addSticker);
+  const allStickers = useStore((s) => s.stickers);
   const deleteStickerAction = useStore((s) => s.deleteSticker);
   const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
-  // All time-anchored stickers for the visible 3-day range (scoped to avoid re-renders from block sticker changes)
-  const threeDayDateStrs = React.useMemo(() => threeDays.map((d) => getLocalDateString(d)), [threeDays]);
-  const visibleTimeStickers = useStore(
-    (s) => s.stickers.filter((st) => !st.blockId && threeDayDateStrs.includes(st.date)),
-    (a, b) => a.length === b.length && a.every((s, i) => s.id === b[i].id && s.emoji === b[i].emoji && s.offsetXPercent === b[i].offsetXPercent && s.timeMinutes === b[i].timeMinutes),
-  );
 
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
@@ -513,7 +508,7 @@ export function ThreeDayView({
                             }),
                         ];
                         const dayOverlapMap = computeOverlapLayout(allItems);
-                        const dayTimeStickers = visibleTimeStickers.filter((s) => s.date === dateStr);
+                        const dayTimeStickers = allStickers.filter((s) => s.date === dateStr && !s.blockId);
                         return (
                           <>
                             {/* Time-anchored stickers */}
