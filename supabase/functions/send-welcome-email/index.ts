@@ -38,7 +38,7 @@ serve(async (req) => {
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'Sheila from The Timeboxing Club <onboarding@resend.dev>'
+    const fromEmail = Deno.env.get('FROM_EMAIL') || 'Sheila from The Timeboxing Club <sheila@timeboxing.club>'
 
     if (!resendApiKey) {
       return new Response(

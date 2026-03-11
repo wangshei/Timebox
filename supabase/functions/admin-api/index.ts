@@ -564,7 +564,7 @@ serve(async (req) => {
       if (!email) return json({ error: 'Missing email' }, 400)
 
       const resendApiKey = Deno.env.get('RESEND_API_KEY')
-      const fromEmail = Deno.env.get('FROM_EMAIL') || 'Sheila from The Timeboxing Club <onboarding@resend.dev>'
+      const fromEmail = Deno.env.get('FROM_EMAIL') || 'Sheila from The Timeboxing Club <sheila@timeboxing.club>'
 
       if (!resendApiKey) {
         return json({ error: 'RESEND_API_KEY not configured' }, 500)
