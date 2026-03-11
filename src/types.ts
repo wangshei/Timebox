@@ -94,6 +94,8 @@ export interface TimeBlock {
   originalEnd?: string | null;
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
+  /** Emoji stamps — user-placed feeling stickers on this block. */
+  stamps?: string[];
 }
 
 /** Recurrence pattern for events. */

@@ -31,6 +31,8 @@ export interface ResolvedTimeBlock {
   description?: string | null;
   /** Link — from block itself or inherited from linked Task. */
   link?: string | null;
+  /** Emoji stamps — user-placed feeling stickers on this block. */
+  stamps?: string[];
 }
 
 /**
