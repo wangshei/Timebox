@@ -21,7 +21,7 @@ import { WalkthroughOverlay } from './components/WalkthroughOverlay';
 import { MobileApp } from './components/MobileApp';
 import ActivityPanel from './components/ActivityPanel';
 import UpdateChecker from './components/UpdateChecker';
-import { isTauri, getActivityBlocks, ActivityBlock } from './services/desktopActivity';
+import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
@@ -184,6 +184,7 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+  const [isActivityTracking, setIsActivityTracking] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileTodoPanelOpen, setMobileTodoPanelOpen] = useState(false);
   const leftBarDragJustEnded = useRef(false);
@@ -419,6 +420,21 @@ export default function App() {
     const interval = setInterval(load, 30000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [selectedDate, activityPanelOpen, defaultContainerId]);
+
+  // Poll activity tracking status for the red dot indicator
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const active = await checkIsTracking();
+        if (!cancelled) setIsActivityTracking(active);
+      } catch { /* ignore */ }
+    };
+    check();
+    const interval = setInterval(check, 10000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [activityPanelOpen]);
 
   const visibleTimeBlocks = useMemo(
     () => {
@@ -2614,7 +2630,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setActivityPanelOpen(!activityPanelOpen)}
-                    className="p-1 rounded transition-colors"
+                    className="relative p-1 rounded transition-colors"
                     style={{
                       color: activityPanelOpen ? '#8DA286' : '#8E8E93',
                       backgroundColor: activityPanelOpen ? 'rgba(141,162,134,0.12)' : 'transparent',
@@ -2626,6 +2642,20 @@ export default function App() {
                       <path d="M5 14h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                       <path d="M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                     </svg>
+                    {isActivityTracking && (
+                      <span
+                        className="absolute"
+                        style={{
+                          top: 2,
+                          right: 2,
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          backgroundColor: '#FF3B30',
+                          boxShadow: '0 0 0 1.5px #FCFBF7',
+                        }}
+                      />
+                    )}
                   </button>
                 )}
                 <TimerWidget />

@@ -68,10 +68,10 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
     loadData();
   }, [loadData]);
 
-  // Only poll when tracking is active
+  // Poll when tracking is active — first refresh at 10s, then every 10s
   useEffect(() => {
     if (!tracking) return;
-    const interval = setInterval(loadData, 15000);
+    const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
   }, [tracking, loadData]);
 
@@ -84,6 +84,8 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
       } else {
         await startTracking();
         setTracking(true);
+        // Reload after first flush so data appears quickly
+        setTimeout(loadData, 35000);
       }
     } catch (err) {
       console.error('[activity] Tracking toggle failed:', err);

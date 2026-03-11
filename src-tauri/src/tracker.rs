@@ -291,11 +291,13 @@ impl ActivityTracker {
             let mut segment_category = String::new(); // category computed once at segment start
             let mut segment_start = Local::now();
             let mut last_seen = Local::now();
+            let mut last_flush = Local::now();
             let mut idle = false;
             let mut signals = SegmentSignals::default();
             let min_segment_secs = 5;
             let idle_threshold_secs = 120;
             let input_idle_short = 10;
+            let periodic_flush_secs = 30; // flush in-progress segment every 30s so UI shows data quickly
 
             // Helper: start a new segment
             macro_rules! new_segment {
@@ -306,6 +308,7 @@ impl ActivityTracker {
                     last_title = $title;
                     segment_start = $now;
                     last_seen = $now;
+                    last_flush = $now;
                     signals = SegmentSignals::default();
                     cat
                 }};
@@ -374,6 +377,18 @@ impl ActivityTracker {
                     if input_idle >= input_idle_short as u64 {
                         signals.input_idle_polls += 1;
                     }
+                }
+
+                // Periodic flush: write current segment to DB so UI sees data quickly,
+                // then start a fresh segment for the same app.
+                if !last_app.is_empty() && (now - last_flush).num_seconds() >= periodic_flush_secs {
+                    let duration = (now - segment_start).num_seconds();
+                    if duration >= min_segment_secs {
+                        flush_segment(&conn, &last_app, &last_title, &segment_category, segment_start, now, duration, &signals);
+                    }
+                    segment_start = now;
+                    signals = SegmentSignals::default();
+                    last_flush = now;
                 }
 
                 // Same app + same title — extend

@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString } from '../utils/dateTime';
@@ -688,36 +688,27 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           </div>
         )}
 
-        {/* Pending create-block preview (portaled above modal backdrop z-50) */}
+        {/* Pending create-block preview — stays visible behind the AddModal backdrop */}
         {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === selectedDate && (() => {
           const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
           const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
-          const rect = gridRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const topPx = rect.top + ((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
-          const heightPx = ((pEndMins - pStartMins) / 60) * PX_PER_HOUR;
-          return createPortal(
+          return (
             <div
-              className="pointer-events-none rounded-r-md overflow-hidden"
+              className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
               style={{
-                position: 'fixed',
-                zIndex: 51,
-                top: `${topPx}px`,
-                height: `${heightPx}px`,
-                left: `${rect.left + 56}px`,
-                right: `${window.innerWidth - rect.right + 8}px`,
-                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.18),
+                top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
+                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.22),
                 borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, 0.6)}`,
-                border: `1.5px dashed ${hexToRgba(BLOCK_PREVIEW.color, 0.45)}`,
-                borderLeftWidth: '3px',
-                borderLeftStyle: 'solid',
+                borderTop: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                borderRight: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                borderBottom: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
               }}
             >
               <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
                 {minutesToTimeString(pStartMins)}–{minutesToTimeString(pEndMins)} ({pEndMins - pStartMins}m)
               </span>
-            </div>,
-            document.body,
+            </div>
           );
         })()}
 

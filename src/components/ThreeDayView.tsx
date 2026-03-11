@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
@@ -675,30 +675,21 @@ export function ThreeDayView({
                       </div>
                     )}
 
-                    {/* Pending create-block preview (portaled above modal backdrop) */}
+                    {/* Pending create-block preview — stays visible behind AddModal backdrop */}
                     {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === dateStr && (() => {
                       const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
                       const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
-                      const gridEl = document.querySelector(`[data-3day-col="${dateStr}"] [data-3day-grid]`);
-                      const rect = gridEl?.getBoundingClientRect();
-                      if (!rect) return null;
-                      const topPx = rect.top + (pStartMins / 60) * PX_PER_HOUR;
-                      const heightPx = ((pEndMins - pStartMins) / 60) * PX_PER_HOUR;
-                      return createPortal(
+                      return (
                         <div
-                          className="pointer-events-none rounded-r-md overflow-hidden"
+                          className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
                           style={{
-                            position: 'fixed',
-                            zIndex: 51,
-                            top: `${topPx}px`,
-                            height: `${heightPx}px`,
-                            left: `${rect.left}px`,
-                            width: `${rect.width}px`,
-                            backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.18),
+                            top: `${(pStartMins / 60) * PX_PER_HOUR}px`,
+                            height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
+                            backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.22),
                             borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, 0.6)}`,
-                            border: `1.5px dashed ${hexToRgba(BLOCK_PREVIEW.color, 0.45)}`,
-                            borderLeftWidth: '3px',
-                            borderLeftStyle: 'solid',
+                            borderTop: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                            borderRight: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                            borderBottom: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
                           }}
                         >
                           <span
@@ -707,8 +698,7 @@ export function ThreeDayView({
                           >
                             {minsToTime(pStartMins)}–{minsToTime(pEndMins)}
                           </span>
-                        </div>,
-                        document.body,
+                        </div>
                       );
                     })()}
                   </div>

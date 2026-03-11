@@ -204,10 +204,10 @@ function TimeBlockCardInner({
   const URGENT_BG = 'rgba(255, 59, 48, 0.07)';
   const URGENT_BORDER = 'rgba(255, 59, 48, 0.25)';
 
-  // Past planned blocks are frozen — the plan is history. Only actuals can change.
+  // Past planned TASK blocks are frozen — the plan is history. Only actuals can change.
   // This prevents dragging/resizing. Confirm/skip/popover still work.
-  // Confirmed/recorded past blocks are still resizable (user adjusting actual time).
-  const isPastPlanned = isPast && block.mode === 'planned';
+  // Events and confirmed/recorded past blocks remain draggable/resizable.
+  const isPastPlanned = isPast && block.mode === 'planned' && isTask;
   const isLockedPast = !locked && isPastPlanned;
   const allowResizePast = isPast && (confirmed || block.mode === 'recorded');
 
