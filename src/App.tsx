@@ -1698,6 +1698,7 @@ export default function App() {
   if (appScreen === 'loading') {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-4" style={{ backgroundColor: '#FDFDFB' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#8E8E93', letterSpacing: '0.01em' }}>Loading your data</span>
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <div

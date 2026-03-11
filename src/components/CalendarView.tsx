@@ -18,6 +18,9 @@ const TEXT_PRIMARY = '#5F615F';
 const TEXT_MUTED = '#8E8E93';
 const TEXT_SECONDARY = '#636366';
 
+/** Stamp emojis for the radial picker */
+const STAMP_EMOJIS = ['⚡', '🔋', '🪫', '❤️', '💔', '🔥', '😴', '🧊', '✨', '💪', '🧠', '😤'];
+
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
 
@@ -98,6 +101,8 @@ export function CalendarView({
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const [showDifferences, setShowDifferences] = useState(defaultShowDifferences ?? false);
   const [compareTab, setCompareTab] = useState<'plan' | 'actual'>('actual');
+  const [stampMode, setStampMode] = useState(false);
+  const [activeStampEmoji, setActiveStampEmoji] = useState<string | null>(null);
 
   // Track container width for responsive compare layout
   const containerRef = useRef<HTMLDivElement>(null);
@@ -573,13 +578,13 @@ export function CalendarView({
         /* Normal view (or week/month compare — single view with showDifferences) */
         <div className="flex-1 overflow-y-auto min-h-0">
           {view === 'day' && (
-            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} showDateHeader />
+            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} showDateHeader />
           )}
           {view === '3day' && (
-            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} />
+            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} />
           )}
           {view === 'week' && (
-            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} />
+            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} activeStampEmoji={activeStampEmoji} />
           )}
           {view === 'month' && (
             <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} weekStartsOnMonday={weekStartsOnMonday} />
@@ -587,24 +592,126 @@ export function CalendarView({
         </div>
       )}
 
-      {/* Floating Add Button — always visible, pinned to bottom-right */}
-      {onOpenAddModal && (
-        <button
-          type="button"
-          onClick={() => onOpenAddModal('event')}
-          className={`absolute ${isMobile ? 'bottom-5 right-4' : 'bottom-6 right-6'} z-30 flex items-center justify-center shadow-lg transition-all active:scale-95`}
-          style={{
-            width: isMobile ? 48 : 52, height: isMobile ? 48 : 52, borderRadius: '50%',
-            backgroundColor: PRIMARY,
-            boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#8DA387')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}
-          aria-label="Add to-do or event"
-        >
-          <PlusIcon className="h-6 w-6 text-white" />
-        </button>
-      )}
+      {/* Floating buttons — pinned to bottom-right */}
+      <div className={`absolute ${isMobile ? 'bottom-5 right-4' : 'bottom-6 right-6'} z-30 flex flex-col items-center gap-3`}>
+        {/* Stamp button — smaller, above + */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              if (stampMode) {
+                setStampMode(false);
+                setActiveStampEmoji(null);
+              } else {
+                setStampMode(true);
+              }
+            }}
+            className="flex items-center justify-center shadow-md transition-all active:scale-90"
+            style={{
+              width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: '50%',
+              backgroundColor: stampMode ? '#FFFFFF' : '#FFFFFF',
+              border: stampMode ? `2px solid ${PRIMARY}` : '1.5px solid rgba(0,0,0,0.08)',
+              boxShadow: stampMode
+                ? `0 4px 16px rgba(141,162,134,0.35), 0 0 0 3px rgba(141,162,134,0.12)`
+                : '0 2px 10px rgba(0,0,0,0.08)',
+            }}
+            aria-label="Stamp mode"
+          >
+            <span style={{ fontSize: stampMode ? 18 : 16, lineHeight: 1 }}>
+              {activeStampEmoji || '🩹'}
+            </span>
+          </button>
+
+          {/* Radial emoji picker — appears when stamp mode is on but no emoji selected */}
+          {stampMode && !activeStampEmoji && (
+            <>
+              {/* Backdrop to close */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => { setStampMode(false); setActiveStampEmoji(null); }}
+              />
+              <div
+                className="absolute z-50"
+                style={{
+                  bottom: isMobile ? 44 : 46,
+                  right: -4,
+                  width: 200, height: 200,
+                  pointerEvents: 'none',
+                }}
+              >
+                {/* Circular background */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1.5px solid rgba(0,0,0,0.06)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
+                    pointerEvents: 'auto',
+                  }}
+                />
+                {/* Emoji items arranged in a circle */}
+                {STAMP_EMOJIS.map((emoji, i) => {
+                  const angle = (i / STAMP_EMOJIS.length) * 2 * Math.PI - Math.PI / 2;
+                  const radius = 68;
+                  const x = 100 + Math.cos(angle) * radius - 16;
+                  const y = 100 + Math.sin(angle) * radius - 16;
+                  return (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="absolute flex items-center justify-center rounded-full transition-all hover:scale-130 active:scale-95"
+                      style={{
+                        left: x, top: y, width: 32, height: 32,
+                        fontSize: 20, lineHeight: 1,
+                        pointerEvents: 'auto',
+                        backgroundColor: 'transparent',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      onClick={() => setActiveStampEmoji(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Active stamp indicator — "tap blocks to stamp" hint */}
+          {stampMode && activeStampEmoji && (
+            <div
+              className="absolute -left-28 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1"
+              style={{
+                fontSize: 10, fontWeight: 500, color: PRIMARY,
+                backgroundColor: 'rgba(141,162,134,0.08)',
+                border: '1px solid rgba(141,162,134,0.15)',
+              }}
+            >
+              Tap blocks to stamp
+            </div>
+          )}
+        </div>
+
+        {/* Add button */}
+        {onOpenAddModal && (
+          <button
+            type="button"
+            onClick={() => onOpenAddModal('event')}
+            className="flex items-center justify-center shadow-lg transition-all active:scale-95"
+            style={{
+              width: isMobile ? 48 : 52, height: isMobile ? 48 : 52, borderRadius: '50%',
+              backgroundColor: PRIMARY,
+              boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#8DA387')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}
+            aria-label="Add to-do or event"
+          >
+            <PlusIcon className="h-6 w-6 text-white" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

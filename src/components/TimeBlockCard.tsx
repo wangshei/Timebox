@@ -55,12 +55,11 @@ interface TimeBlockCardProps {
   /** Reschedule this block to the next available slot later today. */
   onRescheduleLater?: (blockId: string) => void;
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
+  /** When set, block is in stamp mode — clicking stamps this emoji onto the block. */
+  activeStampEmoji?: string | null;
 }
 
 const FOCUS_MUTED_OPACITY = 0.3;
-
-/** Available stamp emojis — energy & engagement themed */
-const STAMP_EMOJIS = ['⚡', '🔋', '🪫', '❤️', '💔', '🔥', '😴', '🧊', '✨', '💪', '🧠', '😤'];
 
 function TimeBlockCardInner({
   block,
@@ -88,6 +87,7 @@ function TimeBlockCardInner({
   showDifferences = false,
   onRescheduleLater,
   onAddTimeToComplete,
+  activeStampEmoji,
 }: TimeBlockCardProps) {
   const updateTimeBlock = useStore((s) => s.updateTimeBlock);
   const [showPopover, setShowPopover] = useState(false);
@@ -95,8 +95,17 @@ function TimeBlockCardInner({
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [showDetails, setShowDetails] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showStampPicker, setShowStampPicker] = useState(false);
   const blockStamps = block.stamps ?? [];
+  const [stampBounce, setStampBounce] = useState(false);
+
+  const handleStamp = () => {
+    if (!activeStampEmoji) return;
+    const next = [...blockStamps, activeStampEmoji];
+    updateTimeBlock(block.id, { stamps: next });
+    setStampBounce(true);
+    setTimeout(() => setStampBounce(false), 300);
+  };
+
   const blockRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
@@ -631,29 +640,10 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Stamps — emoji sticker picker */}
-        <div className="-mx-3 px-3 pt-1.5 pb-1" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-          <div className="flex items-center justify-between mb-1">
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: THEME.textMuted }}>
-              Stamp
-            </span>
-            <button
-              type="button"
-              className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 transition-colors"
-              style={{ fontSize: 10, color: THEME.textMuted, backgroundColor: showStampPicker ? 'rgba(0,0,0,0.06)' : 'transparent' }}
-              onMouseEnter={(e) => { if (!showStampPicker) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-              onMouseLeave={(e) => { if (!showStampPicker) e.currentTarget.style.backgroundColor = 'transparent'; }}
-              onClick={() => setShowStampPicker((v) => !v)}
-            >
-              <span style={{ fontSize: 13 }}>🩹</span>
-              <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showStampPicker ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
-                <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
-            </button>
-          </div>
-          {/* Existing stamps — click to remove */}
-          {blockStamps.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-1">
+        {/* Stamps — show existing stamps with remove */}
+        {blockStamps.length > 0 && (
+          <div className="-mx-3 px-3 pt-1.5 pb-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+            <div className="flex items-center gap-1 flex-wrap">
               {blockStamps.map((emoji, i) => (
                 <button
                   key={i}
@@ -677,28 +667,8 @@ function TimeBlockCardInner({
                 </button>
               ))}
             </div>
-          )}
-          {/* Emoji picker tray */}
-          {showStampPicker && (
-            <div className="flex flex-wrap gap-0.5 pt-0.5 pb-0.5">
-              {STAMP_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className="rounded-md transition-all hover:scale-125 hover:bg-black/5 active:scale-95"
-                  style={{ fontSize: 18, lineHeight: 1, padding: '3px 2px' }}
-                  onClick={() => {
-                    const next = [...blockStamps, emoji];
-                    updateTimeBlock(block.id, { stamps: next });
-                    setShowStampPicker(false);
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Mark done / Reschedule / Add time — below the line */}
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} className="pt-1 -mx-3 px-3">
@@ -862,8 +832,8 @@ function TimeBlockCardInner({
         className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
         style={style}
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); setShowStampPicker(false); } }}
-        onPointerDown={!noDrag ? handlePointerDragStart : undefined}
+        onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(); return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+        onPointerDown={!noDrag && !activeStampEmoji ? handlePointerDragStart : undefined}
       >
         <div
           data-slot="block-container"
@@ -873,6 +843,9 @@ function TimeBlockCardInner({
             boxShadow: diffColor
               ? `inset 0 0 0 2px ${diffColor}`
               : isSelected && !effectivelyLocked ? `0 0 0 1.5px ${blockColor}` : undefined,
+            cursor: activeStampEmoji ? 'pointer' : undefined,
+            transition: stampBounce ? 'transform 0.15s ease' : undefined,
+            transform: stampBounce ? 'scale(1.03)' : undefined,
           }}
         >
           {/* Lock hover overlay for plan panel only */}
@@ -1015,11 +988,11 @@ function TimeBlockCardInner({
   return (
     <div
       ref={blockRef}
-      className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
+      className={cn('absolute group pointer-events-auto', 'overflow-hidden', activeStampEmoji ? 'cursor-pointer' : noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); setShowStampPicker(false); } }}
-      onPointerDown={!noDragFull ? handlePointerDragStart : undefined}
+      onClick={() => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(); return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+      onPointerDown={!noDragFull && !activeStampEmoji ? handlePointerDragStart : undefined}
     >
       <div
         data-slot="block-container"
@@ -1029,6 +1002,8 @@ function TimeBlockCardInner({
           boxShadow: diffStatus
             ? `inset 0 0 0 2px ${diffStatus === 'timing' ? 'rgba(255,214,10,0.9)' : 'rgba(255,59,48,0.75)'}`
             : isSelected && !effectivelyLockedFull ? `0 0 0 2px ${blockColor}, 0 0 0 4px rgba(255,255,255,0.8)` : undefined,
+          transition: stampBounce ? 'transform 0.15s ease' : undefined,
+          transform: stampBounce ? 'scale(1.03)' : undefined,
         }}
       >
         {/* Lock hover overlay for plan panel only */}

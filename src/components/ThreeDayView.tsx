@@ -59,6 +59,8 @@ interface ThreeDayViewProps {
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
   /** Preview rectangle for pending drag-create while AddModal is open. */
   pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
+  /** When set, blocks are in stamp mode — clicking stamps this emoji. */
+  activeStampEmoji?: string | null;
 }
 
 const PRIMARY = THEME.primary;
@@ -74,7 +76,7 @@ export function ThreeDayView({
   onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
-  onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview,
+  onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -537,6 +539,7 @@ export function ThreeDayView({
                                   view="3day"
                                   onRescheduleLater={onRescheduleLater}
                                   onAddTimeToComplete={onAddTimeToComplete}
+                                  activeStampEmoji={activeStampEmoji}
                                 />
                               );
                             })}

@@ -83,12 +83,14 @@ interface DayViewProps {
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
   /** Preview rectangle for pending drag-create while AddModal is open. */
   pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
+  /** When set, blocks are in stamp mode — clicking stamps this emoji. */
+  activeStampEmoji?: string | null;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -560,6 +562,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 showDifferences={showDifferences}
                 onRescheduleLater={onRescheduleLater}
                 onAddTimeToComplete={onAddTimeToComplete}
+                activeStampEmoji={activeStampEmoji}
               />
             );
           })}
