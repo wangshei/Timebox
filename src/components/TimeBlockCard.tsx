@@ -104,6 +104,8 @@ function TimeBlockCardInner({
 
   const handleStamp = (e: React.MouseEvent) => {
     if (!activeStampEmoji || !blockRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
     const rect = blockRef.current.getBoundingClientRect();
     const offsetXPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
     const offsetYPercent = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));

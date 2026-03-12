@@ -208,8 +208,10 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   );
 
   const handleGridMouseDown = (e: React.MouseEvent) => {
-    // Stamp mode: place time-anchored sticker
+    // Stamp mode: place time-anchored sticker — block all other interactions
     if (activeStampEmoji) {
+      e.preventDefault();
+      e.stopPropagation();
       const rect = gridRef.current?.getBoundingClientRect();
       if (!rect) return;
       const offsetY = e.clientY - rect.top;
@@ -518,9 +520,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           Clicks on empty space (not caught by cards) bubble up to this element. */}
       <div
         ref={gridRef}
-        className={`relative ${activeStampEmoji ? 'cursor-crosshair' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+        className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
-        onMouseDown={activeStampEmoji ? handleGridMouseDown : !locked ? handleGridMouseDown : undefined}
+        onMouseDown={!locked || activeStampEmoji ? handleGridMouseDown : undefined}
       >
         {/* Today green tint for future portion of current day */}
         {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (

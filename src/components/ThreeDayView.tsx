@@ -392,7 +392,7 @@ export function ThreeDayView({
                 <div data-3day-col={dateStr} className="px-1.5">
                   <div
                     data-3day-grid
-                    className={`relative ${!locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+                    className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                     style={{ height: GRID_HEIGHT }}
                     ref={(el: HTMLDivElement | null) => {
                       if (!el || locked) return;
@@ -431,6 +431,8 @@ export function ThreeDayView({
                       });
                     }}
                     onMouseDown={activeStampEmoji ? (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                       const offsetY = e.clientY - rect.top;
                       if (offsetY < 0 || offsetY > GRID_HEIGHT) return;

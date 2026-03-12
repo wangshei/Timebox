@@ -336,7 +336,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   <div className="px-1 md:px-2">
                     <div
                       data-week-grid
-                      className={`relative ${!locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+                      className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                       style={{ height: GRID_HEIGHT }}
                       ref={(el: HTMLDivElement | null) => {
                         if (!el || locked) return;
