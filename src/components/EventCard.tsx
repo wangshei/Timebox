@@ -390,7 +390,7 @@ export function EventCard({
 
       {onResizeStart && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute bottom-0 left-0 right-0 h-2 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(e); }}
         >
           <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />

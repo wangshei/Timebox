@@ -936,7 +936,7 @@ function TimeBlockCardInner({
         {/* Resize handle — compact mode (all blocks, not locked/past; or confirmed past) */}
         {onResizeStart && (!noDrag || allowResizePast) && compactTier !== 'micro' && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
+            className="absolute bottom-0 left-0 right-0 h-2 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
@@ -1175,7 +1175,7 @@ function TimeBlockCardInner({
         {/* Resize handle (all blocks, small+, not locked/past; or confirmed past) */}
         {onResizeStart && (!noDragFull || allowResizePast) && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
+            className="absolute bottom-0 left-0 right-0 h-3 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />

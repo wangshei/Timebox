@@ -33,6 +33,8 @@ type PersistableState = {
 // from wiping Supabase data during the window between subscription start
 // and loadSupabaseState completion.
 let supabaseLoaded = false;
+// Skip the first flush after load — it would just echo back exactly what we loaded.
+let suppressNextFlush = false;
 
 async function getCurrentUserId(): Promise<string | null> {
   if (!supabase) return null;
@@ -239,27 +241,17 @@ export async function loadSupabaseState() {
   });
 
   // Mark as loaded so the persistence subscription can start saving.
+  // Any actual changes (e.g. default Personal calendar created for new users)
+  // will be picked up by the subscription's debounced flush — no need to
+  // trigger an immediate save that redundantly writes back everything we just
+  // loaded and runs expensive orphan-delete queries on large tables.
   supabaseLoaded = true;
 
-  // Trigger one immediate save so the loaded state is persisted (helps ensure save path works).
-  // userId is already declared above, so reuse it.
-  if (userId) {
-    const state = useStore.getState();
-    const slice: PersistableState = {
-      tasks: state.tasks,
-      timeBlocks: state.timeBlocks,
-      calendarContainers: state.calendarContainers,
-      categories: state.categories,
-      tags: state.tags,
-      events: state.events,
-    };
-    try {
-      await saveSupabaseStateForUser(userId, slice);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('[supabasePersistence] Post-load save failed', e);
-    }
-  }
+  // The setState above already triggered the persistence subscription's
+  // scheduleFlush (500ms debounce). Since that flush would just write back
+  // exactly what we loaded, skip it by resetting the pending slice.
+  // Future real user changes will trigger new flushes normally.
+  suppressNextFlush = true;
 }
 
 // --- Persist from Zustand store into Supabase ---
@@ -503,6 +495,7 @@ export function startSupabasePersistence() {
 
   // Reset the loaded flag so saves are blocked until loadSupabaseState finishes.
   supabaseLoaded = false;
+  suppressNextFlush = false;
 
   let saving = false;
   let pendingSlice: PersistableState | null = null;
@@ -558,6 +551,12 @@ export function startSupabasePersistence() {
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
       if (!pendingSlice) return;
+      // Skip the first flush after load — it just echoes back what was loaded
+      if (suppressNextFlush) {
+        suppressNextFlush = false;
+        pendingSlice = null;
+        return;
+      }
       const next = pendingSlice;
       pendingSlice = null;
       if (saving) {

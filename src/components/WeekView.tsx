@@ -57,6 +57,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
+  const addStickerAction = useStore((s) => s.addSticker);
+  const allStickers = useStore((s) => s.stickers);
+  const deleteStickerAction = useStore((s) => s.deleteSticker);
+  const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
 
@@ -371,7 +375,22 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           },
                         });
                       }}
-                      onMouseDown={!locked && onCreateBlock ? (e: React.MouseEvent) => {
+                      onMouseDown={activeStampEmoji ? (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                        const timeMins = offsetYToMinutes(offsetY);
+                        const xPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+                        addStickerAction({
+                          emoji: activeStampEmoji,
+                          date: dateStr,
+                          timeMinutes: timeMins,
+                          offsetXPercent: xPercent,
+                          offsetYPercent: 0,
+                        });
+                      } : !locked && onCreateBlock ? (e: React.MouseEvent) => {
                         if (creatingBlock) return;
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                         const offsetY = e.clientY - rect.top;
@@ -424,8 +443,49 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                               }),
                           ];
                           const dayOverlapMap = computeOverlapLayout(allItems);
+                          const dayTimeStickers = allStickers.filter((s) => s.date === dateStr && !s.blockId);
                           return (
                             <>
+                              {/* Time-anchored stickers */}
+                              {dayTimeStickers.map((sticker) => {
+                                const sTop = ((sticker.timeMinutes ?? 0) / 60) * PX_PER_HOUR;
+                                return (
+                                  <span
+                                    key={sticker.id}
+                                    className={`absolute z-20 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
+                                    style={{
+                                      left: `${sticker.offsetXPercent ?? 50}%`,
+                                      top: `${sTop}px`,
+                                      transform: 'translate(-50%, -50%)',
+                                      fontSize: 14,
+                                      lineHeight: 1,
+                                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                                      transition: 'transform 0.1s',
+                                    }}
+                                    onClick={(e) => {
+                                      if (activeStampEmoji) return;
+                                      e.stopPropagation();
+                                      setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onMouseEnter={(e) => { if (!activeStampEmoji) (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+                                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
+                                  >
+                                    {sticker.emoji}
+                                    {selectedStickerId === sticker.id && (
+                                      <button
+                                        type="button"
+                                        className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
+                                        style={{ fontSize: 9, lineHeight: 1, pointerEvents: 'auto' }}
+                                        onClick={(e) => { e.stopPropagation(); deleteStickerAction(sticker.id); setSelectedStickerId(null); }}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        x
+                                      </button>
+                                    )}
+                                  </span>
+                                );
+                              })}
                               {dayBlocks.map((block) => {
                                 const bTrunc = dayTruncMap.get(block.id);
                                 const bStartMins = bTrunc && !bTrunc.hidden ? parseTimeToMins(bTrunc.effectiveStart) : parseTimeToMins(block.start);
