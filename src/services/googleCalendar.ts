@@ -6,6 +6,7 @@
 
 import { supabase } from '../supabaseClient';
 import type { Event, CalendarContainer, Category, RecurrencePattern } from '../types';
+import { getLocalTimeZone } from '../utils/dateTime';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
@@ -320,6 +321,7 @@ async function fetchCalendarEvents(calendarId: string): Promise<GcalEvent[]> {
       singleEvents: 'true',
       orderBy: 'startTime',
       maxResults: '250',
+      timeZone: getLocalTimeZone(),
     });
     if (pageToken) params.set('pageToken', pageToken);
 
@@ -561,9 +563,10 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
     }
   }
 
-  // Cache in localStorage so events survive page refresh
+  // Cache in localStorage so events survive page refresh (include timezone for staleness detection)
   localStorage.setItem(GCAL_EVENTS_KEY, JSON.stringify(events));
   localStorage.setItem(GCAL_CALENDARS_KEY, JSON.stringify({ containers, categories }));
+  localStorage.setItem('gcal_cached_timezone', getLocalTimeZone());
 
   // eslint-disable-next-line no-console
   console.log(`[gcal] Imported ${events.length} events from ${gcalCalendars.length} calendars`);
@@ -579,25 +582,19 @@ export function loadCachedGcalData(): GcalImportResult | null {
   const eventsRaw = localStorage.getItem(GCAL_EVENTS_KEY);
   const calsRaw = localStorage.getItem(GCAL_CALENDARS_KEY);
   if (!eventsRaw || !calsRaw) return null;
+
+  // If the user's timezone changed since the cache was written, skip the cache
+  // entirely — the fresh import will use the correct timezone.
+  const cachedTz = localStorage.getItem('gcal_cached_timezone');
+  if (cachedTz && cachedTz !== getLocalTimeZone()) {
+    // eslint-disable-next-line no-console
+    console.log(`[gcal] Timezone changed (${cachedTz} → ${getLocalTimeZone()}), skipping stale cache`);
+    return null;
+  }
+
   try {
     const events = JSON.parse(eventsRaw) as Event[];
     const { containers, categories } = JSON.parse(calsRaw);
-
-    // Re-convert cached events from their original ISO datetimes
-    // so that the user's current timezone is always respected.
-    for (const evt of events) {
-      if (evt.gcalStartISO) {
-        const parsed = parseGcalDateTime({ dateTime: evt.gcalStartISO });
-        evt.start = parsed.time;
-        evt.date = parsed.date;
-      }
-      if (evt.gcalEndISO) {
-        const parsed = parseGcalDateTime({ dateTime: evt.gcalEndISO });
-        evt.end = parsed.time;
-        evt.endDate = evt.date !== parsed.date ? parsed.date : undefined;
-      }
-    }
-
     return { calendars: containers, categories, events };
   } catch {
     return null;
