@@ -230,6 +230,13 @@ function generateId(): string {
   return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 9);
 }
 
+/** Compute UTC epoch (ms) from a YYYY-MM-DD date and HH:mm time string in the user's local timezone. */
+function dateTimeToEpoch(date: string, time: string): number {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = time.split(':').map(Number);
+  return new Date(y, m - 1, d, h, min).getTime();
+}
+
 // --- Store ---
 
 export const useStore = create<AppState & AppActions>()(
@@ -682,17 +689,33 @@ export const useStore = create<AppState & AppActions>()(
       return '';
     }
     const id = generateId();
-    set((s) => ({ events: [...s.events, { ...e, id, editedAt: Date.now() }] }));
+    // Compute epochs for timezone-aware re-derivation (skip for gcal events — they use gcalStartISO/gcalEndISO)
+    const isGcal = !!(e.googleEventId || e.gcalStartISO);
+    const startEpoch = !isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined;
+    const endEpoch = !isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined;
+    set((s) => ({ events: [...s.events, { ...e, id, editedAt: Date.now(), startEpoch, endEpoch }] }));
     return id;
   },
   updateEvent: (id, updates) =>
     set((s) => {
+      const oldEvent = s.events.find((e) => e.id === id);
+      // Recompute epochs when time/date changes (skip for gcal events)
+      let epochUpdates: Partial<Event> = {};
+      if (oldEvent && !oldEvent.googleEventId && !oldEvent.gcalStartISO) {
+        if (updates.start || updates.date || updates.end || updates.endDate) {
+          const newDate = updates.date || oldEvent.date;
+          const newStart = updates.start || oldEvent.start;
+          const newEnd = updates.end || oldEvent.end;
+          const newEndDate = updates.endDate !== undefined ? updates.endDate : oldEvent.endDate;
+          epochUpdates.startEpoch = dateTimeToEpoch(newDate, newStart);
+          epochUpdates.endEpoch = dateTimeToEpoch(newEndDate || newDate, newEnd);
+        }
+      }
       const result: Partial<AppState> = {
-        events: s.events.map((e) => (e.id === id ? { ...e, ...updates, editedAt: Date.now() } : e)),
+        events: s.events.map((e) => (e.id === id ? { ...e, ...updates, ...epochUpdates, editedAt: Date.now() } : e)),
       };
       // When an event moves to a different date, sync its stickers' dates
       if (updates.date) {
-        const oldEvent = s.events.find((e) => e.id === id);
         if (oldEvent && oldEvent.date !== updates.date) {
           result.stickers = s.stickers.map((st) =>
             st.eventId === id ? { ...st, date: updates.date! } : st
@@ -709,9 +732,12 @@ export const useStore = create<AppState & AppActions>()(
 
   convertTimeBlockToEvent: (blockId, event) => {
     const eventId = generateId();
+    const isGcal = !!(event.googleEventId || event.gcalStartISO);
+    const startEpoch = !isGcal && event.date && event.start ? dateTimeToEpoch(event.date, event.start) : undefined;
+    const endEpoch = !isGcal && event.date && event.end ? dateTimeToEpoch(event.endDate || event.date, event.end) : undefined;
     set((s) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
-      events: [...s.events, { ...event, id: eventId, editedAt: Date.now() }],
+      events: [...s.events, { ...event, id: eventId, editedAt: Date.now(), startEpoch, endEpoch }],
     }));
     return eventId;
   },
@@ -725,7 +751,12 @@ export const useStore = create<AppState & AppActions>()(
     }
     const capped = events.slice(0, headroom);
     const now = Date.now();
-    const newEvents = capped.map((e) => ({ ...e, id: generateId(), editedAt: now }));
+    const newEvents = capped.map((e) => {
+      const isGcal = !!(e.googleEventId || e.gcalStartISO);
+      const startEpoch = !isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined;
+      const endEpoch = !isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined;
+      return { ...e, id: generateId(), editedAt: now, startEpoch, endEpoch };
+    });
     set((s) => ({ events: [...s.events, ...newEvents] }));
     return newEvents.map((e) => e.id);
   },

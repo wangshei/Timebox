@@ -173,6 +173,10 @@ export interface Event {
   gcalStartISO?: string | null;
   /** Original Google Calendar end dateTime ISO string — used to re-derive local time on timezone change. */
   gcalEndISO?: string | null;
+  /** UTC epoch (ms) of planned start — used to re-derive local time on timezone change for Timebox events. */
+  startEpoch?: number | null;
+  /** UTC epoch (ms) of planned end — used to re-derive local time on timezone change for Timebox events. */
+  endEpoch?: number | null;
 }
 
 export interface User {

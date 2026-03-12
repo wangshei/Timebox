@@ -40,7 +40,7 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
-import { getLocalDateString, getViewDateRange } from './utils/dateTime';
+import { getLocalDateString, getLocalTimeZone, getViewDateRange } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
@@ -273,6 +273,40 @@ export default function App() {
       const freshGcalEvents = data.events.filter(e =>
         !dismissedIds.has(e.id) && freshCalendarIds.has(e.calendarContainerId)
       );
+
+      // Timezone-aware merge: past gcal events keep their stored times (the user
+      // experienced them at that wall-clock time), future gcal events get fresh
+      // timezone-converted times (real absolute time in current timezone).
+      const todayStr = getLocalDateString();
+      const existingGcalEvents = state.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
+      const existingGcalMap = new Map(existingGcalEvents.map(e => [e.id, e]));
+      const freshGcalMap = new Map(freshGcalEvents.map(e => [e.id, e]));
+
+      // Past events: keep existing store version if available, otherwise use fresh
+      // Future events: always use fresh import (timezone-converted to current tz)
+      // New events (not in store): always use fresh
+      const mergedGcalEvents: import('./types').Event[] = [];
+      const seenIds = new Set<string>();
+
+      for (const fresh of freshGcalEvents) {
+        seenIds.add(fresh.id);
+        const existing = existingGcalMap.get(fresh.id);
+        if (existing && fresh.date < todayStr) {
+          // Past event already in store — keep stored times
+          mergedGcalEvents.push(existing);
+        } else {
+          // Future event, or new event — use fresh timezone-converted times
+          mergedGcalEvents.push(fresh);
+        }
+      }
+      // Keep past events that are in store but not in fresh import
+      // (they may have fallen out of the 90-day import window)
+      for (const existing of existingGcalEvents) {
+        if (!seenIds.has(existing.id) && existing.date < todayStr && !dismissedIds.has(existing.id)) {
+          mergedGcalEvents.push(existing);
+        }
+      }
+
       // Remove old gcal events (including any ghosts from Supabase without googleEventId)
       const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
       useStore.setState({
@@ -284,7 +318,7 @@ export default function App() {
           ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
           ...freshCategories,
         ],
-        events: [...nonGcalEvents, ...freshGcalEvents],
+        events: [...nonGcalEvents, ...mergedGcalEvents],
       });
     };
 
@@ -296,6 +330,88 @@ export default function App() {
     importGoogleCalendarEvents()
       .then(injectGcalData)
       .catch(err => console.warn('[gcal] Background refresh failed:', err));
+  }, [dataReady]);
+
+  // Re-derive Timebox event times when timezone changes.
+  // Events represent absolute appointments — their wall-clock time should shift
+  // when the user moves to a different timezone. Tasks/blocks stay at wall-clock time.
+  const tzAdjustedRef = useRef(false);
+  useEffect(() => {
+    if (!dataReady || tzAdjustedRef.current) return;
+    tzAdjustedRef.current = true;
+
+    const TIMEZONE_KEY = 'timebox_event_timezone';
+    const currentTz = getLocalTimeZone();
+    const storedTz = localStorage.getItem(TIMEZONE_KEY);
+    localStorage.setItem(TIMEZONE_KEY, currentTz);
+
+    // If timezone hasn't changed (or first time), nothing to re-derive
+    if (!storedTz || storedTz === currentTz) return;
+
+    console.log(`[tz] Timezone changed: ${storedTz} → ${currentTz}. Re-deriving future Timebox event times.`);
+
+    const todayStr = getLocalDateString();
+    const state = useStore.getState();
+    const updates: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
+
+    for (const evt of state.events) {
+      // Skip gcal events (handled by gcal merge), skip past events (keep stored times)
+      if (evt.googleEventId || evt.gcalStartISO) continue;
+      if (evt.date < todayStr) continue;
+      // Need epochs to re-derive
+      if (!evt.startEpoch || !evt.endEpoch) continue;
+
+      const startDate = new Date(evt.startEpoch);
+      const endDate = new Date(evt.endEpoch);
+      const newStart = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+      const newEnd = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+      const newDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+      const newEndDateStr = evt.endDate
+        ? `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+        : undefined;
+
+      // Only update if something actually changed
+      if (newStart !== evt.start || newEnd !== evt.end || newDateStr !== evt.date) {
+        updates.push({
+          id: evt.id,
+          changes: {
+            start: newStart,
+            end: newEnd,
+            date: newDateStr,
+            ...(newEndDateStr ? { endDate: newEndDateStr } : {}),
+          },
+        });
+      }
+    }
+
+    if (updates.length > 0) {
+      console.log(`[tz] Adjusting ${updates.length} future Timebox event(s) to ${currentTz}`);
+      state.updateEvents(updates);
+    }
+
+    // Backfill epochs for existing Timebox events that don't have them yet
+    const backfill: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
+    for (const evt of (updates.length > 0 ? useStore.getState() : state).events) {
+      if (evt.googleEventId || evt.gcalStartISO) continue;
+      if (evt.startEpoch && evt.endEpoch) continue;
+      if (!evt.date || !evt.start || !evt.end) continue;
+      const [y, m, d] = evt.date.split('-').map(Number);
+      const [sh, sm] = evt.start.split(':').map(Number);
+      const [eh, em] = evt.end.split(':').map(Number);
+      const endDateStr = evt.endDate || evt.date;
+      const [ey, emo, ed] = endDateStr.split('-').map(Number);
+      backfill.push({
+        id: evt.id,
+        changes: {
+          startEpoch: new Date(y, m - 1, d, sh, sm).getTime(),
+          endEpoch: new Date(ey, emo - 1, ed, eh, em).getTime(),
+        },
+      });
+    }
+    if (backfill.length > 0) {
+      console.log(`[tz] Backfilling epochs for ${backfill.length} Timebox event(s)`);
+      useStore.getState().updateEvents(backfill);
+    }
   }, [dataReady]);
 
   const {

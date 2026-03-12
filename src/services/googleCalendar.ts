@@ -583,15 +583,6 @@ export function loadCachedGcalData(): GcalImportResult | null {
   const calsRaw = localStorage.getItem(GCAL_CALENDARS_KEY);
   if (!eventsRaw || !calsRaw) return null;
 
-  // If the user's timezone changed since the cache was written, skip the cache
-  // entirely — the fresh import will use the correct timezone.
-  const cachedTz = localStorage.getItem('gcal_cached_timezone');
-  if (cachedTz && cachedTz !== getLocalTimeZone()) {
-    // eslint-disable-next-line no-console
-    console.log(`[gcal] Timezone changed (${cachedTz} → ${getLocalTimeZone()}), skipping stale cache`);
-    return null;
-  }
-
   try {
     const events = JSON.parse(eventsRaw) as Event[];
     const { containers, categories } = JSON.parse(calsRaw);
