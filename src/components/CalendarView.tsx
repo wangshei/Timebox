@@ -104,6 +104,9 @@ export function CalendarView({
   const [stampMode, setStampMode] = useState(false);
   const [activeStampEmoji, setActiveStampEmoji] = useState<string | null>(null);
 
+  // Hidden input ref for native emoji picker
+  const emojiInputRef = useRef<HTMLInputElement>(null);
+
   // Track container width for responsive compare layout
   const containerRef = useRef<HTMLDivElement>(null);
   const compareScrollRef = useRef<HTMLDivElement>(null);
@@ -662,7 +665,7 @@ export function CalendarView({
                     {emoji}
                   </button>
                 ))}
-                {/* Plus for custom emoji */}
+                {/* Plus for custom emoji — opens native OS emoji picker */}
                 <div className="relative">
                   <button
                     type="button"
@@ -675,19 +678,49 @@ export function CalendarView({
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                     onClick={() => {
-                      const val = prompt('Enter an emoji:');
-                      if (val && val.trim()) {
-                        // Take first grapheme cluster (emoji can be multi-codepoint)
-                        const segments = typeof Intl !== 'undefined' && Intl.Segmenter
-                          ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(val.trim())]
-                          : null;
-                        const emoji = segments && segments.length > 0 ? segments[0].segment : val.trim().slice(0, 2);
-                        setActiveStampEmoji(emoji);
+                      const input = emojiInputRef.current;
+                      if (input) {
+                        input.value = '';
+                        input.focus();
                       }
                     }}
                   >
                     +
                   </button>
+                  {/* Hidden input to capture emoji from native OS picker */}
+                  <input
+                    ref={emojiInputRef}
+                    type="text"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    style={{
+                      position: 'absolute',
+                      opacity: 0,
+                      width: 1,
+                      height: 1,
+                      pointerEvents: 'none',
+                      top: 0,
+                      left: 0,
+                      border: 'none',
+                      padding: 0,
+                      margin: 0,
+                    }}
+                    onInput={(e) => {
+                      const val = (e.target as HTMLInputElement).value;
+                      if (val && val.trim()) {
+                        const segments = typeof Intl !== 'undefined' && Intl.Segmenter
+                          ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(val.trim())]
+                          : null;
+                        const emoji = segments && segments.length > 0 ? segments[0].segment : val.trim().slice(0, 2);
+                        setActiveStampEmoji(emoji);
+                        (e.target as HTMLInputElement).value = '';
+                      }
+                    }}
+                    onBlur={() => {
+                      // Clear value when focus leaves
+                      if (emojiInputRef.current) emojiInputRef.current.value = '';
+                    }}
+                  />
                 </div>
               </div>
             </>

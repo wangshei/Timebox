@@ -169,6 +169,10 @@ export interface Event {
   attendees?: Array<{ email: string; name?: string; self?: boolean; responseStatus?: string }> | null;
   /** Whether the current user is the organizer of this event. */
   isOrganizer?: boolean;
+  /** Original Google Calendar start dateTime ISO string — used to re-derive local time on timezone change. */
+  gcalStartISO?: string | null;
+  /** Original Google Calendar end dateTime ISO string — used to re-derive local time on timezone change. */
+  gcalEndISO?: string | null;
 }
 
 export interface User {

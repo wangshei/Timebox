@@ -508,6 +508,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           link: extractEventLink(evt),
           location: extractEventLocation(evt),
           attendees: mapAttendees(evt),
+          gcalStartISO: evt.start.dateTime || null,
+          gcalEndISO: evt.end.dateTime || null,
         });
       }
 
@@ -548,6 +550,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
             link: extractEventLink(evt) || extractEventLink(first),
             location: extractEventLocation(evt) || extractEventLocation(first),
             attendees: mapAttendees(evt) || mapAttendees(first),
+            gcalStartISO: evt.start.dateTime || null,
+            gcalEndISO: evt.end.dateTime || null,
           });
         }
       }
@@ -567,7 +571,10 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
   return { calendars: containers, categories, events };
 }
 
-/** Load cached Google Calendar data from localStorage. */
+/** Load cached Google Calendar data from localStorage.
+ *  Re-derives local start/end/date from stored ISO strings so that
+ *  a timezone change between import and load is handled correctly.
+ */
 export function loadCachedGcalData(): GcalImportResult | null {
   const eventsRaw = localStorage.getItem(GCAL_EVENTS_KEY);
   const calsRaw = localStorage.getItem(GCAL_CALENDARS_KEY);
@@ -575,6 +582,22 @@ export function loadCachedGcalData(): GcalImportResult | null {
   try {
     const events = JSON.parse(eventsRaw) as Event[];
     const { containers, categories } = JSON.parse(calsRaw);
+
+    // Re-convert cached events from their original ISO datetimes
+    // so that the user's current timezone is always respected.
+    for (const evt of events) {
+      if (evt.gcalStartISO) {
+        const parsed = parseGcalDateTime({ dateTime: evt.gcalStartISO });
+        evt.start = parsed.time;
+        evt.date = parsed.date;
+      }
+      if (evt.gcalEndISO) {
+        const parsed = parseGcalDateTime({ dateTime: evt.gcalEndISO });
+        evt.end = parsed.time;
+        evt.endDate = evt.date !== parsed.date ? parsed.date : undefined;
+      }
+    }
+
     return { calendars: containers, categories, events };
   } catch {
     return null;
