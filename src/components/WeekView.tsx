@@ -443,7 +443,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                               }),
                           ];
                           const dayOverlapMap = computeOverlapLayout(allItems);
-                          const dayTimeStickers = allStickers.filter((s) => s.date === dateStr && !s.blockId);
+                          const dayTimeStickers = allStickers.filter((s) => s.date === dateStr && !s.blockId && !s.eventId);
                           return (
                             <>
                               {/* Time-anchored stickers */}
@@ -452,7 +452,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 return (
                                   <span
                                     key={sticker.id}
-                                    className={`absolute z-20 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
+                                    className="absolute z-20 select-none pointer-events-auto cursor-pointer"
                                     style={{
                                       left: `${sticker.offsetXPercent ?? 50}%`,
                                       top: `${sTop}px`,
@@ -463,26 +463,15 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                       transition: 'transform 0.1s',
                                     }}
                                     onClick={(e) => {
-                                      if (activeStampEmoji) return;
                                       e.stopPropagation();
-                                      setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                                      e.preventDefault();
+                                      deleteStickerAction(sticker.id);
                                     }}
                                     onMouseDown={(e) => e.stopPropagation()}
-                                    onMouseEnter={(e) => { if (!activeStampEmoji) (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+                                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
                                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
                                   >
                                     {sticker.emoji}
-                                    {selectedStickerId === sticker.id && (
-                                      <button
-                                        type="button"
-                                        className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
-                                        style={{ fontSize: 9, lineHeight: 1, pointerEvents: 'auto' }}
-                                        onClick={(e) => { e.stopPropagation(); deleteStickerAction(sticker.id); setSelectedStickerId(null); }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        x
-                                      </button>
-                                    )}
                                   </span>
                                 );
                               })}
@@ -562,6 +551,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     isStartSegment={seg.isStartSegment}
                                     isEndSegment={seg.isEndSegment}
                                     compact={true}
+                                    activeStampEmoji={activeStampEmoji}
                                   />
                                 );
                               })}

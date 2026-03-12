@@ -1124,7 +1124,7 @@ function TimeBlockCardInner({
             {blockStickers.map((sticker) => (
               <span
                 key={sticker.id}
-                className={`absolute z-10 select-none ${activeStampEmoji ? 'pointer-events-none' : 'pointer-events-auto cursor-pointer'}`}
+                className="absolute z-10 select-none pointer-events-auto cursor-pointer"
                 style={{
                   left: `${sticker.offsetXPercent}%`,
                   top: `${sticker.offsetYPercent}%`,
@@ -1135,25 +1135,15 @@ function TimeBlockCardInner({
                   transition: 'transform 0.1s',
                 }}
                 onClick={(e) => {
-                  if (activeStampEmoji) return;
                   e.stopPropagation();
-                  setSelectedStickerId(selectedStickerId === sticker.id ? null : sticker.id);
+                  e.preventDefault();
+                  deleteSticker(sticker.id);
                 }}
-                onMouseEnter={(e) => { if (!activeStampEmoji) (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
               >
                 {sticker.emoji}
-                {/* Delete badge */}
-                {selectedStickerId === sticker.id && (
-                  <button
-                    type="button"
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center"
-                    style={{ fontSize: 9, lineHeight: 1 }}
-                    onClick={(e) => { e.stopPropagation(); deleteSticker(sticker.id); setSelectedStickerId(null); }}
-                  >
-                    ×
-                  </button>
-                )}
               </span>
             ))}
           </>

@@ -686,12 +686,25 @@ export const useStore = create<AppState & AppActions>()(
     return id;
   },
   updateEvent: (id, updates) =>
-    set((s) => ({
-      events: s.events.map((e) => (e.id === id ? { ...e, ...updates, editedAt: Date.now() } : e)),
-    })),
+    set((s) => {
+      const result: Partial<AppState> = {
+        events: s.events.map((e) => (e.id === id ? { ...e, ...updates, editedAt: Date.now() } : e)),
+      };
+      // When an event moves to a different date, sync its stickers' dates
+      if (updates.date) {
+        const oldEvent = s.events.find((e) => e.id === id);
+        if (oldEvent && oldEvent.date !== updates.date) {
+          result.stickers = s.stickers.map((st) =>
+            st.eventId === id ? { ...st, date: updates.date! } : st
+          );
+        }
+      }
+      return result;
+    }),
   deleteEvent: (id) =>
     set((s) => ({
       events: s.events.filter((e) => e.id !== id),
+      stickers: s.stickers.filter((st) => st.eventId !== id),
     })),
 
   convertTimeBlockToEvent: (blockId, event) => {

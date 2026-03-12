@@ -10,6 +10,7 @@ import { THEME } from '../constants/colors';
 import { Chip } from './ui/chip';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
 import { useNow, useNowFrozen } from '../contexts/NowContext';
+import { useStore } from '../store/useStore';
 
 const POPOVER_WIDTH = 220;
 const POPOVER_MAX_HEIGHT = 420;
@@ -60,6 +61,8 @@ interface EventCardProps {
   /** Segment indicators for cross-date events */
   isStartSegment?: boolean;
   isEndSegment?: boolean;
+  /** When set, blocks are in stamp mode — clicking stamps this emoji. */
+  activeStampEmoji?: string | null;
 }
 
 export function EventCard({
@@ -79,6 +82,7 @@ export function EventCard({
   showDifferences = false,
   isStartSegment = true,
   isEndSegment = true,
+  activeStampEmoji,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm' | 'confirm_gcal'>(null);
@@ -92,6 +96,26 @@ export function EventCard({
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverOpenedAtRef = useRef<number>(0);
   const dragEndedRef = useRef(false);
+  const addSticker = useStore((s) => s.addSticker);
+  const stickers = useStore((s) => s.stickers);
+  const deleteSticker = useStore((s) => s.deleteSticker);
+  const eventStickers = React.useMemo(() => stickers.filter((s) => s.eventId === event.id), [stickers, event.id]);
+
+  const handleStamp = (e: React.MouseEvent) => {
+    if (!activeStampEmoji || !cardRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = cardRef.current.getBoundingClientRect();
+    const offsetXPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+    const offsetYPercent = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+    addSticker({
+      emoji: activeStampEmoji,
+      date: event.date,
+      eventId: event.id,
+      offsetXPercent,
+      offsetYPercent,
+    });
+  };
 
   useEffect(() => {
     if (frozen) { setNow(nowCtx); return; }
@@ -276,14 +300,15 @@ export function EventCard({
       )}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={() => {
+      onClick={(e) => {
         if (dragEndedRef.current) { dragEndedRef.current = false; return; }
+        if (activeStampEmoji) { handleStamp(e); return; }
         onSelect();
         popoverOpenedAtRef.current = Date.now();
         setShowPopover(true);
         setShowDetails(false);
       }}
-      onPointerDown={draggable ? handlePointerDragStart : undefined}
+      onPointerDown={!activeStampEmoji && draggable ? handlePointerDragStart : undefined}
     >
       <div
         className={cn(
@@ -387,6 +412,37 @@ export function EventCard({
           </div>
         )}
       </div>
+
+      {/* Positioned stickers */}
+      {eventStickers.length > 0 && (
+        <>
+          {eventStickers.map((sticker) => (
+            <span
+              key={sticker.id}
+              className="absolute z-10 select-none pointer-events-auto cursor-pointer"
+              style={{
+                left: `${sticker.offsetXPercent}%`,
+                top: `${sticker.offsetYPercent}%`,
+                transform: 'translate(-50%, -50%)',
+                fontSize: 16,
+                lineHeight: 1,
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                transition: 'transform 0.1s',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                deleteSticker(sticker.id);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
+            >
+              {sticker.emoji}
+            </span>
+          ))}
+        </>
+      )}
 
       {onResizeStart && (
         <div

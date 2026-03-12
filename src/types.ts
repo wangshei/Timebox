@@ -105,11 +105,13 @@ export interface Sticker {
   date: string; // YYYY-MM-DD
   /** Block-anchored: sticker moves with this block. */
   blockId?: string | null;
-  /** For block-anchored: horizontal offset 0–100% within block. */
+  /** Event-anchored: sticker moves with this event. */
+  eventId?: string | null;
+  /** For block/event-anchored: horizontal offset 0–100% within card. */
   offsetXPercent: number;
-  /** For block-anchored: vertical offset 0–100% within block. */
+  /** For block/event-anchored: vertical offset 0–100% within card. */
   offsetYPercent: number;
-  /** For time-anchored (no blockId): minutes from midnight. */
+  /** For time-anchored (no blockId/eventId): minutes from midnight. */
   timeMinutes?: number;
 }
 
