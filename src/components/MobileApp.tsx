@@ -296,6 +296,8 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const deleteTimeBlock = useStore((s) => s.deleteTimeBlock);
   const deleteEvent = useStore((s) => s.deleteEvent);
   const updateTask = useStore((s) => s.updateTask);
+  const updateTimeBlock = useStore((s) => s.updateTimeBlock);
+  const updateEvent = useStore((s) => s.updateEvent);
   const { saveSnapshot } = useHistoryStore();
 
   const today = getLocalDateString();
@@ -316,6 +318,14 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const isSkipped = item.confirmationStatus === 'skipped';
   const isBlock = item.type === 'block';
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(item.title);
+  const [editDate, setEditDate] = useState(fullBlock?.date ?? fullEvent?.date ?? today);
+  const [editStart, setEditStart] = useState(item.start);
+  const [editEnd, setEditEnd] = useState(item.end);
+  const [editCategoryId, setEditCategoryId] = useState(fullBlock?.categoryId ?? fullEvent?.categoryId ?? '');
+
   const handleDelete = () => {
     saveSnapshot();
     if (isBlock) deleteTimeBlock(item.id);
@@ -327,6 +337,48 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
     if (!linkedTask) return;
     saveSnapshot();
     updateTask(linkedTask.id, { status: linkedTask.status === 'done' ? 'inbox' : 'done' });
+  };
+
+  const handleSaveEdit = () => {
+    saveSnapshot();
+    // Normalize time format (HTML time inputs give HH:MM, we need H:MM)
+    const normalizeTime = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return `${h}:${String(m).padStart(2, '0')}`;
+    };
+    const normStart = normalizeTime(editStart);
+    const normEnd = normalizeTime(editEnd);
+
+    if (isBlock && fullBlock) {
+      updateTimeBlock(item.id, {
+        title: editTitle,
+        date: editDate,
+        start: normStart,
+        end: normEnd,
+        categoryId: editCategoryId,
+        editedAt: Date.now(),
+      });
+      // Also update linked task title if changed
+      if (linkedTask && editTitle !== linkedTask.title) {
+        updateTask(linkedTask.id, { title: editTitle, categoryId: editCategoryId });
+      }
+    } else if (fullEvent) {
+      updateEvent(item.id, {
+        title: editTitle,
+        date: editDate,
+        start: normStart,
+        end: normEnd,
+        categoryId: editCategoryId,
+      });
+    }
+    setIsEditing(false);
+    onClose();
+  };
+
+  // Format time for HTML input (needs HH:MM with leading zeros)
+  const toInputTime = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
   return (
@@ -347,7 +399,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           backgroundColor: '#FFFFFF',
           borderRadius: '16px 16px 0 0',
           boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
-          maxHeight: '70vh',
+          maxHeight: '80vh',
           overflowY: 'auto',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
           animation: 'slideUp 0.2s ease-out',
@@ -359,12 +411,134 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
         </div>
 
         <div style={{ padding: '4px 20px 16px' }}>
+          {isEditing ? (
+            /* ─── Edit Mode ─── */
+            <>
+              {/* Title input */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.12)', fontSize: 15,
+                    color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* Date input */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.12)', fontSize: 14,
+                    color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* Time inputs */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <input
+                    type="time"
+                    value={toInputTime(editStart)}
+                    onChange={(e) => setEditStart(e.target.value)}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.12)', fontSize: 14,
+                      color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <input
+                    type="time"
+                    value={toInputTime(editEnd)}
+                    onChange={(e) => setEditEnd(e.target.value)}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.12)', fontSize: 14,
+                      color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Category picker */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Category</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {categories.map((c) => {
+                    const isSel = editCategoryId === c.id;
+                    return (
+                      <button key={c.id} type="button" onClick={() => setEditCategoryId(c.id)} className="touch-manipulation"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                          border: isSel ? 'none' : '1px solid rgba(0,0,0,0.10)',
+                          backgroundColor: isSel ? `${c.color}20` : 'transparent',
+                          color: isSel ? c.color : '#636366',
+                        }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.color }} />
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Save / Cancel buttons */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="touch-manipulation"
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={!editTitle.trim()}
+                  className="touch-manipulation"
+                  style={{
+                    flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    border: 'none',
+                    backgroundColor: editTitle.trim() ? THEME.primary : 'rgba(0,0,0,0.06)',
+                    color: editTitle.trim() ? '#FFFFFF' : '#AEAEB2',
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </>
+          ) : (
+            /* ─── View Mode ─── */
+            <>
           {/* Category + color accent */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
             {cat && <span style={{ fontSize: 12, fontWeight: 500, color: item.color }}>{cat.name}</span>}
             <span style={{ fontSize: 11, color: '#8E8E93', marginLeft: 'auto' }}>
-              {item.type === 'event' ? 'Event' : 'Block'}
+              Event
             </span>
           </div>
 
@@ -451,7 +625,23 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           {/* Actions */}
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 12, marginTop: 4 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Confirm / Skip for past unconfirmed blocks */}
+              {/* Edit button */}
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="touch-manipulation"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                  border: 'none', backgroundColor: 'transparent',
+                  fontSize: 14, fontWeight: 500, color: THEME.primary,
+                  borderRadius: 8, width: '100%', textAlign: 'left',
+                }}
+              >
+                <PencilIcon style={{ width: 18, height: 18 }} />
+                Edit
+              </button>
+
+              {/* Confirm / Skip for past unconfirmed events */}
               {isBlock && isPast && !isConfirmed && !isSkipped && onConfirm && (
                 <button
                   type="button"
@@ -516,10 +706,12 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                 }}
               >
                 <TrashIcon style={{ width: 18, height: 18 }} />
-                Delete {item.type === 'event' ? 'event' : 'block'}
+                Delete event
               </button>
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
     </>
@@ -1409,12 +1601,46 @@ function ScheduleTab() {
 function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
   task: Task; color: string;
   onScheduleToday: (task: Task) => void;
-  onScheduleLater: (task: Task) => void;
+  onScheduleLater: (task: Task, date: string, time: string) => void;
 }) {
   const updateTask = useStore((s) => s.updateTask);
   const categories = useStore((s) => s.categories);
   const { saveSnapshot } = useHistoryStore();
   const [mins, setMins] = useState(task.estimatedMinutes || 30);
+  const [showReschedulePicker, setShowReschedulePicker] = useState(false);
+
+  // Reschedule picker state
+  const todayStr = getLocalDateString();
+  const [pickerDate, setPickerDate] = useState('');
+  const [pickerTime, setPickerTime] = useState('09:00');
+
+  // Generate day buttons: next 14 days
+  const dayOptions = useMemo(() => {
+    const days: { date: string; label: string; sublabel: string }[] = [];
+    for (let i = 0; i <= 13; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' });
+      const sublabel = i <= 1 ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      days.push({ date: dateStr, label, sublabel });
+    }
+    return days;
+  }, []);
+
+  // Time slot presets
+  const timeSlots = useMemo(() => [
+    { label: '9:00am', value: '09:00' },
+    { label: '10:00am', value: '10:00' },
+    { label: '11:00am', value: '11:00' },
+    { label: '12:00pm', value: '12:00' },
+    { label: '1:00pm', value: '13:00' },
+    { label: '2:00pm', value: '14:00' },
+    { label: '3:00pm', value: '15:00' },
+    { label: '4:00pm', value: '16:00' },
+    { label: '5:00pm', value: '17:00' },
+    { label: '6:00pm', value: '18:00' },
+  ], []);
 
   // Snap to preset stops for a nice feel
   const presets = [15, 30, 45, 60, 90, 120, 180, 240];
@@ -1446,11 +1672,17 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
     }
     onScheduleToday({ ...task, estimatedMinutes: mins });
   };
-  const scheduleLater = () => {
+
+  const handleRescheduleConfirm = () => {
+    if (!pickerDate) return;
     if (mins !== task.estimatedMinutes) {
       updateTask(task.id, { estimatedMinutes: mins });
     }
-    onScheduleLater({ ...task, estimatedMinutes: mins });
+    // Normalize time: pickerTime is HH:MM, convert to H:MM
+    const [h, m] = pickerTime.split(':').map(Number);
+    const normTime = `${h}:${String(m).padStart(2, '0')}`;
+    onScheduleLater({ ...task, estimatedMinutes: mins }, pickerDate, normTime);
+    setShowReschedulePicker(false);
   };
 
   const cat = categories.find((c) => c.id === task.categoryId);
@@ -1545,7 +1777,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
         </button>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); scheduleLater(); }}
+          onClick={(e) => { e.stopPropagation(); setShowReschedulePicker(true); setPickerDate(dayOptions[1]?.date ?? todayStr); }}
           className="touch-manipulation"
           style={{
             flex: 1, padding: '8px 10px', borderRadius: 8,
@@ -1557,9 +1789,149 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          Later this week
+          Reschedule
         </button>
       </div>
+
+      {/* Reschedule date/time picker popup */}
+      {showReschedulePicker && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={(e) => { e.stopPropagation(); setShowReschedulePicker(false); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 90,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          />
+          {/* Bottom sheet picker */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              maxHeight: '75vh',
+              overflowY: 'auto',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+              animation: 'slideUp 0.2s ease-out',
+            }}
+          >
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
+            </div>
+
+            <div style={{ padding: '4px 20px 16px' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 14px' }}>
+                Reschedule "{task.title}"
+              </h3>
+
+              {/* Date picker — day buttons */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a day</span>
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                  {dayOptions.map((opt) => {
+                    const isSel = pickerDate === opt.date;
+                    return (
+                      <button
+                        key={opt.date}
+                        type="button"
+                        onClick={() => setPickerDate(opt.date)}
+                        className="touch-manipulation"
+                        style={{
+                          flexShrink: 0,
+                          display: 'flex', flexDirection: 'column', alignItems: 'center',
+                          padding: '8px 10px', borderRadius: 10, minWidth: 54,
+                          border: isSel ? 'none' : '1px solid rgba(0,0,0,0.10)',
+                          backgroundColor: isSel ? `${THEME.primary}15` : 'transparent',
+                          color: isSel ? THEME.primary : THEME.textSecondary,
+                        }}
+                      >
+                        <span style={{ fontSize: 11, fontWeight: 600 }}>{opt.label}</span>
+                        <span style={{ fontSize: 9, color: isSel ? THEME.primary : '#8E8E93', marginTop: 1 }}>{opt.sublabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time slot picker */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a time</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {timeSlots.map((slot) => {
+                    const isSel = pickerTime === slot.value;
+                    return (
+                      <button
+                        key={slot.value}
+                        type="button"
+                        onClick={() => setPickerTime(slot.value)}
+                        className="touch-manipulation"
+                        style={{
+                          padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                          border: isSel ? 'none' : '1px solid rgba(0,0,0,0.10)',
+                          backgroundColor: isSel ? `${THEME.primary}15` : 'transparent',
+                          color: isSel ? THEME.primary : THEME.textSecondary,
+                        }}
+                      >
+                        {slot.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Custom time input */}
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: '#8E8E93' }}>or</span>
+                  <input
+                    type="time"
+                    value={pickerTime}
+                    onChange={(e) => setPickerTime(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      padding: '6px 10px', borderRadius: 8,
+                      border: '1px solid rgba(0,0,0,0.12)', fontSize: 13,
+                      color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Confirm / Cancel */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowReschedulePicker(false)}
+                  className="touch-manipulation"
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500,
+                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRescheduleConfirm}
+                  disabled={!pickerDate}
+                  className="touch-manipulation"
+                  style={{
+                    flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                    border: 'none',
+                    backgroundColor: pickerDate ? THEME.primary : 'rgba(0,0,0,0.06)',
+                    color: pickerDate ? '#FFFFFF' : '#AEAEB2',
+                  }}
+                >
+                  Schedule
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1768,39 +2140,31 @@ function TodoTab() {
     }
   }, [timeBlocks, events, todayStr, saveSnapshot, addTimeBlock, updateTask]);
 
-  const handleScheduleLater = useCallback((task: Task) => {
-    // Find next available slot across the next 7 days (skip today)
+  const handleScheduleLater = useCallback((task: Task, date: string, time: string) => {
     const duration = task.estimatedMinutes || 30;
-    for (let i = 1; i <= 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const slot = findNextAvailableSlot(timeBlocks, events, dateStr, duration, '9:00', '18:00');
-      if (slot) {
-        saveSnapshot();
-        addTimeBlock({
-          taskId: task.id,
-          title: task.title,
-          date: dateStr,
-          start: slot.start,
-          end: slot.end,
-          mode: 'planned',
-          source: 'manual',
-          categoryId: task.categoryId,
-          calendarContainerId: task.calendarContainerId,
-          tagIds: task.tagIds ?? [],
-        });
-        setExpandedTaskId(null);
-        if (task.status === 'inbox' || !task.status) {
-          updateTask(task.id, { status: 'planned' });
-        }
-        const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        setTimeout(() => alert(`Scheduled for ${dayLabel} at ${formatTime12(slot.start)}`), 50);
-        return;
-      }
+    const endMins = parseTimeToMinutes(time) + duration;
+    const endTime = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+    saveSnapshot();
+    addTimeBlock({
+      taskId: task.id,
+      title: task.title,
+      date,
+      start: time,
+      end: endTime,
+      mode: 'planned',
+      source: 'manual',
+      categoryId: task.categoryId,
+      calendarContainerId: task.calendarContainerId,
+      tagIds: task.tagIds ?? [],
+    });
+    setExpandedTaskId(null);
+    if (task.status === 'inbox' || !task.status) {
+      updateTask(task.id, { status: 'planned' });
     }
-    alert('No available slots found this week.');
-  }, [timeBlocks, events, saveSnapshot, addTimeBlock, updateTask]);
+    const d = new Date(date + 'T00:00:00');
+    const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    setTimeout(() => alert(`Scheduled for ${dayLabel} at ${formatTime12(time)}`), 50);
+  }, [saveSnapshot, addTimeBlock, updateTask]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
