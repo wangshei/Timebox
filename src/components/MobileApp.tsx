@@ -140,7 +140,7 @@ export function MobileApp() {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw', overscrollBehavior: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw', overscrollBehavior: 'none', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {/* Top tab bar — fixed at top */}
       <nav
         style={{
@@ -190,7 +190,7 @@ export function MobileApp() {
       </nav>
 
       {/* Content — fills remaining height */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'todo' && <TodoTab />}
       </div>
