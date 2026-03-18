@@ -623,6 +623,37 @@ export function startSupabasePersistence() {
   };
   window.addEventListener('beforeunload', handleBeforeUnload);
 
+  // When the browser comes back online, flush the current store to Supabase
+  // so any edits made while offline are synced.
+  const handleOnline = async () => {
+    // eslint-disable-next-line no-console
+    console.log('[supabasePersistence] Back online — syncing offline changes...');
+
+    // If the app started offline, supabaseLoaded is still false because
+    // loadSupabaseState was never called. Load now before flushing.
+    if (!supabaseLoaded) {
+      try {
+        await loadSupabaseState();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[supabasePersistence] Failed to load after coming online', e);
+        return;
+      }
+    }
+
+    const state = useStore.getState();
+    const slice: PersistableState = {
+      tasks: state.tasks,
+      timeBlocks: state.timeBlocks,
+      calendarContainers: state.calendarContainers,
+      categories: state.categories,
+      tags: state.tags,
+      events: state.events,
+    };
+    scheduleFlush(slice);
+  };
+  window.addEventListener('online', handleOnline);
+
   // Realtime: reload state when another client makes a change.
   // Queue changes while the tab is hidden and do ONE reload when it becomes visible.
   let reloadTimer: ReturnType<typeof setTimeout> | null = null;
@@ -679,6 +710,7 @@ export function startSupabasePersistence() {
 
   return () => {
     unsubscribeStore();
+    window.removeEventListener('online', handleOnline);
     window.removeEventListener('beforeunload', handleBeforeUnload);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     void supabase!.removeChannel(channel);

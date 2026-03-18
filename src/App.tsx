@@ -204,11 +204,12 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false);
   // Pre-auth navigation: always show auth screen (landing page lives in the separate landing site)
   const [preAuthScreen, setPreAuthScreen] = useState<'auth'>('auth');
-  const [authMode, setAuthMode] = useState<'signup' | 'login' | 'waitlist'>(
-    _urlMode === 'login' ? 'login' : _urlMode === 'waitlist' ? 'waitlist' : 'signup'
+  const [authMode, setAuthMode] = useState<'signup' | 'login' | 'waitlist' | 'download'>(
+    _urlMode === 'login' ? 'login' : _urlMode === 'waitlist' ? 'waitlist' : _urlMode === 'download' ? 'download' : 'signup'
   );
   // Walkthrough tour: show after wizard completion or for existing users who haven't seen it
   const [showTour, setShowTour] = useState(false);
+  const [tzChangeBanner, setTzChangeBanner] = useState<{ from: string; to: string; count: number } | null>(null);
 
   // Auto-show walkthrough for existing users who completed setup but never saw the tour
   useEffect(() => {
@@ -332,9 +333,10 @@ export default function App() {
       .catch(err => console.warn('[gcal] Background refresh failed:', err));
   }, [dataReady]);
 
-  // Re-derive Timebox event times when timezone changes.
+  // Re-derive event times when timezone changes.
   // Events represent absolute appointments — their wall-clock time should shift
   // when the user moves to a different timezone. Tasks/blocks stay at wall-clock time.
+  // Also re-derives gcal events from stored ISO strings.
   const tzAdjustedRef = useRef(false);
   useEffect(() => {
     if (!dataReady || tzAdjustedRef.current) return;
@@ -348,17 +350,32 @@ export default function App() {
     // If timezone hasn't changed (or first time), nothing to re-derive
     if (!storedTz || storedTz === currentTz) return;
 
-    console.log(`[tz] Timezone changed: ${storedTz} → ${currentTz}. Re-deriving future Timebox event times.`);
+    console.log(`[tz] Timezone changed: ${storedTz} → ${currentTz}. Re-deriving event times.`);
 
     const todayStr = getLocalDateString();
     const state = useStore.getState();
     const updates: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
 
     for (const evt of state.events) {
-      // Skip gcal events (handled by gcal merge), skip past events (keep stored times)
-      if (evt.googleEventId || evt.gcalStartISO) continue;
+      // --- GCal events: re-derive from stored ISO ---
+      if (evt.gcalStartISO || evt.googleEventId) {
+        if (!evt.gcalStartISO) continue;
+        const s = new Date(evt.gcalStartISO);
+        const newStart = `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`;
+        const newDateStr = s.toLocaleDateString('en-CA');
+        const changes: Partial<import('./types').Event> = { start: newStart, date: newDateStr };
+        if (evt.gcalEndISO) {
+          const e = new Date(evt.gcalEndISO);
+          changes.end = `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`;
+        }
+        if (newStart !== evt.start || newDateStr !== evt.date || changes.end !== evt.end) {
+          updates.push({ id: evt.id, changes });
+        }
+        continue;
+      }
+
+      // --- Timebox events: re-derive future events from epoch ---
       if (evt.date < todayStr) continue;
-      // Need epochs to re-derive
       if (!evt.startEpoch || !evt.endEpoch) continue;
 
       const startDate = new Date(evt.startEpoch);
@@ -370,7 +387,6 @@ export default function App() {
         ? `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
         : undefined;
 
-      // Only update if something actually changed
       if (newStart !== evt.start || newEnd !== evt.end || newDateStr !== evt.date) {
         updates.push({
           id: evt.id,
@@ -385,9 +401,12 @@ export default function App() {
     }
 
     if (updates.length > 0) {
-      console.log(`[tz] Adjusting ${updates.length} future Timebox event(s) to ${currentTz}`);
+      console.log(`[tz] Adjusting ${updates.length} event(s) to ${currentTz}`);
       state.updateEvents(updates);
     }
+
+    // Show timezone change banner
+    setTzChangeBanner({ from: storedTz, to: currentTz, count: updates.length });
 
     // Backfill epochs for existing Timebox events that don't have them yet
     const backfill: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
@@ -1647,18 +1666,45 @@ export default function App() {
 
     // Validate the session server-side (getUser hits the API, unlike getSession
     // which only reads the cached JWT). This ensures deleted users are signed out.
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) {
-        // Token is invalid or user was deleted — clear the stale session
-        void supabase!.auth.signOut();
-        void setupForSession(null);
-      } else {
-        // User is valid — get the full session object
-        supabase!.auth.getSession().then(({ data: sessionData }) => {
-          void setupForSession(sessionData.session);
-        });
-      }
-    });
+    // When offline, fall back to the cached session so the app still works.
+    if (!navigator.onLine) {
+      // Offline: skip server validation, use cached session from localStorage
+      // eslint-disable-next-line no-console
+      console.log('[App] Offline — using cached session');
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        void setupForSession(sessionData.session);
+      });
+    } else {
+      supabase.auth.getUser().then(({ data, error }) => {
+        if (error || !data.user) {
+          // Distinguish network errors from auth errors — network errors mean
+          // we're offline or the server is unreachable, not that the user is invalid.
+          const isNetworkError = error && (
+            error.message?.includes('fetch') ||
+            error.message?.includes('network') ||
+            error.message?.includes('Failed to fetch') ||
+            error.message?.includes('NetworkError') ||
+            error.status === 0
+          );
+          if (isNetworkError) {
+            // eslint-disable-next-line no-console
+            console.log('[App] Network error validating session — using cached session');
+            supabase!.auth.getSession().then(({ data: sessionData }) => {
+              void setupForSession(sessionData.session);
+            });
+          } else {
+            // Token is truly invalid or user was deleted — clear the stale session
+            void supabase!.auth.signOut();
+            void setupForSession(null);
+          }
+        } else {
+          // User is valid — get the full session object
+          supabase!.auth.getSession().then(({ data: sessionData }) => {
+            void setupForSession(sessionData.session);
+          });
+        }
+      });
+    }
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       // Password recovery: show reset form instead of entering the app
@@ -1914,6 +1960,24 @@ export default function App() {
             onClick={() => setSaveError(false)}
             className="px-2 py-1 rounded font-medium transition-colors"
             style={{ border: '1px solid rgba(255,149,0,0.3)', color: '#996300' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Timezone change banner */}
+      {tzChangeBanner && (
+        <div className="w-full border-b px-4 py-1.5 flex items-center justify-between text-xs" style={{ borderColor: 'rgba(100,149,237,0.3)', backgroundColor: 'rgba(100,149,237,0.06)' }}>
+          <span style={{ color: '#3A5BA0' }} className="font-medium">
+            Timezone changed from {tzChangeBanner.from} to {tzChangeBanner.to}
+            {tzChangeBanner.count > 0 ? ` — ${tzChangeBanner.count} event${tzChangeBanner.count === 1 ? '' : 's'} adjusted` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setTzChangeBanner(null)}
+            className="px-2 py-1 rounded font-medium transition-colors"
+            style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
           >
             Dismiss
           </button>

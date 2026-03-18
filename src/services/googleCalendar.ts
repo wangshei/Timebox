@@ -584,8 +584,38 @@ export function loadCachedGcalData(): GcalImportResult | null {
   if (!eventsRaw || !calsRaw) return null;
 
   try {
-    const events = JSON.parse(eventsRaw) as Event[];
+    let events = JSON.parse(eventsRaw) as Event[];
     const { containers, categories } = JSON.parse(calsRaw);
+
+    // If timezone changed since cache was written, re-derive local times from ISO strings
+    const cachedTz = localStorage.getItem('gcal_cached_timezone');
+    const currentTz = getLocalTimeZone();
+    if (cachedTz && cachedTz !== currentTz) {
+      // eslint-disable-next-line no-console
+      console.log(`[gcal] Timezone changed (${cachedTz} → ${currentTz}), re-deriving cached event times`);
+      events = events.map(evt => {
+        if (evt.gcalStartISO) {
+          const s = new Date(evt.gcalStartISO);
+          evt = {
+            ...evt,
+            date: s.toLocaleDateString('en-CA'),
+            start: `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`,
+          };
+        }
+        if (evt.gcalEndISO) {
+          const e = new Date(evt.gcalEndISO);
+          evt = {
+            ...evt,
+            end: `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`,
+          };
+        }
+        return evt;
+      });
+      // Update cache with corrected times and new timezone
+      localStorage.setItem(GCAL_EVENTS_KEY, JSON.stringify(events));
+      localStorage.setItem('gcal_cached_timezone', currentTz);
+    }
+
     return { calendars: containers, categories, events };
   } catch {
     return null;

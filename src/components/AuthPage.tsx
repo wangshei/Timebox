@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-type AuthMode = 'signup' | 'login' | 'forgot' | 'reset' | 'waitlist';
+type AuthMode = 'signup' | 'login' | 'forgot' | 'reset' | 'waitlist' | 'download';
 
 interface AuthPageProps {
   supabase: SupabaseClient | null;
@@ -312,6 +312,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
     if (mode === 'forgot') return 'Enter your email to receive a reset link.';
     if (mode === 'reset') return 'Choose a new password.';
     if (mode === 'waitlist') return 'Join the waitlist to get early access.';
+    if (mode === 'download') return 'Get the app on your phone or desktop.';
     if (mode === 'signup') return 'Create an account to save your calendar.';
     return 'Welcome back.';
   })();
@@ -555,6 +556,103 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   </button>
                 </div>
               </form>
+            ) : mode === 'download' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0, textAlign: 'center' }}>
+                  Install The Timeboxing Club on your device for offline access.
+                </p>
+
+                {/* Web app (PWA) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '16px',
+                    borderRadius: 12,
+                    backgroundColor: '#F5F4F0',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <div style={{ fontSize: 28, lineHeight: 1 }}>
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                      <rect x="2" y="3" width="24" height="18" rx="2.5" stroke="#8DA286" strokeWidth="1.5" />
+                      <path d="M8 24h12" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M14 21v3" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" />
+                      <rect x="9" y="1" width="10" height="20" rx="2" stroke="#8DA286" strokeWidth="1.2" fill="#F5F4F0" />
+                      <rect x="12.5" y="18" width="3" height="1" rx="0.5" fill="#8DA286" />
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1C1C1E', margin: '0 0 2px' }}>
+                      Phone or Tablet
+                    </p>
+                    <p style={{ fontSize: 12, color: '#8E8E93', margin: 0, lineHeight: 1.4 }}>
+                      Open this site in Safari or Chrome, then tap <strong>Share</strong> → <strong>Add to Home Screen</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Desktop app */}
+                <a
+                  href="https://timeboxing.club/desktop"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '16px',
+                    borderRadius: 12,
+                    backgroundColor: '#F5F4F0',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'border-color 200ms',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(141,162,134,0.4)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)')}
+                >
+                  <div style={{ fontSize: 28, lineHeight: 1 }}>
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                      <rect x="2" y="3" width="24" height="18" rx="2.5" stroke="#8DA286" strokeWidth="1.5" />
+                      <path d="M8 24h12" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M14 21v3" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1C1C1E', margin: '0 0 2px' }}>
+                      Desktop App
+                    </p>
+                    <p style={{ fontSize: 12, color: '#8E8E93', margin: 0, lineHeight: 1.4 }}>
+                      Download for macOS
+                    </p>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M8 3v7m0 0l-3-3m3 3l3-3M4 13h8" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+
+                <div style={{ textAlign: 'center', marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    style={{
+                      fontSize: 13,
+                      color: '#8DA286',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'color 200ms',
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  >
+                    Sign up instead
+                  </button>
+                </div>
+              </div>
             ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {/* Name field — signup only */}
@@ -828,7 +926,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       Don't have a code?{' '}
                       <button
                         type="button"
-                        onClick={() => switchMode('waitlist')}
+                        onClick={() => switchMode('download')}
                         style={{
                           fontSize: 12,
                           color: '#8DA286',
@@ -840,7 +938,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                           padding: 0,
                         }}
                       >
-                        Join the waitlist
+                        Download the app
                       </button>
                     </p>
                   )}
@@ -856,7 +954,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
           )}
 
           {/* Or divider + secondary action — hide in forgot/reset/waitlist modes */}
-          {!isForgotOrReset && mode !== 'waitlist' && !awaitingConfirmation && !waitlistJoined && (
+          {!isForgotOrReset && mode !== 'waitlist' && mode !== 'download' && !awaitingConfirmation && !waitlistJoined && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
@@ -935,32 +1033,31 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             </button>
           </div>
         )}
-        {/* Desktop app promo */}
-        {mode !== 'reset' && !waitlistJoined && (
+        {/* Download app link */}
+        {mode !== 'reset' && mode !== 'download' && !waitlistJoined && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <a
-              href="https://timeboxing.club/desktop"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => switchMode('download')}
               style={{
                 fontSize: 12,
                 color: '#8E8E93',
-                textDecoration: 'none',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,
                 transition: 'color 200ms',
+                fontFamily: 'inherit',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1" y="1.5" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M4.5 12.5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                <path d="M7 10.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M7 2v7m0 0l-2.5-2.5M7 9l2.5-2.5M3 12h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Also available as a desktop app
-            </a>
+              Download the app
+            </button>
           </div>
         )}
       </div>
