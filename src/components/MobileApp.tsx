@@ -1336,17 +1336,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
-              </p>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div className="flex items-center gap-2">
-                {selectedDate !== today && (
-                  <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-                    style={{ fontSize: 11, color: THEME.primary, border: 'none', backgroundColor: 'transparent', fontWeight: 500, padding: 0 }}>
-                    Today
-                  </button>
-                )}
+                <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
+                  {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
+                </p>
                 {pendingCount > 0 && scheduleView === 'day' && (
                   <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500' }}>{pendingCount} to review</span>
                 )}
@@ -1360,6 +1354,18 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
+            {selectedDate !== today && (
+              <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation flex items-center justify-center"
+                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 10, fontWeight: 600 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                  <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Right: Day/Week toggle */}
@@ -1518,7 +1524,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                       padding: isCompact ? '1px 5px' : '4px 6px',
                       overflow: 'hidden',
                       cursor: 'pointer',
-                      opacity: isDragging ? 0.85 : isSkipped ? 0.4 : 1,
+                      opacity: isDragging ? 0.85 : isSkipped ? 0.4 : isPast && !isConfirmed ? 0.55 : isPast && isConfirmed ? 0.7 : 1,
                       zIndex: isDragging ? 50 : isTapped ? 15 : 5,
                       transition: isDragging ? 'none' : 'top 0.15s ease',
                       ...blockStyle,
@@ -1636,11 +1642,48 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                     const top = ((startM - gridStartMins) / 60) * HOUR_HEIGHT;
                     const height = Math.max(((endM - startM) / 60) * HOUR_HEIGHT, 14);
                     const isEvent = item.type === 'event';
+                    const isPast = dateStr < today || (dateStr === today && endM <= nowMins);
+                    const isConfirmed = item.confirmationStatus === 'confirmed';
+                    const isSkipped = item.confirmationStatus === 'skipped';
                     const layout = overlapMap.get(item.id);
                     const colIdx = layout?.columnIndex ?? 0;
                     const totalCols = layout?.totalColumns ?? 1;
                     const colW = 100 / totalCols;
                     const leftPct = colIdx * colW;
+
+                    // Match day view block styles
+                    const weekBlockStyle: React.CSSProperties = isEvent
+                      ? {
+                          borderLeft: `2px solid ${isPast ? hexToRgba(item.color, 0.4) : item.color}`,
+                          backgroundColor: isPast ? hexToRgba(item.color, 0.08) : hexToRgba(item.color, 0.10),
+                          borderRadius: '0 2px 2px 0',
+                        }
+                      : isPast && isConfirmed
+                      ? {
+                          borderTop: `2px solid ${hexToRgba(item.color, 0.35)}`,
+                          borderLeft: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                          borderRight: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                          borderBottom: `1px solid ${hexToRgba(item.color, 0.18)}`,
+                          backgroundColor: hexToRgba(item.color, 0.12),
+                          borderRadius: 2,
+                        }
+                      : isPast
+                      ? {
+                          borderTop: `2px solid ${hexToRgba(item.color, 0.30)}`,
+                          borderLeft: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                          borderRight: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                          borderBottom: `1px dashed ${hexToRgba(item.color, 0.15)}`,
+                          backgroundColor: 'rgba(0,0,0,0.03)',
+                          borderRadius: 2,
+                        }
+                      : {
+                          borderTop: `2px solid ${item.color}`,
+                          borderLeft: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                          borderRight: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                          borderBottom: `1px solid ${hexToRgba(item.color, 0.22)}`,
+                          backgroundColor: '#FFF9EC',
+                          borderRadius: 2,
+                        };
 
                     return (
                       <div
@@ -1653,17 +1696,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                           left: `${leftPct}%`,
                           width: `calc(${colW}% - 1px)`,
                           height,
-                          borderRadius: isEvent ? '0 2px 2px 0' : 2,
                           padding: '1px 2px',
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          fontSize: 8,
-                          fontWeight: 500,
-                          lineHeight: 1.2,
-                          color: '#FFFFFF',
-                          backgroundColor: isEvent ? hexToRgba(item.color, 0.75) : item.color,
-                          borderLeft: isEvent ? `2px solid ${item.color}` : 'none',
-                          opacity: item.confirmationStatus === 'skipped' ? 0.35 : 1,
+                          opacity: isSkipped ? 0.35 : isPast && !isConfirmed ? 0.55 : isPast && isConfirmed ? 0.7 : 1,
+                          ...weekBlockStyle,
                         }}
                       >
                         <span style={{
@@ -1672,6 +1709,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
                           wordBreak: 'break-all',
+                          fontSize: 8,
+                          fontWeight: 500,
+                          lineHeight: 1.2,
+                          color: THEME.textPrimary,
+                          textDecoration: isSkipped ? 'line-through' : 'none',
                         }}>
                           {item.title}
                         </span>
