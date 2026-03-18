@@ -274,6 +274,13 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
 
   const noBackend = !supabase;
 
+  // Hide "download the app" link when already running inside a native app (Capacitor) or installed PWA
+  const isInApp = typeof window !== 'undefined' && (
+    (window as any).Capacitor?.isNativePlatform?.() ||
+    window.matchMedia?.('(display-mode: standalone)')?.matches ||
+    (window.navigator as any).standalone === true
+  );
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     height: 48,
@@ -1033,8 +1040,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
             </button>
           </div>
         )}
-        {/* Download app link */}
-        {mode !== 'reset' && mode !== 'download' && !waitlistJoined && (
+        {/* Download app link — hidden when already in native app or installed PWA */}
+        {mode !== 'reset' && mode !== 'download' && !waitlistJoined && !isInApp && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <button
               onClick={() => switchMode('download')}
