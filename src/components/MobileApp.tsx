@@ -119,6 +119,11 @@ interface AgendaItem {
 
 export function MobileApp() {
   const [activeTab, setActiveTab] = useState<MobileTab>('schedule');
+  const [showAddPopup, setShowAddPopup] = useState(false);
+
+  // Refs to trigger add flows in child tabs
+  const todoAddTriggerRef = useRef<(() => void) | null>(null);
+  const scheduleAddEventTriggerRef = useRef<(() => void) | null>(null);
 
   // Prevent iOS rubber-band / pull-to-refresh on the document level
   useEffect(() => {
@@ -139,61 +144,198 @@ export function MobileApp() {
     return () => document.removeEventListener('touchmove', handler);
   }, []);
 
+  const handleNewTask = useCallback(() => {
+    setShowAddPopup(false);
+    setActiveTab('todo');
+    // Focus the input in the todo tab after switching
+    setTimeout(() => { todoAddTriggerRef.current?.(); }, 100);
+  }, []);
+
+  const handleNewEvent = useCallback(() => {
+    setShowAddPopup(false);
+    setActiveTab('schedule');
+    // Trigger event creation flow in schedule tab
+    setTimeout(() => { scheduleAddEventTriggerRef.current?.(); }, 100);
+  }, []);
+
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw', overscrollBehavior: 'none' }}>
-      {/* Top tab bar — fixed at top */}
+      {/* Content — fills remaining height, with bottom padding for nav bar */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingBottom: 0 }}>
+        {activeTab === 'schedule' && <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
+        {activeTab === 'todo' && <TodoTab addTriggerRef={todoAddTriggerRef} />}
+      </div>
+
+      {/* Bottom navigation bar */}
       <nav
         style={{
           flexShrink: 0,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
+          justifyContent: 'space-around',
           width: '100%',
-          padding: '8px 16px',
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          padding: '6px 16px',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
           backgroundColor: '#FCFBF7',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-          gap: 8,
+          borderTop: '1px solid rgba(0,0,0,0.08)',
           zIndex: 50,
         }}
       >
-        {([
-          { id: 'schedule' as const, label: 'Schedule', icon: ScheduleIcon },
-          { id: 'todo' as const, label: 'To-Do', icon: TasksIcon },
-        ]).map(({ id, label, icon: Icon }) => {
-          const isActive = activeTab === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className="touch-manipulation"
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '10px 4px',
-                borderRadius: 12,
-                color: isActive ? THEME.primary : '#AEAEB2',
-                backgroundColor: isActive ? `${THEME.primary}10` : 'transparent',
-                border: 'none',
-                WebkitTapHighlightColor: 'transparent',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Icon active={isActive} />
-              <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 500 }}>{label}</span>
-            </button>
-          );
-        })}
+        {/* Schedule tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('schedule')}
+          className="touch-manipulation"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            padding: '6px 4px 2px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: activeTab === 'schedule' ? THEME.primary : '#8E8E93',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'color 0.15s ease',
+          }}
+        >
+          <ScheduleIcon active={activeTab === 'schedule'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'schedule' ? 600 : 400 }}>Schedule</span>
+        </button>
+
+        {/* Center Add button */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', marginTop: -12 }}>
+          <button
+            type="button"
+            onClick={() => setShowAddPopup(true)}
+            className="touch-manipulation"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              border: 'none',
+              backgroundColor: THEME.primary,
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(141,162,134,0.4)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* To-Do tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('todo')}
+          className="touch-manipulation"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            padding: '6px 4px 2px',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: activeTab === 'todo' ? THEME.primary : '#8E8E93',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'color 0.15s ease',
+          }}
+        >
+          <TasksIcon active={activeTab === 'todo'} />
+          <span style={{ fontSize: 10, fontWeight: activeTab === 'todo' ? 600 : 400 }}>To-Do</span>
+        </button>
       </nav>
 
-      {/* Content — fills remaining height */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        {activeTab === 'schedule' && <ScheduleTab />}
-        {activeTab === 'todo' && <TodoTab />}
-      </div>
+      {/* Add popup / bottom sheet */}
+      {showAddPopup && (
+        <>
+          <div
+            onClick={() => setShowAddPopup(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 90,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+              animation: 'slideUp 0.2s ease-out',
+            }}
+          >
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
+            </div>
+
+            <div style={{ padding: '8px 20px 16px' }}>
+              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 12px' }}>Create new...</p>
+
+              {/* New Task option */}
+              <button
+                type="button"
+                onClick={handleNewTask}
+                className="touch-manipulation"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 8px',
+                  border: 'none', backgroundColor: 'transparent', width: '100%', textAlign: 'left',
+                  borderRadius: 10, fontSize: 15, fontWeight: 500, color: THEME.textPrimary,
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  backgroundColor: `${THEME.primary}15`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={THEME.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                New Task
+              </button>
+
+              {/* New Event option */}
+              <button
+                type="button"
+                onClick={handleNewEvent}
+                className="touch-manipulation"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 8px',
+                  border: 'none', backgroundColor: 'transparent', width: '100%', textAlign: 'left',
+                  borderRadius: 10, fontSize: 15, fontWeight: 500, color: THEME.textPrimary,
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  backgroundColor: `${THEME.primary}15`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={THEME.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                New Event
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -531,7 +673,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 const HOUR_HEIGHT = 56;
 const TIME_COL_WIDTH = 42;
 
-function ScheduleTab() {
+function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.MutableRefObject<(() => void) | null> }) {
   const timeBlocks = useStore((s) => s.timeBlocks);
   const events = useStore((s) => s.events);
   const categories = useStore((s) => s.categories);
@@ -539,6 +681,7 @@ function ScheduleTab() {
   const activeTimer = useStore((s) => s.activeTimer);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
   const updateTimeBlock = useStore((s) => s.updateTimeBlock);
+  const addEvent = useStore((s) => s.addEvent);
   const startTimer = useStore((s) => s.startTimer);
   const stopTimer = useStore((s) => s.stopTimer);
   const confirmBlock = useStore((s) => s.confirmBlock);
@@ -556,12 +699,41 @@ function ScheduleTab() {
   const [tappedBlockId, setTappedBlockId] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
   const [showStartForm, setShowStartForm] = useState(false);
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventStart, setEventStart] = useState('');
+  const [eventEnd, setEventEnd] = useState('');
+  const [eventCalendarId, setEventCalendarId] = useState('');
+  const [eventCategoryId, setEventCategoryId] = useState('');
   const [timerTitle, setTimerTitle] = useState('');
   const [selectedCalendarId, setSelectedCalendarId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [elapsed, setElapsed] = useState('0:00');
   const gridRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const eventInputRef = useRef<HTMLInputElement>(null);
+
+  // Wire up the addEvent trigger ref from parent
+  useEffect(() => {
+    if (addEventTriggerRef) {
+      addEventTriggerRef.current = () => {
+        const now = new Date();
+        const h = now.getHours();
+        const m = now.getMinutes();
+        const roundedM = Math.ceil(m / 15) * 15;
+        const startH = roundedM >= 60 ? h + 1 : h;
+        const startMin = roundedM >= 60 ? 0 : roundedM;
+        setEventStart(`${String(startH).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
+        setEventEnd(`${String(startH + 1).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
+        if (calendarContainers.length > 0 && !eventCalendarId) {
+          setEventCalendarId(calendarContainers[0].id);
+        }
+        setShowEventForm(true);
+        setTimeout(() => eventInputRef.current?.focus(), 100);
+      };
+    }
+    return () => { if (addEventTriggerRef) addEventTriggerRef.current = null; };
+  }, [addEventTriggerRef, calendarContainers, eventCalendarId]);
 
   // ─── Touch drag state ────────────────────────────────────
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
@@ -657,6 +829,44 @@ function ScheduleTab() {
   useEffect(() => {
     if (showStartForm) setTimeout(() => inputRef.current?.focus(), 100);
   }, [showStartForm]);
+
+  // Filtered categories for event form
+  const eventFilteredCategories = useMemo(() => {
+    if (!eventCalendarId) return categories;
+    return categories.filter((c) => {
+      const ids = c.calendarContainerIds;
+      if (ids && ids.length > 0) return ids.includes(eventCalendarId);
+      return c.calendarContainerId === eventCalendarId || !c.calendarContainerId;
+    });
+  }, [eventCalendarId, categories]);
+
+  // Auto-select category when event calendar changes
+  useEffect(() => {
+    if (!eventCalendarId) return;
+    const first = eventFilteredCategories[0];
+    if (first) setEventCategoryId(first.id);
+  }, [eventCalendarId, eventFilteredCategories]);
+
+  const handleCreateEvent = useCallback(() => {
+    if (!eventTitle.trim() || !eventStart || !eventEnd || !eventCategoryId) return;
+    const cat = categories.find((c) => c.id === eventCategoryId);
+    if (!cat) return;
+    saveSnapshot();
+    addEvent({
+      title: eventTitle.trim(),
+      calendarContainerId: eventCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
+      categoryId: cat.id,
+      start: eventStart,
+      end: eventEnd,
+      date: selectedDate,
+      recurring: false,
+      source: 'manual',
+    });
+    setShowEventForm(false);
+    setEventTitle('');
+    setEventStart('');
+    setEventEnd('');
+  }, [eventTitle, eventStart, eventEnd, eventCategoryId, eventCalendarId, categories, calendarContainers, selectedDate, saveSnapshot, addEvent]);
 
   const handleConfirm = useCallback((blockId: string) => {
     saveSnapshot();
@@ -1400,6 +1610,126 @@ function ScheduleTab() {
           </div>
         </div>
       )}
+
+      {/* Event creation sheet */}
+      {showEventForm && (
+        <>
+          <div
+            onClick={() => { setShowEventForm(false); setEventTitle(''); }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 90,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+              animation: 'slideUp 0.2s ease-out',
+            }}
+          >
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
+            </div>
+
+            <div style={{ padding: '8px 20px 16px' }}>
+              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 12px' }}>New Event</p>
+
+              <input
+                ref={eventInputRef}
+                type="text"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateEvent();
+                  if (e.key === 'Escape') { setShowEventForm(false); setEventTitle(''); }
+                }}
+                placeholder="Event title"
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 10,
+                  border: '1px solid rgba(0,0,0,0.10)', fontSize: 15,
+                  color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
+                  outline: 'none', boxSizing: 'border-box', marginBottom: 10,
+                }}
+              />
+
+              {/* Time inputs */}
+              <div className="flex gap-2" style={{ marginBottom: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <input
+                    type="time"
+                    value={eventStart}
+                    onChange={(e) => setEventStart(e.target.value)}
+                    style={{
+                      width: '100%', padding: '8px 10px', borderRadius: 8,
+                      border: '1px solid rgba(0,0,0,0.10)', fontSize: 14,
+                      color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <input
+                    type="time"
+                    value={eventEnd}
+                    onChange={(e) => setEventEnd(e.target.value)}
+                    style={{
+                      width: '100%', padding: '8px 10px', borderRadius: 8,
+                      border: '1px solid rgba(0,0,0,0.10)', fontSize: 14,
+                      color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Calendar chips */}
+              {calendarContainers.length > 1 && (
+                <div className="flex flex-wrap gap-2" style={{ marginBottom: 8 }}>
+                  {calendarContainers.map((cal) => {
+                    const isSel = eventCalendarId === cal.id;
+                    return (
+                      <button key={cal.id} type="button" onClick={() => setEventCalendarId(cal.id)} className="touch-manipulation"
+                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cal.color}20` : 'transparent', color: isSel ? cal.color : '#636366' }}>
+                        {cal.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2" style={{ marginBottom: 10 }}>
+                {eventFilteredCategories.map((cat) => {
+                  const isSel = eventCategoryId === cat.id;
+                  return (
+                    <button key={cat.id} type="button" onClick={() => setEventCategoryId(cat.id)} className="touch-manipulation"
+                      style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cat.color}20` : 'transparent', color: isSel ? cat.color : '#636366' }}>
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setShowEventForm(false); setEventTitle(''); }} className="touch-manipulation"
+                  style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366' }}>
+                  Cancel
+                </button>
+                <button type="button" onClick={handleCreateEvent} disabled={!eventTitle.trim() || !eventStart || !eventEnd} className="touch-manipulation"
+                  style={{ flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', backgroundColor: eventTitle.trim() && eventStart && eventEnd ? THEME.primary : 'rgba(0,0,0,0.06)', color: eventTitle.trim() && eventStart && eventEnd ? '#FFFFFF' : '#AEAEB2' }}>
+                  Create Event
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1566,7 +1896,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
 // ─── TO-DO Tab (Quick capture + task list with scheduling) ──
 
-function TodoTab() {
+function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(() => void) | null> }) {
   const tasks = useStore((s) => s.tasks);
   const timeBlocks = useStore((s) => s.timeBlocks);
   const categories = useStore((s) => s.categories);
@@ -1583,6 +1913,16 @@ function TodoTab() {
   const [isListening, setIsListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Wire up add trigger ref from parent (for bottom nav Add button)
+  useEffect(() => {
+    if (addTriggerRef) {
+      addTriggerRef.current = () => {
+        inputRef.current?.focus();
+      };
+    }
+    return () => { if (addTriggerRef) addTriggerRef.current = null; };
+  }, [addTriggerRef]);
   const recognitionRef = useRef<any>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
 
@@ -1682,20 +2022,23 @@ function TodoTab() {
   const parsed = useMemo(() => parseTaskInput(title), [title]);
 
   const handleCapture = useCallback(() => {
-    if (!parsed.title || !defaultCategory || !defaultCalendar) return;
+    if (!parsed.title) return;
+    // Use defaults with fallback — don't silently fail if calendar/category not loaded yet
+    const calId = defaultCalendar?.id ?? calendarContainers[0]?.id ?? '';
+    const catId = defaultCategory?.id ?? categories[0]?.id ?? '';
     saveSnapshot();
     addTask({
       title: parsed.title,
       estimatedMinutes: parsed.minutes,
-      calendarContainerId: defaultCalendar.id,
-      categoryId: defaultCategory.id,
+      calendarContainerId: calId,
+      categoryId: catId,
       tagIds: [],
       flexible: true,
       status: 'inbox',
     });
     setTitle('');
     inputRef.current?.focus();
-  }, [parsed, defaultCalendar, defaultCategory, saveSnapshot, addTask]);
+  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask]);
 
   // Tasks with blocks scheduled for today
   const todayTaskIds = useMemo(() => {
