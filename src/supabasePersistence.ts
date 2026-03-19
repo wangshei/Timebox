@@ -241,17 +241,14 @@ export async function loadSupabaseState(isInitialLoad = true) {
   });
 
   // Mark as loaded so the persistence subscription can start saving.
-  // Any actual changes (e.g. default Personal calendar created for new users)
-  // will be picked up by the subscription's debounced flush — no need to
-  // trigger an immediate save that redundantly writes back everything we just
-  // loaded and runs expensive orphan-delete queries on large tables.
   supabaseLoaded = true;
 
-  // The setState above already triggered the persistence subscription's
-  // scheduleFlush (500ms debounce). Since that flush would just write back
-  // exactly what we loaded, skip it by resetting the pending slice.
-  // Future real user changes will trigger new flushes normally.
-  suppressNextFlush = true;
+  // Only suppress the echo-back on the initial load. On subsequent realtime-triggered
+  // reloads, the user may have made changes just before the reload — suppressing those
+  // would silently drop their edits. The echo-back on reload is harmless (same data).
+  if (isInitialLoad) {
+    suppressNextFlush = true;
+  }
 }
 
 // --- Persist from Zustand store into Supabase ---
@@ -633,7 +630,7 @@ export function startSupabasePersistence() {
     // loadSupabaseState was never called. Load now before flushing.
     if (!supabaseLoaded) {
       try {
-        await loadSupabaseState();
+        await loadSupabaseState(true);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('[supabasePersistence] Failed to load after coming online', e);
@@ -660,12 +657,13 @@ export function startSupabasePersistence() {
   let pendingRemoteChange = false;
 
   async function doReload() {
-    // Only skip if we're actively saving — removed the overly broad 3-second guard
-    // that was blocking legitimate remote changes from other devices.
-    if (saving) return;
+    // Skip if we're actively saving or have pending local changes — those changes
+    // must complete first, otherwise we'd reload stale Supabase data and overwrite
+    // (or lose) the user's edits.
+    if (saving || pendingSlice || debounceTimer) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
-    try { await loadSupabaseState(); } catch (e) { console.error(e); }
+    try { await loadSupabaseState(false); } catch (e) { console.error(e); }
   }
 
   function scheduleReload(payload: any) {
@@ -705,8 +703,8 @@ export function startSupabasePersistence() {
   // Periodic sync fallback for Capacitor/mobile — realtime WebSocket may drop
   // when the app is backgrounded. Poll every 30s as a safety net.
   const syncInterval = setInterval(async () => {
-    if (!supabaseLoaded || saving || document.hidden) return;
-    try { await loadSupabaseState(); } catch { /* ignore */ }
+    if (!supabaseLoaded || saving || pendingSlice || debounceTimer || document.hidden) return;
+    try { await loadSupabaseState(false); } catch { /* ignore */ }
   }, 30_000);
 
   // Realtime subscription — client-side filtering in scheduleReload validates user_id.
