@@ -1281,7 +1281,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   }, [weekDates]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* Active timer banner — persistent when running */}
       {activeTimer && currentBlock && (
         <div
@@ -2552,7 +2552,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   }, [saveSnapshot, addTimeBlock, updateTask]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* Quick capture input — always visible at top */}
       <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
         <div className="flex items-center gap-2">
