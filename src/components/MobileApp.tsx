@@ -352,6 +352,21 @@ function TasksIcon({ active }: { active: boolean }) {
   );
 }
 
+function PlanIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      {/* Split-screen icon: vertical divider + two columns */}
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <line x1="12" y1="4" x2="12" y2="20" strokeWidth={active ? 2.4 : 1.8} />
+      <line x1="5" y1="9" x2="9" y2="9" strokeWidth="1.5" />
+      <line x1="5" y1="12" x2="9" y2="12" strokeWidth="1.5" />
+      <line x1="5" y1="15" x2="9" y2="15" strokeWidth="1.5" />
+      <rect x="14" y="8" width="5" height="3" rx="1" fill={active ? 'currentColor' : 'none'} strokeWidth="1.5" />
+      <rect x="14" y="13" width="5" height="3" rx="1" fill={active ? 'currentColor' : 'none'} strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 // ─── Shared Section Label ──────────────────────────────────
 
 function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
@@ -825,6 +840,687 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   );
 }
 
+// ─── Full-Detail Add Sheet ─────────────────────────────────
+
+function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => void }) {
+  const calendarContainers = useStore((s) => s.calendarContainers);
+  const categories = useStore((s) => s.categories);
+  const tags = useStore((s) => s.tags);
+  const addTask = useStore((s) => s.addTask);
+  const addEvent = useStore((s) => s.addEvent);
+  const { saveSnapshot } = useHistoryStore();
+
+  const today = getLocalDateString();
+
+  // Shared
+  const [title, setTitle] = useState('');
+  const [calendarId, setCalendarId] = useState(calendarContainers[0]?.id ?? '');
+  const [categoryId, setCategoryId] = useState('');
+  const [notes, setNotes] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Task-specific
+  const [estimatedMins, setEstimatedMins] = useState(30);
+  const [dueDate, setDueDate] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  // Event-specific
+  const [eventDate, setEventDate] = useState(today);
+  const [eventStart, setEventStart] = useState(() => {
+    const now = new Date();
+    const h = now.getHours();
+    const m = Math.ceil(now.getMinutes() / 15) * 15;
+    const sh = m >= 60 ? h + 1 : h;
+    const sm = m >= 60 ? 0 : m;
+    return `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+  });
+  const [eventEnd, setEventEnd] = useState(() => {
+    const now = new Date();
+    const h = now.getHours();
+    const m = Math.ceil(now.getMinutes() / 15) * 15;
+    const sh = m >= 60 ? h + 1 : h;
+    const sm = m >= 60 ? 0 : m;
+    return `${String(sh + 1).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+  });
+
+  const filteredCategories = calendarId
+    ? categories.filter((c) => {
+        const ids = c.calendarContainerIds;
+        if (ids && ids.length > 0) return ids.includes(calendarId);
+        return c.calendarContainerId === calendarId || !c.calendarContainerId;
+      })
+    : categories;
+
+  useEffect(() => {
+    if (!categoryId && filteredCategories.length > 0) setCategoryId(filteredCategories[0].id);
+  }, [calendarId]);
+
+  useEffect(() => {
+    const first = filteredCategories[0];
+    if (first) setCategoryId(first.id);
+    setSelectedTagIds([]);
+  }, [calendarId]);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const categoryTags = tags.filter((t) => t.categoryId === categoryId);
+
+  const toggleTag = (id: string) => setSelectedTagIds((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+
+  const canSubmit = title.trim() && categoryId && (mode === 'task' || (eventStart && eventEnd));
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    saveSnapshot();
+    const cat = categories.find((c) => c.id === categoryId);
+    const calId = calendarId || (cat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
+    if (mode === 'task') {
+      addTask({
+        title: title.trim(),
+        estimatedMinutes: estimatedMins,
+        calendarContainerId: calId,
+        categoryId,
+        tagIds: selectedTagIds,
+        flexible: true,
+        status: 'inbox',
+        notes: notes.trim() || undefined,
+        dueDate: dueDate || undefined,
+      });
+    } else {
+      const normalizeTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h}:${String(m).padStart(2, '0')}`; };
+      addEvent({
+        title: title.trim(),
+        calendarContainerId: calId,
+        categoryId,
+        date: eventDate,
+        start: normalizeTime(eventStart),
+        end: normalizeTime(eventEnd),
+        recurring: false,
+        source: 'manual',
+        notes: notes.trim() || undefined,
+      } as any);
+    }
+    onClose();
+  };
+
+  const fmtDuration = (m: number) => m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 > 0 ? ` ${m % 60}m` : ''}`;
+
+  const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', fontSize: 15, color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)', outline: 'none', boxSizing: 'border-box' };
+  const chipStyle = (sel: boolean, color?: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+    border: sel ? 'none' : '1px solid rgba(0,0,0,0.10)',
+    backgroundColor: sel && color ? `${color}20` : sel ? `${THEME.primary}15` : 'transparent',
+    color: sel && color ? color : sel ? THEME.primary : '#636366',
+  });
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 95, backgroundColor: 'rgba(0,0,0,0.35)', WebkitTapHighlightColor: 'transparent' }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 96,
+        backgroundColor: '#FFFFFF', borderRadius: '18px 18px 0 0',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.14)',
+        maxHeight: '90vh', overflowY: 'auto',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        animation: 'slideUp 0.22s ease-out',
+      }}>
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
+        </div>
+
+        <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <p style={{ fontSize: 17, fontWeight: 700, color: THEME.textPrimary, margin: 0 }}>
+              {mode === 'task' ? 'New Task' : 'New Event'}
+            </p>
+            <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: '#8E8E93', padding: 4 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label style={labelStyle}>Title</label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+              placeholder={mode === 'task' ? 'Task name...' : 'Event title...'}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Event-only: date + time */}
+          {mode === 'event' && (
+            <>
+              <div>
+                <label style={labelStyle}>Date</label>
+                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} style={{ ...inputStyle, fontSize: 14 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Start</label>
+                  <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)}
+                    style={{ ...inputStyle, fontSize: 14, padding: '10px 10px' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>End</label>
+                  <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
+                    style={{ ...inputStyle, fontSize: 14, padding: '10px 10px' }} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Task-only: estimated time */}
+          {mode === 'task' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Estimated Time</label>
+                <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textPrimary }}>{fmtDuration(estimatedMins)}</span>
+              </div>
+              <input
+                type="range" min={5} max={240} step={5} value={estimatedMins}
+                onChange={(e) => setEstimatedMins(Number(e.target.value))}
+                style={{ width: '100%', height: 4, appearance: 'none', WebkitAppearance: 'none', background: `linear-gradient(to right, ${THEME.primary} 0%, ${THEME.primary} ${((estimatedMins - 5) / 235) * 100}%, rgba(0,0,0,0.08) ${((estimatedMins - 5) / 235) * 100}%, rgba(0,0,0,0.08) 100%)`, borderRadius: 2, outline: 'none', cursor: 'pointer', accentColor: THEME.primary }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span style={{ fontSize: 9, color: '#AEAEB2' }}>5m</span>
+                <span style={{ fontSize: 9, color: '#AEAEB2' }}>4h</span>
+              </div>
+            </div>
+          )}
+
+          {/* Calendar (if multiple) */}
+          {calendarContainers.length > 1 && (
+            <div>
+              <label style={labelStyle}>Calendar</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {calendarContainers.map((cal) => (
+                  <button key={cal.id} type="button" onClick={() => setCalendarId(cal.id)} className="touch-manipulation"
+                    style={chipStyle(calendarId === cal.id, cal.color)}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: cal.color }} />
+                    {cal.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Category */}
+          <div>
+            <label style={labelStyle}>Category</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {filteredCategories.map((c) => (
+                <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} className="touch-manipulation"
+                  style={chipStyle(categoryId === c.id, c.color)}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.color }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags (task only, if category has tags) */}
+          {mode === 'task' && selectedCategory && categoryTags.length > 0 && (
+            <div>
+              <label style={labelStyle}>Tags <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {categoryTags.map((tag) => (
+                  <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)} className="touch-manipulation"
+                    style={chipStyle(selectedTagIds.includes(tag.id), selectedCategory.color)}>
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Task-only: due date */}
+          {mode === 'task' && (
+            <div>
+              <label style={labelStyle}>Due Date <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                style={{ ...inputStyle, fontSize: 14 }} />
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label style={labelStyle}>Notes <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add context, links, or reminders..."
+              rows={3}
+              style={{ ...inputStyle, fontSize: 13, lineHeight: 1.5, resize: 'none', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          {/* Submit */}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="touch-manipulation"
+            style={{
+              width: '100%', padding: '13px', borderRadius: 12, fontSize: 15, fontWeight: 600,
+              border: 'none',
+              backgroundColor: canSubmit ? THEME.primary : 'rgba(0,0,0,0.06)',
+              color: canSubmit ? '#FFFFFF' : '#AEAEB2',
+              cursor: canSubmit ? 'pointer' : 'default',
+            }}
+          >
+            {mode === 'task' ? 'Add Task' : 'Create Event'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── PLAN Tab (Split: day view left + task blocks right) ────
+
+const PLAN_HOUR_HEIGHT = 56;
+const PLAN_TIME_COL = 32;
+
+function PlanTab() {
+  const timeBlocks = useStore((s) => s.timeBlocks);
+  const events = useStore((s) => s.events);
+  const tasks = useStore((s) => s.tasks);
+  const categories = useStore((s) => s.categories);
+  const calendarContainers = useStore((s) => s.calendarContainers);
+  const addTimeBlock = useStore((s) => s.addTimeBlock);
+  const updateTask = useStore((s) => s.updateTask);
+  const wakeTime = useStore((s) => s.wakeTime);
+  const sleepTime = useStore((s) => s.sleepTime);
+  const { saveSnapshot } = useHistoryStore();
+
+  const today = getLocalDateString();
+  const nowMins = useCurrentMinutes();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [dropPreviewMins, setDropPreviewMins] = useState<number | null>(null);
+  const [confirmedMsg, setConfirmedMsg] = useState<string | null>(null);
+
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragTaskRef = useRef<Task | null>(null);
+  const ghostRef = useRef<HTMLDivElement | null>(null);
+
+  const wakeHour = Math.floor(parseTimeToMinutes(wakeTime || '8:00') / 60);
+  const sleepHour = Math.ceil(parseTimeToMinutes(sleepTime || '23:00') / 60);
+  const hours = useMemo(() => {
+    const h: number[] = [];
+    for (let i = wakeHour; i <= sleepHour; i++) h.push(i);
+    return h;
+  }, [wakeHour, sleepHour]);
+  const gridStartMins = wakeHour * 60;
+
+  // Tasks not yet fully scheduled for the selected date
+  const scheduledTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const b of timeBlocks) { if (b.date === selectedDate && b.taskId) ids.add(b.taskId); }
+    return ids;
+  }, [timeBlocks, selectedDate]);
+
+  const pendingTasks = useMemo(() => {
+    return tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && !scheduledTaskIds.has(t.id));
+  }, [tasks, scheduledTaskIds]);
+
+  const agenda = useMemo(() => {
+    const items: AgendaItem[] = [];
+    for (const b of timeBlocks.filter((b) => b.date === selectedDate)) {
+      const cat = categories.find((c) => c.id === b.categoryId);
+      items.push({ type: 'block', id: b.id, title: b.title ?? 'Untitled', start: b.start, end: b.end, color: cat?.color ?? THEME.primary, confirmationStatus: b.confirmationStatus, taskId: b.taskId });
+    }
+    for (const e of events.filter((e) => e.date === selectedDate)) {
+      const cat = categories.find((c) => c.id === e.categoryId);
+      items.push({ type: 'event', id: e.id, title: e.title, start: e.start, end: e.end, color: cat?.color ?? THEME.primary });
+    }
+    return items;
+  }, [timeBlocks, events, selectedDate, categories]);
+
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+
+  const navigateDate = (dir: -1 | 1) => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + dir);
+    setSelectedDate(getLocalDateString(d));
+    setSelectedTaskId(null);
+    setDropPreviewMins(null);
+  };
+
+  // ── Touch drag from right panel to left panel ──
+  const getMinsFromClientY = useCallback((clientY: number): number => {
+    const panel = leftPanelRef.current;
+    if (!panel) return gridStartMins;
+    const rect = panel.getBoundingClientRect();
+    const relY = clientY - rect.top + panel.scrollTop;
+    const raw = (relY / PLAN_HOUR_HEIGHT) * 60 + gridStartMins;
+    return Math.round(raw / 15) * 15;
+  }, [gridStartMins]);
+
+  const handleTaskPointerDown = useCallback((e: React.PointerEvent, task: Task) => {
+    e.preventDefault();
+    dragTaskRef.current = task;
+    isDraggingRef.current = false;
+
+    // Create ghost element
+    const ghost = document.createElement('div');
+    ghost.style.cssText = `position:fixed;pointer-events:none;z-index:200;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;color:#FFFFFF;background:${categories.find(c => c.id === task.categoryId)?.color ?? THEME.primary};box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;transform:translate(-50%,-50%);opacity:0;transition:opacity 0.1s;`;
+    ghost.textContent = task.title;
+    document.body.appendChild(ghost);
+    ghostRef.current = ghost;
+
+    const onMove = (me: PointerEvent) => {
+      if (!dragTaskRef.current) return;
+      isDraggingRef.current = true;
+      ghost.style.left = `${me.clientX}px`;
+      ghost.style.top = `${me.clientY}px`;
+      ghost.style.opacity = '1';
+
+      // Check if over left panel
+      const panel = leftPanelRef.current;
+      if (panel) {
+        const rect = panel.getBoundingClientRect();
+        if (me.clientX >= rect.left && me.clientX <= rect.right && me.clientY >= rect.top && me.clientY <= rect.bottom) {
+          const snapped = Math.max(gridStartMins, getMinsFromClientY(me.clientY));
+          setDropPreviewMins(snapped);
+        } else {
+          setDropPreviewMins(null);
+        }
+      }
+    };
+
+    const onUp = (ue: PointerEvent) => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      ghost.remove();
+      ghostRef.current = null;
+
+      if (isDraggingRef.current && dropPreviewMinsRef.current !== null && dragTaskRef.current) {
+        const t = dragTaskRef.current;
+        const startMins = dropPreviewMinsRef.current;
+        const durationMins = t.estimatedMinutes || 30;
+        const endMins = startMins + durationMins;
+        const fmtTime = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+        const cat = categories.find((c) => c.id === t.categoryId);
+        saveSnapshot();
+        addTimeBlock({
+          taskId: t.id, title: t.title, date: selectedDate,
+          start: fmtTime(startMins), end: fmtTime(endMins),
+          mode: 'planned', source: 'manual',
+          categoryId: t.categoryId,
+          calendarContainerId: t.calendarContainerId ?? calendarContainers[0]?.id ?? '',
+          tagIds: t.tagIds ?? [],
+        });
+        if (t.status === 'inbox' || !t.status) updateTask(t.id, { status: 'planned' });
+        setConfirmedMsg(`Scheduled: ${fmtTime(startMins)} for ${durationMins}m`);
+        setTimeout(() => setConfirmedMsg(null), 2000);
+      }
+
+      setDropPreviewMins(null);
+      isDraggingRef.current = false;
+      dragTaskRef.current = null;
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }, [categories, getMinsFromClientY, gridStartMins, selectedDate, saveSnapshot, addTimeBlock, updateTask, calendarContainers]);
+
+  // Keep dropPreviewMins in a ref so the pointerup closure can read current value
+  const dropPreviewMinsRef = useRef<number | null>(null);
+  useEffect(() => { dropPreviewMinsRef.current = dropPreviewMins; }, [dropPreviewMins]);
+
+  // Tap-to-schedule (alternative to drag for precision)
+  const handleLeftPanelTap = (clientY: number) => {
+    if (!selectedTask) return;
+    const snapped = Math.max(gridStartMins, getMinsFromClientY(clientY));
+    const durationMins = selectedTask.estimatedMinutes || 30;
+    const endMins = snapped + durationMins;
+    const fmtTime = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+    saveSnapshot();
+    addTimeBlock({
+      taskId: selectedTask.id, title: selectedTask.title, date: selectedDate,
+      start: fmtTime(snapped), end: fmtTime(endMins),
+      mode: 'planned', source: 'manual',
+      categoryId: selectedTask.categoryId,
+      calendarContainerId: selectedTask.calendarContainerId ?? calendarContainers[0]?.id ?? '',
+      tagIds: selectedTask.tagIds ?? [],
+    });
+    if (selectedTask.status === 'inbox' || !selectedTask.status) updateTask(selectedTask.id, { status: 'planned' });
+    setSelectedTaskId(null);
+    setConfirmedMsg(`Scheduled at ${fmtTime(snapped)}`);
+    setTimeout(() => setConfirmedMsg(null), 2000);
+  };
+
+  const nowLineTop = ((nowMins - gridStartMins) / 60) * PLAN_HOUR_HEIGHT;
+  const showNowLine = selectedDate === today && nowMins >= gridStartMins;
+
+  // Block height proportional to duration (like desktop)
+  const taskBlockHeight = (task: Task) => Math.max(40, ((task.estimatedMinutes || 30) / 60) * PLAN_HOUR_HEIGHT);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'border-box' }}>
+      {/* Header: date nav */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
+        <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"
+          style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+        <p style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
+          {formatDateHeader(selectedDate)}
+        </p>
+        <button type="button" onClick={() => navigateDate(1)} className="touch-manipulation flex items-center justify-center"
+          style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+        {selectedDate !== today && (
+          <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
+            style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 10, fontWeight: 600 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Instruction / selected task hint */}
+      <div style={{ flexShrink: 0, padding: '6px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)', minHeight: 28, display: 'flex', alignItems: 'center' }}>
+        {selectedTask ? (
+          <p style={{ fontSize: 11, color: THEME.primary, margin: 0, fontWeight: 500 }}>
+            Tap or drag "{selectedTask.title}" to a time slot →
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: '#AEAEB2', margin: 0 }}>
+            Tap a task on the right, then tap a time to schedule
+          </p>
+        )}
+        {selectedTask && (
+          <button type="button" onClick={() => setSelectedTaskId(null)} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: '#AEAEB2', fontSize: 12 }}>✕</button>
+        )}
+      </div>
+
+      {/* Split view */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+
+        {/* LEFT: Day timeline (55%) */}
+        <div
+          ref={leftPanelRef}
+          onClick={(e) => { if (selectedTask) handleLeftPanelTap(e.clientY); }}
+          style={{
+            width: '54%', overflowY: 'auto', position: 'relative', flexShrink: 0,
+            cursor: selectedTask ? 'crosshair' : 'default',
+            overscrollBehavior: 'contain',
+          } as React.CSSProperties}
+        >
+          <div style={{ position: 'relative', height: hours.length * PLAN_HOUR_HEIGHT + 40 }}>
+            {/* Hour lines */}
+            {hours.map((h) => {
+              const top = (h - wakeHour) * PLAN_HOUR_HEIGHT;
+              return (
+                <div key={h} style={{ position: 'absolute', top, left: 0, right: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, width: PLAN_TIME_COL, textAlign: 'right', paddingRight: 6 }}>
+                    <span style={{ fontSize: 9, color: '#C7C7CC', fontWeight: 400 }}>
+                      {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
+                    </span>
+                  </div>
+                  <div style={{ position: 'absolute', top: 0, left: PLAN_TIME_COL, right: 4, height: 1, backgroundColor: 'rgba(0,0,0,0.05)' }} />
+                </div>
+              );
+            })}
+
+            {/* Scheduled blocks */}
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: PLAN_TIME_COL + 2, right: 4 }}>
+              {agenda.map((item) => {
+                const startM = parseTimeToMinutes(item.start);
+                const endM = parseTimeToMinutes(item.end);
+                const top = ((startM - gridStartMins) / 60) * PLAN_HOUR_HEIGHT;
+                const height = Math.max(14, ((endM - startM) / 60) * PLAN_HOUR_HEIGHT);
+                const isEvent = item.type === 'event';
+                const cat = categories.find((c) => c.id === (timeBlocks.find(b => b.id === item.id)?.categoryId ?? events.find(e => e.id === item.id)?.categoryId));
+                return (
+                  <div key={item.id} style={{
+                    position: 'absolute', top, left: 0, right: 0, height,
+                    padding: '2px 4px', overflow: 'hidden', borderRadius: 4,
+                    borderLeft: `3px solid ${item.color}`,
+                    backgroundColor: hexToRgba(item.color, isEvent ? 0.10 : 0.14),
+                  }}>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: THEME.textPrimary, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {item.title}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {/* Drop preview */}
+              {dropPreviewMins !== null && dragTaskRef.current && (
+                <div style={{
+                  position: 'absolute',
+                  top: ((dropPreviewMins - gridStartMins) / 60) * PLAN_HOUR_HEIGHT,
+                  left: 0, right: 0,
+                  height: Math.max(14, ((dragTaskRef.current.estimatedMinutes || 30) / 60) * PLAN_HOUR_HEIGHT),
+                  borderRadius: 4,
+                  border: `2px dashed ${categories.find(c => c.id === dragTaskRef.current?.categoryId)?.color ?? THEME.primary}`,
+                  backgroundColor: hexToRgba(categories.find(c => c.id === dragTaskRef.current?.categoryId)?.color ?? THEME.primary, 0.12),
+                  pointerEvents: 'none',
+                }} />
+              )}
+
+              {/* Selected task tap preview */}
+              {selectedTask && dropPreviewMins === null && (
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: `${categories.find(c => c.id === selectedTask.categoryId)?.color ?? THEME.primary}06`,
+                  pointerEvents: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <span style={{ fontSize: 9, color: '#AEAEB2', fontWeight: 500 }}>tap to place</span>
+                </div>
+              )}
+            </div>
+
+            {/* Now line */}
+            {showNowLine && (
+              <div style={{ position: 'absolute', top: nowLineTop, left: 0, right: 4, zIndex: 10, pointerEvents: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ fontSize: 8, fontWeight: 600, color: '#FF3B30', width: PLAN_TIME_COL, textAlign: 'right', paddingRight: 4 }}>
+                    {(() => { const h = Math.floor(nowMins / 60); const m = nowMins % 60; const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return `${h12}:${String(m).padStart(2, '0')}`; })()}
+                  </span>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#FF3B30', flexShrink: 0, marginLeft: -2.5 }} />
+                  <div style={{ flex: 1, height: 1.5, backgroundColor: '#FF3B30' }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.08)', flexShrink: 0 }} />
+
+        {/* RIGHT: Task blocks (46%) */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px 40px', overscrollBehavior: 'contain', backgroundColor: '#FDFDFB' } as React.CSSProperties}>
+          {pendingTasks.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 40 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" style={{ marginBottom: 8 }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <p style={{ fontSize: 12, color: '#AEAEB2', margin: 0, textAlign: 'center' }}>All tasks scheduled for this day</p>
+            </div>
+          ) : (
+            pendingTasks.map((task) => {
+              const cat = categories.find((c) => c.id === task.categoryId);
+              const color = cat?.color ?? THEME.primary;
+              const blockH = taskBlockHeight(task);
+              const isSelected = selectedTaskId === task.id;
+              const durationMins = task.estimatedMinutes || 30;
+
+              return (
+                <div
+                  key={task.id}
+                  onPointerDown={(e) => handleTaskPointerDown(e, task)}
+                  onClick={() => setSelectedTaskId(isSelected ? null : task.id)}
+                  className="touch-manipulation"
+                  style={{
+                    height: blockH,
+                    marginBottom: 6,
+                    borderRadius: 6,
+                    padding: '6px 8px',
+                    borderTop: `3px solid ${color}`,
+                    borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
+                    borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
+                    borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
+                    backgroundColor: isSelected ? hexToRgba(color, 0.18) : '#FFF9EC',
+                    boxShadow: isSelected ? `0 0 0 2px ${color}` : '0 1px 4px rgba(0,0,0,0.08)',
+                    cursor: 'grab',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    touchAction: 'none',
+                  }}
+                >
+                  <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: Math.max(1, Math.floor((blockH - 24) / 14)), WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>
+                    {task.title}
+                  </p>
+                  {blockH >= 50 && (
+                    <span style={{ fontSize: 9, color: '#8E8E93', alignSelf: 'flex-end' }}>
+                      {durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}` : `${durationMins}m`}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Confirmation toast */}
+      {confirmedMsg && (
+        <div style={{
+          position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 50,
+          backgroundColor: THEME.primary, color: '#FFFFFF',
+          fontSize: 13, fontWeight: 500, padding: '10px 16px', borderRadius: 10,
+          textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          {confirmedMsg}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SCHEDULE Tab (Timeline + Timer + Review) ──────────────
 
 const HOUR_HEIGHT = 56;
@@ -1290,9 +1986,10 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
       {/* Header: Date + Day/Week toggle on same row */}
       <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center justify-between" style={{ padding: '8px 16px' }}>
-          {/* Left: nav arrows + date */}
-          <div className="flex items-center gap-1" style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-center" style={{ padding: '8px 12px', gap: 8 }}>
+          {/* Centered date with symmetric arrows */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', position: 'relative', minWidth: 0 }}>
+            {/* Left arrow — fixed position */}
             <button
               type="button"
               onClick={() => scheduleView === 'day' ? navigateDate(-1) : navigateWeek(-1)}
@@ -1301,16 +1998,18 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="flex items-center gap-2">
-                <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, whiteSpace: 'nowrap' }}>
-                  {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
-                </p>
-                {pendingCount > 0 && scheduleView === 'day' && (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: '#FF9500' }}>{pendingCount} to review</span>
-                )}
-              </div>
+
+            {/* Date label — centered between arrows */}
+            <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {scheduleView === 'day' ? formatDateHeader(selectedDate) : weekLabel}
+              </p>
+              {pendingCount > 0 && scheduleView === 'day' && (
+                <p style={{ fontSize: 10, fontWeight: 600, color: '#FF9500', margin: 0 }}>{pendingCount} to review</p>
+              )}
             </div>
+
+            {/* Right arrow — fixed position */}
             <button
               type="button"
               onClick={() => scheduleView === 'day' ? navigateDate(1) : navigateWeek(1)}
@@ -1319,9 +2018,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
-            {selectedDate !== today && (
+
+            {/* Today button — only when not on today, same width as arrow for symmetry */}
+            {selectedDate !== today ? (
               <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation flex items-center justify-center"
-                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 10, fontWeight: 600 }}>
+                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" />
                   <line x1="16" y1="2" x2="16" y2="6" />
@@ -1330,6 +2031,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                   <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
                 </svg>
               </button>
+            ) : (
+              <div style={{ width: 28, flexShrink: 0 }} />
             )}
           </div>
 
@@ -1340,7 +2043,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               return (
                 <button key={v} type="button" onClick={() => setScheduleView(v)} className="touch-manipulation"
                   style={{
-                    padding: '4px 14px', borderRadius: 6, fontSize: 12, fontWeight: active ? 600 : 400,
+                    padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: active ? 600 : 400,
                     border: 'none', backgroundColor: active ? '#FFFFFF' : 'transparent',
                     color: active ? THEME.textPrimary : '#8E8E93',
                     boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
@@ -1379,7 +2082,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       {/* ─── DAY VIEW ─── */}
       {scheduleView === 'day' && (
       <div ref={gridRef} className="flex-1 overflow-y-auto" style={{ position: 'relative', overflowX: 'hidden', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <div style={{ position: 'relative', height: hours.length * HOUR_HEIGHT, minHeight: '100%' }}>
+        <div style={{ position: 'relative', height: hours.length * HOUR_HEIGHT + 80, minHeight: '100%' }}>
           {/* Hour lines */}
           {hours.map((h) => {
             const top = (h - wakeHour) * HOUR_HEIGHT;
@@ -1703,31 +2406,61 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       </div>
       )}
 
-      {/* Start timer FAB — bottom right */}
-      {!activeTimer && !showStartForm && selectedDate === today && (
-        <button
-          type="button"
-          onClick={() => setShowStartForm(true)}
-          className="touch-manipulation"
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            width: 52,
-            height: 52,
-            borderRadius: 26,
-            border: 'none',
-            backgroundColor: THEME.primary,
-            color: '#FFFFFF',
-            boxShadow: '0 4px 12px rgba(141,162,134,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 30,
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-        </button>
+      {/* Stacked FABs — bottom right: [add event] above [play timer] */}
+      {!showStartForm && (
+        <div style={{ position: 'absolute', bottom: 20, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, zIndex: 30 }}>
+          {/* Add event button */}
+          <button
+            type="button"
+            onClick={() => {
+              const now = new Date();
+              const h = now.getHours();
+              const m = now.getMinutes();
+              const roundedM = Math.ceil(m / 15) * 15;
+              const startH = roundedM >= 60 ? h + 1 : h;
+              const startMin = roundedM >= 60 ? 0 : roundedM;
+              setEventStart(`${String(startH).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
+              setEventEnd(`${String(startH + 1).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
+              if (calendarContainers.length > 0 && !eventCalendarId) setEventCalendarId(calendarContainers[0].id);
+              setShowEventForm(true);
+              setTimeout(() => eventInputRef.current?.focus(), 100);
+            }}
+            className="touch-manipulation"
+            style={{
+              width: 40, height: 40, borderRadius: 20, border: 'none',
+              backgroundColor: '#FFFFFF',
+              color: THEME.textSecondary,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <line x1="12" y1="14" x2="12" y2="18" />
+              <line x1="10" y1="16" x2="14" y2="16" />
+            </svg>
+          </button>
+          {/* Play/timer button — smaller, lighter */}
+          {!activeTimer && selectedDate === today && (
+            <button
+              type="button"
+              onClick={() => setShowStartForm(true)}
+              className="touch-manipulation"
+              style={{
+                width: 44, height: 44, borderRadius: 22, border: 'none',
+                backgroundColor: `${THEME.primary}CC`,
+                color: '#FFFFFF',
+                boxShadow: '0 3px 10px rgba(141,162,134,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+            </button>
+          )}
+        </div>
       )}
 
       {/* Detail sheet for tapped block/event */}
@@ -2517,7 +3250,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   }, [saveSnapshot, addTimeBlock, updateTask]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'border-box' }}>
       {/* Quick capture input — always visible at top */}
       <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
         <div className="flex items-center gap-2">
@@ -2600,7 +3333,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       </div>
 
       {/* Task list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px', overscrollBehavior: 'contain' } as React.CSSProperties}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 80px', overscrollBehavior: 'contain' } as React.CSSProperties}>
         {activeTasks.length === 0 && (
           <div className="flex flex-col items-center" style={{ paddingTop: 48 }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
