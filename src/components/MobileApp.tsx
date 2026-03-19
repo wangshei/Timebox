@@ -1561,6 +1561,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const [selectedCalendarId, setSelectedCalendarId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [elapsed, setElapsed] = useState('0:00');
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [showSessionNotes, setShowSessionNotes] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const eventInputRef = useRef<HTMLInputElement>(null);
@@ -1598,14 +1600,16 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
 
-  // Timer tick
+  // Timer tick + reset session notes when timer changes
   useEffect(() => {
     if (!activeTimer) { setElapsed('0:00'); return; }
+    setSessionNotes('');
+    setShowSessionNotes(false);
     const tick = () => setElapsed(formatElapsed(Date.now() - activeTimer.startedAt));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [activeTimer]);
+  }, [activeTimer?.blockId]);
 
   // Time range
   const wakeHour = Math.floor(parseTimeToMinutes(wakeTime || '8:00') / 60);
@@ -1957,13 +1961,37 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               <p style={{ fontSize: 14, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {currentBlock.title ?? 'Timer'}
               </p>
-              <span className="font-mono tabular-nums" style={{ fontSize: 20, fontWeight: 600, color: currentColor }}>
-                {elapsed}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono tabular-nums" style={{ fontSize: 20, fontWeight: 600, color: currentColor }}>
+                  {elapsed}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSessionNotes(v => !v)}
+                  className="touch-manipulation flex items-center gap-1"
+                  style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 6, color: showSessionNotes ? currentColor : THEME.textMuted, fontSize: 11, fontWeight: 500 }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  Notes
+                  {sessionNotes.trim() && <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: currentColor, display: 'inline-block', marginLeft: 2 }} />}
+                </button>
+              </div>
             </div>
             <button
               type="button"
-              onClick={stopTimer}
+              onClick={() => {
+                if (sessionNotes.trim()) {
+                  const block = currentBlock;
+                  const existing = block?.notes?.trim() ?? '';
+                  const combined = existing ? `${existing}\n\n${sessionNotes.trim()}` : sessionNotes.trim();
+                  updateTimeBlock(activeTimer.blockId, { notes: combined });
+                }
+                setSessionNotes('');
+                setShowSessionNotes(false);
+                stopTimer();
+              }}
               className="touch-manipulation flex items-center gap-1.5"
               style={{
                 padding: '6px 16px',
@@ -1980,6 +2008,28 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               Stop
             </button>
           </div>
+          {showSessionNotes && (
+            <textarea
+              value={sessionNotes}
+              onChange={e => setSessionNotes(e.target.value)}
+              placeholder="Session notes... (saved to block on stop)"
+              style={{
+                marginTop: 8,
+                width: '100%',
+                minHeight: 72,
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: `1px solid ${currentColor}40`,
+                backgroundColor: 'rgba(255,255,255,0.7)',
+                fontSize: 13,
+                color: THEME.textPrimary,
+                resize: 'none',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          )}
         </div>
       )}
 

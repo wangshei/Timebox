@@ -206,13 +206,21 @@ export function TimerWidget() {
             ref={elapsedBtnRef}
             type="button"
             onClick={handleElapsedClick}
-            className="font-mono font-medium tabular-nums rounded px-1 transition-colors"
+            className="flex items-center gap-1 font-mono font-medium tabular-nums rounded px-1 transition-colors"
             style={{ fontSize: 11, color: THEME.primary, backgroundColor: showSessionPanel ? 'rgba(141,162,134,0.12)' : 'transparent' }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = showSessionPanel ? 'rgba(141,162,134,0.12)' : 'transparent'; }}
-            title={timerBlock?.title ?? 'Session notes'}
+            title="Session notes"
           >
             {elapsed}
+            {/* Note indicator — dot when notes exist, pencil icon always */}
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6, flexShrink: 0 }}>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            {sessionNotes.trim() && (
+              <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: THEME.primary, flexShrink: 0 }} />
+            )}
           </button>
           <button
             type="button"
