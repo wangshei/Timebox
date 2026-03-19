@@ -499,10 +499,11 @@ export function startSupabasePersistence() {
 
   let saving = false;
   let pendingSlice: PersistableState | null = null;
-  let lastSaveCompletedAt = 0;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   // Cache userId to avoid async getUser() call in beforeunload
   let cachedUserId: string | null = null;
+  // Eagerly resolve userId so the realtime filter can use it
+  void getCurrentUserId().then(id => { if (id) cachedUserId = id; });
 
   async function flush(slice: PersistableState) {
     if (!supabaseLoaded) {
@@ -526,7 +527,6 @@ export function startSupabasePersistence() {
     console.log('[supabasePersistence] Saving...', { tasks: slice.tasks.length, timeBlocks: slice.timeBlocks.length, events: slice.events.length });
     try {
       await saveSupabaseStateForUser(userId, slice);
-      lastSaveCompletedAt = Date.now();
       // Clear any previous error on success
       if (useStore.getState().saveError) useStore.getState().setSaveError(false);
     } catch (e) {
@@ -660,14 +660,19 @@ export function startSupabasePersistence() {
   let pendingRemoteChange = false;
 
   async function doReload() {
-    if (Date.now() - lastSaveCompletedAt < 3000) return;
+    // Only skip if we're actively saving — removed the overly broad 3-second guard
+    // that was blocking legitimate remote changes from other devices.
     if (saving) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
     try { await loadSupabaseState(); } catch (e) { console.error(e); }
   }
 
-  function scheduleReload() {
+  function scheduleReload(payload: any) {
+    // Only process changes for the current user (ignore other users' data)
+    const eventUserId = payload?.new?.user_id || payload?.old?.user_id;
+    if (eventUserId && cachedUserId && eventUserId !== cachedUserId) return;
+
     // If the tab is hidden, just note that a remote change happened.
     // We'll do one single reload when the user returns to the tab.
     if (document.hidden) {
@@ -697,6 +702,16 @@ export function startSupabasePersistence() {
   };
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
+  // Periodic sync fallback for Capacitor/mobile — realtime WebSocket may drop
+  // when the app is backgrounded. Poll every 30s as a safety net.
+  const syncInterval = setInterval(async () => {
+    if (!supabaseLoaded || saving || document.hidden) return;
+    try { await loadSupabaseState(); } catch { /* ignore */ }
+  }, 30_000);
+
+  // Realtime subscription — client-side filtering in scheduleReload validates user_id.
+  // Server-side filter (`filter: user_id=eq.X`) would be ideal but cachedUserId
+  // isn't available synchronously at subscription time, so we filter in the callback.
   const channel = supabase
     .channel('timebox-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, scheduleReload)
@@ -706,13 +721,17 @@ export function startSupabasePersistence() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, scheduleReload)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, scheduleReload)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, scheduleReload)
-    .subscribe();
+    .subscribe((status) => {
+      // eslint-disable-next-line no-console
+      if (status === 'CHANNEL_ERROR') console.warn('[supabasePersistence] Realtime channel error — will reconnect');
+    });
 
   return () => {
     unsubscribeStore();
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('beforeunload', handleBeforeUnload);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    clearInterval(syncInterval);
     void supabase!.removeChannel(channel);
     if (reloadTimer) clearTimeout(reloadTimer);
     if (debounceTimer) clearTimeout(debounceTimer);
