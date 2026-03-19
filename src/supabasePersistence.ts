@@ -45,7 +45,7 @@ async function getCurrentUserId(): Promise<string | null> {
 
 // --- Load from Supabase into the Zustand store ---
 
-export async function loadSupabaseState() {
+export async function loadSupabaseState(isInitialLoad = true) {
   if (!supabase) return;
   const userId = await getCurrentUserId();
   if (!userId) {
