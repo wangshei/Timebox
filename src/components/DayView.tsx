@@ -520,7 +520,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           Clicks on empty space (not caught by cards) bubble up to this element. */}
       <div
         ref={gridRef}
-        className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+        className={`relative ${!activeStampEmoji && !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
         style={{ height: GRID_HEIGHT }}
         onMouseDown={!locked || activeStampEmoji ? handleGridMouseDown : undefined}
       >

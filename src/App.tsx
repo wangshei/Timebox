@@ -191,7 +191,9 @@ export default function App() {
   const rightBarDragJustEnded = useRef(false);
   const [focusedCategoryId, setFocusedCategoryId] = useState<string | null>(null);
   const [focusedCalendarId, setFocusedCalendarId] = useState<string | null>(null);
-  const [recordingOverlapWarning, setRecordingOverlapWarning] = useState<string | null>(null);
+  const lastMouseRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  type OverlapPopupState = { existingBlock: TimeBlock; newTitle: string; x: number; y: number; onKeepNew: () => void; };
+  const [overlapPopup, setOverlapPopup] = useState<OverlapPopupState | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
@@ -217,6 +219,13 @@ export default function App() {
       setShowTour(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track mouse position for contextual overlap popup positioning
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
+    window.addEventListener('mousemove', handler, { passive: true });
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
 
   // Local dev: if Supabase is configured but not signed in, auto-enter visit mode
   // so you don't have to log in every time. When there's no Supabase at all (no
@@ -1381,10 +1390,7 @@ export default function App() {
     const blockMode = isPastSlot ? 'recorded' : 'planned';
     const startStr = minsToTimeString(startMins);
     const endStr = minsToTimeString(endMins);
-    if (blockMode === 'recorded' && checkRecordingOverlap(params.date, startStr, endStr)) {
-      return;
-    }
-    addTimeBlock({
+    const doCreate = () => addTimeBlock({
       taskId,
       title: task.title,
       calendarContainerId: task.calendarContainerId,
@@ -1396,9 +1402,19 @@ export default function App() {
       mode: blockMode,
       source: isPastSlot ? 'unplanned' : 'manual',
     });
+    if (blockMode === 'recorded' && checkRecordingOverlap(params.date, startStr, endStr, undefined, {
+      title: task.title,
+      onProceed: doCreate,
+    })) {
+      return;
+    }
+    doCreate();
   };
 
-  const checkRecordingOverlap = useCallback((date: string, startTime: string, endTime: string, excludeBlockId?: string) => {
+  const checkRecordingOverlap = useCallback((
+    date: string, startTime: string, endTime: string, excludeBlockId?: string,
+    opts?: { title?: string; onProceed?: () => void }
+  ) => {
     const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
     const newStart = parseT(startTime);
     const newEnd = parseT(endTime);
@@ -1410,13 +1426,22 @@ export default function App() {
       parseT(b.end) > newStart
     );
     if (overlapping.length > 0) {
-      setRecordingOverlapWarning(
-        'You already have a recorded block during this time. Consider editing the existing block or splitting it — you shouldn\'t record the same time twice.'
-      );
+      const existing = overlapping[0]!;
+      const { x, y } = lastMouseRef.current;
+      setOverlapPopup({
+        existingBlock: existing,
+        newTitle: opts?.title ?? 'New block',
+        x,
+        y,
+        onKeepNew: () => {
+          deleteTimeBlock(existing.id);
+          opts?.onProceed?.();
+        },
+      });
       return true;
     }
     return false;
-  }, [timeBlocks]);
+  }, [timeBlocks, deleteTimeBlock]);
 
   const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; isRecordedPanel?: boolean }) => {
     // Open the Add modal (with Task/Event toggle) pre-filled with the dragged time slot.
@@ -1481,12 +1506,17 @@ export default function App() {
     const modeUpdate: Partial<import('./types').TimeBlock> = { start: params.startTime, end: params.endTime, date: params.date };
     // Preserve original position for diff detection (only set once)
     if (!block.originalStart) { modeUpdate.originalStart = block.start; modeUpdate.originalEnd = block.end; }
+    const overlapTitle = block.title ?? 'Block';
     if (block.mode === 'planned' && destIsPast) {
       modeUpdate.mode = 'recorded';
       modeUpdate.source = 'unplanned';
-      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId)) return;
+      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId, {
+        title: overlapTitle, onProceed: () => updateTimeBlock(blockId, modeUpdate),
+      })) return;
     } else if (block.mode === 'recorded') {
-      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId)) return;
+      if (checkRecordingOverlap(params.date, params.startTime, params.endTime, blockId, {
+        title: overlapTitle, onProceed: () => updateTimeBlock(blockId, modeUpdate),
+      })) return;
     }
     updateTimeBlock(blockId, modeUpdate);
   };
@@ -1511,12 +1541,17 @@ export default function App() {
     const resizeUpdate: Partial<import('./types').TimeBlock> = { date: params.date, end: params.endTime };
     // Preserve original end for diff detection (only set once)
     if (!block.originalEnd) { resizeUpdate.originalEnd = block.end; }
+    const resizeTitle = block.title ?? 'Block';
     if (block.mode === 'planned' && resizeIsPast) {
       resizeUpdate.mode = 'recorded';
       resizeUpdate.source = 'unplanned';
-      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
+      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId, {
+        title: resizeTitle, onProceed: () => updateTimeBlock(blockId, resizeUpdate),
+      })) return;
     } else if (block.mode === 'recorded') {
-      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId)) return;
+      if (checkRecordingOverlap(block.date, block.start, params.endTime, blockId, {
+        title: resizeTitle, onProceed: () => updateTimeBlock(blockId, resizeUpdate),
+      })) return;
     }
     updateTimeBlock(blockId, resizeUpdate);
   };
@@ -2921,7 +2956,7 @@ export default function App() {
 
       {/* Recurrence edit scope picker — shown before AddModal for recurring events */}
       {recurrenceEditScopePending && createPortal(
-        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+        <div className="fixed inset-0 z-[610] flex items-center justify-center">
           <div
             className="absolute inset-0"
             style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
@@ -3106,35 +3141,67 @@ export default function App() {
         onAddTag={addTag}
       />
 
-      {/* Recording overlap warning dialog */}
-      {
-        recordingOverlapWarning && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-            <div className="rounded-2xl shadow-2xl p-6 max-w-sm mx-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)' }}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: 'rgba(200,120,104,0.12)' }}>
-                  <svg className="w-5 h-5" style={{ color: '#C87868' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-semibold" style={{ color: THEME.textPrimary }}>Overlapping Recording</h3>
+      {/* Recording overlap picker — small contextual popup, no backdrop */}
+      {overlapPopup && (() => {
+        // Clamp position to stay inside viewport
+        const px = Math.min(overlapPopup.x, window.innerWidth - 250);
+        const py = Math.max(overlapPopup.y - 120, 8);
+        return createPortal(
+          <>
+            {/* Invisible dismiss backdrop */}
+            <div style={{ position: 'fixed', inset: 0, zIndex: 599 }} onClick={() => setOverlapPopup(null)} />
+            <div
+              style={{
+                position: 'fixed', left: px, top: py, zIndex: 600,
+                backgroundColor: '#FFFFFF',
+                border: '1px solid rgba(0,0,0,0.10)',
+                borderRadius: 12,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.06)',
+                padding: '12px 14px',
+                minWidth: 230,
+                maxWidth: 280,
+              }}
+            >
+              <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textMuted, marginBottom: 10, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Time overlap — which did you do?
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Existing block option */}
+                <button
+                  type="button"
+                  onClick={() => setOverlapPopup(null)}
+                  style={{
+                    textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
+                    backgroundColor: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: THEME.textPrimary,
+                    transition: 'all 140ms',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
+                >
+                  <span style={{ fontSize: 10, color: THEME.textMuted, display: 'block', marginBottom: 1 }}>Keep existing</span>
+                  {overlapPopup.existingBlock.title || 'Existing block'}
+                </button>
+                {/* New block option */}
+                <button
+                  type="button"
+                  onClick={() => { overlapPopup.onKeepNew(); setOverlapPopup(null); }}
+                  style={{
+                    textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
+                    backgroundColor: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: THEME.textPrimary,
+                    transition: 'all 140ms',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.07)'; e.currentTarget.style.borderColor = '#8DA286'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
+                >
+                  <span style={{ fontSize: 10, color: THEME.textMuted, display: 'block', marginBottom: 1 }}>Replace with new</span>
+                  {overlapPopup.newTitle}
+                </button>
               </div>
-              <p className="text-sm mb-4 leading-relaxed" style={{ color: '#636366' }}>{recordingOverlapWarning}</p>
-              <button
-                type="button"
-                className="w-full py-2 px-4 text-sm font-medium rounded-xl transition-colors"
-                style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
-                onClick={() => setRecordingOverlapWarning(null)}
-              >
-                Got it
-              </button>
             </div>
-          </div>
-        )
-      }
+          </>,
+          document.body
+        );
+      })()}
 
       <SettingsPanel
         isOpen={isSettingsOpen}

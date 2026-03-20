@@ -146,6 +146,35 @@ export function CalendarView({
     return () => window.removeEventListener('keydown', handleKey);
   }, [stampMode]);
 
+  // Emoji stamp cursor — inject a global style when an emoji is active so all
+  // child elements (including draggable blocks) show the stamp cursor instead of grab.
+  useEffect(() => {
+    if (!activeStampEmoji) {
+      document.getElementById('stamp-cursor-override')?.remove();
+      return;
+    }
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32; canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.font = '22px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(activeStampEmoji, 16, 16);
+      }
+      const url = canvas.toDataURL();
+      let style = document.getElementById('stamp-cursor-override') as HTMLStyleElement | null;
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'stamp-cursor-override';
+        document.head.appendChild(style);
+      }
+      style.textContent = `* { cursor: url(${url}) 16 16, crosshair !important; }`;
+    } catch { /* ignore canvas errors */ }
+    return () => { document.getElementById('stamp-cursor-override')?.remove(); };
+  }, [activeStampEmoji]);
+
   // Reset state when leaving compare mode
   useEffect(() => {
     if (mode !== 'compare') {
