@@ -689,10 +689,16 @@ export const useStore = create<AppState & AppActions>()(
       return '';
     }
     const id = generateId();
-    // Compute epochs for timezone-aware re-derivation (skip for gcal events — they use gcalStartISO/gcalEndISO)
+    // Compute epochs for timezone-aware re-derivation.
+    // GCal events: derive epoch from ISO strings (absolute UTC time).
+    // Manual events: derive epoch from date+time (interpreted as local time).
     const isGcal = !!(e.googleEventId || e.gcalStartISO);
-    const startEpoch = !isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined;
-    const endEpoch = !isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined;
+    const startEpoch = isGcal && e.gcalStartISO
+      ? new Date(e.gcalStartISO).getTime()
+      : (!isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined);
+    const endEpoch = isGcal && e.gcalEndISO
+      ? new Date(e.gcalEndISO).getTime()
+      : (!isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined);
     set((s) => ({ events: [...s.events, { ...e, id, editedAt: Date.now(), startEpoch, endEpoch }] }));
     return id;
   },
@@ -733,8 +739,12 @@ export const useStore = create<AppState & AppActions>()(
   convertTimeBlockToEvent: (blockId, event) => {
     const eventId = generateId();
     const isGcal = !!(event.googleEventId || event.gcalStartISO);
-    const startEpoch = !isGcal && event.date && event.start ? dateTimeToEpoch(event.date, event.start) : undefined;
-    const endEpoch = !isGcal && event.date && event.end ? dateTimeToEpoch(event.endDate || event.date, event.end) : undefined;
+    const startEpoch = isGcal && event.gcalStartISO
+      ? new Date(event.gcalStartISO).getTime()
+      : (!isGcal && event.date && event.start ? dateTimeToEpoch(event.date, event.start) : undefined);
+    const endEpoch = isGcal && event.gcalEndISO
+      ? new Date(event.gcalEndISO).getTime()
+      : (!isGcal && event.date && event.end ? dateTimeToEpoch(event.endDate || event.date, event.end) : undefined);
     set((s) => ({
       timeBlocks: s.timeBlocks.filter((b) => b.id !== blockId),
       events: [...s.events, { ...event, id: eventId, editedAt: Date.now(), startEpoch, endEpoch }],
@@ -753,8 +763,12 @@ export const useStore = create<AppState & AppActions>()(
     const now = Date.now();
     const newEvents = capped.map((e) => {
       const isGcal = !!(e.googleEventId || e.gcalStartISO);
-      const startEpoch = !isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined;
-      const endEpoch = !isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined;
+      const startEpoch = isGcal && e.gcalStartISO
+        ? new Date(e.gcalStartISO).getTime()
+        : (!isGcal && e.date && e.start ? dateTimeToEpoch(e.date, e.start) : undefined);
+      const endEpoch = isGcal && e.gcalEndISO
+        ? new Date(e.gcalEndISO).getTime()
+        : (!isGcal && e.date && e.end ? dateTimeToEpoch(e.endDate || e.date, e.end) : undefined);
       return { ...e, id: generateId(), editedAt: now, startEpoch, endEpoch };
     });
     set((s) => ({ events: [...s.events, ...newEvents] }));

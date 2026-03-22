@@ -356,73 +356,90 @@ export default function App() {
     const storedTz = localStorage.getItem(TIMEZONE_KEY);
     localStorage.setItem(TIMEZONE_KEY, currentTz);
 
-    // If timezone hasn't changed (or first time), nothing to re-derive
-    if (!storedTz || storedTz === currentTz) return;
+    const tzChanged = storedTz && storedTz !== currentTz;
 
-    console.log(`[tz] Timezone changed: ${storedTz} → ${currentTz}. Re-deriving event times.`);
+    if (tzChanged) {
+      console.log(`[tz] Timezone changed: ${storedTz} → ${currentTz}. Re-deriving event times.`);
 
-    const todayStr = getLocalDateString();
-    const state = useStore.getState();
-    const updates: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
+      const todayStr = getLocalDateString();
+      const state = useStore.getState();
+      const updates: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
 
-    for (const evt of state.events) {
-      // --- GCal events: re-derive from stored ISO ---
+      for (const evt of state.events) {
+        // --- GCal events: re-derive from stored ISO ---
+        if (evt.gcalStartISO || evt.googleEventId) {
+          if (!evt.gcalStartISO) continue;
+          const s = new Date(evt.gcalStartISO);
+          const newStart = `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`;
+          const newDateStr = s.toLocaleDateString('en-CA');
+          const changes: Partial<import('./types').Event> = { start: newStart, date: newDateStr };
+          if (evt.gcalEndISO) {
+            const e = new Date(evt.gcalEndISO);
+            changes.end = `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`;
+          }
+          if (newStart !== evt.start || newDateStr !== evt.date || changes.end !== evt.end) {
+            updates.push({ id: evt.id, changes });
+          }
+          continue;
+        }
+
+        // --- Timebox events: re-derive future events from epoch ---
+        if (evt.date < todayStr) continue;
+        if (!evt.startEpoch || !evt.endEpoch) continue;
+
+        const startDate = new Date(evt.startEpoch);
+        const endDate = new Date(evt.endEpoch);
+        const newStart = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+        const newEnd = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+        const newDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+        const newEndDateStr = evt.endDate
+          ? `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+          : undefined;
+
+        if (newStart !== evt.start || newEnd !== evt.end || newDateStr !== evt.date) {
+          updates.push({
+            id: evt.id,
+            changes: {
+              start: newStart,
+              end: newEnd,
+              date: newDateStr,
+              ...(newEndDateStr ? { endDate: newEndDateStr } : {}),
+            },
+          });
+        }
+      }
+
+      if (updates.length > 0) {
+        console.log(`[tz] Adjusting ${updates.length} event(s) to ${currentTz}`);
+        state.updateEvents(updates);
+      }
+
+      // Update gcal cached timezone to prevent double re-derivation in loadCachedGcalData
+      localStorage.setItem('gcal_cached_timezone', currentTz);
+
+      // Show timezone change banner
+      setTzChangeBanner({ from: storedTz, to: currentTz, count: updates.length });
+    }
+
+    // Always backfill epochs for events that don't have them yet (regardless of tz change)
+    const backfillState = useStore.getState();
+    const backfill: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
+    for (const evt of backfillState.events) {
+      if (evt.startEpoch && evt.endEpoch) continue;
+      if (!evt.date || !evt.start || !evt.end) continue;
+
+      // GCal events: derive from ISO strings
       if (evt.gcalStartISO || evt.googleEventId) {
         if (!evt.gcalStartISO) continue;
-        const s = new Date(evt.gcalStartISO);
-        const newStart = `${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`;
-        const newDateStr = s.toLocaleDateString('en-CA');
-        const changes: Partial<import('./types').Event> = { start: newStart, date: newDateStr };
-        if (evt.gcalEndISO) {
-          const e = new Date(evt.gcalEndISO);
-          changes.end = `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`;
-        }
-        if (newStart !== evt.start || newDateStr !== evt.date || changes.end !== evt.end) {
-          updates.push({ id: evt.id, changes });
+        const sEpoch = new Date(evt.gcalStartISO).getTime();
+        const eEpoch = evt.gcalEndISO ? new Date(evt.gcalEndISO).getTime() : undefined;
+        if (sEpoch && eEpoch) {
+          backfill.push({ id: evt.id, changes: { startEpoch: sEpoch, endEpoch: eEpoch } });
         }
         continue;
       }
 
-      // --- Timebox events: re-derive future events from epoch ---
-      if (evt.date < todayStr) continue;
-      if (!evt.startEpoch || !evt.endEpoch) continue;
-
-      const startDate = new Date(evt.startEpoch);
-      const endDate = new Date(evt.endEpoch);
-      const newStart = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
-      const newEnd = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
-      const newDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
-      const newEndDateStr = evt.endDate
-        ? `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
-        : undefined;
-
-      if (newStart !== evt.start || newEnd !== evt.end || newDateStr !== evt.date) {
-        updates.push({
-          id: evt.id,
-          changes: {
-            start: newStart,
-            end: newEnd,
-            date: newDateStr,
-            ...(newEndDateStr ? { endDate: newEndDateStr } : {}),
-          },
-        });
-      }
-    }
-
-    if (updates.length > 0) {
-      console.log(`[tz] Adjusting ${updates.length} event(s) to ${currentTz}`);
-      state.updateEvents(updates);
-    }
-
-    // Show timezone change banner
-    setTzChangeBanner({ from: storedTz, to: currentTz, count: updates.length });
-
-    // Backfill epochs for existing Timebox events that don't have them yet
-    const backfill: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
-    for (const evt of (updates.length > 0 ? useStore.getState() : state).events) {
-      if (evt.googleEventId || evt.gcalStartISO) continue;
-      if (evt.startEpoch && evt.endEpoch) continue;
-      if (!evt.date || !evt.start || !evt.end) continue;
+      // Manual events: derive from date+time as local time
       const [y, m, d] = evt.date.split('-').map(Number);
       const [sh, sm] = evt.start.split(':').map(Number);
       const [eh, em] = evt.end.split(':').map(Number);
@@ -437,8 +454,8 @@ export default function App() {
       });
     }
     if (backfill.length > 0) {
-      console.log(`[tz] Backfilling epochs for ${backfill.length} Timebox event(s)`);
-      useStore.getState().updateEvents(backfill);
+      console.log(`[tz] Backfilling epochs for ${backfill.length} event(s)`);
+      backfillState.updateEvents(backfill);
     }
   }, [dataReady]);
 
@@ -2008,14 +2025,46 @@ export default function App() {
             Timezone changed from {tzChangeBanner.from} to {tzChangeBanner.to}
             {tzChangeBanner.count > 0 ? ` — ${tzChangeBanner.count} event${tzChangeBanner.count === 1 ? '' : 's'} adjusted` : ''}
           </span>
-          <button
-            type="button"
-            onClick={() => setTzChangeBanner(null)}
-            className="px-2 py-1 rounded font-medium transition-colors"
-            style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
-          >
-            Dismiss
-          </button>
+          <div className="flex items-center gap-2">
+            {isGoogleConnected() && (
+              <button
+                type="button"
+                onClick={() => {
+                  importGoogleCalendarEvents()
+                    .then((data) => {
+                      // Re-inject fresh GCal data with correct timezone
+                      const state = useStore.getState();
+                      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+                      useStore.setState({
+                        calendarContainers: [
+                          ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
+                          ...data.calendars,
+                        ],
+                        categories: [
+                          ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
+                          ...data.categories,
+                        ],
+                        events: [...nonGcalEvents, ...data.events],
+                      });
+                      setTzChangeBanner(null);
+                    })
+                    .catch(err => console.warn('[gcal] Re-sync failed:', err));
+                }}
+                className="px-2 py-1 rounded font-medium transition-colors"
+                style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
+              >
+                Re-sync GCal
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setTzChangeBanner(null)}
+              className="px-2 py-1 rounded font-medium transition-colors"
+              style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 

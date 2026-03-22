@@ -6,6 +6,39 @@ import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle, fetchGoogleCalendars, getGcalSelectedCalendarIds, setGcalSelectedCalendarIds } from '../services/googleCalendar';
 import { useStore } from '../store/useStore';
+import { getLocalTimeZone, getBrowserTimeZone } from '../utils/dateTime';
+
+// Common IANA timezones shown at the top of the picker
+const COMMON_TIMEZONES = [
+  'America/Los_Angeles',
+  'America/Denver',
+  'America/Chicago',
+  'America/New_York',
+  'America/Toronto',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+];
+
+/** Get all available IANA timezones from the browser. */
+function getAllTimezones(): string[] {
+  try {
+    // Use Intl.supportedValuesOf if available (modern browsers)
+    if ('supportedValuesOf' in Intl) {
+      return (Intl as unknown as { supportedValuesOf: (key: string) => string[] }).supportedValuesOf('timeZone');
+    }
+  } catch { /* fallback */ }
+  // Fallback: return common timezones only
+  return COMMON_TIMEZONES;
+}
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -86,6 +119,40 @@ export function SettingsPanel({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
   const [confirmDeleteInput, setConfirmDeleteInput] = useState('');
+
+  // ── Timezone state ──
+  const [tzSearch, setTzSearch] = useState('');
+  const [tzDropdownOpen, setTzDropdownOpen] = useState(false);
+  const [selectedTz, setSelectedTz] = useState(() => getLocalTimeZone());
+  const browserTz = getBrowserTimeZone();
+  const allTimezones = React.useMemo(() => getAllTimezones(), []);
+
+  const filteredTimezones = React.useMemo(() => {
+    if (!tzSearch) {
+      // Show common timezones first, then all others
+      const commonSet = new Set(COMMON_TIMEZONES);
+      const rest = allTimezones.filter(tz => !commonSet.has(tz));
+      return [...COMMON_TIMEZONES, '---', ...rest];
+    }
+    const q = tzSearch.toLowerCase();
+    return allTimezones.filter(tz => tz.toLowerCase().includes(q));
+  }, [tzSearch, allTimezones]);
+
+  const handleTimezoneChange = (tz: string) => {
+    setSelectedTz(tz);
+    setTzDropdownOpen(false);
+    setTzSearch('');
+    if (tz === browserTz) {
+      // Remove override — use browser detection
+      localStorage.removeItem('timebox_user_timezone');
+    } else {
+      localStorage.setItem('timebox_user_timezone', tz);
+    }
+    // Store the new timezone so the next load triggers re-derivation
+    localStorage.setItem('timebox_event_timezone', tz);
+    // Reload to trigger timezone re-derivation in App.tsx
+    window.location.reload();
+  };
 
   // ── Sharing state ──
   const [sharingId, setSharingId] = useState<string | null>(null); // id of item being shared
@@ -727,6 +794,92 @@ export function SettingsPanel({
                     className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
                     style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
                   />
+                </div>
+
+                {/* ── Timezone ── */}
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Timezone</span>
+                  <div
+                    className="py-3 px-3 rounded-lg"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Current timezone</p>
+                        <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>
+                          Detected: {browserTz}
+                          {selectedTz !== browserTz && (
+                            <span style={{ color: PRIMARY }}> (overridden)</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ position: 'relative', marginTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setTzDropdownOpen(!tzDropdownOpen)}
+                        className="w-full flex items-center justify-between rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                        style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', textAlign: 'left' }}
+                      >
+                        <span className="truncate">{selectedTz}</span>
+                        <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tzDropdownOpen ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+                        </svg>
+                      </button>
+                      {tzDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                            backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflow: 'hidden',
+                            display: 'flex', flexDirection: 'column', marginTop: 2,
+                          }}
+                        >
+                          <div style={{ padding: '6px 8px', borderBottom: `1px solid ${BORDER}` }}>
+                            <input
+                              type="text"
+                              placeholder="Search timezones..."
+                              value={tzSearch}
+                              onChange={(e) => setTzSearch(e.target.value)}
+                              className="w-full text-xs px-2 py-1 rounded focus:outline-none"
+                              style={{ border: `1px solid ${BORDER}`, color: TEXT }}
+                              autoFocus
+                            />
+                          </div>
+                          <div style={{ overflowY: 'auto', maxHeight: 180 }}>
+                            {selectedTz !== browserTz && (
+                              <button
+                                type="button"
+                                onClick={() => handleTimezoneChange(browserTz)}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-100 transition-colors"
+                                style={{ color: PRIMARY, fontWeight: 500, borderBottom: `1px solid ${BORDER}` }}
+                              >
+                                Reset to detected ({browserTz})
+                              </button>
+                            )}
+                            {filteredTimezones.map((tz, i) =>
+                              tz === '---' ? (
+                                <div key={`sep-${i}`} style={{ borderTop: `1px solid ${BORDER}`, margin: '2px 0' }} />
+                              ) : (
+                                <button
+                                  key={tz}
+                                  type="button"
+                                  onClick={() => handleTimezoneChange(tz)}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-100 transition-colors"
+                                  style={{
+                                    color: tz === selectedTz ? PRIMARY : TEXT,
+                                    fontWeight: tz === selectedTz ? 600 : 400,
+                                  }}
+                                >
+                                  {tz}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* ── Notifications ── */}

@@ -4,8 +4,22 @@
  * so "today" and date strings are correct in the user's timezone.
  */
 
-/** Get IANA timezone string for the current environment (e.g. "America/Los_Angeles"). */
+/** Get IANA timezone string for the current environment (e.g. "America/Los_Angeles").
+ *  Checks for a user override in localStorage before falling back to browser detection.
+ */
 export function getLocalTimeZone(): string {
+  try {
+    const override = localStorage.getItem('timebox_user_timezone');
+    if (override) return override;
+  } catch { /* localStorage unavailable */ }
+  if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+  return 'UTC';
+}
+
+/** Get the browser's detected timezone (ignoring any user override). */
+export function getBrowserTimeZone(): string {
   if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
