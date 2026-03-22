@@ -3,10 +3,16 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { InvitePage } from './components/InvitePage';
 import { GcalCallbackPage } from './components/GcalCallbackPage';
+import { DesktopPage } from './components/DesktopPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import './styles/globals.css';
 import { hydrateFromLocalStorage, startLocalStoragePersistence } from './store/useStore';
+
+// Check if we're on the /desktop route
+function isDesktopPage(): boolean {
+  return window.location.pathname === '/desktop';
+}
 
 // Check if we're on the /invite/:token route
 function getInviteToken(): string | null {
@@ -21,11 +27,12 @@ function getGcalCode(): string | null {
   return params.get('code');
 }
 
+const desktopPage = isDesktopPage();
 const inviteToken = getInviteToken();
 const gcalCode = getGcalCode();
 
 // Phase 2: local persistence bootstrap (runs once on startup in browser)
-if (!inviteToken && !gcalCode && typeof window !== 'undefined') {
+if (!inviteToken && !gcalCode && !desktopPage && typeof window !== 'undefined') {
   hydrateFromLocalStorage();
   startLocalStoragePersistence();
 }
@@ -37,7 +44,9 @@ if (gcalCode && typeof window !== 'undefined') {
 }
 
 let content: React.ReactNode;
-if (inviteToken) {
+if (desktopPage) {
+  content = <DesktopPage />;
+} else if (inviteToken) {
   content = <InvitePage token={inviteToken} />;
 } else if (gcalCode) {
   content = <GcalCallbackPage code={gcalCode} />;
