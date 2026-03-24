@@ -7,6 +7,8 @@ export interface CalendarContainer {
   id: string;
   name: string;
   color: string;
+  /** Display order in the left sidebar. Lower = higher. */
+  sortOrder?: number;
 }
 
 export interface Category {
@@ -17,6 +19,8 @@ export interface Category {
   calendarContainerId?: string | null;
   /** When set, this category is available for these calendars (shared). Empty/null = all calendars. */
   calendarContainerIds?: string[] | null;
+  /** Display order within its parent calendar. Lower = higher. */
+  sortOrder?: number;
 }
 
 export interface Tag {
@@ -25,6 +29,8 @@ export interface Tag {
   type?: 'project' | 'hobby';
   /** When set, tag appears under this category in the left panel. */
   categoryId?: string | null;
+  /** Display order within its parent category. Lower = higher. */
+  sortOrder?: number;
 }
 
 export interface Task {

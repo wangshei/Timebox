@@ -810,16 +810,16 @@ function TimeBlockCardInner({
   // ─── Compact mode (week view) ───────────────────────────────────────────
   if (compact) {
     const compactTitleFontSize = (() => {
+      if (view === 'week') {
+        // Week view: smaller fonts to fit narrow columns
+        return compactTier === 'tiny' ? 9 : 10;
+      }
       const base =
         compactTier === 'tiny'
           ? 10
           : isTask
             ? 12
             : 11;
-      // Week view: only shrink event titles by ~2px; tasks stay at base size.
-      if (!isTask && view === 'week') {
-        return Math.max(8, base - 2);
-      }
       return base;
     })();
     const blockStyle = getBlockInlineStyle();
@@ -871,7 +871,7 @@ function TimeBlockCardInner({
           {compactTier === 'micro' ? null : (
             <div
               className="flex items-start h-full min-w-0 w-full gap-1.5"
-              style={{ padding: compactTier === 'tiny' ? '1px 3px' : '2px 5px' }}
+              style={{ padding: compactTier === 'tiny' ? '1px 2px' : view === 'week' ? '1px 3px' : '2px 5px' }}
             >
               {isEvent && compactTier !== 'tiny' && (
                 <LockClosedIcon className="flex-shrink-0 mt-0.5 h-1.5 w-1.5 opacity-40" style={{ color: blockColor }} />
@@ -880,14 +880,17 @@ function TimeBlockCardInner({
                 <div
                   className={cn(
                     isTask ? 'font-semibold' : 'font-medium',
-                    'leading-snug min-w-0 break-words',
+                    'leading-snug min-w-0',
+                    view === 'week' ? 'truncate' : 'break-words',
                     isTask && confirmed && 'line-through decoration-current/40',
                     titleTextClass,
                   )}
                   style={{
                     fontSize: compactTitleFontSize,
                     overflow: 'hidden',
-                    wordBreak: 'break-word',
+                    ...(view === 'week'
+                      ? { textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                      : { wordBreak: 'break-word' }),
                     color: getTitleColor(),
                     ...(isTask && confirmed ? { textDecorationSkipInk: 'none' } : {}),
                   }}

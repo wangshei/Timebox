@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 /**
  * Checks for app updates on launch (desktop only).
  * Uses Tauri's updater plugin — no-ops gracefully in the browser.
  */
 export default function UpdateChecker() {
-  const [status, setStatus] = useState<'idle' | 'available' | 'downloading' | 'done'>('idle');
+  const [status, setStatus] = useState<'idle' | 'available' | 'downloading' | 'done' | 'error'>('idle');
   const [version, setVersion] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [dismissed, setDismissed] = useState(false);
+  const updateRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,9 +22,7 @@ export default function UpdateChecker() {
 
         setVersion(update.version);
         setStatus('available');
-
-        // Store the update handle so user can trigger install
-        (window as any).__tauriUpdate = update;
+        updateRef.current = update;
       } catch {
         // Not in Tauri or no update — silently ignore
       }
@@ -33,18 +33,33 @@ export default function UpdateChecker() {
   }, []);
 
   async function handleInstall() {
-    const update = (window as any).__tauriUpdate;
+    const update = updateRef.current;
     if (!update) return;
 
     setStatus('downloading');
+    setErrorMsg('');
+
     try {
       await update.downloadAndInstall();
-      setStatus('done');
-      // Tauri will prompt to relaunch automatically
+    } catch (e: any) {
+      const msg = e?.message || String(e) || 'Download failed';
+      console.error('[UpdateChecker] downloadAndInstall failed:', e);
+      setErrorMsg(msg);
+      setStatus('error');
+      return;
+    }
+
+    setStatus('done');
+
+    try {
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
-    } catch {
-      setStatus('available'); // Let user retry
+    } catch (e: any) {
+      // relaunch failed — update is installed but the app didn't restart
+      const msg = e?.message || String(e) || 'Relaunch failed';
+      console.error('[UpdateChecker] relaunch failed:', e);
+      setErrorMsg(`Update installed, but restart failed: ${msg}. Please quit and reopen the app.`);
+      setStatus('error');
     }
   }
 
@@ -67,13 +82,49 @@ export default function UpdateChecker() {
         fontSize: 13,
         fontWeight: 500,
         boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-        maxWidth: 360,
+        maxWidth: 400,
       }}
     >
       {status === 'done' ? (
         <span>Restarting...</span>
       ) : status === 'downloading' ? (
         <span>Downloading update...</span>
+      ) : status === 'error' ? (
+        <>
+          <span style={{ flex: 1, color: '#FF6B6B', fontSize: 12, lineHeight: '1.4' }}>
+            {errorMsg}
+          </span>
+          <button
+            onClick={handleInstall}
+            style={{
+              background: '#8DA286',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            style={{
+              background: 'transparent',
+              color: '#8E8E93',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 16,
+              padding: '0 4px',
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </>
       ) : (
         <>
           <span style={{ flex: 1 }}>

@@ -8,10 +8,12 @@ import {
   EyeSlashIcon,
   ArrowLeftIcon,
   UserGroupIcon,
+  ShareIcon,
 } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag, TimeBlock } from '../types';
 import type { CalendarContainerVisibility } from '../types';
 import type { SharedCalendarView } from '../types/sharing';
+import type { ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
@@ -35,6 +37,8 @@ interface LeftSidebarProps {
   focusedCalendarId?: string | null;
   onFocusCategory?: (id: string) => void;
   onReorderCategories?: (reorderedCategories: Category[]) => void;
+  onReorderCalendarContainers?: (orderedIds: string[]) => void;
+  onReorderTags?: (categoryId: string, orderedTagIds: string[]) => void;
   endDayLabel?: string;
   onEndDay?: () => void;
   planVsActualSection?: React.ReactNode;
@@ -58,6 +62,8 @@ interface LeftSidebarProps {
   sharedMappings?: Record<string, { calendarId: string; categoryId: string }>;
   /** Called when user maps a shared calendar to a local calendar+category. */
   onSetSharedMapping?: (shareId: string, calendarId: string, categoryId: string) => void;
+  /** Called when user clicks the share icon on a calendar/category/tag. */
+  onShare?: (id: string, scope: ShareScope, name: string, color: string) => void;
 }
 
 // Stable component — defined outside LeftSidebar so React doesn't remount on every render
@@ -119,6 +125,8 @@ export function LeftSidebar({
   focusedCalendarId = null,
   onFocusCategory,
   onReorderCategories,
+  onReorderCalendarContainers,
+  onReorderTags,
   endDayLabel,
   onEndDay,
   planVsActualSection,
@@ -135,6 +143,7 @@ export function LeftSidebar({
   onToggleSharedVisibility,
   sharedMappings = {},
   onSetSharedMapping,
+  onShare,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -159,6 +168,13 @@ export function LeftSidebar({
   const [dragCategoryId, setDragCategoryId] = useState<string | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
   const [dragCalendarId, setDragCalendarId] = useState<string | null>(null);
+  // Calendar reorder drag state
+  const [dragCalContainerId, setDragCalContainerId] = useState<string | null>(null);
+  const [dragOverCalContainerId, setDragOverCalContainerId] = useState<string | null>(null);
+  // Tag reorder drag state
+  const [dragTagId, setDragTagId] = useState<string | null>(null);
+  const [dragOverTagId, setDragOverTagId] = useState<string | null>(null);
+  const [dragTagCategoryId, setDragTagCategoryId] = useState<string | null>(null);
 
   const toggleExpandCalendar = (id: string) => {
     setExpandedCalendars((prev) => {
@@ -257,6 +273,7 @@ export function LeftSidebar({
     const ids = categoryIdsByCalendar.get(cal.id);
     if (!ids?.size) return;
     const list = [...ids].map((id) => categories.find((c) => c.id === id)).filter(Boolean) as Category[];
+    list.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
     if (list.length) categoriesByCalendar.set(cal.id, list);
   });
   const tagsByCalendarCategory = new Map<string, Tag[]>();
@@ -271,6 +288,7 @@ export function LeftSidebar({
       for (const t of [...tagsFromBlocks, ...tagsByCategoryId]) {
         if (!seen.has(t.id)) { seen.add(t.id); list.push(t); }
       }
+      list.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
       if (list.length) tagsByCalendarCategory.set(key, list);
     });
   });
@@ -441,14 +459,52 @@ export function LeftSidebar({
     <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
       {/* Scrollable list — calendars, categories, tags */}
       <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 pt-1 pb-2">
-        {calendarContainers.map((calendar) => {
+        {[...calendarContainers].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999)).map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
           const isExpanded = expandedCalendars.has(calendar.id);
           const calCategories = categoriesByCalendar.get(calendar.id) ?? [];
           const hasChildren = calCategories.length > 0;
 
           return (
-            <div key={calendar.id}>
+            <div
+              key={calendar.id}
+              draggable={isEditMode && editingId !== calendar.id}
+              onDragStart={isEditMode ? (e) => {
+                setDragCalContainerId(calendar.id);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', `calendar:${calendar.id}`);
+              } : undefined}
+              onDragOver={isEditMode ? (e) => {
+                if (dragCalContainerId && dragCalContainerId !== calendar.id) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDragOverCalContainerId(calendar.id);
+                }
+              } : undefined}
+              onDragLeave={isEditMode ? () => setDragOverCalContainerId(null) : undefined}
+              onDrop={isEditMode ? (e) => {
+                e.preventDefault();
+                if (dragCalContainerId && dragCalContainerId !== calendar.id && onReorderCalendarContainers) {
+                  const sorted = [...calendarContainers].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+                  const ids = sorted.map((c) => c.id);
+                  const fromIdx = ids.indexOf(dragCalContainerId);
+                  const toIdx = ids.indexOf(calendar.id);
+                  if (fromIdx >= 0 && toIdx >= 0) {
+                    ids.splice(fromIdx, 1);
+                    ids.splice(toIdx, 0, dragCalContainerId);
+                    onReorderCalendarContainers(ids);
+                  }
+                }
+                setDragCalContainerId(null);
+                setDragOverCalContainerId(null);
+              } : undefined}
+              onDragEnd={() => { setDragCalContainerId(null); setDragOverCalContainerId(null); }}
+              style={{
+                opacity: dragCalContainerId === calendar.id ? 0.4 : 1,
+                borderTop: dragOverCalContainerId === calendar.id ? '2px solid #8DA286' : '2px solid transparent',
+                cursor: isEditMode && editingId !== calendar.id ? 'grab' : undefined,
+              }}
+            >
               {editingId === calendar.id && editingType === 'calendar' ? (
                 <div className="px-2 py-1">
                   <InlineEditForm name={editName} setName={setEditName} color={editColor} setColor={setEditColor} showColor onSave={saveEdit} onCancel={cancelEdit} />
@@ -465,6 +521,11 @@ export function LeftSidebar({
                   actions={
                     isEditMode ? (
                       <>
+                        {iconBtn(
+                          () => onShare?.(calendar.id, 'calendar', calendar.name, calendar.color),
+                          <ShareIcon className="h-3.5 w-3.5" />,
+                          '#8DA286', 'rgba(141,162,134,0.12)'
+                        )}
                         {(subscriberCounts[calendar.id] ?? 0) > 0 && iconBtn(
                           () => onManageSubscribers?.(calendar.id, 'calendar'),
                           <UserGroupIcon className="h-3.5 w-3.5" />,
@@ -474,6 +535,11 @@ export function LeftSidebar({
                       </>
                     ) : (
                       <>
+                        {iconBtn(
+                          () => onShare?.(calendar.id, 'calendar', calendar.name, calendar.color),
+                          <ShareIcon className="h-3.5 w-3.5" />,
+                          calendar.color, `${calendar.color}18`
+                        )}
                         {(subscriberCounts[calendar.id] ?? 0) > 0 && iconBtn(
                           () => onManageSubscribers?.(calendar.id, 'calendar'),
                           <UserGroupIcon className="h-3.5 w-3.5" />,
@@ -506,9 +572,11 @@ export function LeftSidebar({
                         key={category.id}
                         draggable={isEditMode && editingId !== category.id}
                         onDragStart={isEditMode ? (e) => {
+                          e.stopPropagation();
                           setDragCategoryId(category.id);
                           setDragCalendarId(calendar.id);
                           e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', `category:${category.id}`);
                         } : undefined}
                         onDragOver={isEditMode ? (e) => {
                           if (dragCategoryId && dragCalendarId === calendar.id && dragCategoryId !== category.id) {
@@ -520,15 +588,20 @@ export function LeftSidebar({
                         onDragLeave={isEditMode ? () => setDragOverCategoryId(null) : undefined}
                         onDrop={isEditMode ? (e) => {
                           e.preventDefault();
-                          if (dragCategoryId && dragCalendarId === calendar.id && dragCategoryId !== category.id && onReorderCategories) {
-                            // Swap positions in the global categories array
-                            const arr = [...categories];
-                            const fromIdx = arr.findIndex((c) => c.id === dragCategoryId);
-                            const toIdx = arr.findIndex((c) => c.id === category.id);
+                          if (dragCategoryId && dragCalendarId === calendar.id && dragCategoryId !== category.id) {
+                            // Reorder categories within this calendar using sortOrder
+                            const catIds = calCategories.map((c) => c.id);
+                            const fromIdx = catIds.indexOf(dragCategoryId);
+                            const toIdx = catIds.indexOf(category.id);
                             if (fromIdx >= 0 && toIdx >= 0) {
-                              const [moved] = arr.splice(fromIdx, 1);
-                              arr.splice(toIdx, 0, moved);
-                              onReorderCategories(arr);
+                              catIds.splice(fromIdx, 1);
+                              catIds.splice(toIdx, 0, dragCategoryId);
+                              // Apply sortOrder via onReorderCategories (setCategories) with updated sortOrder
+                              const updated = categories.map((c) => {
+                                const idx = catIds.indexOf(c.id);
+                                return idx >= 0 ? { ...c, sortOrder: idx } : c;
+                              });
+                              onReorderCategories?.(updated);
                             }
                           }
                           setDragCategoryId(null);
@@ -556,6 +629,11 @@ export function LeftSidebar({
                             onLabelClick={() => onFocusCategory?.(category.id)}
                             actions={
                               <>
+                                {iconBtn(
+                                  () => onShare?.(category.id, 'category', category.name, category.color),
+                                  <ShareIcon className="h-3.5 w-3.5" />,
+                                  category.color ?? '#8DA286', `${category.color ?? '#8DA286'}18`
+                                )}
                                 {(subscriberCounts[category.id] ?? 0) > 0 && iconBtn(
                                   () => onManageSubscribers?.(category.id, 'category'),
                                   <UserGroupIcon className="h-3.5 w-3.5" />,
@@ -591,23 +669,69 @@ export function LeftSidebar({
                                       </div>
                                     </div>
                                   ) : (
-                                    <div key={tag.id} className="group/tag flex items-center gap-0.5">
+                                    <div
+                                      key={tag.id}
+                                      className="group/tag flex items-center gap-0.5"
+                                      draggable={isEditMode && editingId !== tag.id}
+                                      onDragStart={isEditMode ? (e) => {
+                                        e.stopPropagation();
+                                        setDragTagId(tag.id);
+                                        setDragTagCategoryId(category.id);
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        e.dataTransfer.setData('text/plain', `tag:${tag.id}`);
+                                      } : undefined}
+                                      onDragOver={isEditMode ? (e) => {
+                                        if (dragTagId && dragTagCategoryId === category.id && dragTagId !== tag.id) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          e.dataTransfer.dropEffect = 'move';
+                                          setDragOverTagId(tag.id);
+                                        }
+                                      } : undefined}
+                                      onDragLeave={isEditMode ? () => setDragOverTagId(null) : undefined}
+                                      onDrop={isEditMode ? (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (dragTagId && dragTagCategoryId === category.id && dragTagId !== tag.id && onReorderTags) {
+                                          const tagIds = categoryTags.map((t) => t.id);
+                                          const fromIdx = tagIds.indexOf(dragTagId);
+                                          const toIdx = tagIds.indexOf(tag.id);
+                                          if (fromIdx >= 0 && toIdx >= 0) {
+                                            tagIds.splice(fromIdx, 1);
+                                            tagIds.splice(toIdx, 0, dragTagId);
+                                            onReorderTags(category.id, tagIds);
+                                          }
+                                        }
+                                        setDragTagId(null);
+                                        setDragOverTagId(null);
+                                        setDragTagCategoryId(null);
+                                      } : undefined}
+                                      onDragEnd={() => { setDragTagId(null); setDragOverTagId(null); setDragTagCategoryId(null); }}
+                                      style={{
+                                        opacity: dragTagId === tag.id ? 0.4 : 1,
+                                        borderLeft: dragOverTagId === tag.id ? '2px solid #8DA286' : '2px solid transparent',
+                                        cursor: isEditMode && editingId !== tag.id ? 'grab' : undefined,
+                                      }}
+                                    >
                                       <span
                                         className="inline-flex items-center font-medium rounded-full cursor-default"
                                         style={{ fontSize: 10, padding: '4px 8px', color: category.color, backgroundColor: `${category.color}14`, border: `1px solid ${category.color}28` }}
                                       >
                                         {tag.name}
                                       </span>
-                                      {((subscriberCounts[tag.id] ?? 0) > 0 || isEditMode) && (
-                                        <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                                          {(subscriberCounts[tag.id] ?? 0) > 0 && iconBtn(
-                                            () => onManageSubscribers?.(tag.id, 'tag'),
-                                            <UserGroupIcon className="h-2 w-2" />,
-                                            category.color, `${category.color}18`
-                                          )}
-                                          {isEditMode && iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2 w-2" />, '#8DA286', 'rgba(141,162,134,0.12)')}
-                                        </div>
-                                      )}
+                                      <div className="flex opacity-0 group-hover/tag:opacity-100 transition-opacity">
+                                        {iconBtn(
+                                          () => onShare?.(tag.id, 'tag', tag.name, category.color),
+                                          <ShareIcon className="h-2 w-2" />,
+                                          category.color, `${category.color}18`
+                                        )}
+                                        {(subscriberCounts[tag.id] ?? 0) > 0 && iconBtn(
+                                          () => onManageSubscribers?.(tag.id, 'tag'),
+                                          <UserGroupIcon className="h-2 w-2" />,
+                                          category.color, `${category.color}18`
+                                        )}
+                                        {isEditMode && iconBtn(() => startEdit('tag', tag), <PencilIcon className="h-2 w-2" />, '#8DA286', 'rgba(141,162,134,0.12)')}
+                                      </div>
                                     </div>
                                   )
                                 )}

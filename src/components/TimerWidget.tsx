@@ -35,7 +35,6 @@ export function TimerWidget() {
   const addTimeBlock = useStore((s) => s.addTimeBlock);
   const startTimer = useStore((s) => s.startTimer);
   const stopTimer = useStore((s) => s.stopTimer);
-  const updateTimeBlock = useStore((s) => s.updateTimeBlock);
 
   const [showPopover, setShowPopover] = useState(false);
   const [title, setTitle] = useState('');
@@ -43,15 +42,9 @@ export function TimerWidget() {
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [elapsed, setElapsed] = useState('0:00');
-  const [showSessionPanel, setShowSessionPanel] = useState(false);
-  const [sessionNotes, setSessionNotes] = useState('');
-  const [sessionPanelPos, setSessionPanelPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const elapsedBtnRef = useRef<HTMLButtonElement>(null);
-  const sessionPanelRef = useRef<HTMLDivElement>(null);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -88,22 +81,6 @@ export function TimerWidget() {
     return () => document.removeEventListener('pointerdown', handler, true);
   }, [showPopover]);
 
-  // Close session panel on outside click
-  useEffect(() => {
-    if (!showSessionPanel) return;
-    const handler = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (
-        sessionPanelRef.current && !sessionPanelRef.current.contains(target) &&
-        elapsedBtnRef.current && !elapsedBtnRef.current.contains(target)
-      ) {
-        setShowSessionPanel(false);
-      }
-    };
-    document.addEventListener('pointerdown', handler, true);
-    return () => document.removeEventListener('pointerdown', handler, true);
-  }, [showSessionPanel]);
-
   // Position popover and focus input when it opens
   useEffect(() => {
     if (showPopover) {
@@ -138,31 +115,9 @@ export function TimerWidget() {
     if (activeTimer) return;
     setTitle('');
     setSelectedTagIds([]);
-    setSessionNotes('');
-    setShowSessionPanel(false);
     setSelectedCalendarId(calendarContainers[0]?.id ?? '');
     setShowPopover(true);
   }, [activeTimer, calendarContainers]);
-
-  const handleElapsedClick = useCallback(() => {
-    if (!elapsedBtnRef.current) return;
-    const rect = elapsedBtnRef.current.getBoundingClientRect();
-    setSessionPanelPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-    setShowSessionPanel((prev) => !prev);
-    setTimeout(() => notesRef.current?.focus(), 50);
-  }, []);
-
-  const handleStop = useCallback(() => {
-    if (activeTimer && sessionNotes.trim()) {
-      const block = timeBlocks.find((b) => b.id === activeTimer.blockId);
-      const existing = block?.notes?.trim() ?? '';
-      const combined = existing ? `${existing}\n\n${sessionNotes.trim()}` : sessionNotes.trim();
-      updateTimeBlock(activeTimer.blockId, { notes: combined });
-    }
-    setShowSessionPanel(false);
-    setSessionNotes('');
-    stopTimer();
-  }, [activeTimer, sessionNotes, timeBlocks, updateTimeBlock, stopTimer]);
 
   const toggleTag = useCallback((tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -196,116 +151,29 @@ export function TimerWidget() {
     }
   }, [title, selectedCategoryId, selectedTagIds, categories, calendarContainers, addTimeBlock, startTimer]);
 
-  // Timer is running — show elapsed + stop
+  // Timer is running — show elapsed time + stop button (compact header widget)
+  // The full focus session UI is now in FocusPanel (rendered in the right sidebar)
   if (activeTimer) {
-    const timerBlock = timeBlocks.find((b) => b.id === activeTimer.blockId);
     return (
-      <>
-        <div className="flex items-center gap-1.5">
-          <button
-            ref={elapsedBtnRef}
-            type="button"
-            onClick={handleElapsedClick}
-            className="flex items-center gap-1 font-mono font-medium tabular-nums rounded px-1 transition-colors"
-            style={{ fontSize: 11, color: THEME.primary, backgroundColor: showSessionPanel ? 'rgba(141,162,134,0.12)' : 'transparent' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.12)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = showSessionPanel ? 'rgba(141,162,134,0.12)' : 'transparent'; }}
-            title="Session notes"
-          >
-            {elapsed}
-            {/* Note indicator — dot when notes exist, pencil icon always */}
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6, flexShrink: 0 }}>
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            {sessionNotes.trim() && (
-              <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: THEME.primary, flexShrink: 0 }} />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={handleStop}
-            className="p-0.5 rounded transition-colors flex-shrink-0"
-            style={{ color: '#FF3B30', backgroundColor: 'transparent' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.10)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-            title="Stop timer"
-          >
-            <StopIcon className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Session notes panel */}
-        {showSessionPanel && createPortal(
-          <div
-            ref={sessionPanelRef}
-            className="rounded-xl shadow-lg"
-            style={{
-              position: 'fixed',
-              top: sessionPanelPos.top,
-              right: sessionPanelPos.right,
-              zIndex: 200,
-              backgroundColor: '#FFFFFF',
-              border: '1px solid rgba(0,0,0,0.10)',
-              width: 280,
-              padding: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-            }}
-          >
-            {/* Task name + elapsed */}
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-              <span
-                style={{ fontSize: 11, fontWeight: 500, color: THEME.textPrimary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                title={timerBlock?.title}
-              >
-                {timerBlock?.title ?? 'Session'}
-              </span>
-              <span className="font-mono font-medium tabular-nums flex-shrink-0" style={{ fontSize: 11, color: THEME.primary }}>
-                {elapsed}
-              </span>
-            </div>
-
-            {/* Notes label */}
-            <label style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
-              Session Notes
-            </label>
-
-            {/* Free-write textarea */}
-            <textarea
-              ref={notesRef}
-              value={sessionNotes}
-              onChange={(e) => setSessionNotes(e.target.value)}
-              placeholder={"– todo items\n– links\n– anything relevant..."}
-              rows={6}
-              className="w-full rounded-lg outline-none resize-none"
-              style={{
-                fontSize: 11,
-                lineHeight: 1.55,
-                padding: '8px 10px',
-                border: '1px solid rgba(0,0,0,0.10)',
-                color: THEME.textPrimary,
-                backgroundColor: 'rgba(0,0,0,0.02)',
-                fontFamily: 'inherit',
-              }}
-            />
-
-            {/* Stop & save */}
-            <button
-              type="button"
-              onClick={handleStop}
-              className="w-full py-1.5 text-xs font-medium rounded-lg transition-colors"
-              style={{ backgroundColor: '#FF3B30', color: '#FFFFFF', cursor: 'pointer' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#E0352B'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FF3B30'; }}
-            >
-              Stop & Save
-            </button>
-          </div>,
-          document.body
-        )}
-      </>
+      <div className="flex items-center gap-1.5">
+        <span
+          className="font-mono font-medium tabular-nums rounded px-1"
+          style={{ fontSize: 11, color: THEME.primary }}
+        >
+          {elapsed}
+        </span>
+        <button
+          type="button"
+          onClick={stopTimer}
+          className="p-0.5 rounded transition-colors flex-shrink-0"
+          style={{ color: '#FF3B30', backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.10)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          title="Stop timer"
+        >
+          <StopIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
     );
   }
 

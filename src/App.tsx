@@ -10,9 +10,14 @@ import { CalendarView } from './components/CalendarView';
 // DraggableBottomSheet removed — replaced by slide-from-right todo panel
 import { RightSidebar } from './components/RightSidebar';
 import { TimerWidget } from './components/TimerWidget';
+import { FocusPanel } from './components/FocusPanel';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { LeftSidebar } from './components/LeftSidebar';
+import { ShareModal } from './components/ShareModal';
+import type { ShareRole, Collaborator } from './components/ShareModal';
+import type { ShareScope } from './types/sharing';
+import { toast, Toaster } from 'sonner';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AuthPage } from './components/AuthPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -263,6 +268,76 @@ export default function App() {
     }
   }, []);
 
+  // ─── Share Modal state ─────────────────────────────────────────────────────
+  const [shareModal, setShareModal] = useState<{
+    id: string;
+    scope: ShareScope;
+    name: string;
+    color: string;
+  } | null>(null);
+  // Local collaborators state keyed by scope+id (in production this comes from Supabase)
+  const [collaboratorsByItem, setCollaboratorsByItem] = useState<Record<string, Collaborator[]>>({});
+
+  const handleOpenShare = useCallback((id: string, scope: ShareScope, name: string, color: string) => {
+    setShareModal({ id, scope, name, color });
+  }, []);
+
+  const handleShareCopyLink = useCallback(() => {
+    if (!shareModal) return;
+    const slug = shareModal.scope === 'calendar' ? 'cal' : shareModal.scope === 'category' ? 'cat' : 'tag';
+    const link = `https://timeboxing.club/share/${slug}_${shareModal.id.slice(0, 8)}`;
+    navigator.clipboard.writeText(link).then(() => {
+      toast.success('Link copied!');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  }, [shareModal]);
+
+  const handleShareInvite = useCallback((email: string, role: ShareRole) => {
+    if (!shareModal) return;
+    const key = `${shareModal.scope}:${shareModal.id}`;
+    const newCollab: Collaborator = {
+      id: crypto.randomUUID(),
+      email,
+      role,
+      status: 'pending',
+    };
+    setCollaboratorsByItem(prev => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), newCollab],
+    }));
+    // Update subscriber count
+    setSubscriberCounts(prev => ({
+      ...prev,
+      [shareModal.id]: (prev[shareModal.id] ?? 0) + 1,
+    }));
+    toast.success(`Invite sent to ${email}`);
+    // TODO: call createShare() / addShareMember() from src/services/sharing.ts
+  }, [shareModal]);
+
+  const handleShareRemove = useCallback((collaboratorId: string) => {
+    if (!shareModal) return;
+    const key = `${shareModal.scope}:${shareModal.id}`;
+    setCollaboratorsByItem(prev => ({
+      ...prev,
+      [key]: (prev[key] ?? []).filter(c => c.id !== collaboratorId),
+    }));
+    setSubscriberCounts(prev => ({
+      ...prev,
+      [shareModal.id]: Math.max((prev[shareModal.id] ?? 1) - 1, 0),
+    }));
+    toast('Collaborator removed');
+  }, [shareModal]);
+
+  const handleShareUpdateRole = useCallback((collaboratorId: string, role: ShareRole) => {
+    if (!shareModal) return;
+    const key = `${shareModal.scope}:${shareModal.id}`;
+    setCollaboratorsByItem(prev => ({
+      ...prev,
+      [key]: (prev[key] ?? []).map(c => c.id === collaboratorId ? { ...c, role } : c),
+    }));
+  }, [shareModal]);
+
   // Load Google Calendar events — wait for dataReady so Supabase state is loaded first
   const gcalInjectedRef = useRef(false);
   useEffect(() => {
@@ -509,6 +584,8 @@ export default function App() {
     setCalendarContainers,
     setCategories,
     setTags,
+    reorderCalendarContainers,
+    reorderTags,
     weekStartsOnMonday,
     setWeekStartsOnMonday,
     wakeTime,
@@ -534,6 +611,8 @@ export default function App() {
     setNotificationScope,
     setNotificationLeadMinutes,
     setEmailNotificationsEnabled,
+    activeTimer,
+    stopTimer,
   } = useStore();
 
   const { saveSnapshot } = useHistoryStore();
@@ -1977,7 +2056,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => { setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('signup'); }}
-            className="px-2 py-1 rounded border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 transition-colors"
+            className="px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors"
           >
             Sign in
           </button>
@@ -1993,7 +2072,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => { setSessionExpired(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
-            className="px-2 py-1 rounded font-medium transition-colors"
+            className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
             style={{ border: '1px solid rgba(255,59,48,0.25)', color: '#B85050' }}
           >
             Sign in
@@ -2010,7 +2089,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setSaveError(false)}
-            className="px-2 py-1 rounded font-medium transition-colors"
+            className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
             style={{ border: '1px solid rgba(255,149,0,0.3)', color: '#996300' }}
           >
             Dismiss
@@ -2050,7 +2129,7 @@ export default function App() {
                     })
                     .catch(err => console.warn('[gcal] Re-sync failed:', err));
                 }}
-                className="px-2 py-1 rounded font-medium transition-colors"
+                className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                 style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
               >
                 Re-sync GCal
@@ -2059,7 +2138,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setTzChangeBanner(null)}
-              className="px-2 py-1 rounded font-medium transition-colors"
+              className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
               style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}
             >
               Dismiss
@@ -2131,6 +2210,8 @@ export default function App() {
                 focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
                 onReorderCategories={setCategories}
+                onReorderCalendarContainers={reorderCalendarContainers}
+                onReorderTags={reorderTags}
                 isEditMode={isEditMode}
                 isCompareMode={mode === 'compare'}
                 onExitCompare={() => setViewMode('overall')}
@@ -2141,6 +2222,7 @@ export default function App() {
                 onToggleSharedVisibility={toggleSharedVisibility}
                 sharedMappings={sharedMappings}
                 onSetSharedMapping={handleSetSharedMapping}
+                onShare={handleOpenShare}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -2909,7 +2991,9 @@ export default function App() {
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>To-Dos</span>
+              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>
+                {activeTimer ? 'Focus' : 'To-Dos'}
+              </span>
               <div className="flex items-center gap-1.5">
                 {isTauri() && (
                   <button
@@ -2946,7 +3030,10 @@ export default function App() {
                 <TimerWidget />
               </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden relative">
+              {activeTimer ? (
+                <FocusPanel onStop={() => stopTimer()} />
+              ) : (
               <RightSidebar
                 tasks={displayTasks}
                 unscheduledTasks={unscheduledDisplay}
@@ -2979,6 +3066,7 @@ export default function App() {
                 weekStartsOnMonday={weekStartsOnMonday}
                 onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
+              )}
             </div>
           </div>
         )}
@@ -3421,6 +3509,34 @@ export default function App() {
       )}
 
       <UpdateChecker />
+
+      {/* Share Modal */}
+      {shareModal && (
+        <ShareModal
+          scope={shareModal.scope}
+          scopeId={shareModal.id}
+          name={shareModal.name}
+          color={shareModal.color}
+          collaborators={collaboratorsByItem[`${shareModal.scope}:${shareModal.id}`] ?? []}
+          onInvite={handleShareInvite}
+          onRemove={handleShareRemove}
+          onUpdateRole={handleShareUpdateRole}
+          onCopyLink={handleShareCopyLink}
+          onClose={() => setShareModal(null)}
+        />
+      )}
+
+      {/* Toast notifications */}
+      <Toaster
+        position="bottom-center"
+        toastOptions={{
+          style: {
+            fontSize: 13,
+            borderRadius: 10,
+            padding: '10px 16px',
+          },
+        }}
+      />
     </div >
   );
 }

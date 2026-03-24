@@ -72,7 +72,7 @@ export interface ShareMember {
   shareId: string;
   email: string;
   userId?: string;               // set if they're a Timebox user
-  role: 'viewer';                // future: 'editor' | 'admin'
+  role: 'viewer' | 'editor' | 'admin';
   status: 'pending' | 'accepted' | 'declined';
   pushToGoogle: boolean;         // also create GCal events for this member
   token: string;                 // for accept/unsubscribe URL

@@ -260,7 +260,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   className="flex-1 flex flex-col px-1.5 md:px-2"
                   style={{
                     height: 48,
-                    minWidth: 90,
+                    minWidth: 0,
                     borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
                     backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
                     position: 'relative',
@@ -332,12 +332,12 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
               return (
                 <div
                   key={dayIndex}
-                  className="flex-1 min-w-[90px] md:min-w-0 relative"
+                  className="flex-1 min-w-0 relative"
                   style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
                   data-week-day-col={dateStr}
                 >
                   {/* Day grid */}
-                  <div className="px-1 md:px-2">
+                  <div className="px-0.5 md:px-1">
                     <div
                       data-week-grid
                       className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}

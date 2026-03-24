@@ -403,7 +403,7 @@ export function SettingsPanel({
                   key={cal.id}
                   type="button"
                   onClick={() => setEditCalendarIds((prev) => prev.includes(cal.id) ? prev.filter((id) => id !== cal.id) : [...prev, cal.id])}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-md transition-all"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md transition-all"
                   style={{ fontSize: 11, backgroundColor: checked ? `${cal.color}18` : 'rgba(0,0,0,0.04)', border: checked ? `1.5px solid ${cal.color}50` : `1px solid ${BORDER}`, color: checked ? cal.color : TEXT_SECONDARY, fontWeight: checked ? 500 : 400 }}
                 >
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cal.color }} />
@@ -420,7 +420,7 @@ export function SettingsPanel({
         <button
           type="button"
           onClick={onCancel}
-          className="px-2.5 py-1 rounded-md text-xs transition-colors"
+          className="px-2.5 py-1.5 rounded-md text-xs transition-colors"
           style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
@@ -430,7 +430,7 @@ export function SettingsPanel({
         <button
           type="button"
           onClick={onSave}
-          className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
           style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
@@ -630,7 +630,7 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={() => setSharingId(null)}
-            className="px-2.5 py-1 rounded-md text-xs transition-colors"
+            className="px-2.5 py-1.5 rounded-md text-xs transition-colors"
             style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}

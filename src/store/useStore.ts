@@ -210,6 +210,13 @@ export interface AppActions {
   setCategories: (categories: Category[]) => void;
   setTags: (tags: Tag[]) => void;
 
+  /** Reorder calendars by providing the new ordered array of IDs. */
+  reorderCalendarContainers: (orderedIds: string[]) => void;
+  /** Reorder categories within a calendar by providing the new ordered array of IDs. */
+  reorderCategories: (calendarId: string, orderedCategoryIds: string[]) => void;
+  /** Reorder tags within a category by providing the new ordered array of IDs. */
+  reorderTags: (categoryId: string, orderedTagIds: string[]) => void;
+
   addSticker: (s: Omit<Sticker, 'id'>) => string;
   updateSticker: (id: string, updates: Partial<Sticker>) => void;
   deleteSticker: (id: string) => void;
@@ -791,6 +798,30 @@ export const useStore = create<AppState & AppActions>()(
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),
   setCategories: (categories) => set({ categories }),
   setTags: (tags) => set({ tags }),
+
+  reorderCalendarContainers: (orderedIds) =>
+    set((s) => ({
+      calendarContainers: s.calendarContainers.map((c) => ({
+        ...c,
+        sortOrder: orderedIds.indexOf(c.id) >= 0 ? orderedIds.indexOf(c.id) : (c.sortOrder ?? 999),
+      })),
+    })),
+  reorderCategories: (calendarId, orderedCategoryIds) =>
+    set((s) => ({
+      categories: s.categories.map((c) => {
+        const idx = orderedCategoryIds.indexOf(c.id);
+        if (idx < 0) return c;
+        return { ...c, sortOrder: idx };
+      }),
+    })),
+  reorderTags: (categoryId, orderedTagIds) =>
+    set((s) => ({
+      tags: s.tags.map((t) => {
+        const idx = orderedTagIds.indexOf(t.id);
+        if (idx < 0) return t;
+        return { ...t, sortOrder: idx };
+      }),
+    })),
 
   addSticker: (s) => {
     const current = get();

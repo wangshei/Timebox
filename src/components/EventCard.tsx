@@ -312,7 +312,7 @@ export function EventCard({
     >
       <div
         className={cn(
-          'h-full w-full px-3 py-2 transition-all flex flex-col min-h-0 overflow-hidden',
+          `h-full w-full transition-all flex flex-col min-h-0 overflow-hidden ${compact ? 'px-1.5 py-1' : 'px-3 py-2'}`,
           plannedStyle ? '' : 'border-l-4',
           isSelected && 'ring-2 ring-offset-1'
         )}
@@ -329,11 +329,12 @@ export function EventCard({
           <div className="flex flex-col h-full min-w-0 w-full overflow-hidden" style={{ color: eventTextColor }}>
             <div className="flex items-start min-w-0 w-full flex-1 gap-1.5 overflow-hidden min-h-0">
               <span
-                className="font-medium text-sm leading-snug min-w-0 flex-1 break-words"
+                className="font-medium leading-snug min-w-0 flex-1 truncate"
                 style={{
-                  fontSize: 12,
+                  fontSize: 10,
                   overflow: 'hidden',
-                  wordBreak: 'break-word',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {event.title || 'Untitled Event'}
