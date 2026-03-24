@@ -3005,7 +3005,7 @@ export default function App() {
 
       {/* Recurrence edit scope picker — shown before AddModal for recurring events */}
       {recurrenceEditScopePending && createPortal(
-        <div className="fixed inset-0 z-[610] flex items-center justify-center">
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
           <div
             className="absolute inset-0"
             style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
