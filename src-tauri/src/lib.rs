@@ -1,6 +1,7 @@
 mod tracker;
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
@@ -8,6 +9,15 @@ use tracker::{ActivityTracker, ActivityEntry, ActivityBlock};
 
 /// Shared state for the activity tracker
 struct TrackerState(Mutex<ActivityTracker>);
+
+/// Set to true when an update relaunch is in progress — allows the close event through.
+static RELAUNCHING: AtomicBool = AtomicBool::new(false);
+
+/// Called from the frontend just before relaunch() so the close handler lets it through.
+#[tauri::command]
+fn set_relaunching() {
+    RELAUNCHING.store(true, Ordering::SeqCst);
+}
 
 /// Start background activity tracking + persist preference
 #[tauri::command]
