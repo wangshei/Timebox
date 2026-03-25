@@ -52,6 +52,9 @@ export default function UpdateChecker() {
     setStatus('done');
 
     try {
+      // Tell Rust to allow the close event through (bypasses the hide-on-close handler)
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_relaunching').catch(() => {}); // best-effort
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (e: any) {

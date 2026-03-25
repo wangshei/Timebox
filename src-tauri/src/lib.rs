@@ -162,8 +162,13 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Hide window instead of quitting when user closes it
+            // Hide window instead of quitting when user closes it —
+            // but allow close through if a relaunch is in progress.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if RELAUNCHING.load(Ordering::SeqCst) {
+                    // Let the updater/relaunch close the app normally
+                    return;
+                }
                 let _ = window.hide();
                 api.prevent_close();
             }
@@ -177,6 +182,7 @@ pub fn run() {
             get_activity_blocks,
             get_switch_count,
             check_accessibility,
+            set_relaunching,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
