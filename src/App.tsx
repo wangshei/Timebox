@@ -340,59 +340,91 @@ export default function App() {
   }, [shareModal]);
 
   // Load Google Calendar events — wait for dataReady so Supabase state is loaded first
+  // Then poll every 5 minutes to pick up new invites
   const gcalInjectedRef = useRef(false);
-  useEffect(() => {
-    if (!dataReady || gcalInjectedRef.current) return;
-    if (!isGoogleConnected()) return;
-    gcalInjectedRef.current = true;
+  const gcalSyncingRef = useRef(false);
+  const gcalLastSyncRef = useRef(0);
 
-    const injectGcalData = (data: { calendars: import('./types').CalendarContainer[]; categories: import('./types').Category[]; events: import('./types').Event[] }) => {
-      const state = useStore.getState();
-      // Filter out calendars the user has deleted from Timebox
-      const dismissedCalIds = getGcalDismissedCalendarIds();
-      const freshCalendars = data.calendars.filter(c => !dismissedCalIds.has(c.id));
-      const freshCalendarIds = new Set(freshCalendars.map(c => c.id));
-      const freshCategories = data.categories.filter(c => freshCalendarIds.has(c.calendarContainerId));
-      // Filter out events the user has dismissed (removed from Timebox)
-      // AND events belonging to dismissed calendars
-      const dismissedIds = getGcalDismissedIds();
-      const freshGcalEvents = data.events.filter(e =>
-        !dismissedIds.has(e.id) && freshCalendarIds.has(e.calendarContainerId)
+  const injectGcalData = useCallback((data: { calendars: import('./types').CalendarContainer[]; categories: import('./types').Category[]; events: import('./types').Event[] }, options?: { isPolled?: boolean }) => {
+    const state = useStore.getState();
+    // Filter out calendars the user has deleted from Timebox
+    const dismissedCalIds = getGcalDismissedCalendarIds();
+    const freshCalendars = data.calendars.filter(c => !dismissedCalIds.has(c.id));
+    const freshCalendarIds = new Set(freshCalendars.map(c => c.id));
+    const freshCategories = data.categories.filter(c => freshCalendarIds.has(c.calendarContainerId));
+    // Filter out events the user has dismissed (removed from Timebox)
+    // AND events belonging to dismissed calendars
+    const dismissedIds = getGcalDismissedIds();
+    const freshGcalEvents = data.events.filter(e =>
+      !dismissedIds.has(e.id) && freshCalendarIds.has(e.calendarContainerId)
+    );
+
+    // Timezone-aware merge: past gcal events keep their stored times (the user
+    // experienced them at that wall-clock time), future gcal events get fresh
+    // timezone-converted times (real absolute time in current timezone).
+    const todayStr = getLocalDateString();
+    const existingGcalEvents = state.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
+    const existingGcalMap = new Map(existingGcalEvents.map(e => [e.id, e]));
+
+    // Past events: keep existing store version if available, otherwise use fresh
+    // Future events: always use fresh import (timezone-converted to current tz)
+    // New events (not in store): always use fresh
+    const mergedGcalEvents: import('./types').Event[] = [];
+    const seenIds = new Set<string>();
+
+    for (const fresh of freshGcalEvents) {
+      seenIds.add(fresh.id);
+      const existing = existingGcalMap.get(fresh.id);
+      if (existing && fresh.date < todayStr) {
+        // Past event already in store — keep stored times
+        mergedGcalEvents.push(existing);
+      } else {
+        // Future event, or new event — use fresh timezone-converted times
+        mergedGcalEvents.push(fresh);
+      }
+    }
+    // Keep past events that are in store but not in fresh import
+    // (they may have fallen out of the 90-day import window)
+    for (const existing of existingGcalEvents) {
+      if (!seenIds.has(existing.id) && existing.date < todayStr && !dismissedIds.has(existing.id)) {
+        mergedGcalEvents.push(existing);
+      }
+    }
+
+    // Detect new invites for notification (only on polled refreshes, not initial load)
+    if (options?.isPolled) {
+      const SEEN_INVITES_KEY = 'gcal_seen_invite_ids';
+      let seenInviteIds: Set<string>;
+      try {
+        seenInviteIds = new Set(JSON.parse(localStorage.getItem(SEEN_INVITES_KEY) || '[]'));
+      } catch { seenInviteIds = new Set(); }
+
+      const existingEventIds = new Set(existingGcalEvents.map(e => e.id));
+      const newInvites = freshGcalEvents.filter(e =>
+        !existingEventIds.has(e.id) &&
+        !seenInviteIds.has(e.id) &&
+        e.attendees?.some(a => a.self && a.responseStatus === 'needsAction')
       );
 
-      // Timezone-aware merge: past gcal events keep their stored times (the user
-      // experienced them at that wall-clock time), future gcal events get fresh
-      // timezone-converted times (real absolute time in current timezone).
-      const todayStr = getLocalDateString();
-      const existingGcalEvents = state.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
-      const existingGcalMap = new Map(existingGcalEvents.map(e => [e.id, e]));
-      const freshGcalMap = new Map(freshGcalEvents.map(e => [e.id, e]));
+      if (newInvites.length > 0) {
+        // Mark as seen
+        for (const inv of newInvites) seenInviteIds.add(inv.id);
+        localStorage.setItem(SEEN_INVITES_KEY, JSON.stringify([...seenInviteIds]));
 
-      // Past events: keep existing store version if available, otherwise use fresh
-      // Future events: always use fresh import (timezone-converted to current tz)
-      // New events (not in store): always use fresh
-      const mergedGcalEvents: import('./types').Event[] = [];
-      const seenIds = new Set<string>();
-
-      for (const fresh of freshGcalEvents) {
-        seenIds.add(fresh.id);
-        const existing = existingGcalMap.get(fresh.id);
-        if (existing && fresh.date < todayStr) {
-          // Past event already in store — keep stored times
-          mergedGcalEvents.push(existing);
-        } else {
-          // Future event, or new event — use fresh timezone-converted times
-          mergedGcalEvents.push(fresh);
-        }
+        // Show toast
+        const titles = newInvites.slice(0, 3).map(e => e.title).join(', ');
+        const suffix = newInvites.length > 3 ? ` and ${newInvites.length - 3} more` : '';
+        toast(`${newInvites.length} new calendar invite${newInvites.length > 1 ? 's' : ''}: ${titles}${suffix}`);
       }
-      // Keep past events that are in store but not in fresh import
-      // (they may have fallen out of the 90-day import window)
-      for (const existing of existingGcalEvents) {
-        if (!seenIds.has(existing.id) && existing.date < todayStr && !dismissedIds.has(existing.id)) {
-          mergedGcalEvents.push(existing);
-        }
-      }
+    }
 
+    // For polled refreshes, only update events (not calendars/categories)
+    if (options?.isPolled) {
+      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+      useStore.setState({
+        events: [...nonGcalEvents, ...mergedGcalEvents],
+      });
+    } else {
       // Remove old gcal events (including any ghosts from Supabase without googleEventId)
       const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
       useStore.setState({
@@ -406,17 +438,47 @@ export default function App() {
         ],
         events: [...nonGcalEvents, ...mergedGcalEvents],
       });
-    };
+    }
+  }, []);
+
+  // Perform a gcal sync (used for both initial load and polling)
+  const doGcalSync = useCallback(async (options?: { isPolled?: boolean }) => {
+    if (gcalSyncingRef.current) return;
+    if (!isGoogleConnected()) return;
+    gcalSyncingRef.current = true;
+    try {
+      const data = await importGoogleCalendarEvents();
+      gcalLastSyncRef.current = Date.now();
+      injectGcalData(data, options);
+    } catch (err) {
+      console.warn('[gcal] Sync failed:', err);
+    } finally {
+      gcalSyncingRef.current = false;
+    }
+  }, [injectGcalData]);
+
+  useEffect(() => {
+    if (!dataReady || gcalInjectedRef.current) return;
+    if (!isGoogleConnected()) return;
+    gcalInjectedRef.current = true;
 
     // First load cached data for instant display
     const cached = loadCachedGcalData();
     if (cached) injectGcalData(cached);
 
     // Then fetch fresh data in background
-    importGoogleCalendarEvents()
-      .then(injectGcalData)
-      .catch(err => console.warn('[gcal] Background refresh failed:', err));
-  }, [dataReady]);
+    doGcalSync();
+
+    // Poll every 5 minutes for new events/invites
+    const POLL_INTERVAL = 5 * 60 * 1000;
+    const intervalId = setInterval(() => {
+      if (isGoogleConnected()) {
+        doGcalSync({ isPolled: true });
+      }
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [dataReady, injectGcalData, doGcalSync]);
 
   // Re-derive event times when timezone changes.
   // Events represent absolute appointments — their wall-clock time should shift

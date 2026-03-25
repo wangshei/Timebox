@@ -252,6 +252,8 @@ function extractEventLocation(evt: GcalEvent): string | undefined {
 
 /** Check if an event is one that others invited the user to (not self-organized). */
 function isInviteFromOthers(evt: GcalEvent): boolean {
+  // If the user has a pending invite (needsAction), always treat as invite
+  if (evt.attendees?.some(a => a.self && a.responseStatus === 'needsAction')) return true;
   // If the user is the organizer, it's their own event
   if (evt.organizer?.self) return false;
   // If the user is the creator and there's no separate organizer, it's their own
@@ -363,8 +365,9 @@ function detectRecurrencePattern(instances: GcalEvent[]): { pattern: RecurrenceP
   // Parse dates
   const dates = instances
     .map(e => {
-      if (!e.start.dateTime) return null;
-      const d = new Date(e.start.dateTime);
+      const dtStr = e.start.dateTime || e.start.date;
+      if (!dtStr) return null;
+      const d = new Date(dtStr);
       return new Date(d.getFullYear(), d.getMonth(), d.getDate());
     })
     .filter((d): d is Date => d !== null)
@@ -466,7 +469,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
 
       for (const evt of gcalEvents) {
         if (evt.status === 'cancelled' || !evt.summary) continue;
-        if (!evt.start.dateTime) continue;
+        if (!evt.start.dateTime && !evt.start.date) continue;
 
         // Apply sync mode filter
         // Always import: invites from others + user-created events with other attendees
@@ -474,8 +477,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           if (!isInviteFromOthers(evt) && !hasOtherAttendees(evt)) continue;
         } else if (syncMode === 'listen_fresh') {
           if (!isInviteFromOthers(evt) && !hasOtherAttendees(evt)) continue;
-          const evtStart = new Date(evt.start.dateTime);
-          if (evtStart < new Date(connectedAt)) continue;
+          const evtStartStr = evt.start.dateTime || evt.start.date;
+          if (evtStartStr && new Date(evtStartStr) < new Date(connectedAt)) continue;
         }
 
         if (evt.recurringEventId) {
@@ -491,14 +494,15 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
       for (const evt of oneOffEvents) {
         const start = parseGcalDateTime(evt.start);
         const end = parseGcalDateTime(evt.end);
+        const isAllDay = !evt.start.dateTime && !!evt.start.date;
         const organizer = isUserOrganizer(evt);
         events.push({
           id: `gcal-evt-${evt.id}`,
           title: evt.summary,
           calendarContainerId: containerId,
           categoryId,
-          start: start.time,
-          end: end.time,
+          start: isAllDay ? '00:00' : start.time,
+          end: isAllDay ? '23:59' : end.time,
           date: start.date,
           endDate: start.date !== end.date ? end.date : undefined,
           recurring: false,
@@ -510,6 +514,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           link: extractEventLink(evt),
           location: extractEventLocation(evt),
           attendees: mapAttendees(evt),
+          isAllDay,
           gcalStartISO: evt.start.dateTime || null,
           gcalEndISO: evt.end.dateTime || null,
         });
@@ -519,7 +524,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
       for (const [recurringId, instances] of recurringGroups) {
         if (instances.length === 0) continue;
         // Sort by start date
-        instances.sort((a, b) => (a.start.dateTime ?? '').localeCompare(b.start.dateTime ?? ''));
+        instances.sort((a, b) => (a.start.dateTime ?? a.start.date ?? '').localeCompare(b.start.dateTime ?? b.start.date ?? ''));
 
         const first = instances[0];
         const { pattern, days } = detectRecurrencePattern(instances);
@@ -530,13 +535,14 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
         for (const evt of instances) {
           const start = parseGcalDateTime(evt.start);
           const end = parseGcalDateTime(evt.end);
+          const isAllDay = !evt.start.dateTime && !!evt.start.date;
           events.push({
             id: `gcal-evt-${evt.id}`,
             title: evt.summary ?? first.summary ?? 'Event',
             calendarContainerId: containerId,
             categoryId,
-            start: start.time,
-            end: end.time,
+            start: isAllDay ? '00:00' : start.time,
+            end: isAllDay ? '23:59' : end.time,
             date: start.date,
             endDate: start.date !== end.date ? end.date : undefined,
             recurring: true,
@@ -552,6 +558,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
             link: extractEventLink(evt) || extractEventLink(first),
             location: extractEventLocation(evt) || extractEventLocation(first),
             attendees: mapAttendees(evt) || mapAttendees(first),
+            isAllDay,
             gcalStartISO: evt.start.dateTime || null,
             gcalEndISO: evt.end.dateTime || null,
           });
