@@ -264,7 +264,7 @@ export default function App() {
       import('./data/testGcalEvents').then(({ injectTestGcalEvents, testSharedCalendars }) => {
         injectTestGcalEvents(useStore);
         setDevSharedCalendars(testSharedCalendars);
-      });
+      }).catch(err => console.warn('[dev] testGcalEvents load failed:', err));
     }
   }, []);
 
@@ -1804,7 +1804,7 @@ export default function App() {
       console.log('[App] Offline — using cached session');
       supabase.auth.getSession().then(({ data: sessionData }) => {
         void setupForSession(sessionData.session);
-      });
+      }).catch(err => console.warn('[auth] getSession failed (offline):', err));
     } else {
       supabase.auth.getUser().then(({ data, error }) => {
         if (error || !data.user) {
@@ -1822,7 +1822,7 @@ export default function App() {
             console.log('[App] Network error validating session — using cached session');
             supabase!.auth.getSession().then(({ data: sessionData }) => {
               void setupForSession(sessionData.session);
-            });
+            }).catch(err => console.warn('[auth] getSession failed (network error fallback):', err));
           } else {
             // Token is truly invalid or user was deleted — clear the stale session
             void supabase!.auth.signOut();
@@ -1832,9 +1832,9 @@ export default function App() {
           // User is valid — get the full session object
           supabase!.auth.getSession().then(({ data: sessionData }) => {
             void setupForSession(sessionData.session);
-          });
+          }).catch(err => console.warn('[auth] getSession failed:', err));
         }
-      });
+      }).catch(err => console.warn('[auth] getUser failed:', err));
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {

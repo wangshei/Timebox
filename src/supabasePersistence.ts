@@ -663,7 +663,7 @@ export function startSupabasePersistence() {
     if (saving || pendingSlice || debounceTimer) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
-    try { await loadSupabaseState(false); } catch (e) { console.error(e); }
+    try { await loadSupabaseState(false); } catch (e) { console.error('[supabasePersistence] Remote reload failed:', e); }
   }
 
   function scheduleReload(payload: any) {
@@ -704,7 +704,7 @@ export function startSupabasePersistence() {
   // when the app is backgrounded. Poll every 30s as a safety net.
   const syncInterval = setInterval(async () => {
     if (!supabaseLoaded || saving || pendingSlice || debounceTimer || document.hidden) return;
-    try { await loadSupabaseState(false); } catch { /* ignore */ }
+    try { await loadSupabaseState(false); } catch (e) { console.warn('[supabasePersistence] Periodic sync failed:', e); }
   }, 30_000);
 
   // Realtime subscription — client-side filtering in scheduleReload validates user_id.
