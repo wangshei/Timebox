@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
-import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
+import { getLocalDateString, isTodayLocal, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
@@ -87,6 +87,13 @@ export function ThreeDayView({
   const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
 
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+
+  // Multi-timezone support
+  const secondaryTzs = React.useMemo(() => getSecondaryTimezones(), []);
+  const tzCount = 1 + secondaryTzs.length;
+  const timeColW = compact
+    ? (tzCount === 1 ? 40 : tzCount === 2 ? 72 : 104)
+    : (tzCount === 1 ? 52 : tzCount === 2 ? 88 : 126);
 
   // Three days: anchor date + next 2
   const threeDays = React.useMemo(() => {
@@ -275,18 +282,38 @@ export function ThreeDayView({
         {/* Time gutter spacer */}
         {!hideTimeGutter && (
           <div
-            className="flex-shrink-0 flex items-center justify-center"
+            className="flex-shrink-0 flex flex-col items-center justify-end"
             style={{
-              width: compact ? 40 : 52,
+              width: timeColW,
               height: 48,
               borderRight: `1px solid ${GRID_HOUR}`,
               backgroundColor: BG_CANVAS,
+              paddingBottom: panelLabel ? 0 : 4,
             }}
           >
             {panelLabel && (
               <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '9px', letterSpacing: '0.1em' }}>
                 {panelLabel}
               </span>
+            )}
+            {secondaryTzs.length > 0 && !panelLabel && (
+              <div className="flex items-end w-full" style={{ padding: '0 4px' }}>
+                {secondaryTzs.map((tz) => (
+                  <span
+                    key={tz}
+                    className="flex-1 text-center"
+                    style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
+                  >
+                    {getTimezoneAbbr(tz)}
+                  </span>
+                ))}
+                <span
+                  className="flex-1 text-right"
+                  style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                >
+                  {getTimezoneAbbr(getLocalTimeZone())}
+                </span>
+              </div>
             )}
           </div>
         )}
@@ -352,21 +379,50 @@ export function ThreeDayView({
           <div
             className="flex-shrink-0 py-2"
             style={{
-              width: compact ? 40 : 52,
+              width: timeColW,
               borderRight: `1px solid ${GRID_HOUR}`,
               backgroundColor: BG_CANVAS,
             }}
           >
-            {hours.map((hour) => (
-              <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-                <div
-                  className="absolute w-full text-right font-medium"
-                  style={{ right: 8, top: -7, color: '#AEAEB2', fontSize: '10px', letterSpacing: '-0.01em' }}
-                >
-                  {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+            {hours.map((hour) => {
+              const dateStr = threeDays.length > 0 ? getLocalDateString(threeDays[0]) : getLocalDateString(new Date());
+              return (
+                <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
+                  {secondaryTzs.length === 0 ? (
+                    <div
+                      className="absolute w-full text-right font-medium"
+                      style={{ right: 8, top: -7, color: '#AEAEB2', fontSize: '10px', letterSpacing: '-0.01em' }}
+                    >
+                      {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                    </div>
+                  ) : (
+                    <div
+                      className="absolute flex items-start w-full"
+                      style={{ top: -7, padding: '0 4px' }}
+                    >
+                      {secondaryTzs.map((tz) => {
+                        const h = convertHourToTimezone(hour, dateStr, tz);
+                        return (
+                          <span
+                            key={tz}
+                            className="flex-1 text-center leading-none"
+                            style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                          >
+                            {formatHourShort(h)}
+                          </span>
+                        );
+                      })}
+                      <span
+                        className="flex-1 text-right leading-none"
+                        style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500, paddingRight: compact ? 4 : 8 }}
+                      >
+                        {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

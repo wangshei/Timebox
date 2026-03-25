@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
@@ -345,6 +345,15 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
 
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
+  // Multi-timezone support
+  const secondaryTzs = React.useMemo(() => getSecondaryTimezones(), []);
+  const tzCount = 1 + secondaryTzs.length;
+  const timeColWidth = tzCount === 1 ? undefined : tzCount === 2 ? 92 : 130; // undefined = use original Tailwind classes
+  const gridLeftPx = tzCount === 1 ? undefined : timeColWidth; // px offset for grid area
+  // CSS class for the grid left offset — when multi-tz, we use inline style instead of Tailwind
+  const gridLeftClass = gridLeftPx ? '' : 'left-14 md:left-20';
+  const gridLeftStyle = gridLeftPx ? { left: gridLeftPx } : {};
+
   const getBlockStyle = (block: ResolvedTimeBlock) => {
     const startMinutes = parseTimeToMins(block.start);
     const endMinutes = parseTimeToMins(block.end);
@@ -527,9 +536,33 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Today green tint for future portion of current day */}
         {mode === 'overall' && selectedDate === todayStr && currentTimeTop != null && currentTimeTop < GRID_HEIGHT && (
           <div
-            className="absolute left-14 md:left-20 right-0 pointer-events-none"
-            style={{ top: currentTimeTop, height: GRID_HEIGHT - currentTimeTop, backgroundColor: 'rgba(141,162,134,0.05)' }}
+            className={`absolute ${gridLeftClass} right-0 pointer-events-none`}
+            style={{ top: currentTimeTop, height: GRID_HEIGHT - currentTimeTop, backgroundColor: 'rgba(141,162,134,0.05)', ...gridLeftStyle }}
           />
+        )}
+
+        {/* Timezone abbreviation labels at top of time column */}
+        {secondaryTzs.length > 0 && (
+          <div
+            className="absolute left-0 top-0 pointer-events-none flex items-center"
+            style={{ width: gridLeftPx, height: 14, zIndex: 1 }}
+          >
+            {secondaryTzs.map((tz) => (
+              <span
+                key={tz}
+                className="flex-1 text-center"
+                style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
+              >
+                {getTimezoneAbbr(tz)}
+              </span>
+            ))}
+            <span
+              className="flex-1 text-right"
+              style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 6 }}
+            >
+              {getTimezoneAbbr(getLocalTimeZone())}
+            </span>
+          </div>
         )}
 
         {/* Grid: hour rows */}
@@ -539,19 +572,46 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             className="absolute left-0 right-0 pointer-events-none"
             style={{ top: hour * PX_PER_HOUR, height: PX_PER_HOUR }}
           >
+            {secondaryTzs.length === 0 ? (
+              <div
+                className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
+                style={{ color: '#AEAEB2', fontSize: '10px' }}
+              >
+                {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+              </div>
+            ) : (
+              <div
+                className="absolute left-0 top-0 flex items-start"
+                style={{ width: gridLeftPx, top: -7 }}
+              >
+                {secondaryTzs.map((tz) => {
+                  const h = convertHourToTimezone(hour, selectedDate, tz);
+                  return (
+                    <span
+                      key={tz}
+                      className="flex-1 text-center leading-none"
+                      style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                    >
+                      {formatHourShort(h)}
+                    </span>
+                  );
+                })}
+                <span
+                  className="flex-1 text-right leading-none"
+                  style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500, paddingRight: 6 }}
+                >
+                  {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                </span>
+              </div>
+            )}
             <div
-              className="absolute left-0 top-0 w-12 md:w-16 text-xs leading-none font-medium"
-              style={{ color: '#AEAEB2', fontSize: '10px' }}
-            >
-              {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
-            </div>
-            <div
-              className="absolute left-14 md:left-20 right-0 top-0"
-              style={{ height: PX_PER_HOUR, borderTop: '1px solid rgba(0,0,0,0.07)' }}
+              className={`absolute ${gridLeftClass} right-0 top-0`}
+              style={{ ...(gridLeftPx ? { left: gridLeftPx } : {}) }}
+              style={{ height: PX_PER_HOUR, borderTop: '1px solid rgba(0,0,0,0.07)', ...(gridLeftPx ? { left: gridLeftPx } : {}) }}
             />
             <div
-              className="absolute left-14 md:left-20 right-0"
-              style={{ top: `${PX_PER_HOUR / 2}px`, borderTop: '1px solid rgba(0,0,0,0.035)' }}
+              className={`absolute ${gridLeftClass} right-0`}
+              style={{ top: `${PX_PER_HOUR / 2}px`, borderTop: '1px solid rgba(0,0,0,0.035)', ...gridLeftStyle }}
             />
           </div>
         ))}
@@ -560,8 +620,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             so empty space clicks pass through to the main container. Individual cards
             have pointer-events-auto + onMouseDown stopPropagation. */}
         <div
-          className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none"
-          style={{ height: GRID_HEIGHT }}
+          className={`absolute ${gridLeftClass} right-0 top-0 pointer-events-none`}
+          style={{ height: GRID_HEIGHT, ...gridLeftStyle }}
         >
           {/* Time blocks: tasks = slimmer left-aligned; event-type blocks = fill slot with overlap */}
           {timeBlocks.map((block) => {
@@ -675,8 +735,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {isViewingToday && currentTimeTop != null && (
           <>
             <div
-              className="absolute left-14 md:left-20 right-0 z-30 pointer-events-none"
-              style={{
+              className={`absolute ${gridLeftClass} right-0 z-30 pointer-events-none`}
+              style={{ ...gridLeftStyle,
                 top: currentTimeTop,
                 height: 0,
                 borderTop: '2px solid #8DA286',
@@ -713,14 +773,15 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
               };
           const previewClass = isEventPreview
-            ? 'absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden'
-            : 'absolute left-14 md:left-20 right-2 z-30 pointer-events-none overflow-hidden';
+            ? `absolute ${gridLeftClass} right-2 z-30 pointer-events-none rounded-r-md overflow-hidden`
+            : `absolute ${gridLeftClass} right-2 z-30 pointer-events-none overflow-hidden`;
           return (
             <div
               className={previewClass}
               style={{
                 top: `${((dragPreview.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                 height: `${((dragPreview.endMins - dragPreview.startMins) / 60) * PX_PER_HOUR}px`,
+                ...gridLeftStyle,
                 ...previewStyle,
               }}
             >
@@ -734,8 +795,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Create-block preview — event-style (left stripe) since block creation always creates an event-type block */}
         {creatingBlock && (
           <div
-            className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
+            className={`absolute ${gridLeftClass} right-2 z-30 pointer-events-none rounded-r-md overflow-hidden`}
             style={{
+              ...gridLeftStyle,
               top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
               height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
               backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
@@ -757,8 +819,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
           return (
             <div
-              className="absolute left-14 md:left-20 right-2 z-30 pointer-events-none rounded-r-md overflow-hidden"
+              className={`absolute ${gridLeftClass} right-2 z-30 pointer-events-none rounded-r-md overflow-hidden`}
               style={{
+                ...gridLeftStyle,
                 top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                 height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
                 backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.22),
@@ -778,8 +841,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         {/* Drag-over highlight */}
         {isDragOver && (
           <div
-            className="absolute left-14 md:left-20 right-0 top-0 pointer-events-none rounded-r-lg"
+            className={`absolute ${gridLeftClass} right-0 top-0 pointer-events-none rounded-r-lg`}
             style={{
+              ...gridLeftStyle,
               height: GRID_HEIGHT,
               backgroundColor: hexToRgba(THEME.primary, 0.04),
               boxShadow: `inset 0 0 0 2px ${hexToRgba(THEME.primary, 0.23)}`,

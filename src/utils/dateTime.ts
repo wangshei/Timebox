@@ -101,3 +101,65 @@ export function parseLocalDateString(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+
+/**
+ * Get secondary timezones from localStorage.
+ * Returns an array of IANA timezone strings (max 2).
+ */
+export function getSecondaryTimezones(): string[] {
+  try {
+    const raw = localStorage.getItem('timebox_secondary_timezones');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.slice(0, 2);
+    }
+  } catch { /* ignore */ }
+  return [];
+}
+
+/**
+ * Get the short timezone abbreviation for a given IANA timezone (e.g., "PST", "EST").
+ */
+export function getTimezoneAbbr(timeZone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'short' }).formatToParts(new Date());
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    return tzPart?.value || timeZone.split('/').pop()?.replace(/_/g, ' ') || timeZone;
+  } catch {
+    return timeZone.split('/').pop()?.replace(/_/g, ' ') || timeZone;
+  }
+}
+
+/**
+ * Get the hour (0-23) in a given timezone for a local hour on a given date.
+ * @param localHour - hour in the primary/local timezone (0-23)
+ * @param dateStr - YYYY-MM-DD date string
+ * @param targetTimeZone - IANA timezone to convert to
+ * @returns hour in the target timezone (0-23)
+ */
+export function convertHourToTimezone(localHour: number, dateStr: string, targetTimeZone: string): number {
+  // Create a date at the given hour in the local timezone
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const localDate = new Date(y, m - 1, d, localHour, 0, 0);
+
+  // Format the hour in the target timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: targetTimeZone,
+    hour: 'numeric',
+    hour12: false,
+  });
+  const hourStr = formatter.format(localDate);
+  // Intl may return "24" for midnight — normalize to 0
+  const h = parseInt(hourStr, 10);
+  return h === 24 ? 0 : h;
+}
+
+/**
+ * Format an hour number (0-23) as short label like "12a", "1p", "12p".
+ */
+export function formatHourShort(hour: number): string {
+  if (hour === 0) return '12a';
+  if (hour === 12) return '12p';
+  if (hour > 12) return `${hour - 12}p`;
+  return `${hour}a`;
+}

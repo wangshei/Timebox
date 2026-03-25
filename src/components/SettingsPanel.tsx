@@ -125,6 +125,65 @@ export function SettingsPanel({
   const [tzDropdownOpen, setTzDropdownOpen] = useState(false);
   const [selectedTz, setSelectedTz] = useState(() => getLocalTimeZone());
   const browserTz = getBrowserTimeZone();
+
+  // ── Secondary timezones state ──
+  const [secondaryTzs, setSecondaryTzs] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('timebox_secondary_timezones');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.slice(0, 2);
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
+  const [secTzDropdownOpen, setSecTzDropdownOpen] = useState(false);
+  const [secTzSearch, setSecTzSearch] = useState('');
+
+  const filteredSecTzs = React.useMemo(() => {
+    const excluded = new Set([selectedTz, ...secondaryTzs]);
+    const available = allTimezones.filter(tz => !excluded.has(tz));
+    if (!secTzSearch) {
+      const commonSet = new Set(COMMON_TIMEZONES);
+      const commonAvail = COMMON_TIMEZONES.filter(tz => !excluded.has(tz));
+      const rest = available.filter(tz => !commonSet.has(tz));
+      return [...commonAvail, ...(commonAvail.length > 0 && rest.length > 0 ? ['---'] : []), ...rest];
+    }
+    const q = secTzSearch.toLowerCase();
+    return available.filter(tz => tz.toLowerCase().includes(q));
+  }, [secTzSearch, allTimezones, selectedTz, secondaryTzs]);
+
+  const addSecondaryTz = (tz: string) => {
+    const updated = [...secondaryTzs, tz].slice(0, 2);
+    setSecondaryTzs(updated);
+    localStorage.setItem('timebox_secondary_timezones', JSON.stringify(updated));
+    setSecTzDropdownOpen(false);
+    setSecTzSearch('');
+  };
+
+  const removeSecondaryTz = (tz: string) => {
+    const updated = secondaryTzs.filter(t => t !== tz);
+    setSecondaryTzs(updated);
+    localStorage.setItem('timebox_secondary_timezones', JSON.stringify(updated));
+  };
+
+  const getSecTzCurrentTime = (tz: string): string => {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).format(new Date());
+    } catch { return ''; }
+  };
+
+  const getSecTzAbbr = (tz: string): string => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(new Date());
+      return parts.find(p => p.type === 'timeZoneName')?.value || '';
+    } catch { return ''; }
+  };
   const allTimezones = React.useMemo(() => getAllTimezones(), []);
 
   const filteredTimezones = React.useMemo(() => {
@@ -879,6 +938,100 @@ export function SettingsPanel({
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* ── Secondary Timezones ── */}
+                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_MUTED, letterSpacing: '0.05em', textTransform: 'uppercase' as const, display: 'block', marginBottom: 8 }}>Secondary timezones</span>
+                  <div
+                    className="py-3 px-3 rounded-lg"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: `1px solid ${BORDER}` }}
+                  >
+                    <p style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 8 }}>
+                      Show additional timezone columns in the calendar time gutter (max 2)
+                    </p>
+                    {/* List of added secondary timezones */}
+                    {secondaryTzs.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                        {secondaryTzs.map((tz) => (
+                          <div
+                            key={tz}
+                            className="flex items-center justify-between rounded-md px-2 py-1.5"
+                            style={{ backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}` }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs truncate block" style={{ color: TEXT, fontWeight: 500 }}>{tz}</span>
+                              <span style={{ fontSize: 10, color: TEXT_MUTED }}>
+                                {getSecTzAbbr(tz)} · {getSecTzCurrentTime(tz)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeSecondaryTz(tz)}
+                              className="ml-2 flex-shrink-0 p-0.5 rounded hover:bg-neutral-100 transition-colors"
+                              style={{ color: TEXT_MUTED }}
+                              title="Remove timezone"
+                            >
+                              <XMarkIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Add timezone button/dropdown */}
+                    {secondaryTzs.length < 2 && (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSecTzDropdownOpen(!secTzDropdownOpen)}
+                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-md hover:bg-neutral-100 transition-colors"
+                          style={{ color: PRIMARY, fontWeight: 500, border: `1px dashed ${BORDER}` }}
+                        >
+                          <PlusIcon className="w-3 h-3" />
+                          Add timezone
+                        </button>
+                        {secTzDropdownOpen && (
+                          <div
+                            style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                              backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflow: 'hidden',
+                              display: 'flex', flexDirection: 'column', marginTop: 2,
+                            }}
+                          >
+                            <div style={{ padding: '6px 8px', borderBottom: `1px solid ${BORDER}` }}>
+                              <input
+                                type="text"
+                                placeholder="Search timezones..."
+                                value={secTzSearch}
+                                onChange={(e) => setSecTzSearch(e.target.value)}
+                                className="w-full text-xs px-2 py-1 rounded focus:outline-none"
+                                style={{ border: `1px solid ${BORDER}`, color: TEXT }}
+                                autoFocus
+                              />
+                            </div>
+                            <div style={{ overflowY: 'auto', maxHeight: 180 }}>
+                              {filteredSecTzs.map((tz, i) =>
+                                tz === '---' ? (
+                                  <div key={`sep-${i}`} style={{ borderTop: `1px solid ${BORDER}`, margin: '2px 0' }} />
+                                ) : (
+                                  <button
+                                    key={tz}
+                                    type="button"
+                                    onClick={() => addSecondaryTz(tz)}
+                                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-100 transition-colors"
+                                    style={{ color: TEXT }}
+                                  >
+                                    {tz}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

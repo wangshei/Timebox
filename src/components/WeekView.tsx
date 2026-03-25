@@ -1,7 +1,7 @@
 import React from 'react';
 import { Mode } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
-import { getLocalDateString, isTodayLocal, getStartOfWeek } from '../utils/dateTime';
+import { getLocalDateString, isTodayLocal, getStartOfWeek, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
@@ -65,6 +65,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
+  // Multi-timezone support
+  const secondaryTzs = React.useMemo(() => getSecondaryTimezones(), []);
+  const tzCount = 1 + secondaryTzs.length;
+  const timeColW = tzCount === 1 ? 52 : tzCount === 2 ? 88 : 126;
 
   const weekDays = React.useMemo(() => {
     const startOfWeek = getStartOfWeek(currentDate, weekStartsOnMonday);
@@ -246,12 +250,33 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       >
         {/* Time gutter spacer (matches time column width) */}
         <div
-          className="flex-shrink-0"
+          className="flex-shrink-0 flex items-end justify-center"
           style={{
-            width: 52,
+            width: timeColW,
             borderRight: '1px solid rgba(0,0,0,0.07)',
+            paddingBottom: 4,
           }}
-        />
+        >
+          {secondaryTzs.length > 0 && (
+            <div className="flex items-end w-full" style={{ padding: '0 4px' }}>
+              {secondaryTzs.map((tz) => (
+                <span
+                  key={tz}
+                  className="flex-1 text-center"
+                  style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
+                >
+                  {getTimezoneAbbr(tz)}
+                </span>
+              ))}
+              <span
+                className="flex-1 text-right"
+                style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+              >
+                {getTimezoneAbbr(getLocalTimeZone())}
+              </span>
+            </div>
+          )}
+        </div>
         {/* Date headers */}
         <div className="flex flex-1">
             {weekDays.map((day, dayIndex) => {
@@ -299,27 +324,57 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
         <div
           className="flex-shrink-0 py-2"
           style={{
-            width: 52,
+            width: timeColW,
             borderRight: '1px solid rgba(0,0,0,0.07)',
             backgroundColor: '#FDFDFB',
           }}
         >
-            {hours.map((hour) => (
-              <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
-                <div
-                  className="absolute w-full text-right font-medium"
-                  style={{
-                    right: 8,
-                    top: -7,
-                    color: '#AEAEB2',
-                    fontSize: '10px',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+            {hours.map((hour) => {
+              // Use first weekday date for timezone conversion
+              const dateStr = weekDays.length > 0 ? getLocalDateString(weekDays[0]) : getLocalDateString(new Date());
+              return (
+                <div key={hour} className="relative" style={{ height: PX_PER_HOUR + 'px' }}>
+                  {secondaryTzs.length === 0 ? (
+                    <div
+                      className="absolute w-full text-right font-medium"
+                      style={{
+                        right: 8,
+                        top: -7,
+                        color: '#AEAEB2',
+                        fontSize: '10px',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                    </div>
+                  ) : (
+                    <div
+                      className="absolute flex items-start w-full"
+                      style={{ top: -7, padding: '0 4px' }}
+                    >
+                      {secondaryTzs.map((tz) => {
+                        const h = convertHourToTimezone(hour, dateStr, tz);
+                        return (
+                          <span
+                            key={tz}
+                            className="flex-1 text-center leading-none"
+                            style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                          >
+                            {formatHourShort(h)}
+                          </span>
+                        );
+                      })}
+                      <span
+                        className="flex-1 text-right leading-none"
+                        style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500, paddingRight: 4 }}
+                      >
+                        {hour === 0 ? '12am' : hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
 
         {/* Day columns */}
