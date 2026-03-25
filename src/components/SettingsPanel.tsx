@@ -903,7 +903,7 @@ export function SettingsPanel({
                             key={opt.value}
                             type="button"
                             onClick={() => onNotificationScopeChange?.(opt.value)}
-                            className="px-2.5 py-1 rounded-md transition-colors"
+                            className="px-3 py-1.5 rounded-md transition-colors"
                             style={{
                               fontSize: 11,
                               fontWeight: notificationScope === opt.value ? 600 : 400,

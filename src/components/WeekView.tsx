@@ -51,9 +51,11 @@ interface WeekViewProps {
   onAddTimeToComplete?: (blockId: string, minutes: number) => void;
   /** When set, blocks are in stamp mode — clicking stamps this emoji. */
   activeStampEmoji?: string | null;
+  /** Pending block preview that stays visible while AddModal is open (drag-to-create). */
+  pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -605,6 +607,33 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           </span>
                         </div>
                       )}
+
+                      {/* Pending create-block preview — stays visible behind AddModal backdrop */}
+                      {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === dateStr && (() => {
+                        const pStartMins = parseTimeToMins(pendingBlockPreview.startTime);
+                        const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
+                        return (
+                          <div
+                            className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
+                            style={{
+                              top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                              height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,
+                              backgroundColor: hexToRgba(BLOCK_PREVIEW.color, 0.22),
+                              borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, 0.6)}`,
+                              borderTop: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                              borderRight: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                              borderBottom: '1.5px dashed ' + hexToRgba(BLOCK_PREVIEW.color, 0.45),
+                            }}
+                          >
+                            <span
+                              className="absolute bottom-0.5 left-1 font-medium truncate"
+                              style={{ color: THEME.textPrimary, fontSize: '10px' }}
+                            >
+                              {minsToTime(pStartMins)}–{minsToTime(pEndMins)}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

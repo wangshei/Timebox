@@ -256,7 +256,7 @@ export function TimerWidget() {
                         <Chip
                           variant={isSel ? 'subtle' : 'outline'}
                           color={isSel ? cal.color : undefined}
-                          className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                          className={`!px-3 !py-1.5 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
                           style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
                         >
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cal.color : THEME.textMuted }} />
@@ -287,7 +287,7 @@ export function TimerWidget() {
                       <Chip
                         variant={isSel ? 'subtle' : 'outline'}
                         color={isSel ? cat.color : undefined}
-                        className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                        className={`!px-3 !py-1.5 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
                         style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
                       >
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cat.color : THEME.textMuted }} />
@@ -319,7 +319,7 @@ export function TimerWidget() {
                         <Chip
                           variant={isSel ? 'subtle' : 'outline'}
                           color={isSel ? catColor : undefined}
-                          className={`!px-2 !py-1 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
+                          className={`!px-3 !py-1.5 !text-[10px] !max-w-none ${!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}`}
                           style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
                         >
                           {tag.name}
