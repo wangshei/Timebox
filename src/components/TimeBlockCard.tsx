@@ -812,7 +812,7 @@ function TimeBlockCardInner({
     const compactTitleFontSize = (() => {
       if (view === 'week') {
         // Week view: smaller fonts to fit narrow columns
-        return compactTier === 'tiny' ? 9 : 10;
+        return compactTier === 'tiny' ? 11 : 12;
       }
       const base =
         compactTier === 'tiny'

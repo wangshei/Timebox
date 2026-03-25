@@ -182,7 +182,7 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
 
         {/* Total time + switch count */}
         {totalMinutes > 0 && (
-          <div className="mb-4 flex items-end gap-4">
+          <div className="mb-4 flex items-end gap-6">
             <div>
               <div style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', lineHeight: 1 }}>
                 {formatDuration(totalMinutes)}
@@ -197,6 +197,16 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
                 <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>switches</div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Recording since / last recorded */}
+        {entries.length > 0 && (
+          <div style={{ fontSize: 10, color: '#AEAEB2', marginBottom: 10, marginTop: -8 }}>
+            {tracking
+              ? `Recording since ${new Date(entries[entries.length - 1]?.start_time || entries[0]?.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+              : `Last recorded ${new Date(entries[0]?.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+            }
           </div>
         )}
 
@@ -341,48 +351,78 @@ function TimelineView({ entries }: { entries: ActivityEntry[] }) {
 
   const merged = mergeConsecutiveEntries(entries);
 
-  return (
-    <div className="space-y-1">
-      {merged.map((entry) => {
-        const startTime = new Date(entry.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const endTime = new Date(entry.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const color = CATEGORY_COLORS[entry.category] || '#C0C0C0';
+  // Group entries by hour for time markers
+  const hourGroups: { hour: string; entries: typeof merged }[] = [];
+  let currentHourLabel = '';
+  for (const entry of merged) {
+    const d = new Date(entry.start_time);
+    const hourLabel = d.toLocaleTimeString([], { hour: 'numeric', hour12: true }); // e.g. "1 PM"
+    if (hourLabel !== currentHourLabel) {
+      hourGroups.push({ hour: hourLabel, entries: [entry] });
+      currentHourLabel = hourLabel;
+    } else {
+      hourGroups[hourGroups.length - 1].entries.push(entry);
+    }
+  }
 
-        return (
-          <div
-            key={`${entry.id}-${entry.end_time}`}
-            className="flex items-start gap-2 py-1.5 px-2 rounded-md"
-            style={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
-          >
-            <div
-              className="w-0.5 rounded-full flex-shrink-0 mt-0.5"
-              style={{ backgroundColor: color, height: 28 }}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span
-                  className="truncate"
-                  style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E', maxWidth: '65%' }}
-                >
-                  {entry.app_name}
-                </span>
-                <span style={{ fontSize: 10, color: '#AEAEB2', flexShrink: 0 }}>
-                  {formatDuration(entry.duration_secs / 60)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span style={{ fontSize: 10, color: '#8E8E93' }}>{startTime} – {endTime}</span>
-                <span
-                  className="px-1.5 py-0 rounded-full"
-                  style={{ fontSize: 9, color, backgroundColor: `${color}18`, fontWeight: 500 }}
-                >
-                  {entry.category}
-                </span>
-              </div>
-            </div>
+  return (
+    <div>
+      {hourGroups.map((group, gi) => (
+        <div key={gi}>
+          {/* Hour marker */}
+          <div className="flex items-center gap-2" style={{ marginTop: gi === 0 ? 0 : 12, marginBottom: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', minWidth: 42, textAlign: 'right' }}>
+              {group.hour}
+            </span>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
           </div>
-        );
-      })}
+
+          {/* Entries in this hour */}
+          <div style={{ marginLeft: 50 }} className="space-y-1">
+            {group.entries.map((entry) => {
+              const startMin = new Date(entry.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+              const endMin = new Date(entry.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+              const color = CATEGORY_COLORS[entry.category] || '#C0C0C0';
+              const durationMin = entry.duration_secs / 60;
+
+              return (
+                <div
+                  key={`${entry.id}-${entry.end_time}`}
+                  className="flex items-center gap-2 py-1 px-2 rounded-md"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
+                >
+                  <div
+                    className="rounded-full flex-shrink-0"
+                    style={{ width: 3, backgroundColor: color, alignSelf: 'stretch', minHeight: 24 }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="truncate"
+                        style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E', maxWidth: '60%' }}
+                      >
+                        {entry.app_name}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#AEAEB2', flexShrink: 0 }}>
+                        {formatDuration(durationMin)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ fontSize: 10, color: '#8E8E93' }}>{startMin} – {endMin}</span>
+                      <span
+                        className="px-1.5 rounded-full"
+                        style={{ fontSize: 9, color, backgroundColor: `${color}18`, fontWeight: 500, lineHeight: '16px' }}
+                      >
+                        {entry.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

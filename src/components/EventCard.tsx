@@ -331,7 +331,7 @@ export function EventCard({
               <span
                 className="font-medium leading-snug min-w-0 flex-1 truncate"
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
