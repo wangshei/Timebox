@@ -126,6 +126,8 @@ export function SettingsPanel({
   const [selectedTz, setSelectedTz] = useState(() => getLocalTimeZone());
   const browserTz = getBrowserTimeZone();
 
+  const allTimezones = React.useMemo(() => getAllTimezones(), []);
+
   // ── Secondary timezones state ──
   const [secondaryTzs, setSecondaryTzs] = useState<string[]>(() => {
     try {
@@ -184,7 +186,6 @@ export function SettingsPanel({
       return parts.find(p => p.type === 'timeZoneName')?.value || '';
     } catch { return ''; }
   };
-  const allTimezones = React.useMemo(() => getAllTimezones(), []);
 
   const filteredTimezones = React.useMemo(() => {
     if (!tzSearch) {
