@@ -189,6 +189,7 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+  const [showActivityInCalendar, setShowActivityInCalendar] = useState(() => localStorage.getItem('timebox_show_activity_blocks') === 'true');
   const [isActivityTracking, setIsActivityTracking] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileTodoPanelOpen, setMobileTodoPanelOpen] = useState(false);
@@ -621,7 +622,8 @@ export default function App() {
   const [activityTimeBlocks, setActivityTimeBlocks] = useState<TimeBlock[]>([]);
   const defaultContainerId = calendarContainers[0]?.id ?? '';
   useEffect(() => {
-    if (!isTauri() || !activityPanelOpen || !defaultContainerId) {
+    const shouldLoad = activityPanelOpen || showActivityInCalendar;
+    if (!isTauri() || !shouldLoad || !defaultContainerId) {
       setActivityTimeBlocks([]);
       return;
     }
@@ -659,7 +661,7 @@ export default function App() {
     load();
     const interval = setInterval(load, 30000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [selectedDate, activityPanelOpen, defaultContainerId]);
+  }, [selectedDate, activityPanelOpen, showActivityInCalendar, defaultContainerId]);
 
   // Poll activity tracking status for the red dot indicator
   useEffect(() => {
@@ -684,7 +686,7 @@ export default function App() {
         view,
         containerVisibility
       );
-      // Append activity-tracked blocks when activity panel is open
+      // Append activity-tracked blocks when activity panel is open or "show in calendar" is enabled
       return activityTimeBlocks.length > 0 ? [...base, ...activityTimeBlocks] : base;
     },
     [timeBlocks, selectedDate, view, containerVisibility, activityTimeBlocks]
@@ -3072,7 +3074,7 @@ export default function App() {
         )}
         {activityPanelOpen && (
           <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', borderLeft: '1px solid rgba(0,0,0,0.09)' }}>
-            <ActivityPanel selectedDate={selectedDate} onClose={() => setActivityPanelOpen(false)} />
+            <ActivityPanel selectedDate={selectedDate} onClose={() => setActivityPanelOpen(false)} onShowInCalendarChange={setShowActivityInCalendar} />
           </div>
         )}
       </div>

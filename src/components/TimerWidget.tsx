@@ -31,6 +31,7 @@ export function TimerWidget() {
   const timeBlocks = useStore((s) => s.timeBlocks);
   const categories = useStore((s) => s.categories);
   const tags = useStore((s) => s.tags);
+  const tasks = useStore((s) => s.tasks);
   const calendarContainers = useStore((s) => s.calendarContainers);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
   const startTimer = useStore((s) => s.startTimer);
@@ -41,6 +42,9 @@ export function TimerWidget() {
   const [selectedCalendarId, setSelectedCalendarId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [linkedTaskId, setLinkedTaskId] = useState<string | null>(null);
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [showTaskSearch, setShowTaskSearch] = useState(false);
   const [elapsed, setElapsed] = useState('0:00');
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -115,9 +119,38 @@ export function TimerWidget() {
     if (activeTimer) return;
     setTitle('');
     setSelectedTagIds([]);
+    setLinkedTaskId(null);
+    setTaskSearchQuery('');
+    setShowTaskSearch(false);
     setSelectedCalendarId(calendarContainers[0]?.id ?? '');
     setShowPopover(true);
   }, [activeTimer, calendarContainers]);
+
+  // Filter tasks for the search dropdown
+  const filteredTasks = taskSearchQuery.trim()
+    ? tasks
+        .filter((t) =>
+          t.status !== 'done' && t.status !== 'archived' &&
+          t.title.toLowerCase().includes(taskSearchQuery.toLowerCase())
+        )
+        .slice(0, 8)
+    : tasks
+        .filter((t) => t.status !== 'done' && t.status !== 'archived')
+        .slice(0, 5);
+
+  const handleLinkTask = useCallback((taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) {
+      setLinkedTaskId(taskId);
+      setTitle(task.title);
+      // Also set calendar/category from task
+      if (task.calendarContainerId) setSelectedCalendarId(task.calendarContainerId);
+      if (task.categoryId) setSelectedCategoryId(task.categoryId);
+      if (task.tagIds?.length) setSelectedTagIds(task.tagIds);
+      setShowTaskSearch(false);
+      setTaskSearchQuery('');
+    }
+  }, [tasks]);
 
   const toggleTag = useCallback((tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -330,6 +363,87 @@ export function TimerWidget() {
                 </div>
               </div>
             )}
+
+            {/* Link to task */}
+            <div>
+              <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 600, color: '#636366', letterSpacing: '0.04em' }}>
+                Link to task <span style={{ fontWeight: 400, color: '#8E8E93' }}>(optional)</span>
+              </label>
+              {linkedTaskId ? (
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="flex-1 truncate px-2 py-1 rounded-md text-xs"
+                    style={{ backgroundColor: 'rgba(141,162,134,0.10)', color: THEME.textPrimary, fontSize: 11 }}
+                  >
+                    {tasks.find((t) => t.id === linkedTaskId)?.title ?? 'Task'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setLinkedTaskId(null); setShowTaskSearch(false); }}
+                    className="text-xs p-0.5 rounded"
+                    style={{ color: THEME.textMuted }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={taskSearchQuery}
+                    onChange={(e) => { setTaskSearchQuery(e.target.value); setShowTaskSearch(true); }}
+                    onFocus={() => setShowTaskSearch(true)}
+                    placeholder="Search tasks..."
+                    className="w-full px-2 py-1 text-xs rounded-md outline-none"
+                    style={{
+                      border: '1px solid rgba(0,0,0,0.10)',
+                      color: THEME.textPrimary,
+                      backgroundColor: 'rgba(0,0,0,0.02)',
+                      fontSize: 11,
+                    }}
+                  />
+                  {showTaskSearch && filteredTasks.length > 0 && (
+                    <div
+                      className="absolute left-0 right-0 mt-1 rounded-lg shadow-md overflow-hidden"
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid rgba(0,0,0,0.10)',
+                        zIndex: 10,
+                        maxHeight: 160,
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {filteredTasks.map((task) => {
+                        const taskCat = categories.find((c) => c.id === task.categoryId);
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onClick={() => handleLinkTask(task.id)}
+                            className="w-full text-left px-2.5 py-1.5 flex items-center gap-1.5 transition-colors"
+                            style={{ fontSize: 11, color: THEME.textPrimary }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: taskCat?.color ?? THEME.textMuted }}
+                            />
+                            <span className="truncate">{task.title}</span>
+                            {task.priority && (
+                              <span style={{ fontSize: 9, color: THEME.textMuted, flexShrink: 0 }}>P{task.priority}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Start button */}
             <button

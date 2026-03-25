@@ -12,6 +12,32 @@ import {
   ActivityEntry,
 } from '../services/desktopActivity';
 
+const LS_SHOW_ACTIVITY = 'timebox_show_activity_blocks';
+const LS_EXCLUDED_APPS = 'timebox_excluded_apps';
+
+function getExcludedApps(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_EXCLUDED_APPS) || '';
+    return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  } catch { return []; }
+}
+
+function filterExcludedFromSummary(summary: CategorySummary[], excluded: string[]): CategorySummary[] {
+  if (excluded.length === 0) return summary;
+  return summary.map(cat => ({
+    ...cat,
+    app_details: cat.app_details.filter(a => !excluded.includes(a.app_name.toLowerCase())),
+    total_minutes: cat.app_details
+      .filter(a => !excluded.includes(a.app_name.toLowerCase()))
+      .reduce((s, a) => s + a.minutes, 0),
+  })).filter(cat => cat.app_details.length > 0);
+}
+
+function filterExcludedFromEntries(entries: ActivityEntry[], excluded: string[]): ActivityEntry[] {
+  if (excluded.length === 0) return entries;
+  return entries.filter(e => !excluded.includes(e.app_name.toLowerCase()));
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   Coding: '#8DA286',
   'AI Agent': '#B07CD8',
@@ -40,9 +66,10 @@ function formatDuration(minutes: number): string {
 interface ActivityPanelProps {
   selectedDate: string; // YYYY-MM-DD
   onClose: () => void;
+  onShowInCalendarChange?: (show: boolean) => void;
 }
 
-export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelProps) {
+export default function ActivityPanel({ selectedDate, onClose, onShowInCalendarChange }: ActivityPanelProps) {
   const [tracking, setTracking] = useState(false);
   const [summary, setSummary] = useState<CategorySummary[]>([]);
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
@@ -50,6 +77,12 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
   const [hasAccessibility, setHasAccessibility] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('summary');
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
+  const [secondsAgo, setSecondsAgo] = useState(0);
+  const [showInCalendar, setShowInCalendar] = useState(() => localStorage.getItem(LS_SHOW_ACTIVITY) === 'true');
+  const [excludedAppsText, setExcludedAppsText] = useState(() => localStorage.getItem(LS_EXCLUDED_APPS) || '');
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const excludedApps = getExcludedApps();
 
   const loadData = useCallback(async () => {
     try {
@@ -63,6 +96,7 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
       setSummary(summaryData);
       setEntries(entriesData);
       setTracking(trackingStatus);
+      setLastUpdated(Date.now());
 
       // Load optional data — don't let failures block the panel
       try { setSwitchCount(await getSwitchCount(selectedDate)); } catch { /* ignore */ }
@@ -84,6 +118,15 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
   }, [tracking, loadData]);
+
+  // Update "X seconds ago" ticker every 5s while tracking
+  useEffect(() => {
+    if (!tracking) { setSecondsAgo(0); return; }
+    const tick = () => setSecondsAgo(Math.floor((Date.now() - lastUpdated) / 1000));
+    tick();
+    const interval = setInterval(tick, 5000);
+    return () => clearInterval(interval);
+  }, [tracking, lastUpdated]);
 
   const handleToggleTracking = async () => {
     try {
@@ -107,7 +150,51 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
     }
   };
 
-  const totalMinutes = summary.reduce((sum, s) => sum + s.total_minutes, 0);
+  const handleToggleShowInCalendar = () => {
+    const next = !showInCalendar;
+    setShowInCalendar(next);
+    localStorage.setItem(LS_SHOW_ACTIVITY, String(next));
+    onShowInCalendarChange?.(next);
+  };
+
+  const handleExcludedAppsChange = (text: string) => {
+    setExcludedAppsText(text);
+    localStorage.setItem(LS_EXCLUDED_APPS, text);
+  };
+
+  const handleExportCSV = () => {
+    const rows = [['App', 'Category', 'Start', 'End', 'Duration (min)']];
+    for (const e of filteredEntries) {
+      rows.push([
+        e.app_name,
+        e.category,
+        new Date(e.start_time).toLocaleString(),
+        new Date(e.end_time).toLocaleString(),
+        (e.duration_secs / 60).toFixed(1),
+      ]);
+    }
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-${selectedDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Apply privacy filters
+  const filteredSummary = filterExcludedFromSummary(summary, excludedApps);
+  const filteredEntries = filterExcludedFromEntries(entries, excludedApps);
+  const totalMinutes = filteredSummary.reduce((sum, s) => sum + s.total_minutes, 0);
+
+  // Idle detection: check if latest entry is >5min old while tracking
+  const idleMinutes = (() => {
+    if (!tracking || filteredEntries.length === 0) return 0;
+    const latest = new Date(filteredEntries[0]?.end_time).getTime();
+    const gap = (Date.now() - latest) / 60000;
+    return gap > 5 ? Math.floor(gap) : 0;
+  })();
 
   if (!isTauri()) {
     return (
@@ -134,11 +221,26 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
         <span className="text-base font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
-        <button type="button" onClick={onClose} className="p-1 rounded hover:bg-black/5">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M1 1l12 12M13 1L1 13" stroke="#8E8E93" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          {filteredEntries.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="p-1 rounded hover:bg-black/5"
+              title="Export as CSV"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v8M7 9L4 6M7 9l3-3" stroke="#8E8E93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 10v2h10v-2" stroke="#8E8E93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-black/5">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="#8E8E93" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
@@ -165,6 +267,78 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
           >
             {tracking ? 'Stop' : 'Start'}
           </button>
+        </div>
+
+        {/* Last updated indicator */}
+        {tracking && secondsAgo > 0 && (
+          <div style={{ fontSize: 10, color: '#AEAEB2', marginTop: -8, marginBottom: 8 }}>
+            Last updated {secondsAgo}s ago
+          </div>
+        )}
+
+        {/* Idle warning */}
+        {idleMinutes > 0 && (
+          <div className="mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(255,204,0,0.1)', border: '1px solid rgba(255,204,0,0.25)' }}>
+            <p style={{ fontSize: 11, fontWeight: 500, color: '#8B7400', margin: 0 }}>
+              No activity detected for {idleMinutes} minute{idleMinutes !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Show in calendar toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <label style={{ fontSize: 11, color: '#3A3A3C', cursor: 'pointer' }} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showInCalendar}
+              onChange={handleToggleShowInCalendar}
+              style={{ accentColor: '#8DA286', width: 13, height: 13 }}
+            />
+            Show activity in calendar
+          </label>
+        </div>
+
+        {/* Privacy controls */}
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setShowPrivacy(!showPrivacy)}
+            className="flex items-center gap-1"
+            style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ transform: showPrivacy ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+              <path d="M2 1l4 3-4 3" stroke="#8E8E93" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Privacy
+            {excludedApps.length > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 400, color: '#AEAEB2', textTransform: 'none', letterSpacing: 'normal' }}>
+                — {excludedApps.length} app{excludedApps.length !== 1 ? 's' : ''} hidden
+              </span>
+            )}
+          </button>
+          {showPrivacy && (
+            <div className="mt-2">
+              <label style={{ fontSize: 11, color: '#8E8E93', display: 'block', marginBottom: 4 }}>
+                Exclude apps (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={excludedAppsText}
+                onChange={(e) => handleExcludedAppsChange(e.target.value)}
+                placeholder="e.g. Messages, Slack"
+                style={{
+                  width: '100%',
+                  fontSize: 11,
+                  padding: '5px 8px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  backgroundColor: '#fff',
+                  color: '#1C1C1E',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Accessibility permission warning */}
@@ -256,9 +430,9 @@ export default function ActivityPanel({ selectedDate, onClose }: ActivityPanelPr
             `}</style>
           </div>
         ) : viewMode === 'summary' ? (
-          <SummaryView summary={summary} totalMinutes={totalMinutes} />
+          <SummaryView summary={filteredSummary} totalMinutes={totalMinutes} />
         ) : (
-          <TimelineView entries={entries} />
+          <TimelineView entries={filteredEntries} />
         )}
       </div>
     </div>
