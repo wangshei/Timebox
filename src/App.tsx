@@ -45,7 +45,7 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
-import { getLocalDateString, getLocalTimeZone, getViewDateRange } from './utils/dateTime';
+import { getLocalDateString, getLocalTimeZone, getViewDateRange, fmtDate } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
@@ -2231,10 +2231,6 @@ export default function App() {
                   const totalDelta = totalRecorded - totalPlanned;
                   const maxH = Math.max(totalPlanned, totalRecorded, 0.01);
 
-                  const fmtDate = (d: string) => {
-                    const [y, m, day] = d.split('-').map(Number);
-                    return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                  };
                   const rangeLabel = view === 'week'
                     ? `Week of ${fmtDate(analyticsDateRange[0])}`
                     : view === 'month'

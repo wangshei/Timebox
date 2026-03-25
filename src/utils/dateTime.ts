@@ -101,3 +101,29 @@ export function parseLocalDateString(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+
+/** Format minutes → "2h 30m" */
+export function fmtMins(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+/** Format "HH:mm" → "9am" / "2:30pm" */
+export function fmtTime(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  const hour = h ?? 0;
+  const min = m ?? 0;
+  const suffix = hour >= 12 ? 'pm' : 'am';
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
+}
+
+/** Format "YYYY-MM-DD" → "Mar 3" */
+export function fmtDate(d: string): string {
+  const [, m, day] = d.split('-').map(Number);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[(m ?? 1) - 1]} ${day}`;
+}

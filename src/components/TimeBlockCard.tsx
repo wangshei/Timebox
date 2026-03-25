@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react
 import { createPortal } from 'react-dom';
 import { Mode } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, fmtTime } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
@@ -985,15 +985,7 @@ function TimeBlockCardInner({
     sizeTier === 'tiny'  ? '2px 8px' :
     isEvent ? '5px 8px 5px 10px' : '5px 8px';
 
-  // Format short time like "9:00" or "9am"
-  const fmtShort = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    const hour = h ?? 0;
-    const min = m ?? 0;
-    const suffix = hour >= 12 ? 'pm' : 'am';
-    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
-  };
+  const fmtShort = fmtTime;
 
   const effectivelyLockedFull = locked;
   const noDragFull = locked || isLockedPast;
