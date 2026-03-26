@@ -119,7 +119,7 @@ function getInitialState(): AppState {
     schedulingLinks: [],
     bookings: [],
     viewMode: 'overall',
-    view: '3day',
+    view: 'week',
     selectedDate: getLocalDateString(),
     containerVisibility: visibility,
     defaultBlockMinutes: 60,

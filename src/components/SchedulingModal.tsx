@@ -169,7 +169,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex justify-end"
+      className="fixed inset-0 z-[9999] flex justify-end"
       style={{ pointerEvents: selectionModeActive ? 'none' : 'auto' }}
       onClick={(e) => { if (e.target === e.currentTarget && !selectionModeActive) onClose(); }}
     >
@@ -183,8 +183,9 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
         ref={panelRef}
         className="relative h-full overflow-y-auto"
         style={{
-          width: selectionModeActive ? 320 : 420,
+          width: selectionModeActive ? 320 : 'min(420px, 90vw)',
           maxWidth: '100vw',
+          boxSizing: 'border-box',
           backgroundColor: '#FCFBF7',
           borderLeft: '1px solid rgba(0,0,0,0.08)',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
@@ -194,10 +195,10 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
       >
         {/* Header */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
+          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
           style={{ backgroundColor: '#FCFBF7', borderBottom: '1px solid rgba(0,0,0,0.08)' }}
         >
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
+          <h2 translate="no" style={{ fontSize: 15, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>
             {saved ? 'Link Created' : editingLink ? 'Edit Scheduling Link' : 'New Scheduling Link'}
           </h2>
           <button
@@ -211,7 +212,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
 
         {saved ? (
           /* ─── Success state ─── */
-          <div className="px-5 py-8 flex flex-col items-center gap-5">
+          <div className="px-6 py-8 flex flex-col items-center gap-5">
             <div
               className="flex items-center justify-center rounded-full"
               style={{ width: 56, height: 56, backgroundColor: 'rgba(141,162,134,0.15)' }}
@@ -278,7 +279,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="px-5 py-4 flex flex-col gap-5">
+          <div className="px-6 py-4 flex flex-col gap-5">
             {/* Link name */}
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', display: 'block', marginBottom: 6 }}>
@@ -329,7 +330,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
               <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', display: 'block', marginBottom: 6 }}>
                 Slot duration (min)
               </label>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {DURATION_OPTIONS.map((d) => (
                   <button
                     key={d}
@@ -430,8 +431,8 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             </div>
 
             {/* Smart adapt */}
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-3" style={{ overflow: 'hidden' }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: '#1C1C1E' }}>Smart adapt</div>
                 <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
                   Auto-adjust when your calendar changes
