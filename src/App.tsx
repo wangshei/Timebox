@@ -1130,7 +1130,7 @@ export default function App() {
           })
           .catch((err) => {
             console.error('[invite] Failed to send invitations:', err);
-            toast.error('Failed to send invitations');
+            toast.error(`Failed to send invitations: ${err?.message || err}`);
           });
       }
     }
