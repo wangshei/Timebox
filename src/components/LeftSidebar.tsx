@@ -10,8 +10,12 @@ import {
   UserGroupIcon,
   ShareIcon,
 } from '@heroicons/react/24/solid';
-import type { CalendarContainer, Category, Tag, TimeBlock } from '../types';
+import type { CalendarContainer, Category, Tag, TimeBlock, SchedulingLink, Booking } from '../types';
 import type { CalendarContainerVisibility } from '../types';
+import {
+  ClipboardDocumentIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 import type { SharedCalendarView } from '../types/sharing';
 import type { ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
@@ -64,6 +68,14 @@ interface LeftSidebarProps {
   onSetSharedMapping?: (shareId: string, calendarId: string, categoryId: string) => void;
   /** Called when user clicks the share icon on a calendar/category/tag. */
   onShare?: (id: string, scope: ShareScope, name: string, color: string) => void;
+  // Scheduling
+  schedulingLinks?: SchedulingLink[];
+  bookings?: Booking[];
+  onCreateSchedulingLink?: () => void;
+  onEditSchedulingLink?: (id: string) => void;
+  onDeleteSchedulingLink?: (id: string) => void;
+  onToggleSchedulingLinkActive?: (id: string) => void;
+  onCopySchedulingLink?: (slug: string) => void;
 }
 
 // Stable component — defined outside LeftSidebar so React doesn't remount on every render
@@ -99,6 +111,103 @@ function InlineEditForm({
           className="px-2 py-1 text-xs rounded-md transition-colors"
           style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: '#636366' }}>
           Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SchedulingLinkRow({
+  link, slotCount, bookingCount, onEdit, onDelete, onToggleActive, onCopyLink,
+}: {
+  link: SchedulingLink;
+  slotCount: number;
+  bookingCount: number;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleActive: () => void;
+  onCopyLink: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <div
+      className="flex items-center w-full rounded-md"
+      style={{
+        padding: '5px 6px',
+        backgroundColor: hovered ? 'rgba(0,0,0,0.04)' : 'transparent',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onEdit}
+    >
+      {/* Active indicator dot */}
+      <span
+        className="flex-shrink-0 rounded-full"
+        style={{
+          width: 6,
+          height: 6,
+          marginRight: 8,
+          backgroundColor: link.active ? '#8DA286' : '#D1D1D6',
+        }}
+      />
+      {/* Name + subtitle */}
+      <div className="flex-1 min-w-0">
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: link.active ? '#1C1C1E' : '#AEAEB2',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {link.name}
+        </div>
+        <div style={{ fontSize: 10, color: '#8E8E93', marginTop: 1 }}>
+          {slotCount} slot{slotCount !== 1 ? 's' : ''} &middot; {bookingCount} booking{bookingCount !== 1 ? 's' : ''}
+        </div>
+      </div>
+      {/* Hover actions */}
+      <div
+        className="flex items-center gap-0.5 flex-shrink-0 ml-1"
+        style={{ opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
+      >
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onCopyLink(); }}
+          className="p-0.5 rounded transition-colors flex-shrink-0"
+          style={{ color: '#8E8E93', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#636366')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
+          title="Copy booking link"
+        >
+          <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+          className="p-0.5 rounded transition-colors flex-shrink-0"
+          style={{ color: link.active ? '#8DA286' : '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.color = link.active ? '#6B8A63' : '#8E8E93')}
+          onMouseLeave={e => (e.currentTarget.style.color = link.active ? '#8DA286' : '#AEAEB2')}
+          title={link.active ? 'Deactivate' : 'Activate'}
+        >
+          {link.active
+            ? <EyeIcon style={{ width: 14, height: 14 }} />
+            : <EyeSlashIcon style={{ width: 14, height: 14 }} />}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-0.5 rounded transition-colors flex-shrink-0"
+          style={{ color: '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#FF3B30')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#AEAEB2')}
+          title="Delete"
+        >
+          <TrashIcon style={{ width: 14, height: 14 }} />
         </button>
       </div>
     </div>
@@ -144,6 +253,13 @@ export function LeftSidebar({
   sharedMappings = {},
   onSetSharedMapping,
   onShare,
+  schedulingLinks = [],
+  bookings = [],
+  onCreateSchedulingLink,
+  onEditSchedulingLink,
+  onDeleteSchedulingLink,
+  onToggleSchedulingLinkActive,
+  onCopySchedulingLink,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -165,6 +281,7 @@ export function LeftSidebar({
   const [mappingShareId, setMappingShareId] = useState<string | null>(null);
   const [mappingCalId, setMappingCalId] = useState<string>('');
   const [mappingCatId, setMappingCatId] = useState<string>('');
+  const [isSchedulingOpen, setIsSchedulingOpen] = useState(true);
   const [dragCategoryId, setDragCategoryId] = useState<string | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
   const [dragCalendarId, setDragCalendarId] = useState<string | null>(null);
@@ -1091,6 +1208,65 @@ export function LeftSidebar({
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scheduling section */}
+      {(schedulingLinks.length > 0 || onCreateSchedulingLink) && (
+        <div className="flex-shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+          <button
+            type="button"
+            onClick={() => setIsSchedulingOpen(!isSchedulingOpen)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 12px 4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#8E8E93' }}>
+              Scheduling
+            </span>
+            <ChevronRightIcon
+              style={{
+                width: 10,
+                height: 10,
+                color: '#AEAEB2',
+                transform: isSchedulingOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 150ms',
+                flexShrink: 0,
+              }}
+            />
+          </button>
+          {isSchedulingOpen && (
+            <div style={{ padding: '2px 8px 6px' }}>
+              {schedulingLinks.map((link) => {
+                const linkBookings = bookings.filter((b) => b.schedulingLinkId === link.id && b.status === 'confirmed');
+                const slotCount = link.availableSlots.length;
+                return (
+                  <SchedulingLinkRow
+                    key={link.id}
+                    link={link}
+                    slotCount={slotCount}
+                    bookingCount={linkBookings.length}
+                    onEdit={() => onEditSchedulingLink?.(link.id)}
+                    onDelete={() => onDeleteSchedulingLink?.(link.id)}
+                    onToggleActive={() => onToggleSchedulingLinkActive?.(link.id)}
+                    onCopyLink={() => onCopySchedulingLink?.(link.slug)}
+                  />
+                );
+              })}
+              {onCreateSchedulingLink && (
+                <div style={{ paddingLeft: 4, paddingTop: schedulingLinks.length > 0 ? 2 : 0 }}>
+                  <AddBtn label="Create scheduling link" onClick={onCreateSchedulingLink} hoverColor="#8DA286" />
+                </div>
+              )}
             </div>
           )}
         </div>

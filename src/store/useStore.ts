@@ -16,6 +16,8 @@ import type {
   View,
   CalendarContainerVisibility,
   Sticker,
+  SchedulingLink,
+  Booking,
 } from '../types';
 import {
   getPlannedMinutes,
@@ -51,6 +53,8 @@ export interface AppState {
   tags: Tag[];
   events: Event[];
   stickers: Sticker[];
+  schedulingLinks: SchedulingLink[];
+  bookings: Booking[];
   // UI
   viewMode: Mode;
   view: View;
@@ -89,6 +93,8 @@ export const ENTITY_LIMITS = {
   categories: 100,
   tags: 200,
   stickers: 500,
+  schedulingLinks: 20,
+  bookings: 500,
 } as const;
 
 // --- Initial state from seed ---
@@ -110,6 +116,8 @@ function getInitialState(): AppState {
     tags,
     events: [],
     stickers: [],
+    schedulingLinks: [],
+    bookings: [],
     viewMode: 'overall',
     view: '3day',
     selectedDate: getLocalDateString(),
@@ -220,6 +228,12 @@ export interface AppActions {
   addSticker: (s: Omit<Sticker, 'id'>) => string;
   updateSticker: (id: string, updates: Partial<Sticker>) => void;
   deleteSticker: (id: string) => void;
+
+  addSchedulingLink: (link: Omit<SchedulingLink, 'id' | 'createdAt'>) => string;
+  updateSchedulingLink: (id: string, updates: Partial<SchedulingLink>) => void;
+  deleteSchedulingLink: (id: string) => void;
+  addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => string;
+  updateBooking: (id: string, updates: Partial<Booking>) => void;
 
   resetToSeed: () => void;
 
@@ -834,6 +848,34 @@ export const useStore = create<AppState & AppActions>()(
     set((s) => ({ stickers: s.stickers.map((st) => (st.id === id ? { ...st, ...updates } : st)) })),
   deleteSticker: (id) =>
     set((s) => ({ stickers: s.stickers.filter((st) => st.id !== id) })),
+
+  addSchedulingLink: (link) => {
+    const id = generateId();
+    set((s) => ({
+      schedulingLinks: [...s.schedulingLinks, { ...link, id, createdAt: new Date().toISOString() }],
+    }));
+    return id;
+  },
+  updateSchedulingLink: (id, updates) =>
+    set((s) => ({
+      schedulingLinks: s.schedulingLinks.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+    })),
+  deleteSchedulingLink: (id) =>
+    set((s) => ({
+      schedulingLinks: s.schedulingLinks.filter((l) => l.id !== id),
+      bookings: s.bookings.filter((b) => b.schedulingLinkId !== id),
+    })),
+  addBooking: (booking) => {
+    const id = generateId();
+    set((s) => ({
+      bookings: [...s.bookings, { ...booking, id, createdAt: new Date().toISOString() }],
+    }));
+    return id;
+  },
+  updateBooking: (id, updates) =>
+    set((s) => ({
+      bookings: s.bookings.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+    })),
 
   resetToSeed: () => set(getInitialState()),
 

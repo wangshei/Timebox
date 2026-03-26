@@ -197,6 +197,55 @@ export interface User {
   };
 }
 
+// ─── Scheduling / Booking ─────────────────────────────────
+
+export interface AvailableSlot {
+  /** 0-6 for recurring (Sun-Sat), -1 for specific date */
+  dayOfWeek: number;
+  /** YYYY-MM-DD for specific-date slots */
+  date?: string;
+  startTime: string; // HH:MM
+  endTime: string;   // HH:MM
+}
+
+export interface SchedulingLink {
+  id: string;
+  name: string;
+  /** URL-friendly identifier for public link (/book/{slug}) */
+  slug: string;
+  calendarContainerId: string;
+  categoryId?: string;
+  /** Bookable slot duration in minutes */
+  slotDuration: number; // 15, 30, 45, 60
+  /** Buffer minutes between bookings */
+  gapBetween: number;
+  /** Minimum hours in advance someone can book */
+  minAdvanceHours: number;
+  /** YYYY-MM-DD expiry date, or '' for no expiry */
+  validUntil: string;
+  /** Selected available time windows */
+  availableSlots: AvailableSlot[];
+  /** Auto-reduce availability when new events/blocks are added */
+  smartAdapt: boolean;
+  active: boolean;
+  createdAt: string;
+  /** Owner's timezone at time of creation */
+  timezone: string;
+}
+
+export interface Booking {
+  id: string;
+  schedulingLinkId: string;
+  bookerName: string;
+  bookerEmail: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string;   // HH:MM
+  status: 'confirmed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+}
+
 // Helper types for UI state
 export interface CalendarContainerVisibility {
   [containerId: string]: boolean;

@@ -13,6 +13,7 @@ import { TimerWidget } from './components/TimerWidget';
 import { FocusPanel } from './components/FocusPanel';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
+import { SchedulingModal } from './components/SchedulingModal';
 import { LeftSidebar } from './components/LeftSidebar';
 import { ShareModal } from './components/ShareModal';
 import type { ShareRole, Collaborator } from './components/ShareModal';
@@ -176,6 +177,10 @@ export default function App() {
   const [recurrenceEditScopePending, setRecurrenceEditScopePending] = useState<string | null>(null);
   const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
+  const [schedulingSelectionMode, setSchedulingSelectionMode] = useState(false);
+  const [selectedAvailSlots, setSelectedAvailSlots] = useState<import('./types').AvailableSlot[]>([]);
+  const [showSchedulingModal, setShowSchedulingModal] = useState(false);
+  const [editingSchedulingLinkId, setEditingSchedulingLinkId] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -676,11 +681,27 @@ export default function App() {
     setEmailNotificationsEnabled,
     activeTimer,
     stopTimer,
+    schedulingLinks,
+    bookings,
+    addSchedulingLink,
+    updateSchedulingLink,
+    deleteSchedulingLink,
+    addBooking,
   } = useStore();
 
   const { saveSnapshot } = useHistoryStore();
 
   // Load activity blocks from desktop tracker for calendar integration
+  // Sync scheduling links to public localStorage key for BookingPage
+  useEffect(() => {
+    try {
+      const activeLinks = schedulingLinks.filter((l) => l.active);
+      localStorage.setItem('timebox_scheduling_links_public', JSON.stringify(activeLinks));
+    } catch {
+      // ignore
+    }
+  }, [schedulingLinks]);
+
   const [activityTimeBlocks, setActivityTimeBlocks] = useState<TimeBlock[]>([]);
   const defaultContainerId = calendarContainers[0]?.id ?? '';
   useEffect(() => {
@@ -1603,6 +1624,59 @@ export default function App() {
     return false;
   }, [timeBlocks, deleteTimeBlock]);
 
+  // ─── Scheduling selection mode handlers ───
+  const handleEnterSchedulingSelection = useCallback((linkId?: string | null) => {
+    setSchedulingSelectionMode(true);
+    setEditingSchedulingLinkId(linkId ?? null);
+    if (linkId) {
+      const link = useStore.getState().schedulingLinks.find((l) => l.id === linkId);
+      if (link) setSelectedAvailSlots([...link.availableSlots]);
+    } else {
+      setSelectedAvailSlots([]);
+    }
+    setView('week');
+  }, [setView]);
+
+  const handleToggleAvailSlot = useCallback((slot: import('./types').AvailableSlot) => {
+    setSelectedAvailSlots((prev) => {
+      // Check if this exact slot exists already (same day, same times)
+      const idx = prev.findIndex(
+        (s) => s.dayOfWeek === slot.dayOfWeek && s.startTime === slot.startTime && s.endTime === slot.endTime
+      );
+      if (idx >= 0) {
+        // Remove it
+        return prev.filter((_, i) => i !== idx);
+      }
+      // Add it
+      return [...prev, slot];
+    });
+  }, []);
+
+  const handleSelectionDone = useCallback(() => {
+    setSchedulingSelectionMode(false);
+    setShowSchedulingModal(true);
+  }, []);
+
+  const handleSelectionCancel = useCallback(() => {
+    setSchedulingSelectionMode(false);
+    setSelectedAvailSlots([]);
+    setEditingSchedulingLinkId(null);
+  }, []);
+
+  const handleSchedulingModalClose = useCallback(() => {
+    setShowSchedulingModal(false);
+    setSelectedAvailSlots([]);
+    setEditingSchedulingLinkId(null);
+  }, []);
+
+  const handleRemoveAvailSlot = useCallback((slot: import('./types').AvailableSlot) => {
+    setSelectedAvailSlots((prev) =>
+      prev.filter(
+        (s) => !(s.dayOfWeek === slot.dayOfWeek && s.startTime === slot.startTime && s.endTime === slot.endTime)
+      )
+    );
+  }, []);
+
   const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; isRecordedPanel?: boolean }) => {
     // Open the Add modal (with Task/Event toggle) pre-filled with the dragged time slot.
     setEditingTaskId(null);
@@ -2287,6 +2361,42 @@ export default function App() {
                 sharedMappings={sharedMappings}
                 onSetSharedMapping={handleSetSharedMapping}
                 onShare={handleOpenShare}
+                schedulingLinks={schedulingLinks}
+                bookings={bookings}
+                onCreateSchedulingLink={() => {
+                  const slug = 'meeting-' + Math.random().toString(36).substring(2, 8);
+                  addSchedulingLink({
+                    name: 'New Meeting',
+                    slug,
+                    calendarContainerId: calendarContainers[0]?.id ?? '',
+                    slotDuration: 30,
+                    gapBetween: 15,
+                    minAdvanceHours: 24,
+                    validUntil: '',
+                    availableSlots: [],
+                    smartAdapt: true,
+                    active: true,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  });
+                }}
+                onEditSchedulingLink={(id) => {
+                  // TODO: open scheduling link editor modal
+                  console.log('Edit scheduling link', id);
+                }}
+                onDeleteSchedulingLink={(id) => deleteSchedulingLink(id)}
+                onToggleSchedulingLinkActive={(id) => {
+                  const link = schedulingLinks.find((l) => l.id === id);
+                  if (link) updateSchedulingLink(id, { active: !link.active });
+                }}
+                onCopySchedulingLink={(slug) => {
+                  const url = `${window.location.origin}/book/${slug}`;
+                  navigator.clipboard.writeText(url).then(() => {
+                    toast?.('Link copied to clipboard');
+                  }).catch(() => {
+                    // Fallback: prompt
+                    window.prompt('Copy this link:', url);
+                  });
+                }}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -2986,6 +3096,11 @@ export default function App() {
           onRescheduleLater={handleRescheduleBlockLater}
           onAddTimeToComplete={handleAddTimeToComplete}
           pendingBlockPreview={pendingBlockPreview}
+          selectionMode={schedulingSelectionMode}
+          selectedSlots={selectedAvailSlots}
+          onToggleSlot={handleToggleAvailSlot}
+          onSelectionDone={handleSelectionDone}
+          onSelectionCancel={handleSelectionCancel}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -3153,6 +3268,14 @@ export default function App() {
         defaultBlockMinutes={defaultBlockMinutes}
         onSchedule={handleScheduleSubmit}
         onClose={() => setSchedulingTaskId(null)}
+      />
+
+      <SchedulingModal
+        isOpen={showSchedulingModal}
+        onClose={handleSchedulingModalClose}
+        selectedSlots={selectedAvailSlots}
+        onRemoveSlot={handleRemoveAvailSlot}
+        editingLinkId={editingSchedulingLinkId}
       />
 
       {/* Recurrence edit scope picker — shown before AddModal for recurring events */}

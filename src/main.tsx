@@ -4,6 +4,7 @@ import App from './App.tsx';
 import { InvitePage } from './components/InvitePage';
 import { GcalCallbackPage } from './components/GcalCallbackPage';
 import { DesktopPage } from './components/DesktopPage';
+import { BookingPage } from './components/BookingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import './styles/globals.css';
@@ -20,6 +21,12 @@ function getInviteToken(): string | null {
   return match ? match[1] : null;
 }
 
+// Check if we're on the /book/:slug route
+function getBookingSlug(): string | null {
+  const match = window.location.pathname.match(/^\/book\/([a-zA-Z0-9_-]+)$/);
+  return match ? match[1] : null;
+}
+
 // Check if we're on the /gcal-callback route
 function getGcalCode(): string | null {
   if (window.location.pathname !== '/gcal-callback') return null;
@@ -29,6 +36,7 @@ function getGcalCode(): string | null {
 
 const desktopPage = isDesktopPage();
 const inviteToken = getInviteToken();
+const bookingSlug = getBookingSlug();
 const gcalCode = getGcalCode();
 
 // Phase 2: local persistence bootstrap (runs once on startup in browser)
@@ -46,6 +54,8 @@ if (gcalCode && typeof window !== 'undefined') {
 let content: React.ReactNode;
 if (desktopPage) {
   content = <DesktopPage />;
+} else if (bookingSlug) {
+  content = <BookingPage slug={bookingSlug} />;
 } else if (inviteToken) {
   content = <InvitePage token={inviteToken} />;
 } else if (gcalCode) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mode } from '../types';
+import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal, getStartOfWeek, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
@@ -53,9 +53,19 @@ interface WeekViewProps {
   activeStampEmoji?: string | null;
   /** Pending block preview that stays visible while AddModal is open (drag-to-create). */
   pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
+  /** Scheduling selection mode — suppresses normal interactions, enables slot painting. */
+  selectionMode?: boolean;
+  /** Currently selected available slots (rendered as green rectangles). */
+  selectedSlots?: AvailableSlot[];
+  /** Toggle a slot on/off (click existing to remove, paint new to add). */
+  onToggleSlot?: (slot: AvailableSlot) => void;
+  /** Called when user clicks "Done" in the selection banner. */
+  onSelectionDone?: () => void;
+  /** Called when user clicks "Cancel" in the selection banner. */
+  onSelectionCancel?: () => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -64,6 +74,56 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const deleteStickerAction = useStore((s) => s.deleteSticker);
   const [selectedStickerId, setSelectedStickerId] = React.useState<string | null>(null);
   const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+
+  // ─── Selection mode: drag-to-paint available slots ───
+  const [selectionDrag, setSelectionDrag] = React.useState<{
+    dayOfWeek: number;
+    anchorMins: number;
+    startMins: number;
+    endMins: number;
+  } | null>(null);
+  const selectionDragRef = React.useRef(selectionDrag);
+  React.useEffect(() => { selectionDragRef.current = selectionDrag; }, [selectionDrag]);
+
+  React.useEffect(() => {
+    if (!selectionDrag || !selectionMode) return;
+    const onMove = (e: MouseEvent) => {
+      // Find the column for the drag's dayOfWeek
+      const col = document.querySelector<HTMLDivElement>(`[data-week-sel-day="${selectionDrag.dayOfWeek}"] [data-week-grid]`);
+      if (!col) return;
+      const rect = col.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      const GRID_H = 24 * PX_PER_HOUR;
+      const currentMins = snapToGrid(Math.max(0, Math.min(offsetY, GRID_H)) / PX_PER_HOUR * 60);
+      setSelectionDrag((prev) => {
+        if (!prev) return null;
+        const anchor = prev.anchorMins;
+        const startMins = Math.min(anchor, currentMins);
+        const endMins = Math.max(anchor, currentMins);
+        const next = { ...prev, startMins: Math.max(startMins, 0), endMins: Math.min(Math.max(endMins, startMins + 15), 1440) };
+        selectionDragRef.current = next;
+        return next;
+      });
+    };
+    const onUp = () => {
+      const cur = selectionDragRef.current;
+      if (cur && onToggleSlot && cur.endMins - cur.startMins >= 15) {
+        onToggleSlot({
+          dayOfWeek: cur.dayOfWeek,
+          startTime: minsToTime(cur.startMins),
+          endTime: minsToTime(cur.endMins),
+        });
+      }
+      setSelectionDrag(null);
+      selectionDragRef.current = null;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [selectionDrag, selectionMode, onToggleSlot]);
 
   // Multi-timezone support
   const secondaryTzs = React.useMemo(() => getSecondaryTimezones(), []);
@@ -240,6 +300,59 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   return (
     <div style={{ backgroundColor: '#FDFDFB' }}>
+      {/* Selection mode banner */}
+      {selectionMode && (
+        <div
+          className="sticky top-0 z-30 flex items-center justify-between px-5 py-2.5"
+          style={{
+            backgroundColor: 'rgba(141,162,134,0.12)',
+            borderBottom: '1px solid rgba(141,162,134,0.25)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-2.5 h-2.5 rounded-full"
+              style={{ backgroundColor: THEME.primary, animation: 'pulse 2s infinite' }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E' }}>
+              Select your available times
+            </span>
+            <span style={{ fontSize: 11, color: '#8E8E93', marginLeft: 4 }}>
+              Click and drag to paint slots. Click a slot to remove it.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onSelectionCancel}
+              className="px-3 py-1.5 rounded-md transition-colors"
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: '#3A3A3C',
+                backgroundColor: 'rgba(0,0,0,0.05)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSelectionDone}
+              className="px-4 py-1.5 rounded-md transition-colors"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#FFFFFF',
+                backgroundColor: THEME.primary,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Done ({selectedSlots.length})
+            </button>
+          </div>
+        </div>
+      )}
       {/* Sticky header row — stays pinned at top while parent scrolls */}
       <div
         className="flex sticky top-0 z-20"
@@ -386,18 +499,24 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
               const today = isToday(day);
               const showCurrentTimeLine = today && currentTimeTop != null;
 
+              // day-of-week for this column (0=Sun, 6=Sat)
+              const dayOfWeek = day.getDay();
+              // Slots that match this day-of-week
+              const daySelectedSlots = selectedSlots.filter((s) => s.dayOfWeek === dayOfWeek);
+
               return (
                 <div
                   key={dayIndex}
                   className="flex-1 min-w-0 relative"
                   style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
                   data-week-day-col={dateStr}
+                  data-week-sel-day={dayOfWeek}
                 >
                   {/* Day grid */}
                   <div className="px-0.5 md:px-1">
                     <div
                       data-week-grid
-                      className={`relative ${activeStampEmoji ? 'cursor-copy' : !locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
+                      className={`relative ${selectionMode ? 'cursor-crosshair' : activeStampEmoji ? 'cursor-copy' : !locked && (onDropTask || onMoveBlock) ? 'cursor-copy' : !locked && onCreateBlock ? 'cursor-crosshair' : ''}`}
                       style={{ height: GRID_HEIGHT }}
                       ref={(el: HTMLDivElement | null) => {
                         if (!el || locked) return;
@@ -432,7 +551,15 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           },
                         });
                       }}
-                      onMouseDown={activeStampEmoji ? (e: React.MouseEvent) => {
+                      onMouseDown={selectionMode ? (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
+                        const startMins = snapToGrid(offsetYToMinutes(offsetY));
+                        setSelectionDrag({ dayOfWeek, anchorMins: startMins, startMins, endMins: startMins + 15 });
+                      } : activeStampEmoji ? (e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -689,6 +816,65 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           </div>
                         );
                       })()}
+
+                      {/* ─── Selection mode: existing selected slots ─── */}
+                      {selectionMode && daySelectedSlots.map((slot, i) => {
+                        const sMins = parseTimeToMins(slot.startTime);
+                        const eMins = parseTimeToMins(slot.endTime);
+                        return (
+                          <div
+                            key={`sel-${i}`}
+                            className="absolute left-0 right-0 z-20 rounded-md cursor-pointer"
+                            style={{
+                              top: `${(sMins / 60) * PX_PER_HOUR}px`,
+                              height: `${((eMins - sMins) / 60) * PX_PER_HOUR}px`,
+                              backgroundColor: 'rgba(141,162,134,0.20)',
+                              border: '1.5px dashed rgba(141,162,134,0.50)',
+                              pointerEvents: 'auto',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSlot?.(slot);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <span
+                              className="absolute top-0.5 left-1 font-medium truncate"
+                              style={{ color: '#5F6F58', fontSize: '10px' }}
+                            >
+                              {minsToTime(sMins)}–{minsToTime(eMins)}
+                            </span>
+                          </div>
+                        );
+                      })}
+
+                      {/* ─── Selection mode: active drag preview ─── */}
+                      {selectionMode && selectionDrag && selectionDrag.dayOfWeek === dayOfWeek && (
+                        <div
+                          className="absolute left-0 right-0 z-25 pointer-events-none rounded-md"
+                          style={{
+                            top: `${(selectionDrag.startMins / 60) * PX_PER_HOUR}px`,
+                            height: `${((selectionDrag.endMins - selectionDrag.startMins) / 60) * PX_PER_HOUR}px`,
+                            backgroundColor: 'rgba(141,162,134,0.25)',
+                            border: '2px dashed rgba(141,162,134,0.60)',
+                          }}
+                        >
+                          <span
+                            className="absolute bottom-0.5 left-1 font-medium truncate"
+                            style={{ color: '#5F6F58', fontSize: '10px' }}
+                          >
+                            {minsToTime(selectionDrag.startMins)}–{minsToTime(selectionDrag.endMins)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* ─── Selection mode: dim overlay on blocks/events ─── */}
+                      {selectionMode && (
+                        <div
+                          className="absolute inset-0 z-10 pointer-events-none"
+                          style={{ backgroundColor: 'rgba(253,253,251,0.4)' }}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
