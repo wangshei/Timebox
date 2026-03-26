@@ -42,9 +42,13 @@ interface SchedulingModalProps {
   selectedSlots: AvailableSlot[];
   onRemoveSlot: (slot: AvailableSlot) => void;
   editingLinkId?: string | null;
+  /** Called when user clicks "Select times on calendar" — enters selection mode */
+  onEnterSelectionMode?: () => void;
+  /** Whether the calendar is currently in selection mode */
+  selectionModeActive?: boolean;
 }
 
-export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, editingLinkId }: SchedulingModalProps) {
+export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, editingLinkId, onEnterSelectionMode, selectionModeActive }: SchedulingModalProps) {
   const calendarContainers = useStore((s) => s.calendarContainers);
   const categories = useStore((s) => s.categories);
   const addSchedulingLink = useStore((s) => s.addSchedulingLink);
@@ -166,21 +170,26 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
   return createPortal(
     <div
       className="fixed inset-0 z-[200] flex justify-end"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ pointerEvents: selectionModeActive ? 'none' : 'auto' }}
+      onClick={(e) => { if (e.target === e.currentTarget && !selectionModeActive) onClose(); }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }} onClick={onClose} />
+      {/* Backdrop — hidden during selection mode so calendar is interactive */}
+      {!selectionModeActive && (
+        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }} onClick={onClose} />
+      )}
 
-      {/* Panel */}
+      {/* Panel — narrower during selection mode */}
       <div
         ref={panelRef}
         className="relative h-full overflow-y-auto"
         style={{
-          width: 420,
+          width: selectionModeActive ? 320 : 420,
           maxWidth: '100vw',
           backgroundColor: '#FCFBF7',
           borderLeft: '1px solid rgba(0,0,0,0.08)',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
+          pointerEvents: 'auto',
+          transition: 'width 0.2s ease',
         }}
       >
         {/* Header */}
@@ -451,6 +460,37 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
               </button>
             </div>
 
+            {/* Select times on calendar button */}
+            {onEnterSelectionMode && (
+              <div>
+                <button
+                  onClick={onEnterSelectionMode}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: selectionModeActive ? 'rgba(141,162,134,0.15)' : THEME.primary,
+                    color: selectionModeActive ? THEME.primary : '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: selectionModeActive ? `1.5px solid ${THEME.primary}` : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  {selectionModeActive ? 'Selecting on calendar...' : 'Select times on calendar'}
+                </button>
+                {selectionModeActive && (
+                  <p style={{ fontSize: 11, color: THEME.primary, marginTop: 6, textAlign: 'center' }}>
+                    Drag on the calendar to paint available time slots, then return here to save.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Selected slots summary */}
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', display: 'block', marginBottom: 6 }}>
@@ -461,7 +501,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                   className="rounded-lg px-3 py-4 text-center"
                   style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', fontSize: 12, color: '#AEAEB2' }}
                 >
-                  No time slots selected
+                  Click &quot;Select times on calendar&quot; to add available slots
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">

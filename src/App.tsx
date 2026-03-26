@@ -1654,20 +1654,28 @@ export default function App() {
 
   const handleSelectionDone = useCallback(() => {
     setSchedulingSelectionMode(false);
-    setShowSchedulingModal(true);
-  }, []);
+    // Modal is already open in the new flow — just exit selection mode
+    if (!showSchedulingModal) {
+      setShowSchedulingModal(true);
+    }
+  }, [showSchedulingModal]);
 
   const handleSelectionCancel = useCallback(() => {
+    setSchedulingSelectionMode(false);
+    // In the new flow, the modal stays open — don't clear slots or editing state
+  }, []);
+
+  const handleSchedulingModalClose = useCallback(() => {
+    setShowSchedulingModal(false);
     setSchedulingSelectionMode(false);
     setSelectedAvailSlots([]);
     setEditingSchedulingLinkId(null);
   }, []);
 
-  const handleSchedulingModalClose = useCallback(() => {
-    setShowSchedulingModal(false);
-    setSelectedAvailSlots([]);
-    setEditingSchedulingLinkId(null);
-  }, []);
+  const handleEnterSelectionFromModal = useCallback(() => {
+    setSchedulingSelectionMode(true);
+    setView('week');
+  }, [setView]);
 
   const handleRemoveAvailSlot = useCallback((slot: import('./types').AvailableSlot) => {
     setSelectedAvailSlots((prev) =>
@@ -2364,24 +2372,16 @@ export default function App() {
                 schedulingLinks={schedulingLinks}
                 bookings={bookings}
                 onCreateSchedulingLink={() => {
-                  const slug = 'meeting-' + Math.random().toString(36).substring(2, 8);
-                  addSchedulingLink({
-                    name: 'New Meeting',
-                    slug,
-                    calendarContainerId: calendarContainers[0]?.id ?? '',
-                    slotDuration: 30,
-                    gapBetween: 15,
-                    minAdvanceHours: 24,
-                    validUntil: '',
-                    availableSlots: [],
-                    smartAdapt: true,
-                    active: true,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  });
+                  setEditingSchedulingLinkId(null);
+                  setSelectedAvailSlots([]);
+                  setShowSchedulingModal(true);
                 }}
                 onEditSchedulingLink={(id) => {
-                  // TODO: open scheduling link editor modal
-                  console.log('Edit scheduling link', id);
+                  const link = schedulingLinks.find((l) => l.id === id);
+                  setEditingSchedulingLinkId(id);
+                  if (link) setSelectedAvailSlots([...link.availableSlots]);
+                  else setSelectedAvailSlots([]);
+                  setShowSchedulingModal(true);
                 }}
                 onDeleteSchedulingLink={(id) => deleteSchedulingLink(id)}
                 onToggleSchedulingLinkActive={(id) => {
@@ -3276,6 +3276,8 @@ export default function App() {
         selectedSlots={selectedAvailSlots}
         onRemoveSlot={handleRemoveAvailSlot}
         editingLinkId={editingSchedulingLinkId}
+        onEnterSelectionMode={handleEnterSelectionFromModal}
+        selectionModeActive={schedulingSelectionMode}
       />
 
       {/* Recurrence edit scope picker — shown before AddModal for recurring events */}

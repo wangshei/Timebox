@@ -217,7 +217,7 @@ export function ShareModal({
         ref={modalRef}
         style={{
           width: 400,
-          maxHeight: '80vh',
+          maxHeight: '85vh',
           backgroundColor: '#FFFFFF',
           borderRadius: 14,
           boxShadow: '0 8px 40px rgba(0,0,0,0.16)',
@@ -285,7 +285,7 @@ export function ShareModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Copy link section */}
           <button
             type="button"
