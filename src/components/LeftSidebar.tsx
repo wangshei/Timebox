@@ -76,6 +76,8 @@ interface LeftSidebarProps {
   onDeleteSchedulingLink?: (id: string) => void;
   onToggleSchedulingLinkActive?: (id: string) => void;
   onCopySchedulingLink?: (slug: string) => void;
+  gcalConnected?: boolean;
+  onConnectGcal?: () => void;
 }
 
 // Stable component — defined outside LeftSidebar so React doesn't remount on every render
@@ -260,6 +262,8 @@ export function LeftSidebar({
   onDeleteSchedulingLink,
   onToggleSchedulingLinkActive,
   onCopySchedulingLink,
+  gcalConnected = false,
+  onConnectGcal,
 }: LeftSidebarProps) {
   const [expandedCalendars, setExpandedCalendars] = useState<Set<string>>(new Set(calendarContainers.map((c) => c.id)));
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -576,6 +580,59 @@ export function LeftSidebar({
     <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
       {/* Scrollable list — calendars, categories, tags */}
       <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 pt-1 pb-2">
+        {/* Google Calendar connect card — shown when not connected */}
+        {!gcalConnected && onConnectGcal && (
+          <button
+            type="button"
+            onClick={onConnectGcal}
+            className="w-full rounded-lg mb-2 transition-all"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 12px',
+              backgroundColor: 'rgba(66,133,244,0.06)',
+              border: '1px solid rgba(66,133,244,0.15)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.10)';
+              e.currentTarget.style.borderColor = 'rgba(66,133,244,0.25)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.06)';
+              e.currentTarget.style.borderColor = 'rgba(66,133,244,0.15)';
+            }}
+          >
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: 'rgba(66,133,244,0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', lineHeight: 1.3 }}>
+                Import Google Calendar
+              </div>
+              <div style={{ fontSize: 10, color: '#8E8E93', lineHeight: 1.3, marginTop: 1 }}>
+                Sync your events automatically
+              </div>
+            </div>
+          </button>
+        )}
         {[...calendarContainers].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999)).map((calendar) => {
           const isVisible = visibility[calendar.id] ?? true;
           const isExpanded = expandedCalendars.has(calendar.id);

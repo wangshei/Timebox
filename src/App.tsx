@@ -30,7 +30,7 @@ import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl } from './services/googleCalendar';
 import { createShare, notifyEventUpdate } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
@@ -161,6 +161,24 @@ function BugReportPopoverBody({ onClose, supabase, userEmail }: {
       </button>
     </>
   );
+}
+
+/** Remove all user-specific localStorage keys on sign-out to prevent data leaking between accounts. */
+function clearUserLocalStorage() {
+  disconnectGoogle(); // clears gcal_tokens, gcal_imported_events, gcal_imported_calendars, gcal_dismissed_*, gcal_pending_sync_mode, gcal_connected_at, gcal_device_id
+  // Additional user-specific keys
+  const userKeys = [
+    'gcal_seen_invite_ids',
+    'gcal_cached_timezone',
+    'gcal_selected_calendar_ids',
+    'timebox_show_activity_blocks',
+    'timebox_user_timezone',
+    'timebox_secondary_timezones',
+    'timebox_event_timezone',
+  ];
+  for (const key of userKeys) {
+    localStorage.removeItem(key);
+  }
 }
 
 export default function App() {
@@ -2166,10 +2184,10 @@ export default function App() {
     setUserName(name);
     if (choice === 'template') applyTemplate();
     else if (choice === 'google') {
-      // Start with blank setup, then open Google Calendar settings
+      // Start with blank setup, then redirect to Google Calendar OAuth
       applyBlankSetup();
-      // Open settings to Google tab after setup completes
-      setTimeout(() => setIsSettingsOpen(true), 300);
+      // Directly start the GCal OAuth flow
+      setTimeout(() => { window.location.href = getGoogleAuthUrl(); }, 300);
     } else applyBlankSetup();
     setHasCompletedSetup(true);
     void persistOnboardingToSupabase(true);
@@ -2443,6 +2461,8 @@ export default function App() {
                     window.prompt('Copy this link:', url);
                   });
                 }}
+                gcalConnected={isGoogleConnected()}
+                onConnectGcal={() => { window.location.href = getGoogleAuthUrl(); }}
                 endDayLabel={`Confirm all (${selectedDate})`}
                 onEndDay={() => batchConfirmDay(selectedDate)}
                 planVsActualSection={mode === 'compare' ? (() => {
@@ -2797,7 +2817,7 @@ export default function App() {
                       <>
                         <button
                           type="button"
-                          onClick={() => { supabase?.auth.signOut(); setShowProfileMenu(false); }}
+                          onClick={() => { clearUserLocalStorage(); supabase?.auth.signOut(); setShowProfileMenu(false); }}
                           style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
