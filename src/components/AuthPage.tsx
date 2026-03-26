@@ -951,9 +951,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   )}
                   <p style={{ fontSize: 11, color: '#AEAEB2', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
                     By signing up, you agree to our{' '}
-                    <a href="https://github.com/wangshei/Timebox/blob/main/docs/TERMS_OF_SERVICE.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Terms of Service</a>
+                    <a href="https://timeboxing.club/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Terms of Service</a>
                     {' '}and{' '}
-                    <a href="https://github.com/wangshei/Timebox/blob/main/docs/PRIVACY_POLICY.md" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Privacy Policy</a>.
+                    <a href="https://timeboxing.club/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#8DA286', textDecoration: 'underline' }}>Privacy Policy</a>.
                   </p>
                 </>
               )}

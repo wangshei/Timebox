@@ -1,6 +1,6 @@
 # Privacy Policy — The Timeboxing Club
 
-**Last updated:** March 1, 2026
+**Last updated:** March 27, 2026
 
 The Timeboxing Club ("we," "us," or "our") respects your privacy. This Privacy Policy explains what data we collect, how we use it, and your rights regarding that data when you use our web application at timeboxing.club ("the Service").
 
@@ -21,6 +21,33 @@ The Timeboxing Club ("we," "us," or "our") respects your privacy. This Privacy P
 - **Events** — titles, times, recurrence patterns, notes, descriptions
 - **Organizational data** — calendars, categories, and tags you create (names and colors)
 
+### Google Calendar Integration
+
+- **Calendar data** — when you connect Google Calendar, we access your calendar events (titles, times, descriptions) using a read-only OAuth scope with your explicit consent
+- **OAuth refresh token** — stored securely in our Supabase database to maintain your calendar connection without repeated sign-ins
+- **Google account email** — used to identify your connected Google account
+
+### Activity Tracking (Desktop App)
+
+- **App usage data** — the desktop app records application names and window titles while tracking is active
+- **Idle time** — the app detects when you are idle and pauses tracking automatically
+- **Storage** — activity data is stored locally on your device in a SQLite database. It is not sent to our servers unless you choose to sync.
+- **Retention** — local activity data is retained for 90 days by default, after which it is automatically purged
+- **User control** — you can start and stop tracking at any time, exclude specific apps from tracking, and export activity data as CSV
+
+### Sharing and Collaboration
+
+- **Email addresses of invitees** — when you share a calendar or event, the email addresses of invited users are stored in our database
+- **Invitation emails** — we send invitation emails via Resend on your behalf to the email addresses you provide
+
+### Booking Pages
+
+- **Booker information** — when someone books time through your public booking page, we collect their name and email address to facilitate the booking
+
+### Focus Session Notes
+
+- **Session notes** — if you add notes during a focus session, they are stored alongside the associated time block in our database
+
 ### Preferences and Settings
 
 - Timezone, calendar view preferences, sidebar state, week start day, onboarding completion status
@@ -29,6 +56,7 @@ The Timeboxing Club ("we," "us," or "our") respects your privacy. This Privacy P
 
 - **Browser local storage** — we cache your data locally for offline access and performance
 - **One cookie** — a `sidebar_state` cookie that remembers your sidebar preference (expires after 7 days)
+- **Desktop app local storage** — the desktop app stores data locally in SQLite for offline access and activity tracking
 
 ### What We Do NOT Collect
 
@@ -42,9 +70,10 @@ The Timeboxing Club ("we," "us," or "our") respects your privacy. This Privacy P
 | Method | Data |
 |--------|------|
 | Directly from you | Account info (email, name, password), all tasks/events/time blocks you create, preferences you set |
-| Automatically | Sidebar state cookie, local storage cache |
-
-We do not collect data from third-party sources. If we add calendar integrations (e.g., Google Calendar) in the future, we will update this policy before collecting any external data.
+| From Google Calendar | Calendar events (titles, times, descriptions) — only with your explicit OAuth consent |
+| Via booking pages | Name and email of people who book time with you |
+| Automatically (web) | Sidebar state cookie, local storage cache |
+| Automatically (desktop) | App names, window titles, idle time — stored locally on your device |
 
 ## 3. Why We Collect Data (Purpose)
 
@@ -54,6 +83,10 @@ We do not collect data from third-party sources. If we add calendar integrations
 | Authenticate you | Email, password hash |
 | Send transactional emails | Email address (confirmation, password reset only) |
 | Sync across devices | All user-created content (via cloud database) |
+| Google Calendar integration | OAuth token, calendar event data |
+| Activity tracking | App names, window titles (local only) |
+| Sharing and collaboration | Invitee email addresses, invitation emails |
+| Booking | Booker name and email |
 | Remember your preferences | Sidebar cookie, local storage |
 
 We do not use your data for advertising, profiling, or marketing purposes. We do not send marketing emails.
@@ -64,12 +97,18 @@ We do not use your data for advertising, profiling, or marketing purposes. We do
 - **Authentication:** Managed by Supabase Auth with secure password hashing (bcrypt). Sessions use JWT tokens over HTTPS.
 - **Access control:** Row Level Security (RLS) ensures each user can only access their own data. No other user or administrator can view your content through the application.
 - **Local storage:** A copy of your data is cached in your browser's local storage for offline access. This data stays on your device and is not transmitted except to sync with your account.
+- **Desktop app (local):** The desktop app stores data in a local SQLite database, including activity tracking data (app names, window titles). This data remains on your device unless you explicitly sync it.
+- **Google OAuth tokens:** Refresh tokens for Google Calendar are stored encrypted in our Supabase database. We use the `calendar.readonly` scope and do not modify your Google Calendar data.
+- **Auto-updater:** The desktop app checks for updates via GitHub releases. No personal data is sent during update checks.
 
 ## 5. Data Retention
 
 - Your data is retained for as long as your account exists.
 - Visit Mode data (no account) is stored only in your browser's local storage and is never sent to our servers. It persists until you clear your browser data.
-- When you request account deletion, we will delete all your data from our database within 30 days. Local storage data on your devices must be cleared by you.
+- Activity tracking data (desktop app) is retained locally for 90 days, then automatically purged. You can export it as CSV before deletion.
+- Google Calendar OAuth tokens are retained until you disconnect Google Calendar or delete your account.
+- Booking page submissions (name, email) are retained for as long as the associated booking exists.
+- When you request account deletion, we will delete all your data from our database within 30 days, including Google OAuth tokens and shared calendar data. Local storage and desktop app data on your devices must be cleared by you.
 - Bug reports submitted through the app are retained indefinitely for product improvement but contain only the description you provide and optionally your email.
 
 ## 6. Third-Party Services
@@ -78,15 +117,18 @@ We use the following third-party services to operate The Timeboxing Club:
 
 | Service | Purpose | Data Shared |
 |---------|---------|-------------|
-| Supabase | Database, authentication, real-time sync | All account and user-created data |
-| Resend | Transactional email delivery | Email address (for confirmation and password reset emails only) |
+| Supabase | Database, authentication, real-time sync | All account and user-created data, Google OAuth refresh tokens |
+| Google Calendar API | Calendar integration | Calendar events (read-only), OAuth tokens |
+| Resend | Transactional email delivery | Email addresses (for confirmation, password reset, and invitation emails) |
 | Vercel | Web hosting | Standard web server logs (IP, user agent) — we do not access or retain these |
+| GitHub Releases | Desktop app updates | No personal data — only checks for latest version |
 
 **We do not sell, rent, or share your personal data with any other third parties.**
 
 Each service listed above has its own privacy policy. We encourage you to review them:
 
 - [Supabase Privacy Policy](https://supabase.com/privacy)
+- [Google Privacy Policy](https://policies.google.com/privacy)
 - [Resend Privacy Policy](https://resend.com/legal/privacy-policy)
 - [Vercel Privacy Policy](https://vercel.com/legal/privacy-policy)
 
@@ -107,7 +149,8 @@ Regardless of where you live, you have the right to:
 - **Access** — request a copy of the data we hold about you
 - **Correction** — update or correct inaccurate data (you can do this directly in the app)
 - **Deletion** — request that we delete your account and all associated data
-- **Export** — request a copy of your data in a portable format
+- **Export** — request a copy of your data in a portable format (activity data can be exported as CSV directly from the desktop app)
+- **Revoke integrations** — disconnect Google Calendar at any time, which removes your OAuth token from our database
 
 ### For California Residents (CCPA)
 

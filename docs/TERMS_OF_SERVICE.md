@@ -1,6 +1,6 @@
 # Terms of Service — The Timeboxing Club
 
-**Last updated:** March 1, 2026
+**Last updated:** March 27, 2026
 
 ---
 
@@ -17,6 +17,13 @@ The Timeboxing Club is a web-based calendar and task management application that
 - Create and manage events with recurrence
 - Organize work across multiple calendars, categories, and tags
 - Compare planned vs. actual time usage
+- Connect your Google Calendar to view external events (read-only)
+- Track app usage automatically via the desktop app
+- Share calendars and events with other users via email invitations
+- Create public booking pages for others to schedule time with you
+- Record focus session notes
+
+The Service is available as a web application and a desktop application (macOS, Windows, Linux). The desktop app provides additional features such as activity tracking, offline access, and native notifications.
 
 The Service is currently provided free of charge. We reserve the right to introduce paid features or tiers in the future with reasonable notice.
 
@@ -45,47 +52,73 @@ By using the Service, you grant us a limited license to store, process, and disp
 
 ## 6. Third-Party Integrations
 
-The Service currently uses Supabase for authentication and data storage, and Resend for transactional email delivery. These third-party services have their own terms of service and privacy policies. We are not responsible for the practices of third-party services.
+The Service uses the following third-party services:
 
-If we add integrations with external calendar services (such as Google Calendar or Apple Calendar) in the future, your use of those integrations will also be subject to those services' terms.
+- **Supabase** — authentication and data storage
+- **Resend** — transactional and invitation email delivery
+- **Google Calendar API** — optional calendar integration (read-only access with your OAuth consent)
+- **GitHub Releases** — desktop app update distribution
 
-## 7. Service Availability
+These third-party services have their own terms of service and privacy policies. We are not responsible for the practices of third-party services.
+
+### Google Calendar Integration
+
+When you connect Google Calendar, you grant us read-only access to your calendar events via OAuth. You can disconnect at any time from your account settings, which revokes our access and deletes your stored OAuth token. Your use of Google Calendar is subject to [Google's Terms of Service](https://policies.google.com/terms).
+
+### Sharing and Collaboration
+
+When you share a calendar or event, invitation emails are sent to the email addresses you provide. You are responsible for having the right to share those email addresses with us. Recipients can decline invitations or request removal.
+
+### Booking Pages
+
+If you create a public booking page, visitors can see your available time slots and submit their name and email to book time with you. You are responsible for informing bookers about how their data will be used.
+
+## 7. Desktop Application
+
+The desktop application is built with Tauri and is available for macOS, Windows, and Linux. By using the desktop app, you agree to the following:
+
+- **Activity tracking:** The app can record application names and window titles while tracking is active. This data is stored locally on your device and is not transmitted to our servers unless you explicitly sync it. You can start and stop tracking, exclude specific apps, and delete your activity data at any time.
+- **Local data storage:** The desktop app stores data in a local SQLite database on your device. You are responsible for the security of your device.
+- **Auto-updates:** The app periodically checks GitHub Releases for new versions. No personal data is sent during update checks. You can choose whether to install updates.
+- **Offline mode:** The desktop app works offline. Data syncs to the cloud when you reconnect, provided you have an account.
+
+## 8. Service Availability
 
 We strive to keep the Service available and reliable, but we do not guarantee uninterrupted or error-free operation. We may perform maintenance, updates, or modifications at any time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice when possible.
 
-## 8. Intellectual Property
+## 9. Intellectual Property
 
 The Timeboxing Club name, branding, design, and underlying code are owned by us and protected by applicable intellectual property laws. You may not copy, modify, distribute, or reverse-engineer any part of the Service without our written permission.
 
-As stated in Section 5, you retain ownership of all content you create within the Service.
+As stated in Section 5 (Your Content and Data), you retain ownership of all content you create within the Service.
 
-## 9. Account Termination
+## 10. Account Termination
 
 You may stop using the Service and request account deletion at any time by contacting us at hi@timeboxing.club.
 
 We may suspend or terminate your account if you violate these Terms, engage in abusive behavior, or if required by law. If we terminate your account, we will make reasonable efforts to notify you and provide an opportunity to export your data, unless prohibited by law or if the termination is due to a serious violation.
 
-## 10. Disclaimers
+## 11. Disclaimers
 
 The Service is provided "as is" and "as available" without warranties of any kind, whether express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.
 
 We do not warrant that the Service will meet your requirements, be uninterrupted, secure, or error-free, or that any data loss will not occur.
 
-## 11. Limitation of Liability
+## 12. Limitation of Liability
 
 To the maximum extent permitted by law, The Timeboxing Club and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, profits, or goodwill, arising from your use of or inability to use the Service.
 
 Our total liability for any claim related to the Service shall not exceed the amount you paid us in the 12 months preceding the claim, or $50 USD, whichever is greater.
 
-## 12. Governing Law and Disputes
+## 13. Governing Law and Disputes
 
 These Terms are governed by the laws of the State of California, United States, without regard to conflict of law principles. Any disputes arising from these Terms or the Service shall be resolved in the state or federal courts located in California. You agree to submit to the personal jurisdiction of those courts.
 
-## 13. Changes to These Terms
+## 14. Changes to These Terms
 
 We may update these Terms from time to time. When we make material changes, we will update the "Last updated" date and notify you through the Service or via email. Your continued use of the Service after changes take effect constitutes acceptance of the updated Terms.
 
-## 14. Contact
+## 15. Contact
 
 If you have questions about these Terms, contact us at:
 hi@timeboxing.club
