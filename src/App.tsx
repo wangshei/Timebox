@@ -31,7 +31,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId } from './services/googleCalendar';
-import { notifyEventUpdate } from './services/sharing';
+import { createShare, notifyEventUpdate } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -1055,11 +1055,15 @@ export default function App() {
       description: eventData.description ?? undefined,
       notes: eventData.notes ?? undefined,
       ...(isPastEvent ? { source: 'unplanned' as const } : {}),
+      ...(eventData.inviteEmails && eventData.inviteEmails.length > 0
+        ? { attendees: eventData.inviteEmails.map(email => ({ email, responseStatus: 'needsAction' })) }
+        : {}),
     };
     const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
 
     // If we were editing a draft timeBlock (from drag-to-create),
     // atomically convert it to an event (or series) in a single state change.
+    let newEventId: string | undefined;
     if (isDraftTimeBlock && editingTimeBlockId) {
       // Preserve source from draft block so actual-panel events stay out of plan panel
       const draftBlock = timeBlocks.find((b) => b.id === editingTimeBlockId);
@@ -1072,7 +1076,7 @@ export default function App() {
         const draftSpanDays = payloadWithSource.endDate
           ? Math.round((new Date(payloadWithSource.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
           : 0;
-        addEvents(dates.map((occDate) => {
+        const ids = addEvents(dates.map((occDate) => {
           let occEndDate: string | undefined;
           if (draftSpanDays > 0) {
             const d = new Date(occDate + 'T00:00:00');
@@ -1081,8 +1085,9 @@ export default function App() {
           }
           return { ...payloadWithSource, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
         }));
+        newEventId = ids[0];
       } else {
-        convertTimeBlockToEvent(editingTimeBlockId, payloadWithSource);
+        newEventId = convertTimeBlockToEvent(editingTimeBlockId, payloadWithSource);
       }
       setEditingTimeBlockId(null);
       setIsDraftTimeBlock(false);
@@ -1093,7 +1098,7 @@ export default function App() {
       const spanDays = eventPayload.endDate
         ? Math.round((new Date(eventPayload.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
         : 0;
-      addEvents(dates.map((occDate) => {
+      const ids = addEvents(dates.map((occDate) => {
         let occEndDate: string | undefined;
         if (spanDays > 0) {
           const d = new Date(occDate + 'T00:00:00');
@@ -1102,21 +1107,32 @@ export default function App() {
         }
         return { ...eventPayload, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
       }));
+      newEventId = ids[0];
     } else {
-      addEvent(eventPayload);
+      newEventId = addEvent(eventPayload);
     }
 
     // Handle invites — create a per-event share for invited emails
-    if (eventData.inviteEmails && eventData.inviteEmails.length > 0) {
-      // In production, this would call the share-invite edge function.
-      // For now, log the intent so we can verify the data flows correctly.
-      // eslint-disable-next-line no-console
-      console.log('[invite] Event created with invites:', {
-        title: eventData.title,
-        inviteEmails: eventData.inviteEmails,
-      });
-      // TODO: Wire up createShare() from src/services/sharing.ts
-      // once Supabase tables are deployed.
+    if (eventData.inviteEmails && eventData.inviteEmails.length > 0 && newEventId) {
+      const emailCount = eventData.inviteEmails.length;
+      const confirmed = window.confirm(
+        `Send email invites to ${emailCount} ${emailCount === 1 ? 'person' : 'people'}? Non-users will receive a calendar link.`
+      );
+      if (confirmed) {
+        createShare({
+          scope: 'event',
+          scopeId: newEventId,
+          displayName: eventData.title,
+          emails: eventData.inviteEmails,
+        })
+          .then((result) => {
+            toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
+          })
+          .catch((err) => {
+            console.error('[invite] Failed to send invitations:', err);
+            toast.error('Failed to send invitations');
+          });
+      }
     }
   };
 
