@@ -175,7 +175,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
     >
       {/* Backdrop — hidden during selection mode so calendar is interactive */}
       {!selectionModeActive && (
-        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }} onClick={onClose} />
+        <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
       )}
 
       {/* Panel — narrower during selection mode */}
@@ -279,7 +279,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="px-6 py-4 flex flex-col gap-5">
+          <div className="px-6 py-5 flex flex-col gap-4">
             {/* Link name */}
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', display: 'block', marginBottom: 6 }}>
@@ -431,31 +431,37 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             </div>
 
             {/* Smart adapt */}
-            <div className="flex items-center justify-between gap-3" style={{ overflow: 'hidden' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#1C1C1E' }}>Smart adapt</div>
-                <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
+            <div
+              className="flex items-center justify-between rounded-lg px-3 py-3"
+              style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#1C1C1E' }}>Smart adapt</div>
+                <div style={{ fontSize: 10, color: '#8E8E93', marginTop: 2 }}>
                   Auto-adjust when your calendar changes
                 </div>
               </div>
               <button
+                type="button"
+                role="switch"
+                aria-checked={smartAdapt}
                 onClick={() => setSmartAdapt(!smartAdapt)}
-                className="relative rounded-full transition-colors"
+                className="relative inline-flex shrink-0 cursor-pointer rounded-full border-0 transition-colors"
                 style={{
-                  width: 42,
+                  width: 44,
                   height: 24,
-                  backgroundColor: smartAdapt ? THEME.primary : 'rgba(0,0,0,0.12)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  flexShrink: 0,
+                  minWidth: 44,
+                  backgroundColor: smartAdapt ? THEME.primary : 'rgba(0,0,0,0.2)',
                 }}
               >
-                <div
-                  className="absolute top-0.5 rounded-full bg-white transition-transform shadow-sm"
+                <span
+                  className="pointer-events-none inline-block rounded-full bg-white shadow transition-transform"
                   style={{
                     width: 20,
                     height: 20,
-                    transform: smartAdapt ? 'translateX(20px)' : 'translateX(2px)',
+                    marginLeft: 2,
+                    marginTop: 2,
+                    transform: smartAdapt ? 'translateX(20px)' : 'translateX(0)',
                   }}
                 />
               </button>
