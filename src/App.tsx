@@ -223,6 +223,13 @@ export default function App() {
   // Walkthrough tour: show after wizard completion or for existing users who haven't seen it
   const [showTour, setShowTour] = useState(false);
   const [tzChangeBanner, setTzChangeBanner] = useState<{ from: string; to: string; count: number } | null>(null);
+  const [inviteConfirm, setInviteConfirm] = useState<{
+    type: 'new' | 'update';
+    eventTitle: string;
+    emails: string[];
+    onConfirm: () => void;
+    onSkip: () => void;
+  } | null>(null);
 
   // Auto-show walkthrough for existing users who completed setup but never saw the tour
   useEffect(() => {
@@ -1112,27 +1119,33 @@ export default function App() {
       newEventId = addEvent(eventPayload);
     }
 
-    // Handle invites — create a per-event share for invited emails
+    // Handle invites — show custom popup instead of window.confirm
     if (eventData.inviteEmails && eventData.inviteEmails.length > 0 && newEventId) {
-      const emailCount = eventData.inviteEmails.length;
-      const confirmed = window.confirm(
-        `Send email invites to ${emailCount} ${emailCount === 1 ? 'person' : 'people'}? Non-users will receive a calendar link.`
-      );
-      if (confirmed) {
-        createShare({
-          scope: 'event',
-          scopeId: newEventId,
-          displayName: eventData.title,
-          emails: eventData.inviteEmails,
-        })
-          .then((result) => {
-            toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
+      const capturedEventId = newEventId;
+      const capturedEmails = [...eventData.inviteEmails];
+      const capturedTitle = eventData.title;
+      setInviteConfirm({
+        type: 'new',
+        eventTitle: capturedTitle,
+        emails: capturedEmails,
+        onConfirm: () => {
+          setInviteConfirm(null);
+          createShare({
+            scope: 'event',
+            scopeId: capturedEventId,
+            displayName: capturedTitle,
+            emails: capturedEmails,
           })
-          .catch((err) => {
-            console.error('[invite] Failed to send invitations:', err);
-            toast.error(`Failed to send invitations: ${err?.message || err}`);
-          });
-      }
+            .then((result) => {
+              toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
+            })
+            .catch((err) => {
+              console.error('[invite] Failed to send invitations:', err);
+              toast.error(`Failed to send invitations: ${err?.message || err}`);
+            });
+        },
+        onSkip: () => setInviteConfirm(null),
+      });
     }
   };
 
@@ -1197,8 +1210,7 @@ export default function App() {
 
   /** Notify attendees when organizer updates their own event. Fire-and-forget. */
   const notifyAttendeesIfNeeded = (event: import('./types').Event, updates: Record<string, unknown>) => {
-    if (!emailNotificationsEnabled) return;
-    if (!event.isOrganizer || !event.attendees?.length) return;
+    if (!event.attendees?.length) return;
     const otherEmails = event.attendees
       .filter(a => !a.self && a.email)
       .map(a => a.email);
@@ -1214,11 +1226,29 @@ export default function App() {
     if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
     if (parts.length === 0) parts.push('Event details have been updated.');
 
-    notifyEventUpdate({
-      eventTitle: (updates.title as string) || event.title,
-      attendeeEmails: otherEmails,
-      changes: parts.join('\n'),
-    }).catch((err) => console.warn('[notify] Failed to notify attendees:', err));
+    const capturedEmails = [...otherEmails];
+    const capturedTitle = (updates.title as string) || event.title;
+    const capturedChanges = parts.join('\n');
+
+    setInviteConfirm({
+      type: 'update',
+      eventTitle: capturedTitle,
+      emails: capturedEmails,
+      onConfirm: () => {
+        setInviteConfirm(null);
+        notifyEventUpdate({
+          eventTitle: capturedTitle,
+          attendeeEmails: capturedEmails,
+          changes: capturedChanges,
+        })
+          .then(() => toast.success(`Update sent to ${capturedEmails.length} attendee${capturedEmails.length !== 1 ? 's' : ''}`))
+          .catch((err) => {
+            console.warn('[notify] Failed to notify attendees:', err);
+            toast.error(`Failed to send update: ${err?.message || err}`);
+          });
+      },
+      onSkip: () => setInviteConfirm(null),
+    });
   };
 
   const handleEditEvent = (id: string) => {
@@ -3345,6 +3375,67 @@ export default function App() {
             >
               Cancel
             </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Invite / Update notification confirmation popup */}
+      {inviteConfirm && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+            onClick={inviteConfirm.onSkip}
+          />
+          <div className="relative rounded-2xl shadow-2xl mx-4" style={{ backgroundColor: '#FFFFFF', maxWidth: 380, width: '100%', padding: 24 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1C1C1E', margin: '0 0 4px' }}>
+              {inviteConfirm.type === 'new' ? 'Send invitations?' : 'Notify attendees?'}
+            </h3>
+            <p style={{ fontSize: 13, color: '#636366', margin: '0 0 16px', lineHeight: 1.5 }}>
+              {inviteConfirm.type === 'new'
+                ? `Send email invites for "${inviteConfirm.eventTitle}" to ${inviteConfirm.emails.length} ${inviteConfirm.emails.length === 1 ? 'person' : 'people'}. Non-users will receive a calendar link.`
+                : `Send update notification for "${inviteConfirm.eventTitle}" to ${inviteConfirm.emails.length} attendee${inviteConfirm.emails.length !== 1 ? 's' : ''}.`
+              }
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+              {inviteConfirm.emails.slice(0, 8).map((email) => (
+                <span
+                  key={email}
+                  style={{
+                    fontSize: 11, color: '#3A3A3C', backgroundColor: 'rgba(0,0,0,0.05)',
+                    padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(0,0,0,0.06)',
+                  }}
+                >
+                  {email}
+                </span>
+              ))}
+              {inviteConfirm.emails.length > 8 && (
+                <span style={{ fontSize: 11, color: '#8E8E93', padding: '3px 6px' }}>
+                  +{inviteConfirm.emails.length - 8} more
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={inviteConfirm.onSkip}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                  border: 'none', cursor: 'pointer', backgroundColor: 'rgba(0,0,0,0.05)', color: '#1C1C1E',
+                }}
+              >
+                {inviteConfirm.type === 'new' ? 'Skip' : "Don't notify"}
+              </button>
+              <button
+                onClick={inviteConfirm.onConfirm}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer', backgroundColor: '#8DA286', color: '#FFFFFF',
+                }}
+              >
+                {inviteConfirm.type === 'new' ? 'Send invitations' : 'Send update'}
+              </button>
+            </div>
           </div>
         </div>,
         document.body
