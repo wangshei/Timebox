@@ -334,7 +334,7 @@ export function CalendarView({
   );
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col relative min-w-0 overflow-hidden isolate" style={{ backgroundColor: BG }}>
+    <div ref={containerRef} className="flex-1 flex flex-col relative min-w-0 overflow-hidden" style={{ backgroundColor: BG, isolation: 'isolate' }}>
       {/* Header */}
       {isMobile ? (
         /* ── Mobile header: single compact row ── */
