@@ -108,9 +108,9 @@ function RoleDropdown({
         <div
           style={{
             position: 'absolute',
-            top: '100%',
+            bottom: '100%',
             right: 0,
-            marginTop: 4,
+            marginBottom: 4,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
             borderRadius: 8,
@@ -260,7 +260,7 @@ export function ShareModal({
               >
                 Share {name}
               </h3>
-              <span style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: 10, color: '#8E8E93', letterSpacing: '0.05em' }}>
                 {SCOPE_LABELS[scope]}
               </span>
             </div>

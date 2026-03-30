@@ -13,12 +13,36 @@ interface GcalCalendarOption {
   primary: boolean;
 }
 
+type SyncMode = 'migrate_listen' | 'listen_with_history' | 'listen_fresh';
+
+const SYNC_MODE_OPTIONS: Array<{ mode: SyncMode; title: string; desc: string }> = [
+  {
+    mode: 'migrate_listen',
+    title: 'Import all events',
+    desc: 'Import all existing events from the selected calendars. Best if you\'re switching to Timebox.',
+  },
+  {
+    mode: 'listen_with_history',
+    title: 'Import only new events (invites)',
+    desc: 'Only import events others invited you to (past and future). Your own events stay in Google.',
+  },
+  {
+    mode: 'listen_fresh',
+    title: 'Fresh start (future invites only)',
+    desc: 'No past import. Only new invites from others will show up going forward.',
+  },
+];
+
 export function GcalCallbackPage({ code }: { code: string }) {
   const [status, setStatus] = useState<'exchanging' | 'pick_calendars' | 'importing' | 'success' | 'error'>('exchanging');
   const [errorMsg, setErrorMsg] = useState('');
   const [importCount, setImportCount] = useState(0);
   const [calendars, setCalendars] = useState<GcalCalendarOption[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Default to the sync mode stored before OAuth redirect, or 'migrate_listen' for new connections
+  const [syncMode, setSyncMode] = useState<SyncMode>(
+    () => (localStorage.getItem('gcal_pending_sync_mode') as SyncMode) || 'migrate_listen'
+  );
 
   // Step 1: Exchange code for tokens, then fetch calendar list
   useEffect(() => {
@@ -48,8 +72,9 @@ export function GcalCallbackPage({ code }: { code: string }) {
 
   const handleImport = async () => {
     try {
-      // Save selection so future imports respect it
+      // Save selection and sync mode so import respects them
       setGcalSelectedCalendarIds([...selected]);
+      localStorage.setItem('gcal_pending_sync_mode', syncMode);
       setStatus('importing');
 
       const result = await importGoogleCalendarEvents();
@@ -78,7 +103,7 @@ export function GcalCallbackPage({ code }: { code: string }) {
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     border: '1px solid rgba(0,0,0,0.08)',
-    maxWidth: 400,
+    maxWidth: 440,
     width: '100%',
   };
 
@@ -172,7 +197,7 @@ export function GcalCallbackPage({ code }: { code: string }) {
             </div>
 
             {/* Select all / none */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
               <button
                 type="button"
                 onClick={() => setSelected(new Set(calendars.map(c => c.id)))}
@@ -188,6 +213,58 @@ export function GcalCallbackPage({ code }: { code: string }) {
               >
                 Select none
               </button>
+            </div>
+
+            {/* Sync mode selection */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E', marginBottom: 10, textAlign: 'left' }}>
+                What would you like to import?
+              </p>
+              {SYNC_MODE_OPTIONS.map(({ mode, title, desc }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSyncMode(mode)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: syncMode === mode ? '1.5px solid #4285F4' : '1px solid rgba(0,0,0,0.08)',
+                    backgroundColor: syncMode === mode ? 'rgba(66,133,244,0.04)' : '#FFFFFF',
+                    cursor: 'pointer',
+                    marginBottom: 6,
+                    transition: 'all 0.15s',
+                    textAlign: 'left',
+                  }}
+                >
+                  {/* Radio */}
+                  <div style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: syncMode === mode ? '2px solid #4285F4' : '2px solid rgba(0,0,0,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 1,
+                    transition: 'all 0.15s',
+                  }}>
+                    {syncMode === mode && (
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#4285F4' }} />
+                    )}
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: syncMode === mode ? '#1C1C1E' : '#3A3A3C' }}>
+                      {title}
+                    </span>
+                    <p style={{ fontSize: 10, color: '#8E8E93', lineHeight: 1.4, marginTop: 2 }}>{desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
 
             <button

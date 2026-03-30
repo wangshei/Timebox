@@ -279,7 +279,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="px-6 py-5 flex flex-col gap-4">
+          <div className="px-6 py-5 flex flex-col gap-6">
             {/* Link name */}
             <div>
               <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#8E8E93', display: 'block', marginBottom: 6 }}>
