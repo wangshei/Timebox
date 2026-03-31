@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Chip } from './ui/chip';
@@ -63,6 +63,7 @@ interface AddModalProps {
     notes?: string | null;
     inviteEmails?: string[];
     excludedSubscribers?: string[];
+    timezone?: string | null;
   }) => void;
   /** When the user needs to add a calendar (e.g. no calendars exist yet). */
   onRequireCalendar?: () => void;
@@ -147,6 +148,10 @@ export function AddModal({
   const [inviteInput, setInviteInput] = useState('');
   const [showInviteSection, setShowInviteSection] = useState(false);
   const [excludedSubscribers, setExcludedSubscribers] = useState<Set<string>>(new Set());
+
+  // Timezone state (event mode only)
+  const [timezone, setTimezone] = useState<string>(getLocalTimeZone());
+  const [timezoneEnabled, setTimezoneEnabled] = useState(true);
 
   const handleAddInvite = () => {
     const email = inviteInput.trim().toLowerCase();
@@ -268,6 +273,14 @@ export function AddModal({
       setNotes(editingEvent.notes ?? '');
       setPinned(false);
       setPriority(undefined);
+      // Timezone: if editing event has one, enable it; otherwise floating
+      if (editingEvent.timezone) {
+        setTimezoneEnabled(true);
+        setTimezone(editingEvent.timezone);
+      } else {
+        setTimezoneEnabled(false);
+        setTimezone(getLocalTimeZone());
+      }
     }
   }, [isOpen, editingEvent?.id]); // categories intentionally omitted to avoid form reset on add
 
@@ -277,6 +290,8 @@ export function AddModal({
       setMode(initialMode);
       setPinned(false);
       setPriority(undefined);
+      setTimezone(getLocalTimeZone());
+      setTimezoneEnabled(true);
       if (initialDate) { setDate(initialDate); setEndDate(initialDate); }
       if (initialStartTime) setStartTime(initialStartTime);
       if (initialEndTime) setEndTime(initialEndTime);
@@ -355,6 +370,7 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
+        timezone: timezoneEnabled ? timezone : null,
       });
     } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
@@ -407,6 +423,7 @@ export function AddModal({
         notes: notes.trim() || null,
         inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
         excludedSubscribers: excludedSubscribers.size > 0 ? [...excludedSubscribers] : undefined,
+        timezone: timezoneEnabled ? timezone : null,
       });
     }
 
@@ -621,6 +638,21 @@ export function AddModal({
                     style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                   />
                 </div>
+              </div>
+              {/* Timezone toggle */}
+              <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={timezoneEnabled}
+                    onChange={(e) => setTimezoneEnabled(e.target.checked)}
+                    className="rounded"
+                    style={{ width: 14, height: 14, accentColor: '#8DA286' }}
+                  />
+                  <span style={{ fontSize: 11, color: '#636366' }}>
+                    Timezone: {timezoneEnabled ? `${getTimezoneAbbr(timezone)} (${timezone})` : 'None (floating)'}
+                  </span>
+                </label>
               </div>
             </>
           )}

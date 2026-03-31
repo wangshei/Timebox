@@ -41,6 +41,7 @@ interface ThreeDayViewProps {
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
+  onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditBlock?: (blockId: string) => void;
   events?: ResolvedEvent[];
   onDeleteEvent?: (eventId: string) => void;
@@ -73,7 +74,7 @@ export function ThreeDayView({
   mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
   focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm,
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
-  onMoveEvent, onResizeEvent, onEditEvent, onEditBlock,
+  onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
   onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji,
@@ -677,7 +678,7 @@ export function ThreeDayView({
                                   onDeselect={() => handleSelect(null)}
                                   onDeleteEvent={onDeleteEvent}
                                   onDeleteEventSeries={onDeleteEventSeries}
-                                  onEditEvent={onEditEvent}
+                                  onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope}
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
                                   onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => setResizingEvent({ event: seg.event, startClientY: e.clientY }) : undefined}

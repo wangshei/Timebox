@@ -1,4 +1,5 @@
 import { ResolvedEvent } from './dataResolver';
+import { convertEventTimezone } from './dateTime';
 
 export interface EventSegment {
   event: ResolvedEvent;
@@ -26,7 +27,27 @@ export function getEventSegmentsForDate(
 ): EventSegment[] {
   const segments: EventSegment[] = [];
 
-  for (const event of events) {
+  for (const rawEvent of events) {
+    // Apply timezone conversion: if the event has a timezone and it differs from the user's,
+    // adjust start/end/date/endDate for display. Floating events (no timezone) are unchanged.
+    let event = rawEvent;
+    if (rawEvent.timezone) {
+      const converted = convertEventTimezone(
+        rawEvent.date,
+        rawEvent.endDate,
+        rawEvent.start,
+        rawEvent.end,
+        rawEvent.timezone,
+      );
+      event = {
+        ...rawEvent,
+        start: converted.start,
+        end: converted.end,
+        date: converted.date,
+        endDate: converted.endDate ?? converted.date,
+      };
+    }
+
     const startDate = event.date;
     const endDate = event.endDate ?? event.date;
 

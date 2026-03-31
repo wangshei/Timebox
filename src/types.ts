@@ -162,6 +162,9 @@ export interface Event {
   /** Timestamp (ms) of last edit — used for overlap truncation priority. */
   editedAt?: number;
 
+  /** IANA timezone the event was created in (e.g. "America/Los_Angeles"). Null/undefined = floating (no timezone). */
+  timezone?: string | null;
+
   // ─── Google Calendar / Sharing fields ─────────────────────
   /** Google Calendar event ID — set for events synced from Google. */
   googleEventId?: string | null;

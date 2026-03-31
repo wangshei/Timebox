@@ -46,6 +46,7 @@ interface EventCardProps {
   onDeleteEvent?: (eventId: string) => void;
   onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditEvent?: (eventId: string) => void;
+  onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   /** When true, use same transparent + border style as planned time blocks */
   plannedStyle?: boolean;
   /** When true and onMoveEvent is used, card is draggable */
@@ -74,6 +75,7 @@ export function EventCard({
   onDeleteEvent,
   onDeleteEventSeries,
   onEditEvent,
+  onEditEventWithScope,
   plannedStyle = false,
   draggable = false,
   onResizeStart,
@@ -86,6 +88,7 @@ export function EventCard({
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm' | 'confirm_gcal'>(null);
+  const [editConfirmState, setEditConfirmState] = useState<null | 'confirm'>(null);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [showDetails, setShowDetails] = useState(false);
@@ -765,7 +768,45 @@ export function EventCard({
               {/* Edit / Delete — below another line (hidden for read-only events) */}
               {!event.readOnly && <>
               <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
-              {deleteConfirmState === 'confirm' ? (
+              {editConfirmState === 'confirm' ? (
+                <div className="flex flex-col gap-1">
+                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Which events to edit?</div>
+                  {([
+                    { scope: 'this' as const, label: 'This event', desc: 'Only edit this occurrence' },
+                    { scope: 'all_after' as const, label: 'This and all after', desc: 'Edit from this date forward' },
+                    { scope: 'all' as const, label: 'All events', desc: 'Edit every event in the series' },
+                  ]).map(({ scope, label, desc }) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      className="text-left px-2.5 py-1.5 rounded-lg transition-all"
+                      style={{ border: '1px solid rgba(141,162,134,0.18)', color: '#8DA286', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(141,162,134,0.18)'; }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditEventWithScope?.(event.id, scope);
+                        setShowPopover(false);
+                        setEditConfirmState(null);
+                        onDeselect();
+                      }}
+                    >
+                      <div className="font-medium" style={{ fontSize: 10 }}>{label}</div>
+                      <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>{desc}</div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
+                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    onClick={(e) => { e.stopPropagation(); setEditConfirmState(null); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : deleteConfirmState === 'confirm' ? (
                 <div className="flex flex-col gap-1">
                   <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Which events to delete?</div>
                   {([
@@ -814,9 +855,13 @@ export function EventCard({
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditEvent(event.id);
-                        setShowPopover(false);
-                        onDeselect();
+                        if (event.recurring && event.recurrenceSeriesId && onEditEventWithScope) {
+                          setEditConfirmState('confirm');
+                        } else {
+                          onEditEvent(event.id);
+                          setShowPopover(false);
+                          onDeselect();
+                        }
                       }}
                     >
                       <PencilIcon style={{ width: 11, height: 11 }} />

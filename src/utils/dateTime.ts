@@ -163,3 +163,83 @@ export function formatHourShort(hour: number): string {
   if (hour > 12) return `${hour - 12}p`;
   return `${hour}a`;
 }
+
+/**
+ * Convert an event's stored time from its original timezone to the user's current timezone.
+ * Returns adjusted start, end, date, and endDate. Handles cross-day shifts.
+ * If fromTimezone matches the user's timezone, returns the original values unchanged.
+ */
+export function convertEventTimezone(
+  eventDate: string,
+  eventEndDate: string | undefined,
+  eventStart: string,
+  eventEnd: string,
+  fromTimezone: string,
+): { start: string; end: string; date: string; endDate?: string } {
+  const userTz = getLocalTimeZone();
+  if (fromTimezone === userTz) {
+    return { start: eventStart, end: eventEnd, date: eventDate, endDate: eventEndDate };
+  }
+
+  // Helper: extract date/time components from a Date formatted in a specific timezone
+  const getPartsInTz = (d: Date, tz: string) => {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(d);
+    const get = (type: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === type)?.value ?? '0';
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    let hour = get('hour');
+    const minute = get('minute');
+    // Intl may return "24" for midnight
+    if (hour === '24') hour = '00';
+    return {
+      dateStr: `${year}-${month}-${day}`,
+      timeStr: `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`,
+    };
+  };
+
+  // Build epoch for the start time in the event's timezone.
+  // Strategy: create a reference Date, find offset, then compute the true UTC epoch.
+  const buildEpoch = (dateStr: string, timeStr: string, tz: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [h, min] = timeStr.split(':').map(Number);
+    // Create a Date assuming local timezone, then adjust
+    const guess = new Date(y, m - 1, d, h, min, 0, 0);
+    // What does this epoch look like in the target timezone?
+    const inTz = getPartsInTz(guess, tz);
+    // Parse what we got back
+    const [gy, gm, gd] = inTz.dateStr.split('-').map(Number);
+    const [gh, gmin] = inTz.timeStr.split(':').map(Number);
+    // Difference in minutes between what we wanted and what we got
+    const wantedMins = y * 525960 + (m - 1) * 43800 + d * 1440 + h * 60 + min;
+    const gotMins = gy * 525960 + (gm - 1) * 43800 + gd * 1440 + gh * 60 + gmin;
+    const diffMs = (wantedMins - gotMins) * 60000;
+    return new Date(guess.getTime() + diffMs);
+  };
+
+  const startEpoch = buildEpoch(eventDate, eventStart, fromTimezone);
+  const effectiveEndDate = eventEndDate ?? eventDate;
+  const endEpoch = buildEpoch(effectiveEndDate, eventEnd, fromTimezone);
+
+  // Convert epochs to user's timezone
+  const converted = {
+    ...getPartsInTz(startEpoch, userTz),
+  };
+  const convertedEnd = getPartsInTz(endEpoch, userTz);
+
+  return {
+    start: converted.timeStr,
+    end: convertedEnd.timeStr,
+    date: converted.dateStr,
+    endDate: convertedEnd.dateStr !== converted.dateStr ? convertedEnd.dateStr : undefined,
+  };
+}

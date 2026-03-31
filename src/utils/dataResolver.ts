@@ -116,6 +116,8 @@ export interface ResolvedEvent {
   attendees?: Array<{ email: string; name?: string; self?: boolean; responseStatus?: string }> | null;
   /** Whether the current user is the organizer. */
   isOrganizer?: boolean;
+  /** IANA timezone the event was created in. Null/undefined = floating (no timezone). */
+  timezone?: string | null;
 }
 
 export function resolveEvent(

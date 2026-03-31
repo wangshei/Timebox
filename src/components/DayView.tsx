@@ -67,6 +67,7 @@ interface DayViewProps {
   /** Resize an event by dragging its bottom edge (end time only). */
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
   onEditEvent?: (eventId: string) => void;
+  onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditBlock?: (blockId: string) => void;
   /** For compare mode: taskIds that have both planned and recorded blocks for this day. */
   compareMatchedTaskIds?: string[];
@@ -90,7 +91,7 @@ interface DayViewProps {
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -717,7 +718,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDeselect={() => onSelectBlock(null)}
                 onDeleteEvent={onDeleteEvent}
                 onDeleteEventSeries={onDeleteEventSeries}
-                onEditEvent={onEditEvent}
+                onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope}
                 plannedStyle={false}
                 draggable={!!onMoveEvent}
                 onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => handleEventResizeStart(seg.event, e) : undefined}

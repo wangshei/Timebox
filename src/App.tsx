@@ -192,7 +192,6 @@ export default function App() {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
   const [pendingBlockPreview, setPendingBlockPreview] = useState<{ date: string; startTime: string; endTime: string } | null>(null);
-  const [recurrenceEditScopePending, setRecurrenceEditScopePending] = useState<string | null>(null);
   const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [schedulingSelectionMode, setSchedulingSelectionMode] = useState(false);
@@ -1056,6 +1055,7 @@ export default function App() {
     notes?: string | null;
     inviteEmails?: string[];
     excludedSubscribers?: string[];
+    timezone?: string | null;
   }) => {
     saveSnapshot();
     // Events added for past time slots are retroactive → mark as 'unplanned' so they
@@ -1079,6 +1079,7 @@ export default function App() {
       link: eventData.link ?? undefined,
       description: eventData.description ?? undefined,
       notes: eventData.notes ?? undefined,
+      timezone: eventData.timezone ?? null,
       ...(isPastEvent ? { source: 'unplanned' as const } : {}),
       ...(eventData.inviteEmails && eventData.inviteEmails.length > 0
         ? { attendees: eventData.inviteEmails.map(email => ({ email, responseStatus: 'needsAction' })) }
@@ -1270,13 +1271,17 @@ export default function App() {
   };
 
   const handleEditEvent = (id: string) => {
-    const ev = events.find((e) => e.id === id);
-    if (ev?.recurring && ev.recurrenceSeriesId) {
-      // Show scope picker first
-      setRecurrenceEditScopePending(id);
-      return;
-    }
     setPendingRecurrenceEditScope('this');
+    setEditingTaskId(null);
+    setEditingTimeBlockId(null);
+    setEditingEventId(id);
+    setIsDraftTimeBlock(false);
+    setAddModalMode('event');
+    setIsAddModalOpen(true);
+  };
+
+  const handleEditEventWithScope = (id: string, scope: 'this' | 'all' | 'all_after') => {
+    setPendingRecurrenceEditScope(scope);
     setEditingTaskId(null);
     setEditingTimeBlockId(null);
     setEditingEventId(id);
@@ -3153,6 +3158,7 @@ export default function App() {
           onMoveEvent={handleMoveEvent}
           onResizeEvent={handleResizeEvent}
           onEditEvent={handleEditEvent}
+          onEditEventWithScope={handleEditEventWithScope}
           onEditBlock={handleEditBlock}
           events={visibleEvents}
           onDeleteEvent={handleDeleteEvent}
@@ -3345,60 +3351,6 @@ export default function App() {
         onEnterSelectionMode={handleEnterSelectionFromModal}
         selectionModeActive={schedulingSelectionMode}
       />
-
-      {/* Recurrence edit scope picker — shown before AddModal for recurring events */}
-      {recurrenceEditScopePending && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
-          <div
-            className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-            onClick={() => setRecurrenceEditScopePending(null)}
-          />
-          <div className="relative rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4" style={{ backgroundColor: '#FFFFFF' }}>
-            <h3 className="font-semibold text-sm mb-0.5" style={{ color: THEME.textPrimary }}>Edit recurring event</h3>
-            <p className="text-xs mb-4" style={{ color: '#636366' }}>Which events do you want to change?</p>
-            <div className="flex flex-col gap-2">
-              {([
-                { scope: 'this' as const, label: 'This event', desc: 'Only edit this occurrence' },
-                { scope: 'all_after' as const, label: 'This and all after', desc: 'Edit from this date forward' },
-                { scope: 'all' as const, label: 'All events', desc: 'Edit every event in the series' },
-              ]).map(({ scope, label, desc }) => (
-                <button
-                  key={scope}
-                  type="button"
-                  className="text-left px-4 py-3 rounded-xl transition-all"
-                  style={{ border: '1.5px solid rgba(0,0,0,0.10)', color: THEME.textPrimary, backgroundColor: 'transparent' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; }}
-                  onClick={() => {
-                    const eventId = recurrenceEditScopePending;
-                    setRecurrenceEditScopePending(null);
-                    setPendingRecurrenceEditScope(scope);
-                    setEditingTaskId(null);
-                    setEditingTimeBlockId(null);
-                    setEditingEventId(eventId);
-                    setIsDraftTimeBlock(false);
-                    setAddModalMode('event');
-                    setIsAddModalOpen(true);
-                  }}
-                >
-                  <div className="text-sm font-medium">{label}</div>
-                  <div className="text-xs mt-0.5" style={{ color: '#636366' }}>{desc}</div>
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="mt-3 w-full py-2 text-xs font-medium rounded-xl transition-colors"
-              style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)' }}
-              onClick={() => setRecurrenceEditScopePending(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* Invite / Update notification confirmation popup */}
       {inviteConfirm && createPortal(
