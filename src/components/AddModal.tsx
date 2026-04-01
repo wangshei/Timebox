@@ -3,6 +3,25 @@ import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
+
+// Common IANA timezones shown at top of picker
+const COMMON_TIMEZONES = [
+  'America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York',
+  'America/Toronto', 'America/Sao_Paulo', 'Europe/London', 'Europe/Paris',
+  'Europe/Berlin', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo',
+  'Asia/Seoul', 'Australia/Sydney', 'Pacific/Auckland',
+];
+
+function getAllTimezones(): string[] {
+  try {
+    if ('supportedValuesOf' in Intl) {
+      return (Intl as unknown as { supportedValuesOf: (key: string) => string[] }).supportedValuesOf('timeZone');
+    }
+  } catch { /* fallback */ }
+  return COMMON_TIMEZONES;
+}
+
+const ALL_TIMEZONES = getAllTimezones();
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Chip } from './ui/chip';
@@ -152,6 +171,23 @@ export function AddModal({
   // Timezone state (event mode only)
   const [timezone, setTimezone] = useState<string>(getLocalTimeZone());
   const [timezoneEnabled, setTimezoneEnabled] = useState(true);
+  const [tzPickerOpen, setTzPickerOpen] = useState(false);
+  const [tzSearch, setTzSearch] = useState('');
+  const tzPickerRef = useRef<HTMLDivElement>(null);
+  const tzSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Close timezone picker on click outside
+  useEffect(() => {
+    if (!tzPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (tzPickerRef.current && !tzPickerRef.current.contains(e.target as Node)) {
+        setTzPickerOpen(false);
+        setTzSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [tzPickerOpen]);
 
   const handleAddInvite = () => {
     const email = inviteInput.trim().toLowerCase();
@@ -639,20 +675,83 @@ export function AddModal({
                   />
                 </div>
               </div>
-              {/* Timezone toggle */}
-              <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={timezoneEnabled}
-                    onChange={(e) => setTimezoneEnabled(e.target.checked)}
-                    className="rounded"
-                    style={{ width: 14, height: 14, accentColor: '#8DA286' }}
-                  />
-                  <span style={{ fontSize: 11, color: '#636366' }}>
-                    Timezone: {timezoneEnabled ? `${getTimezoneAbbr(timezone)} (${timezone})` : 'None (floating)'}
-                  </span>
-                </label>
+              {/* Timezone toggle + picker */}
+              <div className="relative" style={{ marginTop: 2 }} ref={tzPickerRef}>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={timezoneEnabled}
+                      onChange={(e) => { setTimezoneEnabled(e.target.checked); setTzPickerOpen(false); }}
+                      className="rounded"
+                      style={{ width: 14, height: 14, accentColor: '#8DA286' }}
+                    />
+                    <span style={{ fontSize: 11, color: '#636366' }}>Timezone:</span>
+                  </label>
+                  {timezoneEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => { setTzPickerOpen(!tzPickerOpen); setTzSearch(''); setTimeout(() => tzSearchInputRef.current?.focus(), 50); }}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
+                      style={{ fontSize: 11, color: '#8DA286', backgroundColor: tzPickerOpen ? 'rgba(141,162,134,0.10)' : 'transparent' }}
+                      onMouseEnter={(e) => { if (!tzPickerOpen) e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.06)'; }}
+                      onMouseLeave={(e) => { if (!tzPickerOpen) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      {getTimezoneAbbr(timezone)} ({timezone.split('/').pop()?.replace(/_/g, ' ')})
+                      <ChevronDownIcon className="h-3 w-3" style={{ transform: tzPickerOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#AEAEB2' }}>None (floating)</span>
+                  )}
+                </div>
+                {tzPickerOpen && timezoneEnabled && (
+                  <div
+                    className="absolute left-0 mt-1 rounded-lg shadow-lg overflow-hidden"
+                    style={{ zIndex: 50, width: 260, backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)' }}
+                  >
+                    <div className="p-1.5">
+                      <input
+                        ref={tzSearchInputRef}
+                        type="text"
+                        value={tzSearch}
+                        onChange={(e) => setTzSearch(e.target.value)}
+                        placeholder="Search timezones…"
+                        className="w-full px-2 py-1.5 text-xs rounded-md focus:outline-none"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)', color: '#1C1C1E' }}
+                      />
+                    </div>
+                    <div className="overflow-y-auto" style={{ maxHeight: 180 }}>
+                      {(() => {
+                        const q = tzSearch.toLowerCase();
+                        const filtered = q
+                          ? ALL_TIMEZONES.filter(tz => tz.toLowerCase().includes(q))
+                          : [...COMMON_TIMEZONES, '---', ...ALL_TIMEZONES.filter(tz => !new Set(COMMON_TIMEZONES).has(tz))];
+                        return filtered.map((tz, i) =>
+                          tz === '---' ? (
+                            <div key={`sep-${i}`} className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                          ) : (
+                            <button
+                              key={tz}
+                              type="button"
+                              className="w-full text-left px-2.5 py-1.5 text-xs transition-colors flex items-center justify-between"
+                              style={{
+                                color: tz === timezone ? '#8DA286' : '#1C1C1E',
+                                backgroundColor: tz === timezone ? 'rgba(141,162,134,0.08)' : 'transparent',
+                                fontWeight: tz === timezone ? 600 : 400,
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = tz === timezone ? 'rgba(141,162,134,0.08)' : 'transparent'; }}
+                              onClick={() => { setTimezone(tz); setTzPickerOpen(false); setTzSearch(''); }}
+                            >
+                              <span>{tz.replace(/_/g, ' ')}</span>
+                              <span style={{ color: '#8E8E93', fontWeight: 400 }}>{getTimezoneAbbr(tz)}</span>
+                            </button>
+                          )
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
