@@ -218,25 +218,30 @@ export async function loadSupabaseState(isInitialLoad = true) {
       })
     ),
     events: events.map(
-      (e): Event => ({
-        id: e.id,
-        title: e.title,
-        calendarContainerId: e.calendar_container_id,
-        categoryId: e.category_id,
-        start: e.start,
-        end: e.end,
-        date: e.date,
-        recurring: e.recurring,
-        recurrencePattern: e.recurrence_pattern ?? undefined,
-        recurrenceDays: e.recurrence_days ?? undefined,
-        recurrenceSeriesId: e.recurrence_series_id ?? null,
-        link: e.link ?? null,
-        description: e.description ?? null,
-        notes: (e as any).notes ?? null,
-        source: (e as any).source ?? undefined,
-        endDate: (e as any).end_date ?? undefined,
-        timezone: (e as any).timezone ?? null,
-      })
+      (e): Event => {
+        // Preserve locally-set timezone from current store if DB doesn't have the column yet
+        const existing = prev.events.find((ex) => ex.id === e.id);
+        return {
+          id: e.id,
+          title: e.title,
+          calendarContainerId: e.calendar_container_id,
+          categoryId: e.category_id,
+          start: e.start,
+          end: e.end,
+          date: e.date,
+          recurring: e.recurring,
+          recurrencePattern: e.recurrence_pattern ?? undefined,
+          recurrenceDays: e.recurrence_days ?? undefined,
+          recurrenceSeriesId: e.recurrence_series_id ?? null,
+          link: e.link ?? null,
+          description: e.description ?? null,
+          notes: (e as any).notes ?? null,
+          source: (e as any).source ?? undefined,
+          endDate: (e as any).end_date ?? undefined,
+          // timezone lives in localStorage (via Zustand persistence), not Supabase yet
+          timezone: existing?.timezone ?? null,
+        };
+      }
     ),
     };
   });
@@ -379,7 +384,6 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         notes: e.notes ?? null,
         source: e.source ?? null,
         end_date: e.endDate ?? null,
-        timezone: e.timezone ?? null,
       })),
       { onConflict: 'id' }
     ));
@@ -390,7 +394,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     // eslint-disable-next-line no-console
     console.error(`[supabasePersistence] Save had ${errors.length} upsert error(s) — skipping orphan cleanup`, errors);
     useStore.getState().setSaveError(true);
-    return;
+    // Throw so the caller (flush) knows the save failed and doesn't clear the error flag
+    throw new Error(`Save had ${errors.length} upsert error(s)`);
   }
 
   // --- PHASE 2: Delete orphaned rows (items removed from the store) ---
@@ -497,6 +502,7 @@ export function startSupabasePersistence() {
   suppressNextFlush = false;
 
   let saving = false;
+  let lastSaveHadErrors = false;
   let pendingSlice: PersistableState | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   // Cache userId to avoid async getUser() call in beforeunload
@@ -526,11 +532,13 @@ export function startSupabasePersistence() {
     console.log('[supabasePersistence] Saving...', { tasks: slice.tasks.length, timeBlocks: slice.timeBlocks.length, events: slice.events.length });
     try {
       await saveSupabaseStateForUser(userId, slice);
+      lastSaveHadErrors = false;
       // Clear any previous error on success
       if (useStore.getState().saveError) useStore.getState().setSaveError(false);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[supabasePersistence] Save error', e);
+      lastSaveHadErrors = true;
       useStore.getState().setSaveError(true);
     } finally {
       // If the store changed while we were saving, save the latest state now.
@@ -662,7 +670,8 @@ export function startSupabasePersistence() {
     // Skip if we're actively saving or have pending local changes — those changes
     // must complete first, otherwise we'd reload stale Supabase data and overwrite
     // (or lose) the user's edits.
-    if (saving || pendingSlice || debounceTimer) return;
+    // Also skip if the last save had errors — DB may be missing data that exists locally.
+    if (saving || pendingSlice || debounceTimer || lastSaveHadErrors) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
     try { await loadSupabaseState(false); } catch (e) { console.error(e); }
