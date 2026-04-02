@@ -211,6 +211,7 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+  const [focusViewMode, setFocusViewMode] = useState<'fullpage' | 'sidebar'>('fullpage');
   const [showActivityInCalendar, setShowActivityInCalendar] = useState(() => localStorage.getItem('timebox_show_activity_blocks') === 'true');
   const [isActivityTracking, setIsActivityTracking] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -3282,8 +3283,12 @@ export default function App() {
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden relative">
-              {activeTimer ? (
-                <FocusPanel onStop={() => stopTimer()} />
+              {activeTimer && focusViewMode === 'sidebar' ? (
+                <FocusPanel
+                  onStop={() => { stopTimer(); setFocusViewMode('fullpage'); }}
+                  fullPage={false}
+                  onToggleView={() => setFocusViewMode('fullpage')}
+                />
               ) : (
               <RightSidebar
                 tasks={displayTasks}
@@ -3327,6 +3332,15 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Full-page focus panel (portal-based, renders on top of everything) */}
+      {activeTimer && focusViewMode === 'fullpage' && (
+        <FocusPanel
+          onStop={() => { stopTimer(); setFocusViewMode('fullpage'); }}
+          fullPage={true}
+          onToggleView={() => setFocusViewMode('sidebar')}
+        />
+      )}
 
       <div className="flex lg:hidden flex-col flex-1 min-h-0 w-full overflow-hidden relative">
         <MobileApp />
