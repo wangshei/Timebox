@@ -209,21 +209,21 @@ export function convertEventTimezone(
   };
 
   // Build epoch for the start time in the event's timezone.
-  // Strategy: create a reference Date, find offset, then compute the true UTC epoch.
+  // Strategy: create a reference Date in local tz, see what it looks like in the target tz,
+  // then correct by the difference using proper Date arithmetic (no approximate month lengths).
   const buildEpoch = (dateStr: string, timeStr: string, tz: string): Date => {
     const [y, m, d] = dateStr.split('-').map(Number);
     const [h, min] = timeStr.split(':').map(Number);
-    // Create a Date assuming local timezone, then adjust
+    // Create a Date assuming local timezone
     const guess = new Date(y, m - 1, d, h, min, 0, 0);
     // What does this epoch look like in the target timezone?
     const inTz = getPartsInTz(guess, tz);
-    // Parse what we got back
     const [gy, gm, gd] = inTz.dateStr.split('-').map(Number);
     const [gh, gmin] = inTz.timeStr.split(':').map(Number);
-    // Difference in minutes between what we wanted and what we got
-    const wantedMins = y * 525960 + (m - 1) * 43800 + d * 1440 + h * 60 + min;
-    const gotMins = gy * 525960 + (gm - 1) * 43800 + gd * 1440 + gh * 60 + gmin;
-    const diffMs = (wantedMins - gotMins) * 60000;
+    // Use proper Date objects to compute the correction (handles month/year boundaries correctly)
+    const wanted = new Date(y, m - 1, d, h, min, 0, 0);
+    const got = new Date(gy, gm - 1, gd, gh, gmin, 0, 0);
+    const diffMs = wanted.getTime() - got.getTime();
     return new Date(guess.getTime() + diffMs);
   };
 
