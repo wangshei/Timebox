@@ -382,8 +382,15 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 return (
                   <span
                     key={tz}
-                    className="flex-1 text-center cursor-pointer transition-colors"
-                    style={{ fontSize: '8px', fontWeight: isActive ? 700 : 500, color: isActive ? '#8DA286' : '#AEAEB2', letterSpacing: '0.02em' }}
+                    className="flex-1 text-center cursor-pointer transition-all"
+                    style={{
+                      fontSize: isActive ? '9px' : '8px',
+                      fontWeight: isActive ? 800 : 500,
+                      color: isActive ? '#8DA286' : '#AEAEB2',
+                      letterSpacing: '0.02em',
+                      borderBottom: isActive ? '2px solid #8DA286' : '2px solid transparent',
+                      paddingBottom: 1,
+                    }}
                     onClick={() => onSetViewTimezone?.(isActive ? undefined : tz)}
                     title={`View in ${tz}`}
                   >
@@ -392,8 +399,16 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 );
               })}
               <span
-                className="flex-1 text-right cursor-pointer transition-colors"
-                style={{ fontSize: '8px', fontWeight: !viewTimezone ? 700 : 500, color: !viewTimezone ? '#8DA286' : '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                className="flex-1 text-right cursor-pointer transition-all"
+                style={{
+                  fontSize: !viewTimezone ? '9px' : '8px',
+                  fontWeight: !viewTimezone ? 800 : 500,
+                  color: !viewTimezone ? '#8DA286' : '#8E8E93',
+                  letterSpacing: '0.02em',
+                  paddingRight: 2,
+                  borderBottom: !viewTimezone ? '2px solid #8DA286' : '2px solid transparent',
+                  paddingBottom: 1,
+                }}
                 onClick={() => onSetViewTimezone?.(undefined)}
                 title={`View in ${getLocalTimeZone()}`}
               >

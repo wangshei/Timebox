@@ -149,15 +149,47 @@ export function CalendarView({
     }
   }, [isMobile, view, onViewChange]);
 
-  // Escape key exits stamp mode
+  // Stamp mode keyboard: Escape exits, arrow keys cycle emoji
   useEffect(() => {
     if (!stampMode) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setStampMode(false); setActiveStampEmoji(null); }
+      if (e.key === 'Escape') { setStampMode(false); setActiveStampEmoji(null); return; }
+      // Arrow down/up/right/left cycle through stamp emojis
+      if (activeStampEmoji && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const idx = STAMP_DEFAULTS.indexOf(activeStampEmoji);
+        const next = idx >= 0 ? (idx + 1) % STAMP_DEFAULTS.length : 0;
+        setActiveStampEmoji(STAMP_DEFAULTS[next]);
+      } else if (activeStampEmoji && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        const idx = STAMP_DEFAULTS.indexOf(activeStampEmoji);
+        const prev = idx > 0 ? idx - 1 : STAMP_DEFAULTS.length - 1;
+        setActiveStampEmoji(STAMP_DEFAULTS[prev]);
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [stampMode]);
+  }, [stampMode, activeStampEmoji]);
+
+  // Delete/Backspace key deletes selected block or event
+  useEffect(() => {
+    if (!selectedBlock) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest('input, textarea, [contenteditable]')) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedBlock.startsWith('event-')) {
+          const eventId = selectedBlock.replace('event-', '');
+          onDeleteEvent?.(eventId);
+        } else {
+          onDeleteBlock?.(selectedBlock);
+        }
+        setSelectedBlock(null);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [selectedBlock, onDeleteBlock, onDeleteEvent]);
 
   // Emoji stamp cursor — inject a global style when an emoji is active so all
   // child elements (including draggable blocks) show the stamp cursor instead of grab.
@@ -781,7 +813,7 @@ export function CalendarView({
                 border: '1px solid rgba(141,162,134,0.15)',
               }}
             >
-              Click to place · Esc to exit
+              Click to place · ↑↓ switch · Esc to exit
             </div>
           )}
         </div>

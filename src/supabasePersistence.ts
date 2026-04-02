@@ -235,6 +235,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
         notes: (e as any).notes ?? null,
         source: (e as any).source ?? undefined,
         endDate: (e as any).end_date ?? undefined,
+        timezone: (e as any).timezone ?? null,
       })
     ),
     };
@@ -378,6 +379,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         notes: e.notes ?? null,
         source: e.source ?? null,
         end_date: e.endDate ?? null,
+        timezone: e.timezone ?? null,
       })),
       { onConflict: 'id' }
     ));
