@@ -64,9 +64,13 @@ interface WeekViewProps {
   onSelectionDone?: () => void;
   /** Called when user clicks "Cancel" in the selection banner. */
   onSelectionCancel?: () => void;
+  /** Active timezone for viewing event positions (undefined = primary/local). */
+  viewTimezone?: string;
+  /** Callback to switch the view timezone. */
+  onSetViewTimezone?: (tz: string | undefined) => void;
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel, viewTimezone, onSetViewTimezone }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -373,18 +377,25 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
         >
           {secondaryTzs.length > 0 && (
             <div className="flex items-end w-full" style={{ padding: '0 4px' }}>
-              {secondaryTzs.map((tz) => (
-                <span
-                  key={tz}
-                  className="flex-1 text-center"
-                  style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
-                >
-                  {getTimezoneAbbr(tz)}
-                </span>
-              ))}
+              {secondaryTzs.map((tz) => {
+                const isActive = viewTimezone === tz;
+                return (
+                  <span
+                    key={tz}
+                    className="flex-1 text-center cursor-pointer transition-colors"
+                    style={{ fontSize: '8px', fontWeight: isActive ? 700 : 500, color: isActive ? '#8DA286' : '#AEAEB2', letterSpacing: '0.02em' }}
+                    onClick={() => onSetViewTimezone?.(isActive ? undefined : tz)}
+                    title={`View in ${tz}`}
+                  >
+                    {getTimezoneAbbr(tz)}
+                  </span>
+                );
+              })}
               <span
-                className="flex-1 text-right"
-                style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                className="flex-1 text-right cursor-pointer transition-colors"
+                style={{ fontSize: '8px', fontWeight: !viewTimezone ? 700 : 500, color: !viewTimezone ? '#8DA286' : '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                onClick={() => onSetViewTimezone?.(undefined)}
+                title={`View in ${getLocalTimeZone()}`}
               >
                 {getTimezoneAbbr(getLocalTimeZone())}
               </span>
@@ -496,7 +507,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
             {weekDays.map((day, dayIndex) => {
               const dateStr = formatDate(day);
               const dayBlocks = timeBlocks.filter(block => block.date === dateStr);
-              const dayEventSegments = getEventSegmentsForDate(events, dateStr);
+              const dayEventSegments = getEventSegmentsForDate(events, dateStr, viewTimezone);
               const today = isToday(day);
               const showCurrentTimeLine = today && currentTimeTop != null;
 

@@ -23,7 +23,8 @@ export interface EventSegment {
  */
 export function getEventSegmentsForDate(
   events: ResolvedEvent[],
-  targetDate: string
+  targetDate: string,
+  viewTimezone?: string,
 ): EventSegment[] {
   const segments: EventSegment[] = [];
 
@@ -38,6 +39,7 @@ export function getEventSegmentsForDate(
         rawEvent.start,
         rawEvent.end,
         rawEvent.timezone,
+        viewTimezone,
       );
       event = {
         ...rawEvent,

@@ -86,12 +86,16 @@ interface DayViewProps {
   pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
   /** When set, blocks are in stamp mode — clicking stamps this emoji. */
   activeStampEmoji?: string | null;
+  /** Active timezone for viewing event positions (undefined = primary/local). */
+  viewTimezone?: string;
+  /** Callback to switch the view timezone. */
+  onSetViewTimezone?: (tz: string | undefined) => void;
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji, viewTimezone, onSetViewTimezone }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -388,8 +392,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
 
   // Compute event segments for this day (handles cross-date events)
   const eventSegments = React.useMemo(
-    () => getEventSegmentsForDate(events, selectedDate),
-    [events, selectedDate]
+    () => getEventSegmentsForDate(events, selectedDate, viewTimezone),
+    [events, selectedDate, viewTimezone]
   );
 
   // Overlap truncation — computed FIRST so hidden items can be excluded from overlap layout.
@@ -542,24 +546,31 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           />
         )}
 
-        {/* Timezone abbreviation labels at top of time column */}
+        {/* Timezone abbreviation labels at top of time column — clickable to switch view */}
         {secondaryTzs.length > 0 && (
           <div
-            className="absolute left-0 top-0 pointer-events-none flex items-center"
+            className="absolute left-0 top-0 flex items-center"
             style={{ width: gridLeftPx, height: 14, zIndex: 1 }}
           >
-            {secondaryTzs.map((tz) => (
-              <span
-                key={tz}
-                className="flex-1 text-center"
-                style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
-              >
-                {getTimezoneAbbr(tz)}
-              </span>
-            ))}
+            {secondaryTzs.map((tz) => {
+              const isActive = viewTimezone === tz;
+              return (
+                <span
+                  key={tz}
+                  className="flex-1 text-center cursor-pointer transition-colors"
+                  style={{ fontSize: '8px', fontWeight: isActive ? 700 : 500, color: isActive ? '#8DA286' : '#AEAEB2', letterSpacing: '0.02em' }}
+                  onClick={() => onSetViewTimezone?.(isActive ? undefined : tz)}
+                  title={`View in ${tz}`}
+                >
+                  {getTimezoneAbbr(tz)}
+                </span>
+              );
+            })}
             <span
-              className="flex-1 text-right"
-              style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 6 }}
+              className="flex-1 text-right cursor-pointer transition-colors"
+              style={{ fontSize: '8px', fontWeight: !viewTimezone ? 700 : 500, color: !viewTimezone ? '#8DA286' : '#8E8E93', letterSpacing: '0.02em', paddingRight: 6 }}
+              onClick={() => onSetViewTimezone?.(undefined)}
+              title={`View in ${getLocalTimeZone()}`}
             >
               {getTimezoneAbbr(getLocalTimeZone())}
             </span>

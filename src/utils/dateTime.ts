@@ -175,8 +175,9 @@ export function convertEventTimezone(
   eventStart: string,
   eventEnd: string,
   fromTimezone: string,
+  toTimezone?: string,
 ): { start: string; end: string; date: string; endDate?: string } {
-  const userTz = getLocalTimeZone();
+  const userTz = toTimezone || getLocalTimeZone();
   if (fromTimezone === userTz) {
     return { start: eventStart, end: eventEnd, date: eventDate, endDate: eventEndDate };
   }

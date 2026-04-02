@@ -62,6 +62,10 @@ interface ThreeDayViewProps {
   pendingBlockPreview?: { date: string; startTime: string; endTime: string } | null;
   /** When set, blocks are in stamp mode — clicking stamps this emoji. */
   activeStampEmoji?: string | null;
+  /** Active timezone for viewing event positions (undefined = primary/local). */
+  viewTimezone?: string;
+  /** Callback to switch the view timezone. */
+  onSetViewTimezone?: (tz: string | undefined) => void;
 }
 
 const PRIMARY = THEME.primary;
@@ -78,6 +82,7 @@ export function ThreeDayView({
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
   onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji,
+  viewTimezone, onSetViewTimezone,
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -299,18 +304,25 @@ export function ThreeDayView({
             )}
             {secondaryTzs.length > 0 && !panelLabel && (
               <div className="flex items-end w-full" style={{ padding: '0 4px' }}>
-                {secondaryTzs.map((tz) => (
-                  <span
-                    key={tz}
-                    className="flex-1 text-center"
-                    style={{ fontSize: '8px', fontWeight: 500, color: '#AEAEB2', letterSpacing: '0.02em' }}
-                  >
-                    {getTimezoneAbbr(tz)}
-                  </span>
-                ))}
+                {secondaryTzs.map((tz) => {
+                  const isActive = viewTimezone === tz;
+                  return (
+                    <span
+                      key={tz}
+                      className="flex-1 text-center cursor-pointer transition-colors"
+                      style={{ fontSize: '8px', fontWeight: isActive ? 700 : 500, color: isActive ? '#8DA286' : '#AEAEB2', letterSpacing: '0.02em' }}
+                      onClick={() => onSetViewTimezone?.(isActive ? undefined : tz)}
+                      title={`View in ${tz}`}
+                    >
+                      {getTimezoneAbbr(tz)}
+                    </span>
+                  );
+                })}
                 <span
-                  className="flex-1 text-right"
-                  style={{ fontSize: '8px', fontWeight: 500, color: '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                  className="flex-1 text-right cursor-pointer transition-colors"
+                  style={{ fontSize: '8px', fontWeight: !viewTimezone ? 700 : 500, color: !viewTimezone ? '#8DA286' : '#8E8E93', letterSpacing: '0.02em', paddingRight: 2 }}
+                  onClick={() => onSetViewTimezone?.(undefined)}
+                  title={`View in ${getLocalTimeZone()}`}
                 >
                   {getTimezoneAbbr(getLocalTimeZone())}
                 </span>
@@ -432,7 +444,7 @@ export function ThreeDayView({
           {threeDays.map((day, dayIndex) => {
             const dateStr = formatDate(day);
             const dayBlocks = timeBlocks.filter(b => b.date === dateStr);
-            const dayEventSegments = getEventSegmentsForDate(events, dateStr);
+            const dayEventSegments = getEventSegmentsForDate(events, dateStr, viewTimezone);
             const today = isToday(day);
             const showCurrentTimeLine = today && currentTimeTop != null;
 
