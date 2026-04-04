@@ -115,10 +115,18 @@ export function setGcalSelectedCalendarIds(ids: string[]): void {
   localStorage.setItem(GCAL_SELECTED_CALS_KEY, JSON.stringify(ids));
 }
 
+/** Custom error class for Google Calendar auth failures (token revoked, expired refresh token, etc.). */
+export class GcalAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GcalAuthError';
+  }
+}
+
 /** Get a valid access token, refreshing if expired. */
 async function getAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
-  if (!tokens) throw new Error('Not connected to Google Calendar');
+  if (!tokens) throw new GcalAuthError('Not connected to Google Calendar');
 
   // Check if token is still valid (with 60s buffer)
   if (new Date(tokens.expires_at).getTime() > Date.now() + 60_000) {
@@ -127,16 +135,37 @@ async function getAccessToken(): Promise<string> {
 
   // Refresh via edge function (needs client_secret on server)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const res = await fetch(`${supabaseUrl}/functions/v1/gcal-auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'refresh_token',
-      refresh_token: tokens.refresh_token,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Token refresh failed');
+  if (!supabaseUrl) throw new Error('Supabase URL not configured');
+
+  let res: Response;
+  try {
+    res = await fetch(`${supabaseUrl}/functions/v1/gcal-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'refresh_token',
+        refresh_token: tokens.refresh_token,
+      }),
+    });
+  } catch (err) {
+    throw new Error('Network error refreshing Google Calendar token');
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errMsg = data.error || 'Token refresh failed';
+    // If the refresh token is invalid/revoked, clear stored tokens so the user
+    // can re-authenticate instead of silently failing on every poll.
+    if (
+      res.status === 400 || res.status === 401 || res.status === 403 ||
+      /invalid_grant|token.*revoked|token.*expired/i.test(errMsg)
+    ) {
+      console.warn('[gcal] Refresh token invalid/revoked — clearing stored tokens');
+      disconnectGoogle();
+      throw new GcalAuthError('Google Calendar access expired. Please reconnect.');
+    }
+    throw new Error(errMsg);
+  }
 
   // Update stored tokens
   storeTokens({
@@ -296,7 +325,12 @@ export async function fetchGoogleCalendars(): Promise<GcalCalendar[]> {
   const res = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`Failed to list calendars: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new GcalAuthError(`Google Calendar access denied (${res.status})`);
+    }
+    throw new Error(`Failed to list calendars: ${res.status}`);
+  }
   const data = await res.json();
   return (data.items ?? []).map((c: Record<string, unknown>) => ({
     id: c.id as string,
@@ -324,6 +358,8 @@ async function fetchCalendarEvents(calendarId: string): Promise<GcalEvent[]> {
       orderBy: 'startTime',
       maxResults: '250',
       timeZone: getLocalTimeZone(),
+      // Request conference data (Zoom, Meet, Teams links)
+      conferenceDataVersion: '1',
     });
     if (pageToken) params.set('pageToken', pageToken);
 
@@ -331,7 +367,12 @@ async function fetchCalendarEvents(calendarId: string): Promise<GcalEvent[]> {
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new GcalAuthError(`Google Calendar access denied (${res.status})`);
+      }
+      throw new Error(`Failed to fetch events: ${res.status}`);
+    }
     const data = await res.json();
     allEvents.push(...(data.items ?? []));
     pageToken = data.nextPageToken;
@@ -351,6 +392,18 @@ function parseGcalDateTime(dt: { dateTime?: string; date?: string }): { date: st
   }
   // All-day event
   return { date: dt.date ?? '', time: '00:00' };
+}
+
+/**
+ * For all-day events, Google Calendar uses exclusive end dates.
+ * A single-day event has end.date one day after start.date.
+ * Subtract one day from end.date to get the inclusive end date.
+ */
+function adjustAllDayEndDate(endDate: string): string {
+  if (!endDate) return endDate;
+  const d = new Date(endDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA'); // YYYY-MM-DD
 }
 
 // ─── Recurrence detection ────────────────────────────────────────────────────
@@ -495,6 +548,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
         const start = parseGcalDateTime(evt.start);
         const end = parseGcalDateTime(evt.end);
         const isAllDay = !evt.start.dateTime && !!evt.start.date;
+        // For all-day events, Google uses exclusive end dates — adjust to inclusive
+        const effectiveEndDate = isAllDay ? adjustAllDayEndDate(end.date) : end.date;
         const organizer = isUserOrganizer(evt);
         events.push({
           id: `gcal-evt-${evt.id}`,
@@ -504,7 +559,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           start: isAllDay ? '00:00' : start.time,
           end: isAllDay ? '23:59' : end.time,
           date: start.date,
-          endDate: start.date !== end.date ? end.date : undefined,
+          endDate: start.date !== effectiveEndDate ? effectiveEndDate : undefined,
           recurring: false,
           googleEventId: evt.id,
           readOnly: !organizer,
@@ -536,6 +591,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
           const start = parseGcalDateTime(evt.start);
           const end = parseGcalDateTime(evt.end);
           const isAllDay = !evt.start.dateTime && !!evt.start.date;
+          // For all-day events, Google uses exclusive end dates — adjust to inclusive
+          const effectiveEndDate = isAllDay ? adjustAllDayEndDate(end.date) : end.date;
           events.push({
             id: `gcal-evt-${evt.id}`,
             title: evt.summary ?? first.summary ?? 'Event',
@@ -544,7 +601,7 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
             start: isAllDay ? '00:00' : start.time,
             end: isAllDay ? '23:59' : end.time,
             date: start.date,
-            endDate: start.date !== end.date ? end.date : undefined,
+            endDate: start.date !== effectiveEndDate ? effectiveEndDate : undefined,
             recurring: true,
             recurrencePattern: pattern,
             recurrenceDays: days,
@@ -565,6 +622,8 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
         }
       }
     } catch (err) {
+      // Auth errors should bubble up — the user needs to re-authenticate
+      if (err instanceof GcalAuthError) throw err;
       // eslint-disable-next-line no-console
       console.warn(`[gcal] Failed to fetch events for ${gcal.summary}:`, err);
     }

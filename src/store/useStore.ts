@@ -888,14 +888,22 @@ export const useStore = create<AppState & AppActions>()(
       const now = new Date();
       const endMinutes = now.getHours() * 60 + now.getMinutes();
       const startMinutes = parseTimeToMinutes(block.start);
-      // Clamp to at least 1 minute duration
-      const clampedEnd = Math.max(endMinutes, startMinutes + 1);
+      // Handle midnight crossing: cap at 23:59 on original date
+      const clampedEnd = endMinutes >= startMinutes
+        ? Math.max(endMinutes, startMinutes + 1)
+        : 23 * 60 + 59;
       const endStr = `${Math.floor(clampedEnd / 60)}:${String(clampedEnd % 60).padStart(2, '0')}`;
       set((s) => ({
         activeTimer: null,
         timeBlocks: s.timeBlocks.map((b) =>
           b.id === activeTimer.blockId
-            ? { ...b, end: endStr, confirmationStatus: 'confirmed' as const, editedAt: Date.now() }
+            ? {
+                ...b,
+                end: endStr,
+                mode: 'recorded' as const,
+                confirmationStatus: 'confirmed' as const,
+                editedAt: Date.now(),
+              }
             : b
         ),
       }));
@@ -923,6 +931,8 @@ type PersistedSlice = Pick<
   | 'tags'
   | 'events'
   | 'stickers'
+  | 'schedulingLinks'
+  | 'bookings'
   | 'viewMode'
   | 'view'
   | 'selectedDate'
@@ -972,6 +982,8 @@ export function startLocalStoragePersistence() {
       tags: state.tags,
       events: state.events,
       stickers: state.stickers,
+      schedulingLinks: state.schedulingLinks,
+      bookings: state.bookings,
       viewMode: state.viewMode,
       view: state.view,
       selectedDate: state.selectedDate,

@@ -30,7 +30,7 @@ import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl } from './services/googleCalendar';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError } from './services/googleCalendar';
 import { createShare, notifyEventUpdate } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
@@ -481,7 +481,17 @@ export default function App() {
       gcalLastSyncRef.current = Date.now();
       injectGcalData(data, options);
     } catch (err) {
-      console.warn('[gcal] Sync failed:', err);
+      if (err instanceof GcalAuthError) {
+        // Auth failed — tokens were cleared by getAccessToken. Notify the user.
+        console.warn('[gcal] Auth error — disconnected:', err.message);
+        toast.error('Google Calendar disconnected. Please reconnect in Settings.', { duration: 8000 });
+      } else {
+        console.warn('[gcal] Sync failed:', err);
+        // Only show transient error toast on manual (non-polled) syncs
+        if (!options?.isPolled) {
+          toast.error('Google Calendar sync failed. Will retry shortly.');
+        }
+      }
     } finally {
       gcalSyncingRef.current = false;
     }
@@ -2343,7 +2353,13 @@ export default function App() {
                       });
                       setTzChangeBanner(null);
                     })
-                    .catch(err => console.warn('[gcal] Re-sync failed:', err));
+                    .catch(err => {
+                      if (err instanceof GcalAuthError) {
+                        toast.error('Google Calendar disconnected. Please reconnect in Settings.');
+                      } else {
+                        console.warn('[gcal] Re-sync failed:', err);
+                      }
+                    });
                 }}
                 className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                 style={{ border: '1px solid rgba(100,149,237,0.3)', color: '#3A5BA0' }}

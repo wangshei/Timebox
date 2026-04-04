@@ -81,25 +81,32 @@ export function BookingPage({ slug }: BookingPageProps) {
     try {
       const raw = localStorage.getItem(LS_LINKS_KEY);
       const links: SchedulingLink[] = raw ? JSON.parse(raw) : [];
-      const found = links.find((l) => l.slug === slug && l.active);
+      let found = links.find((l) => l.slug === slug && l.active) ?? null;
       if (!found) {
-        // Also try main store localStorage
-        const storeRaw = localStorage.getItem('timebox_state');
-        if (storeRaw) {
-          const storeState = JSON.parse(storeRaw);
-          const storeLink = (storeState.schedulingLinks || []).find(
-            (l: SchedulingLink) => l.slug === slug && l.active
-          );
-          if (storeLink) {
-            setLink(storeLink);
-            // Load bookings from main store too
-            setExistingBookings((storeState.bookings || []).filter(
-              (b: Booking) => b.schedulingLinkId === storeLink.id && b.status === 'confirmed'
-            ));
-            setStep('date');
-            return;
+        // Also try main store localStorage (timebox-state-v2)
+        for (const key of ['timebox-state-v2', 'timebox_state']) {
+          const storeRaw = localStorage.getItem(key);
+          if (storeRaw) {
+            try {
+              const storeState = JSON.parse(storeRaw);
+              const storeLink = (storeState.schedulingLinks || []).find(
+                (l: SchedulingLink) => l.slug === slug && l.active
+              );
+              if (storeLink) {
+                found = storeLink;
+                // Load bookings from main store too
+                setExistingBookings((storeState.bookings || []).filter(
+                  (b: Booking) => b.schedulingLinkId === storeLink.id && b.status === 'confirmed'
+                ));
+                break;
+              }
+            } catch {
+              // ignore parse errors
+            }
           }
         }
+      }
+      if (!found) {
         setErrorMsg('This scheduling link is not available or has been deactivated.');
         setStep('error');
         return;
@@ -230,15 +237,17 @@ export function BookingPage({ slug }: BookingPageProps) {
       localStorage.setItem(LS_BOOKINGS_KEY, JSON.stringify(existing));
 
       // Also try saving to main store localStorage
-      try {
-        const storeRaw = localStorage.getItem('timebox_state');
-        if (storeRaw) {
-          const storeState = JSON.parse(storeRaw);
-          storeState.bookings = [...(storeState.bookings || []), booking];
-          localStorage.setItem('timebox_state', JSON.stringify(storeState));
+      for (const key of ['timebox-state-v2', 'timebox_state']) {
+        try {
+          const storeRaw = localStorage.getItem(key);
+          if (storeRaw) {
+            const storeState = JSON.parse(storeRaw);
+            storeState.bookings = [...(storeState.bookings || []), booking];
+            localStorage.setItem(key, JSON.stringify(storeState));
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
       }
 
       setConfirmedBooking(booking);

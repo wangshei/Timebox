@@ -50,6 +50,7 @@ export function TimerWidget() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const justLinkedRef = useRef(false);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const filteredCategories = selectedCalendarId
@@ -141,6 +142,7 @@ export function TimerWidget() {
   const handleLinkTask = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (task) {
+      justLinkedRef.current = true;
       setLinkedTaskId(taskId);
       setTitle(task.title);
       // Also set calendar/category from task
@@ -395,7 +397,7 @@ export function TimerWidget() {
                     type="text"
                     value={taskSearchQuery}
                     onChange={(e) => { setTaskSearchQuery(e.target.value); setShowTaskSearch(true); }}
-                    onFocus={() => setShowTaskSearch(true)}
+                    onFocus={() => { if (!justLinkedRef.current) setShowTaskSearch(true); justLinkedRef.current = false; }}
                     placeholder="Search tasks..."
                     className="w-full px-2 py-1 text-xs rounded-md outline-none"
                     style={{
@@ -422,6 +424,7 @@ export function TimerWidget() {
                           <button
                             key={task.id}
                             type="button"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleLinkTask(task.id)}
                             className="w-full text-left px-2.5 py-1.5 flex items-center gap-1.5 transition-colors"
                             style={{ fontSize: 11, color: THEME.textPrimary }}
