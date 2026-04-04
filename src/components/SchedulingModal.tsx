@@ -8,7 +8,7 @@ import { getLocalTimeZone } from '../utils/dateTime';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const DURATION_OPTIONS = [15, 30, 45, 60];
+const DURATION_PRESETS = [15, 30, 60];
 
 const ADVANCE_OPTIONS = [
   { value: 1, label: '1 hour' },
@@ -387,23 +387,65 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             <div>
               <label style={labelStyle}>Duration (min)</label>
               <div className="flex gap-1.5">
-                {DURATION_OPTIONS.map((d) => (
+                {DURATION_PRESETS.map((d) => {
+                  const isSelected = slotDuration === d;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setSlotDuration(d)}
+                      className="flex-1 py-1.5 rounded-md transition-colors"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: isSelected ? 600 : 400,
+                        color: isSelected ? '#FFFFFF' : '#3A3A3C',
+                        backgroundColor: isSelected ? THEME.primary : 'rgba(0,0,0,0.04)',
+                        border: isSelected ? 'none' : '1px solid rgba(0,0,0,0.08)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+                {/* Custom duration */}
+                {DURATION_PRESETS.includes(slotDuration) ? (
                   <button
-                    key={d}
-                    onClick={() => setSlotDuration(d)}
+                    onClick={() => setSlotDuration(45)}
                     className="flex-1 py-1.5 rounded-md transition-colors"
                     style={{
                       fontSize: 12,
-                      fontWeight: slotDuration === d ? 600 : 400,
-                      color: slotDuration === d ? '#FFFFFF' : '#3A3A3C',
-                      backgroundColor: slotDuration === d ? THEME.primary : 'rgba(0,0,0,0.04)',
-                      border: slotDuration === d ? 'none' : '1px solid rgba(0,0,0,0.08)',
+                      fontWeight: 400,
+                      color: '#3A3A3C',
+                      backgroundColor: 'rgba(0,0,0,0.04)',
+                      border: '1px solid rgba(0,0,0,0.08)',
                       cursor: 'pointer',
                     }}
                   >
-                    {d}
+                    Custom
                   </button>
-                ))}
+                ) : (
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      min={5}
+                      max={480}
+                      value={slotDuration}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!isNaN(v) && v >= 1) setSlotDuration(v);
+                      }}
+                      className="w-full py-1.5 text-center rounded-md outline-none"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: '#FFFFFF',
+                        backgroundColor: THEME.primary,
+                        border: 'none',
+                        MozAppearance: 'textfield',
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
