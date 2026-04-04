@@ -237,6 +237,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
     textTransform: 'uppercase',
     color: '#8E8E93',
     display: 'block',
+    marginTop: 8,
     marginBottom: 4,
   };
 
