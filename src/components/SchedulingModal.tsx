@@ -428,7 +428,6 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                     <input
                       type="number"
                       min={5}
-                      max={480}
                       value={slotDuration}
                       onChange={(e) => {
                         const v = parseInt(e.target.value, 10);
@@ -444,6 +443,11 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                         MozAppearance: 'textfield',
                       }}
                     />
+                    {slotDuration >= 60 && (
+                      <div style={{ fontSize: 9, color: THEME.textSecondary, textAlign: 'center', marginTop: 2 }}>
+                        = {slotDuration >= 120 ? `${Math.floor(slotDuration / 60)}h` : '1h'}{slotDuration % 60 > 0 ? ` ${slotDuration % 60}m` : ''}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -509,7 +513,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             {/* Smart adapt */}
             <div
               className="flex items-center justify-between rounded-lg px-2.5 py-2"
-              style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)', marginTop: 4 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 500, color: '#1C1C1E' }}>Smart adapt</div>
@@ -545,7 +549,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
 
             {/* Select times on calendar button */}
             {onEnterSelectionMode && (
-              <div>
+              <div style={{ marginTop: 4 }}>
                 <button
                   onClick={onEnterSelectionMode}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors"
@@ -577,7 +581,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             {/* Same for each week checkbox */}
             <label
               className="flex items-center gap-2 cursor-pointer select-none rounded-lg px-2.5 py-2"
-              style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)', marginTop: 4 }}
             >
               <input
                 type="checkbox"
@@ -594,7 +598,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             </label>
 
             {/* Selected slots summary */}
-            <div>
+            <div style={{ marginTop: 4 }}>
               <label style={labelStyle}>
                 Available times ({selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''})
               </label>
