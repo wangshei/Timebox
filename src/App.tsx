@@ -1237,26 +1237,7 @@ export default function App() {
         emails: capturedEmails,
         onConfirm: () => {
           setInviteConfirm(null);
-          // Push to Google Calendar so attendees see it in their GCal
-          if (isGoogleConnected()) {
-            if (hasGcalWriteAccess()) {
-              createGcalEvent({
-                title: capturedTitle,
-                date: capturedEventData.date,
-                startTime: capturedEventData.startTime,
-                endTime: capturedEventData.endTime,
-                endDate: capturedEventData.endDate,
-                description: capturedEventData.description ?? undefined,
-                attendeeEmails: capturedEmails,
-              }).catch((err) => {
-                console.warn('[gcal] Failed to create GCal event with attendees:', err);
-                toast.error('Could not add to Google Calendar. Try reconnecting Google Calendar in Settings.');
-              });
-            } else {
-              toast('Reconnect Google Calendar in Settings to send GCal invites to attendees.', { duration: 5000 });
-            }
-          }
-          // Delay to let debounced Supabase save persist the event first, then retry once if it fails
+          // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
           const sendShare = (attempt = 1) => {
             createShare({
               scope: 'event',
@@ -1277,6 +1258,28 @@ export default function App() {
               });
           };
           setTimeout(() => sendShare(), 2000);
+          // Also push to Google Calendar so attendees see it in their GCal
+          if (isGoogleConnected()) {
+            createGcalEvent({
+              title: capturedTitle,
+              date: capturedEventData.date,
+              startTime: capturedEventData.startTime,
+              endTime: capturedEventData.endTime,
+              endDate: capturedEventData.endDate,
+              description: capturedEventData.description ?? undefined,
+              attendeeEmails: capturedEmails,
+            })
+              .then(() => toast.success('Event added to attendees\' Google Calendars'))
+              .catch((err) => {
+                console.warn('[gcal] Failed to create GCal event with attendees:', err);
+                // Scope insufficient or write denied — reconnect with new scope
+                toast('Reconnecting Google Calendar for invite access...', { duration: 3000 });
+                setTimeout(() => {
+                  disconnectGoogle();
+                  window.location.href = getGoogleAuthUrl();
+                }, 1500);
+              });
+          }
         },
         onSkip: () => setInviteConfirm(null),
       });

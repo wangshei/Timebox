@@ -158,27 +158,9 @@ export function InvitePage({ token }: { token: string }) {
                 {responseStatus === 'accepted' ? 'Invite accepted!' : 'Invite declined'}
               </h1>
               {responseStatus === 'accepted' && (
-                <>
-                  <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, margin: '0 0 16px' }}>
-                    The shared events will appear on your calendar.
-                  </p>
-                  <a
-                    href="/"
-                    style={{
-                      display: 'inline-block',
-                      backgroundColor: PRIMARY,
-                      color: '#FFFFFF',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      padding: '10px 24px',
-                      borderRadius: 10,
-                      textDecoration: 'none',
-                      marginBottom: 20,
-                    }}
-                  >
-                    Go to my calendar
-                  </a>
-                </>
+                <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, margin: '0 0 16px' }}>
+                  The shared events will appear on your Google Calendar.
+                </p>
               )}
               {responseStatus === 'declined' && (
                 <p style={{ fontSize: 14, color: '#8E8E93', lineHeight: 1.5, margin: '0 0 28px' }}>
@@ -186,7 +168,7 @@ export function InvitePage({ token }: { token: string }) {
                 </p>
               )}
 
-              {/* Join CTA — always show, more prominent on accept */}
+              {/* Join CTA — primary action */}
               <div style={{
                 backgroundColor: `${PRIMARY}08`,
                 border: `2px solid ${PRIMARY}30`,
@@ -217,6 +199,18 @@ export function InvitePage({ token }: { token: string }) {
                   Sign up free
                 </a>
               </div>
+
+              {/* Small GCal link at bottom */}
+              {responseStatus === 'accepted' && (
+                <a
+                  href="https://calendar.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-block', fontSize: 12, color: '#8E8E93', marginTop: 16, textDecoration: 'underline' }}
+                >
+                  Go to my Google Calendar
+                </a>
+              )}
             </div>
           )}
 
