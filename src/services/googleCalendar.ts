@@ -52,6 +52,13 @@ export function isGoogleConnected(): boolean {
   return getStoredTokens() !== null;
 }
 
+/** Check if current tokens have write access (calendar.events scope). */
+export function hasGcalWriteAccess(): boolean {
+  const tokens = getStoredTokens();
+  if (!tokens) return false;
+  return tokens.scope?.includes('calendar.events') || tokens.scope?.includes('calendar ') || false;
+}
+
 /** Disconnect: remove tokens and imported data from localStorage. */
 export function disconnectGoogle(): void {
   localStorage.removeItem(GCAL_TOKENS_KEY);

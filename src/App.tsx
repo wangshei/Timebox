@@ -30,7 +30,7 @@ import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
+import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
 import { createShare, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
@@ -1239,36 +1239,44 @@ export default function App() {
           setInviteConfirm(null);
           // Push to Google Calendar so attendees see it in their GCal
           if (isGoogleConnected()) {
-            createGcalEvent({
-              title: capturedTitle,
-              date: capturedEventData.date,
-              startTime: capturedEventData.startTime,
-              endTime: capturedEventData.endTime,
-              endDate: capturedEventData.endDate,
-              description: capturedEventData.description ?? undefined,
-              attendeeEmails: capturedEmails,
+            if (hasGcalWriteAccess()) {
+              createGcalEvent({
+                title: capturedTitle,
+                date: capturedEventData.date,
+                startTime: capturedEventData.startTime,
+                endTime: capturedEventData.endTime,
+                endDate: capturedEventData.endDate,
+                description: capturedEventData.description ?? undefined,
+                attendeeEmails: capturedEmails,
+              }).catch((err) => {
+                console.warn('[gcal] Failed to create GCal event with attendees:', err);
+                toast.error('Could not add to Google Calendar. Try reconnecting Google Calendar in Settings.');
+              });
+            } else {
+              toast('Reconnect Google Calendar in Settings to send GCal invites to attendees.', { duration: 5000 });
+            }
+          }
+          // Delay to let debounced Supabase save persist the event first, then retry once if it fails
+          const sendShare = (attempt = 1) => {
+            createShare({
+              scope: 'event',
+              scopeId: capturedEventId,
+              displayName: capturedTitle,
+              emails: capturedEmails,
             })
-              .then(({ googleEventId }) => {
-                // Store the GCal event ID on the Timebox event for future updates
-                updateEvent(capturedEventId, { googleEventId });
+              .then((result) => {
+                toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
               })
               .catch((err) => {
-                console.warn('[gcal] Failed to create GCal event with attendees:', err);
+                if (attempt < 3) {
+                  setTimeout(() => sendShare(attempt + 1), 2000);
+                } else {
+                  console.error('[invite] Failed to send invitations:', err);
+                  toast.error(`Failed to send invitations: ${err?.message || err}`);
+                }
               });
-          }
-          createShare({
-            scope: 'event',
-            scopeId: capturedEventId,
-            displayName: capturedTitle,
-            emails: capturedEmails,
-          })
-            .then((result) => {
-              toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
-            })
-            .catch((err) => {
-              console.error('[invite] Failed to send invitations:', err);
-              toast.error(`Failed to send invitations: ${err?.message || err}`);
-            });
+          };
+          setTimeout(() => sendShare(), 2000);
         },
         onSkip: () => setInviteConfirm(null),
       });
@@ -1363,7 +1371,7 @@ export default function App() {
       onConfirm: () => {
         setInviteConfirm(null);
         // Push update to Google Calendar if the event has a googleEventId
-        if (isGoogleConnected() && event.googleEventId) {
+        if (isGoogleConnected() && hasGcalWriteAccess() && event.googleEventId) {
           updateGcalEvent({
             googleEventId: event.googleEventId,
             title: updates.title as string | undefined,

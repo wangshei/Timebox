@@ -543,45 +543,45 @@ async function getInviteDetails(body: Record<string, unknown>) {
   if (share.scope === 'event' && share.event_id) {
     const { data: evt } = await supabase
       .from('events')
-      .select('title, date, start_time, end_time')
+      .select('title, date, start, end')
       .eq('id', share.event_id)
       .single()
     if (evt) {
-      events = [{ title: evt.title, date: evt.date, start: evt.start_time, end: evt.end_time }]
+      events = [{ title: evt.title, date: evt.date, start: evt.start, end: evt.end }]
       eventCount = 1
     }
   } else if (share.scope === 'calendar' && share.calendar_container_id) {
     const { data: evts, count } = await supabase
       .from('events')
-      .select('title, date, start_time, end_time', { count: 'exact' })
+      .select('title, date, start, end', { count: 'exact' })
       .eq('calendar_container_id', share.calendar_container_id)
       .gte('date', new Date().toISOString().split('T')[0])
       .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
+      .order('start', { ascending: true })
       .limit(5)
-    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start, end: e.end }))
     eventCount = count ?? events.length
   } else if (share.scope === 'category' && share.category_id) {
     const { data: evts, count } = await supabase
       .from('events')
-      .select('title, date, start_time, end_time', { count: 'exact' })
+      .select('title, date, start, end', { count: 'exact' })
       .eq('category_id', share.category_id)
       .gte('date', new Date().toISOString().split('T')[0])
       .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
+      .order('start', { ascending: true })
       .limit(5)
-    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start, end: e.end }))
     eventCount = count ?? events.length
   } else if (share.scope === 'tag' && share.tag_id) {
     const { data: evts, count } = await supabase
       .from('events')
-      .select('title, date, start_time, end_time', { count: 'exact' })
+      .select('title, date, start, end', { count: 'exact' })
       .eq('tag_id', share.tag_id)
       .gte('date', new Date().toISOString().split('T')[0])
       .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
+      .order('start', { ascending: true })
       .limit(5)
-    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start_time, end: e.end_time }))
+    events = (evts ?? []).map((e: Record<string, string>) => ({ title: e.title, date: e.date, start: e.start, end: e.end }))
     eventCount = count ?? events.length
   }
 
