@@ -389,29 +389,25 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             {/* Slot duration */}
             <div>
               <label style={labelStyle}>Duration (min)</label>
-              <div className="flex gap-1.5">
-                {DURATION_PRESETS.map((d) => {
-                  const isSelected = !customDurationMode && slotDuration === d;
-                  return (
+              {!customDurationMode ? (
+                <div className="flex gap-1.5">
+                  {DURATION_PRESETS.map((d) => (
                     <button
                       key={d}
                       onClick={() => { setCustomDurationMode(false); setSlotDuration(d); }}
                       className="flex-1 py-1.5 rounded-md transition-colors"
                       style={{
                         fontSize: 12,
-                        fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? '#FFFFFF' : '#3A3A3C',
-                        backgroundColor: isSelected ? THEME.primary : 'rgba(0,0,0,0.04)',
-                        border: isSelected ? 'none' : '1px solid rgba(0,0,0,0.08)',
+                        fontWeight: slotDuration === d ? 600 : 400,
+                        color: slotDuration === d ? '#FFFFFF' : '#3A3A3C',
+                        backgroundColor: slotDuration === d ? THEME.primary : 'rgba(0,0,0,0.04)',
+                        border: slotDuration === d ? 'none' : '1px solid rgba(0,0,0,0.08)',
                         cursor: 'pointer',
                       }}
                     >
                       {d}
                     </button>
-                  );
-                })}
-                {/* Custom duration */}
-                {!customDurationMode ? (
+                  ))}
                   <button
                     onClick={() => { setCustomDurationMode(true); setSlotDuration(45); }}
                     className="flex-1 py-1.5 rounded-md transition-colors"
@@ -426,35 +422,54 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                   >
                     Custom
                   </button>
-                ) : (
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      min={1}
-                      value={slotDuration}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (!isNaN(v) && v >= 1) setSlotDuration(v);
-                      }}
-                      className="w-full py-1.5 text-center rounded-md outline-none"
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: '#FFFFFF',
-                        backgroundColor: THEME.primary,
-                        border: 'none',
-                        MozAppearance: 'textfield',
-                      }}
-                      autoFocus
-                    />
-                    {slotDuration >= 60 && (
-                      <div style={{ fontSize: 9, color: THEME.textSecondary, textAlign: 'center', marginTop: 2 }}>
-                        = {slotDuration >= 120 ? `${Math.floor(slotDuration / 60)}h` : '1h'}{slotDuration % 60 > 0 ? ` ${slotDuration % 60}m` : ''}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={slotDuration}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      if (raw === '') return;
+                      const v = parseInt(raw, 10);
+                      if (!isNaN(v) && v >= 1) setSlotDuration(v);
+                    }}
+                    className="outline-none rounded-md"
+                    style={{
+                      width: 64,
+                      padding: '6px 8px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#FFFFFF',
+                      backgroundColor: THEME.primary,
+                      border: 'none',
+                      textAlign: 'center',
+                    }}
+                    autoFocus
+                  />
+                  <span style={{ fontSize: 12, color: THEME.textSecondary }}>
+                    min{slotDuration >= 60 && ` (${Math.floor(slotDuration / 60)}h${slotDuration % 60 > 0 ? ` ${slotDuration % 60}m` : ''})`}
+                  </span>
+                  <button
+                    onClick={() => { setCustomDurationMode(false); setSlotDuration(30); }}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: THEME.textSecondary,
+                      background: 'none',
+                      border: '1px solid rgba(0,0,0,0.10)',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      cursor: 'pointer',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    Presets
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Gap + Min advance in a row */}
