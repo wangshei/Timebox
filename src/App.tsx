@@ -30,7 +30,7 @@ import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError } from './services/googleCalendar';
+import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
 import { createShare, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
@@ -1230,12 +1230,32 @@ export default function App() {
       const capturedEventId = newEventId;
       const capturedEmails = [...eventData.inviteEmails];
       const capturedTitle = eventData.title;
+      const capturedEventData = { ...eventData };
       setInviteConfirm({
         type: 'new',
         eventTitle: capturedTitle,
         emails: capturedEmails,
         onConfirm: () => {
           setInviteConfirm(null);
+          // Push to Google Calendar so attendees see it in their GCal
+          if (isGoogleConnected()) {
+            createGcalEvent({
+              title: capturedTitle,
+              date: capturedEventData.date,
+              startTime: capturedEventData.startTime,
+              endTime: capturedEventData.endTime,
+              endDate: capturedEventData.endDate,
+              description: capturedEventData.description ?? undefined,
+              attendeeEmails: capturedEmails,
+            })
+              .then(({ googleEventId }) => {
+                // Store the GCal event ID on the Timebox event for future updates
+                updateEvent(capturedEventId, { googleEventId });
+              })
+              .catch((err) => {
+                console.warn('[gcal] Failed to create GCal event with attendees:', err);
+              });
+          }
           createShare({
             scope: 'event',
             scopeId: capturedEventId,
@@ -1342,6 +1362,21 @@ export default function App() {
       emails: capturedEmails,
       onConfirm: () => {
         setInviteConfirm(null);
+        // Push update to Google Calendar if the event has a googleEventId
+        if (isGoogleConnected() && event.googleEventId) {
+          updateGcalEvent({
+            googleEventId: event.googleEventId,
+            title: updates.title as string | undefined,
+            date: updates.date as string | undefined,
+            startTime: updates.start as string | undefined,
+            endTime: updates.end as string | undefined,
+            description: updates.description as string | undefined,
+            location: updates.location as string | undefined,
+            sendUpdates: true,
+          }).catch((err) => {
+            console.warn('[gcal] Failed to update GCal event:', err);
+          });
+        }
         notifyEventUpdate({
           eventTitle: capturedTitle,
           attendeeEmails: capturedEmails,
@@ -1978,6 +2013,7 @@ export default function App() {
       updates.endDate = oldEnd.toISOString().split('T')[0];
     }
     updateEvent(eventId, updates);
+    if (event) notifyAttendeesIfNeeded(event, updates);
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
@@ -1992,6 +2028,7 @@ export default function App() {
     const resizeEvUpdate: Partial<import('./types').Event> = { end: params.endTime };
     if (!event.originalEnd) { resizeEvUpdate.originalEnd = event.end; }
     updateEvent(eventId, resizeEvUpdate);
+    notifyAttendeesIfNeeded(event, resizeEvUpdate);
   };
 
   const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {

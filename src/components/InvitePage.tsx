@@ -390,9 +390,6 @@ export function InvitePage({ token }: { token: string }) {
                 >
                   Sign up free
                 </a>
-                <p style={{ fontSize: 11, color: '#AEAEB2', textAlign: 'center', margin: '10px 0 0' }}>
-                  Free forever. No credit card required.
-                </p>
               </div>
             </>
           )}

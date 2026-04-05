@@ -10,7 +10,7 @@ import { getLocalTimeZone } from '../utils/dateTime';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 const GCAL_TOKENS_KEY = 'gcal_tokens';
 const GCAL_EVENTS_KEY = 'gcal_imported_events';
 const GCAL_CALENDARS_KEY = 'gcal_imported_calendars';
@@ -638,6 +638,114 @@ export async function importGoogleCalendarEvents(): Promise<GcalImportResult> {
   console.log(`[gcal] Imported ${events.length} events from ${gcalCalendars.length} calendars`);
 
   return { calendars: containers, categories, events };
+}
+
+// ─── Google Calendar Write API ──────────────────────────────────────────────
+
+/** Create an event on the user's primary Google Calendar with attendees.
+ *  Google will automatically send invite emails to attendees. */
+export async function createGcalEvent(params: {
+  title: string;
+  date: string;        // YYYY-MM-DD
+  startTime: string;   // HH:mm
+  endTime: string;     // HH:mm
+  endDate?: string;    // YYYY-MM-DD for multi-day
+  description?: string;
+  location?: string;
+  attendeeEmails: string[];
+}): Promise<{ googleEventId: string }> {
+  const token = await getAccessToken();
+  const tz = getLocalTimeZone();
+  const startDate = params.endDate && params.endDate !== params.date ? params.date : params.date;
+  const endDate = params.endDate && params.endDate !== params.date ? params.endDate : params.date;
+
+  const body: Record<string, unknown> = {
+    summary: params.title,
+    start: { dateTime: `${startDate}T${params.startTime}:00`, timeZone: tz },
+    end: { dateTime: `${endDate}T${params.endTime}:00`, timeZone: tz },
+    attendees: params.attendeeEmails.map(email => ({ email })),
+  };
+  if (params.description) body.description = params.description;
+  if (params.location) body.location = params.location;
+
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new GcalAuthError(`Google Calendar write access denied (${res.status})`);
+    }
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `Failed to create GCal event: ${res.status}`);
+  }
+  const data = await res.json();
+  return { googleEventId: data.id };
+}
+
+/** Update an existing event on Google Calendar and optionally notify attendees. */
+export async function updateGcalEvent(params: {
+  googleEventId: string;
+  title?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  endDate?: string;
+  description?: string;
+  location?: string;
+  sendUpdates?: boolean;
+}): Promise<void> {
+  const token = await getAccessToken();
+  const tz = getLocalTimeZone();
+
+  // First fetch current event to merge fields
+  const getRes = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(params.googleEventId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!getRes.ok) {
+    throw new Error(`Failed to fetch GCal event for update: ${getRes.status}`);
+  }
+  const current = await getRes.json();
+
+  const body: Record<string, unknown> = { ...current };
+  if (params.title !== undefined) body.summary = params.title;
+  if (params.description !== undefined) body.description = params.description;
+  if (params.location !== undefined) body.location = params.location;
+  if (params.date && params.startTime) {
+    body.start = { dateTime: `${params.date}T${params.startTime}:00`, timeZone: tz };
+  }
+  if (params.endTime) {
+    const endDate = params.endDate || params.date || current.start?.dateTime?.split('T')[0];
+    body.end = { dateTime: `${endDate}T${params.endTime}:00`, timeZone: tz };
+  }
+
+  const sendUpdates = params.sendUpdates ? 'all' : 'none';
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(params.googleEventId)}?sendUpdates=${sendUpdates}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new GcalAuthError(`Google Calendar write access denied (${res.status})`);
+    }
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `Failed to update GCal event: ${res.status}`);
+  }
 }
 
 /** Load cached Google Calendar data from localStorage.
