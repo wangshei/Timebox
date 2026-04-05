@@ -4,6 +4,14 @@
  * so "today" and date strings are correct in the user's timezone.
  */
 
+/** Returns the canonical app URL (e.g. https://app.timeboxing.club in production).
+ *  Uses VITE_SITE_URL env var when set, otherwise falls back to window.location.origin. */
+export function getAppOrigin(): string {
+  const envUrl = import.meta.env.VITE_SITE_URL as string | undefined;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  return window.location.origin;
+}
+
 /** Get IANA timezone string for the current environment (e.g. "America/Los_Angeles").
  *  Checks for a user override in localStorage before falling back to browser detection.
  */

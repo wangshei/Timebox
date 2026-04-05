@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Mode } from '../types';
+import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
@@ -66,6 +66,8 @@ interface ThreeDayViewProps {
   viewTimezone?: string;
   /** Callback to switch the view timezone. */
   onSetViewTimezone?: (tz: string | undefined) => void;
+  /** Available slots from scheduling links to highlight on calendar. */
+  highlightSlots?: AvailableSlot[];
 }
 
 const PRIMARY = THEME.primary;
@@ -82,7 +84,7 @@ export function ThreeDayView({
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
   onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji,
-  viewTimezone, onSetViewTimezone,
+  viewTimezone, onSetViewTimezone, highlightSlots = [],
 }: ThreeDayViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
@@ -624,6 +626,24 @@ export function ThreeDayView({
                                 >
                                   {sticker.emoji}
                                 </span>
+                              );
+                            })}
+                            {/* Scheduling highlight slots */}
+                            {highlightSlots.filter((s) => s.dayOfWeek === day.getDay()).map((slot, i) => {
+                              const sMins = parseTimeToMins(slot.startTime);
+                              const eMins = parseTimeToMins(slot.endTime);
+                              return (
+                                <div
+                                  key={`hl-${i}`}
+                                  className="absolute left-0 right-0 pointer-events-none rounded-sm"
+                                  style={{
+                                    top: `${(sMins / 60) * PX_PER_HOUR}px`,
+                                    height: `${((eMins - sMins) / 60) * PX_PER_HOUR}px`,
+                                    backgroundColor: 'rgba(141,162,134,0.08)',
+                                    borderLeft: '2px solid rgba(141,162,134,0.30)',
+                                    zIndex: 1,
+                                  }}
+                                />
                               );
                             })}
                             {dayBlocks.map((block) => {

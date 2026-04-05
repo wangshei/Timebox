@@ -46,7 +46,7 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
-import { getLocalDateString, getLocalTimeZone, getViewDateRange } from './utils/dateTime';
+import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
@@ -808,6 +808,12 @@ export default function App() {
       return activityTimeBlocks.length > 0 ? [...base, ...activityTimeBlocks] : base;
     },
     [timeBlocks, selectedDate, view, containerVisibility, activityTimeBlocks]
+  );
+
+  // Combine available slots from all active scheduling links for calendar highlights
+  const schedulingHighlightSlots = useMemo(
+    () => schedulingLinks.filter((l) => l.active).flatMap((l) => l.availableSlots),
+    [schedulingLinks]
   );
 
   const visibleEvents = useMemo(() => {
@@ -2475,7 +2481,7 @@ export default function App() {
                   if (link) updateSchedulingLink(id, { active: !link.active });
                 }}
                 onCopySchedulingLink={(slug) => {
-                  const url = `${window.location.origin}/book/${slug}`;
+                  const url = `${getAppOrigin()}/book/${slug}`;
                   navigator.clipboard.writeText(url).then(() => {
                     toast?.('Link copied to clipboard');
                   }).catch(() => {
@@ -3190,6 +3196,7 @@ export default function App() {
           onToggleSlot={handleToggleAvailSlot}
           onSelectionDone={handleSelectionDone}
           onSelectionCancel={handleSelectionCancel}
+          highlightSlots={schedulingHighlightSlots}
         />
 
         {/* Right bar — 8px, warm center line; click toggles, drag right closes / drag left opens */}
@@ -3668,6 +3675,10 @@ export default function App() {
         onExploreFeaturesClick={() => {
           setIsSettingsOpen(false);
           setShowTour(true);
+        }}
+        onGcalResync={async () => {
+          gcalSyncingRef.current = false; // force allow
+          await doGcalSync();
         }}
       />
 

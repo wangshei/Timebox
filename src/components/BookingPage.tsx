@@ -331,10 +331,10 @@ export function BookingPage({ slug }: BookingPageProps) {
             </div>
           )}
 
-          {step === 'date' && (
+          {(step === 'date' || step === 'time') && (
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3A3C', marginBottom: 12 }}>
-                Select a date
+                Select a day
               </div>
               <div
                 style={{
@@ -357,7 +357,7 @@ export function BookingPage({ slug }: BookingPageProps) {
                       onClick={() => {
                         setSelectedDate(dateStr);
                         setSelectedSlot(null);
-                        setStep('time');
+                        if (step === 'date') setStep('time');
                       }}
                       style={{
                         display: 'flex',
@@ -386,65 +386,49 @@ export function BookingPage({ slug }: BookingPageProps) {
                   );
                 })}
               </div>
-            </div>
-          )}
 
-          {step === 'time' && selectedDate && (
-            <div>
-              <button
-                type="button"
-                onClick={() => { setSelectedDate(null); setSelectedSlot(null); setStep('date'); }}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: '#8DA286',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  marginBottom: 12,
-                  padding: 0,
-                }}
-              >
-                &larr; Back to dates
-              </button>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3A3C', marginBottom: 4 }}>
-                {fmtDate(selectedDate)}
-              </div>
-              <div style={{ fontSize: 12, color: '#8E8E93', marginBottom: 16 }}>
-                Select a time
-              </div>
-              {timeSlots.length === 0 ? (
+              {/* Time slots appear below date picker */}
+              {selectedDate && timeSlots.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3A3C', marginBottom: 4 }}>
+                    {fmtDate(selectedDate)}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#8E8E93', marginBottom: 12 }}>
+                    Select a time
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                    {timeSlots.map((slot) => {
+                      const isSelected = selectedSlot?.start === slot.start && selectedSlot?.end === slot.end;
+                      return (
+                        <button
+                          key={`${slot.start}-${slot.end}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSlot(slot);
+                            setStep('form');
+                          }}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 8,
+                            border: isSelected ? '2px solid #8DA286' : '1px solid rgba(0,0,0,0.08)',
+                            backgroundColor: isSelected ? 'rgba(141,162,134,0.08)' : '#FFFFFF',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: '#1C1C1E',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {fmtTimeReadable(slot.start)} &ndash; {fmtTimeReadable(slot.end)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {selectedDate && timeSlots.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#AEAEB2', fontSize: 13 }}>
                   No available slots for this date.
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                  {timeSlots.map((slot) => {
-                    const isSelected = selectedSlot?.start === slot.start && selectedSlot?.end === slot.end;
-                    return (
-                      <button
-                        key={`${slot.start}-${slot.end}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSlot(slot);
-                          setStep('form');
-                        }}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 8,
-                          border: isSelected ? '2px solid #8DA286' : '1px solid rgba(0,0,0,0.08)',
-                          backgroundColor: isSelected ? 'rgba(141,162,134,0.08)' : '#FFFFFF',
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: '#1C1C1E',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {fmtTimeReadable(slot.start)} &ndash; {fmtTimeReadable(slot.end)}
-                      </button>
-                    );
-                  })}
                 </div>
               )}
             </div>
@@ -466,7 +450,7 @@ export function BookingPage({ slug }: BookingPageProps) {
                   padding: 0,
                 }}
               >
-                &larr; Back to times
+                &larr; Back to date &amp; time
               </button>
 
               {/* Selected slot summary */}

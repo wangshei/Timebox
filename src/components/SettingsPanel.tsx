@@ -68,6 +68,7 @@ interface SettingsPanelProps {
   onNotificationLeadMinutesChange?: (minutes: number) => void;
   emailNotificationsEnabled?: boolean;
   onEmailNotificationsEnabledChange?: (val: boolean) => void;
+  onGcalResync?: () => Promise<void>;
 }
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
@@ -107,6 +108,7 @@ export function SettingsPanel({
   onNotificationLeadMinutesChange,
   emailNotificationsEnabled = true,
   onEmailNotificationsEnabledChange,
+  onGcalResync,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('calendars');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -296,6 +298,8 @@ export function SettingsPanel({
   const [gcalPickerSelected, setGcalPickerSelected] = useState<Set<string>>(new Set());
   const [gcalPickerLoading, setGcalPickerLoading] = useState(false);
   const [gcalPickerSaving, setGcalPickerSaving] = useState(false);
+  const [gcalResyncing, setGcalResyncing] = useState(false);
+  const [gcalResyncResult, setGcalResyncResult] = useState<'success' | 'error' | null>(null);
 
   const openGcalPicker = async () => {
     setGcalPickerLoading(true);
@@ -1164,6 +1168,42 @@ export function SettingsPanel({
                             {localStorage.getItem('gcal_pending_sync_mode') === 'migrate_listen' ? 'Migrated & listening' : localStorage.getItem('gcal_pending_sync_mode') === 'listen_fresh' ? 'Listening (fresh)' : 'Listening (with history)'}
                           </span>
                         </div>
+                        {/* Resync button */}
+                        {onGcalResync && (
+                          <button
+                            type="button"
+                            disabled={gcalResyncing}
+                            onClick={async () => {
+                              setGcalResyncing(true);
+                              setGcalResyncResult(null);
+                              try {
+                                await onGcalResync();
+                                setGcalResyncResult('success');
+                              } catch {
+                                setGcalResyncResult('error');
+                              } finally {
+                                setGcalResyncing(false);
+                                setTimeout(() => setGcalResyncResult(null), 3000);
+                              }
+                            }}
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 500,
+                              color: gcalResyncResult === 'success' ? '#34C759' : gcalResyncResult === 'error' ? '#FF3B30' : '#4285F4',
+                              background: 'none',
+                              border: `1px solid ${gcalResyncResult === 'success' ? 'rgba(52,199,89,0.3)' : gcalResyncResult === 'error' ? 'rgba(255,59,48,0.3)' : 'rgba(66,133,244,0.3)'}`,
+                              borderRadius: 6,
+                              padding: '3px 8px',
+                              cursor: gcalResyncing ? 'wait' : 'pointer',
+                              flexShrink: 0,
+                              opacity: gcalResyncing ? 0.6 : 1,
+                            }}
+                            onMouseEnter={(e) => { if (!gcalResyncing) e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          >
+                            {gcalResyncing ? 'Syncing...' : gcalResyncResult === 'success' ? 'Synced!' : gcalResyncResult === 'error' ? 'Failed' : 'Resync'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {

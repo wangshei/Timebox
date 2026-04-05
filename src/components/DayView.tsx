@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Mode } from '../types';
+import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
 import { computeOverlapLayout } from '../utils/overlapLayout';
@@ -90,12 +90,14 @@ interface DayViewProps {
   viewTimezone?: string;
   /** Callback to switch the view timezone. */
   onSetViewTimezone?: (tz: string | undefined) => void;
+  /** Available slots from scheduling links to highlight on calendar. */
+  highlightSlots?: AvailableSlot[];
 }
 
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji, viewTimezone, onSetViewTimezone }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji, viewTimezone, onSetViewTimezone, highlightSlots = [] }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -545,6 +547,29 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{ top: currentTimeTop, height: GRID_HEIGHT - currentTimeTop, backgroundColor: 'rgba(141,162,134,0.05)', ...gridLeftStyle }}
           />
         )}
+
+        {/* ─── Scheduling highlight slots ─── */}
+        {highlightSlots.filter((s) => {
+          const [y, mo, d] = selectedDate.split('-').map(Number);
+          return s.dayOfWeek === new Date(y, mo - 1, d).getDay();
+        }).map((slot, i) => {
+          const sMins = parseTimeToMins(slot.startTime);
+          const eMins = parseTimeToMins(slot.endTime);
+          return (
+            <div
+              key={`hl-${i}`}
+              className={`absolute ${gridLeftClass} right-0 pointer-events-none rounded-sm`}
+              style={{
+                top: `${(sMins / 60) * PX_PER_HOUR}px`,
+                height: `${((eMins - sMins) / 60) * PX_PER_HOUR}px`,
+                backgroundColor: 'rgba(141,162,134,0.08)',
+                borderLeft: '2px solid rgba(141,162,134,0.30)',
+                zIndex: 1,
+                ...gridLeftStyle,
+              }}
+            />
+          );
+        })}
 
         {/* Timezone abbreviation labels at top of time column — clickable to switch view */}
         {secondaryTzs.length > 0 && (

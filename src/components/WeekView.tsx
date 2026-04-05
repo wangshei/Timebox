@@ -68,9 +68,11 @@ interface WeekViewProps {
   viewTimezone?: string;
   /** Callback to switch the view timezone. */
   onSetViewTimezone?: (tz: string | undefined) => void;
+  /** Available slots from scheduling links to highlight on calendar. */
+  highlightSlots?: AvailableSlot[];
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel, viewTimezone, onSetViewTimezone }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel, viewTimezone, onSetViewTimezone, highlightSlots = [] }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -872,6 +874,25 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                               {minsToTime(sMins)}–{minsToTime(eMins)}
                             </span>
                           </div>
+                        );
+                      })}
+
+                      {/* ─── Scheduling highlight slots (non-interactive) ─── */}
+                      {!selectionMode && highlightSlots.filter((s) => s.dayOfWeek === dayOfWeek).map((slot, i) => {
+                        const sMins = parseTimeToMins(slot.startTime);
+                        const eMins = parseTimeToMins(slot.endTime);
+                        return (
+                          <div
+                            key={`hl-${i}`}
+                            className="absolute left-0 right-0 pointer-events-none rounded-sm"
+                            style={{
+                              top: `${(sMins / 60) * PX_PER_HOUR}px`,
+                              height: `${((eMins - sMins) / 60) * PX_PER_HOUR}px`,
+                              backgroundColor: 'rgba(141,162,134,0.08)',
+                              borderLeft: '2px solid rgba(141,162,134,0.30)',
+                              zIndex: 1,
+                            }}
+                          />
                         );
                       })}
 

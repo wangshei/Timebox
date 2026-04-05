@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getAppOrigin } from '../utils/dateTime';
 
 type AuthMode = 'signup' | 'login' | 'forgot' | 'reset' | 'waitlist' | 'download';
 
@@ -165,7 +166,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
       if (mode === 'forgot') {
         if (!email.trim()) return;
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin.includes('tauri') ? 'https://app.timeboxing.club' : window.location.origin,
+          redirectTo: getAppOrigin(),
         });
         if (error) {
           setMessage({ text: error.message, isError: true });
@@ -212,7 +213,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin.includes('tauri') ? 'https://app.timeboxing.club' : window.location.origin },
+          options: { emailRedirectTo: getAppOrigin() },
         });
         if (error) {
           if (

@@ -4,7 +4,7 @@ import { XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24
 import type { AvailableSlot, SchedulingLink } from '../types';
 import { useStore } from '../store/useStore';
 import { THEME } from '../constants/colors';
-import { getLocalTimeZone } from '../utils/dateTime';
+import { getLocalTimeZone, getAppOrigin } from '../utils/dateTime';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -57,6 +57,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
   const [name, setName] = useState('');
   const [calendarId, setCalendarId] = useState('');
   const [slotDuration, setSlotDuration] = useState(30);
+  const [customDurationMode, setCustomDurationMode] = useState(false);
   const [gap, setGap] = useState(0);
   const [minAdvance, setMinAdvance] = useState(2);
   const [validUntil, setValidUntil] = useState('');
@@ -113,6 +114,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
       setName(editingLink.name);
       setCalendarId(editingLink.calendarContainerId);
       setSlotDuration(editingLink.slotDuration);
+      setCustomDurationMode(!DURATION_PRESETS.includes(editingLink.slotDuration));
       setGap(editingLink.gapBetween);
       setMinAdvance(editingLink.minAdvanceHours);
       setValidUntil(editingLink.validUntil);
@@ -131,6 +133,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
       if (!editingLink) {
         setName('');
         setSlotDuration(30);
+        setCustomDurationMode(false);
         setGap(0);
         setMinAdvance(2);
         setValidUntil('');
@@ -207,7 +210,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
 
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    const url = `${window.location.origin}/book/${savedSlug}`;
+    const url = `${getAppOrigin()}/book/${savedSlug}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -228,7 +231,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
 
   if (!isOpen) return null;
 
-  const linkUrl = `${window.location.origin}/book/${savedSlug}`;
+  const linkUrl = `${getAppOrigin()}/book/${savedSlug}`;
 
   const labelStyle: React.CSSProperties = {
     fontSize: 10,
@@ -388,11 +391,11 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
               <label style={labelStyle}>Duration (min)</label>
               <div className="flex gap-1.5">
                 {DURATION_PRESETS.map((d) => {
-                  const isSelected = slotDuration === d;
+                  const isSelected = !customDurationMode && slotDuration === d;
                   return (
                     <button
                       key={d}
-                      onClick={() => setSlotDuration(d)}
+                      onClick={() => { setCustomDurationMode(false); setSlotDuration(d); }}
                       className="flex-1 py-1.5 rounded-md transition-colors"
                       style={{
                         fontSize: 12,
@@ -408,9 +411,9 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                   );
                 })}
                 {/* Custom duration */}
-                {DURATION_PRESETS.includes(slotDuration) ? (
+                {!customDurationMode ? (
                   <button
-                    onClick={() => setSlotDuration(45)}
+                    onClick={() => { setCustomDurationMode(true); setSlotDuration(45); }}
                     className="flex-1 py-1.5 rounded-md transition-colors"
                     style={{
                       fontSize: 12,
@@ -427,7 +430,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                   <div className="flex-1 relative">
                     <input
                       type="number"
-                      min={5}
+                      min={1}
                       value={slotDuration}
                       onChange={(e) => {
                         const v = parseInt(e.target.value, 10);
@@ -442,6 +445,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
                         border: 'none',
                         MozAppearance: 'textfield',
                       }}
+                      autoFocus
                     />
                     {slotDuration >= 60 && (
                       <div style={{ fontSize: 9, color: THEME.textSecondary, textAlign: 'center', marginTop: 2 }}>
