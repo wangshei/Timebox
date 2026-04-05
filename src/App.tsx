@@ -373,7 +373,7 @@ export default function App() {
   const handleShareCopyLink = useCallback(() => {
     if (!shareModal) return;
     const slug = shareModal.scope === 'calendar' ? 'cal' : shareModal.scope === 'category' ? 'cat' : 'tag';
-    const link = `https://timeboxing.club/share/${slug}_${shareModal.id.slice(0, 8)}`;
+    const link = `${getAppOrigin()}/share/${slug}_${shareModal.id.slice(0, 8)}`;
     navigator.clipboard.writeText(link).then(() => {
       toast.success('Link copied!');
     }).catch(() => {
@@ -381,7 +381,7 @@ export default function App() {
     });
   }, [shareModal]);
 
-  const handleShareInvite = useCallback((email: string, role: ShareRole) => {
+  const handleShareInvite = useCallback(async (email: string, role: ShareRole) => {
     if (!shareModal) return;
     const key = `${shareModal.scope}:${shareModal.id}`;
     const newCollab: Collaborator = {
@@ -394,13 +394,26 @@ export default function App() {
       ...prev,
       [key]: [...(prev[key] ?? []), newCollab],
     }));
-    // Update subscriber count
     setSubscriberCounts(prev => ({
       ...prev,
       [shareModal.id]: (prev[shareModal.id] ?? 0) + 1,
     }));
-    toast.success(`Invite sent to ${email}`);
-    // TODO: call createShare() / addShareMember() from src/services/sharing.ts
+
+    // Call backend to create share and send invite email
+    try {
+      await createShare({
+        scope: shareModal.scope,
+        scopeId: shareModal.id,
+        displayName: shareModal.name,
+        emails: [email],
+        includeExisting: true,
+        pushToGoogle: true,
+      });
+      toast.success(`Invite sent to ${email}`);
+    } catch (err) {
+      console.warn('[share] Failed to send invite:', err);
+      toast.success(`Invite saved (email may not have sent)`);
+    }
   }, [shareModal]);
 
   const handleShareRemove = useCallback((collaboratorId: string) => {

@@ -51,6 +51,24 @@ if (gcalCode && typeof window !== 'undefined') {
   startLocalStoragePersistence();
 }
 
+// Update canonical URL for the current page
+(() => {
+  const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (canonical) {
+    const base = 'https://app.timeboxing.club';
+    const path = window.location.pathname;
+    // Only set canonical for indexable pages
+    if (path === '/' || path === '/desktop') {
+      canonical.href = `${base}${path}`;
+    } else if (path.startsWith('/book/')) {
+      canonical.href = `${base}${path}`;
+    } else {
+      // Non-indexable pages: remove canonical to avoid confusing crawlers
+      canonical.remove();
+    }
+  }
+})();
+
 let content: React.ReactNode;
 if (desktopPage) {
   content = <DesktopPage />;

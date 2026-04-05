@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /desktop
+Allow: /book/
+
+# Don't index dynamic/auth pages
+Disallow: /invite/
+Disallow: /gcal-callback
+Disallow: /share/
+
+Sitemap: https://app.timeboxing.club/sitemap.xml

@@ -34,7 +34,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://timeboxing.club'
+const APP_URL = (Deno.env.get('APP_URL') || 'https://app.timeboxing.club').replace(/\/$/, '')
 
 function getSupabaseAdmin() {
   return createClient(

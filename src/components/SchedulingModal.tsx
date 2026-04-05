@@ -125,9 +125,10 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
     }
   }, [editingLink, calendarContainers]);
 
-  // Reset on open
+  // Reset on open — only when isOpen transitions to true
+  const prevIsOpen = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpen.current) {
       setSaved(false);
       setSavedSlug('');
       if (!editingLink) {
@@ -143,6 +144,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
         setCalendarId(calendarContainers[0]?.id ?? '');
       }
     }
+    prevIsOpen.current = isOpen;
   }, [isOpen, editingLink, calendarContainers]);
 
   // Close on Escape
