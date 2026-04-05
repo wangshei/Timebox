@@ -158,10 +158,27 @@ export function InvitePage({ token }: { token: string }) {
                 {responseStatus === 'accepted' ? 'Invite accepted!' : 'Invite declined'}
               </h1>
               {responseStatus === 'accepted' && (
-                <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, margin: '0 0 28px' }}>
-                  You'll receive individual Google Calendar invites for each event.
-                  <br />Or join Timeboxing Club to see them all in one place.
-                </p>
+                <>
+                  <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, margin: '0 0 16px' }}>
+                    The shared events will appear on your calendar.
+                  </p>
+                  <a
+                    href="/"
+                    style={{
+                      display: 'inline-block',
+                      backgroundColor: PRIMARY,
+                      color: '#FFFFFF',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      padding: '10px 24px',
+                      borderRadius: 10,
+                      textDecoration: 'none',
+                      marginBottom: 20,
+                    }}
+                  >
+                    Go to my calendar
+                  </a>
+                </>
               )}
               {responseStatus === 'declined' && (
                 <p style={{ fontSize: 14, color: '#8E8E93', lineHeight: 1.5, margin: '0 0 28px' }}>

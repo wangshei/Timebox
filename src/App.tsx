@@ -31,7 +31,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError } from './services/googleCalendar';
-import { createShare, notifyEventUpdate } from './services/sharing';
+import { createShare, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -298,6 +298,63 @@ export default function App() {
       });
     }
   }, []);
+
+  // ─── Load shared calendars from accepted invites (production) ──────────
+  const sharedCalLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!session || sharedCalLoadedRef.current) return;
+    if (!import.meta.env.VITE_SUPABASE_URL) return;
+    sharedCalLoadedRef.current = true;
+
+    (async () => {
+      try {
+        const shared = await getSharedCalendarsWithEvents();
+        if (shared.length === 0) return;
+        setDevSharedCalendars(prev => {
+          // Merge: keep dev entries, add production ones
+          const existingIds = new Set(prev.map(s => s.shareId));
+          return [...prev, ...shared.filter(s => !existingIds.has(s.shareId))];
+        });
+
+        // Inject shared events into the store
+        const state = useStore.getState();
+        const existingSharedEventIds = new Set(
+          state.events.filter(e => e.sharedFromShareId).map(e => `${e.sharedFromShareId}:${e.title}:${e.date}:${e.start}`)
+        );
+        const defaultContId = state.calendarContainers[0]?.id ?? '';
+        const defaultCatId = state.categories[0]?.id ?? '';
+
+        const newEvents: import('./types').Event[] = [];
+        for (const cal of shared) {
+          if (!cal.events) continue;
+          for (const evt of cal.events) {
+            const key = `${cal.shareId}:${evt.title}:${evt.date}:${evt.start}`;
+            if (existingSharedEventIds.has(key)) continue;
+            newEvents.push({
+              id: `shared-${cal.shareId}-${evt.date}-${evt.start}-${Math.random().toString(36).slice(2, 7)}`,
+              title: evt.title,
+              calendarContainerId: defaultContId,
+              categoryId: defaultCatId,
+              date: evt.date,
+              start: evt.start,
+              end: evt.end,
+              recurring: evt.recurring ?? false,
+              sharedFromShareId: cal.shareId,
+              readOnly: true,
+              source: 'manual',
+            });
+          }
+        }
+        if (newEvents.length > 0) {
+          useStore.setState((s) => ({
+            events: [...s.events, ...newEvents],
+          }));
+        }
+      } catch (err) {
+        console.warn('[shared-calendars] Failed to load:', err);
+      }
+    })();
+  }, [session]);
 
   // ─── Share Modal state ─────────────────────────────────────────────────────
   const [shareModal, setShareModal] = useState<{
@@ -1980,6 +2037,10 @@ export default function App() {
     const setupForSession = async (next: Session | null) => {
       setSession(next);
       sessionRef.current = next;
+      // Store email for booking notifications (read synchronously by SchedulingModal)
+      if (next?.user?.email) {
+        localStorage.setItem('timebox_user_email', next.user.email);
+      }
       setDataReady(false);
       if (unsubscribePersistence) {
         unsubscribePersistence();

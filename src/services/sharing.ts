@@ -78,6 +78,22 @@ export async function getSharedWithMe(): Promise<unknown[]> {
   return result.shares;
 }
 
+/** Fetch shared events from all accepted shares — returns shared calendar views with their events. */
+export async function getSharedCalendarsWithEvents(): Promise<import('../types/sharing').SharedCalendarView[]> {
+  try {
+    const result = await callEdgeFunction({ action: 'shared_with_me_events' });
+    return result.calendars ?? result.shares ?? [];
+  } catch {
+    // Fallback: fetch basic shares and return without events
+    try {
+      const result = await callEdgeFunction({ action: 'shared_with_me' });
+      return (result.shares ?? []) as import('../types/sharing').SharedCalendarView[];
+    } catch {
+      return [];
+    }
+  }
+}
+
 /** Notify attendees when the organizer updates an event. */
 export async function notifyEventUpdate(params: {
   eventTitle: string;

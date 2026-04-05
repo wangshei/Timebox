@@ -147,6 +147,139 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
   }
 }
 
+// --- Booking Confirmation Notification ---
+
+function bookingConfirmEmailHtml(
+  recipientType: 'booker' | 'creator',
+  linkName: string,
+  bookerName: string,
+  bookerEmail: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  notes?: string,
+): string {
+  const heading = recipientType === 'booker'
+    ? 'Booking Confirmed'
+    : 'New Booking Received'
+  const intro = recipientType === 'booker'
+    ? `Your booking for <strong>"${linkName}"</strong> has been confirmed.`
+    : `<strong>${bookerName}</strong> (${bookerEmail}) booked a slot on <strong>"${linkName}"</strong>.`
+  const notesHtml = notes
+    ? `<tr><td style="padding:0 32px 16px;"><div style="background-color:#F8F7F4;border-radius:8px;padding:12px;font-size:13px;color:#636366;line-height:1.5;"><strong>Notes:</strong> ${notes}</div></td></tr>`
+    : ''
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
+<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+<tr><td align="center" style="padding:48px 24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <tr><td style="padding:32px 32px 0;text-align:center;">
+      <div style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:14px;font-weight:700;padding:8px 20px;border-radius:20px;letter-spacing:0.5px;">
+        The Timeboxing Club
+      </div>
+    </td></tr>
+    <tr><td style="padding:24px 32px 16px;text-align:center;">
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1C1C1E;">${heading}</h1>
+      <p style="margin:0;font-size:15px;color:#636366;line-height:1.5;">${intro}</p>
+    </td></tr>
+    <tr><td style="padding:0 32px 16px;">
+      <div style="background-color:rgba(141,162,134,0.06);border:1px solid rgba(141,162,134,0.15);border-radius:12px;padding:16px;">
+        <div style="font-size:15px;font-weight:600;color:#1C1C1E;margin-bottom:4px;">${date}</div>
+        <div style="font-size:14px;color:#636366;">${startTime} – ${endTime}</div>
+      </div>
+    </td></tr>
+    ${notesHtml}
+    <tr><td style="padding:8px 32px 24px;text-align:center;">
+      <a href="${APP_URL}" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">
+        ${recipientType === 'booker' ? 'View Timeboxing Club' : 'View Calendar'}
+      </a>
+    </td></tr>
+    <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #F0F0F0;">
+      <p style="margin:0;font-size:12px;color:#AEAEB2;">
+        ${recipientType === 'booker' ? 'You received this because you booked a meeting.' : 'You received this because someone booked a slot on your scheduling link.'}
+      </p>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+async function sendBookingEmail(
+  recipientEmail: string,
+  recipientType: 'booker' | 'creator',
+  linkName: string,
+  bookerName: string,
+  bookerEmail: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  notes?: string,
+) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
+
+  if (!resendApiKey) {
+    console.warn('[share-invite] No RESEND_API_KEY — skipping booking email')
+    return
+  }
+
+  const subject = recipientType === 'booker'
+    ? `Booking confirmed: ${linkName}`
+    : `New booking: ${bookerName} booked "${linkName}"`
+  const html = bookingConfirmEmailHtml(recipientType, linkName, bookerName, bookerEmail, date, startTime, endTime, notes)
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${resendApiKey}`,
+    },
+    body: JSON.stringify({ from: fromEmail, to: recipientEmail, subject, html }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`[share-invite] Resend booking email error: ${body}`)
+  }
+}
+
+async function notifyBooking(body: Record<string, unknown>) {
+  const { linkName, bookerName, bookerEmail, creatorEmail, date, startTime, endTime, notes } = body
+
+  if (!bookerEmail || !linkName || !date || !startTime || !endTime) {
+    throw new Error('Missing required fields for booking notification')
+  }
+
+  const promises: Promise<void>[] = []
+
+  // Send confirmation to the person who booked
+  promises.push(
+    sendBookingEmail(
+      bookerEmail as string, 'booker', linkName as string,
+      bookerName as string, bookerEmail as string,
+      date as string, startTime as string, endTime as string, notes as string | undefined,
+    )
+  )
+
+  // Send notification to the link creator (if email provided)
+  if (creatorEmail) {
+    promises.push(
+      sendBookingEmail(
+        creatorEmail as string, 'creator', linkName as string,
+        bookerName as string, bookerEmail as string,
+        date as string, startTime as string, endTime as string, notes as string | undefined,
+      )
+    )
+  }
+
+  await Promise.allSettled(promises)
+  return { success: true, notified: promises.length }
+}
+
 // --- Event Update Notification ---
 
 function eventUpdateEmailHtml(senderName: string, eventTitle: string, changes: string): string {
@@ -533,6 +666,12 @@ serve(async (req) => {
     }
     if (action === 'respond') {
       const result = await respondToInvite(body)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (action === 'notify_booking') {
+      const result = await notifyBooking(body)
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

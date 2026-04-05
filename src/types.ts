@@ -234,6 +234,8 @@ export interface SchedulingLink {
   createdAt: string;
   /** Owner's timezone at time of creation */
   timezone: string;
+  /** Creator's email — used for booking notifications */
+  creatorEmail?: string;
 }
 
 export interface Booking {

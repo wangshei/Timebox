@@ -252,6 +252,30 @@ export function BookingPage({ slug }: BookingPageProps) {
 
       setConfirmedBooking(booking);
       setStep('confirmed');
+
+      // Send confirmation emails (fire-and-forget)
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        if (supabaseUrl) {
+          fetch(`${supabaseUrl}/functions/v1/share-invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'notify_booking',
+              linkName: link.name,
+              bookerName: name.trim(),
+              bookerEmail: email.trim(),
+              creatorEmail: link.creatorEmail ?? undefined,
+              date: fmtDate(selectedDate),
+              startTime: fmtTimeReadable(selectedSlot.start),
+              endTime: fmtTimeReadable(selectedSlot.end),
+              notes: notes.trim() || undefined,
+            }),
+          }).catch(() => { /* email failure shouldn't block confirmation */ });
+        }
+      } catch {
+        // Silently ignore email errors
+      }
     } catch {
       setErrorMsg('Failed to create booking. Please try again.');
     } finally {

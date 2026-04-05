@@ -196,6 +196,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
       smartAdapt,
       active: true,
       timezone: getLocalTimeZone(),
+      creatorEmail: localStorage.getItem('timebox_user_email') ?? undefined,
     };
 
     if (editingLink) {
