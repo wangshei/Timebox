@@ -238,7 +238,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
           notes: (e as any).notes ?? null,
           source: (e as any).source ?? undefined,
           endDate: (e as any).end_date ?? undefined,
-          attendees: (e as any).attendees ?? existing?.attendees ?? null,
+          attendees: existing?.attendees ?? null,
           // timezone lives in localStorage (via Zustand persistence), not Supabase yet
           timezone: existing?.timezone ?? null,
         };
@@ -385,7 +385,6 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         notes: e.notes ?? null,
         source: e.source ?? null,
         end_date: e.endDate ?? null,
-        attendees: e.attendees ?? null,
       })),
       { onConflict: 'id' }
     ));
