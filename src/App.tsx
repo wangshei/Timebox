@@ -1259,7 +1259,7 @@ export default function App() {
           };
           setTimeout(() => sendShare(), 2000);
           // Also push to Google Calendar so attendees see it in their GCal
-          if (isGoogleConnected()) {
+          if (isGoogleConnected() && hasGcalWriteAccess()) {
             createGcalEvent({
               title: capturedTitle,
               date: capturedEventData.date,
@@ -1272,18 +1272,6 @@ export default function App() {
               .then(() => toast.success('Event added to attendees\' Google Calendars'))
               .catch((err) => {
                 console.warn('[gcal] Failed to create GCal event with attendees:', err);
-                // Scope insufficient or write denied — reconnect with new scope
-                toast('Reconnecting Google Calendar for invite access...', { duration: 3000 });
-                setTimeout(() => {
-                  // Preserve settings so the callback page skips the setup flow
-                  const savedSyncMode = localStorage.getItem('gcal_pending_sync_mode');
-                  const savedSelectedCals = localStorage.getItem('gcal_selected_calendar_ids');
-                  disconnectGoogle();
-                  if (savedSyncMode) localStorage.setItem('gcal_pending_sync_mode', savedSyncMode);
-                  if (savedSelectedCals) localStorage.setItem('gcal_selected_calendar_ids', savedSelectedCals);
-                  localStorage.setItem('gcal_reconnect', 'true');
-                  window.location.href = getGoogleAuthUrl();
-                }, 1500);
               });
           }
         },
