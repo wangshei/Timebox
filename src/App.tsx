@@ -1275,7 +1275,13 @@ export default function App() {
                 // Scope insufficient or write denied — reconnect with new scope
                 toast('Reconnecting Google Calendar for invite access...', { duration: 3000 });
                 setTimeout(() => {
+                  // Preserve settings so the callback page skips the setup flow
+                  const savedSyncMode = localStorage.getItem('gcal_pending_sync_mode');
+                  const savedSelectedCals = localStorage.getItem('gcal_selected_calendar_ids');
                   disconnectGoogle();
+                  if (savedSyncMode) localStorage.setItem('gcal_pending_sync_mode', savedSyncMode);
+                  if (savedSelectedCals) localStorage.setItem('gcal_selected_calendar_ids', savedSelectedCals);
+                  localStorage.setItem('gcal_reconnect', 'true');
                   window.location.href = getGoogleAuthUrl();
                 }, 1500);
               });

@@ -507,6 +507,7 @@ export function startSupabasePersistence() {
   let lastSaveHadErrors = false;
   let pendingSlice: PersistableState | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastSaveCompletedAt = 0; // timestamp of last successful save — used to ignore self-triggered reloads
   // Cache userId to avoid async getUser() call in beforeunload
   let cachedUserId: string | null = null;
   // Eagerly resolve userId so the realtime filter can use it
@@ -535,6 +536,7 @@ export function startSupabasePersistence() {
     try {
       await saveSupabaseStateForUser(userId, slice);
       lastSaveHadErrors = false;
+      lastSaveCompletedAt = Date.now();
       // Clear any previous error on success
       if (useStore.getState().saveError) useStore.getState().setSaveError(false);
     } catch (e) {
@@ -674,6 +676,10 @@ export function startSupabasePersistence() {
     // (or lose) the user's edits.
     // Also skip if the last save had errors — DB may be missing data that exists locally.
     if (saving || pendingSlice || debounceTimer || lastSaveHadErrors) return;
+    // Skip reloads triggered by our own recent save — Realtime events from our own
+    // writes can arrive before the DB is fully consistent (read-replica lag), causing
+    // stale data to overwrite the local state (e.g. deleted tasks reappearing).
+    if (Date.now() - lastSaveCompletedAt < 3000) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
     try { await loadSupabaseState(false); } catch (e) { console.error(e); }

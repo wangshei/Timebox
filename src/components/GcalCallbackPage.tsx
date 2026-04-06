@@ -39,6 +39,8 @@ export function GcalCallbackPage({ code }: { code: string }) {
   const [importCount, setImportCount] = useState(0);
   const [calendars, setCalendars] = useState<GcalCalendarOption[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Detect reconnect (scope upgrade) — if gcal_reconnect flag is set, skip setup
+  const isReconnect = localStorage.getItem('gcal_reconnect') === 'true';
   // Default to the sync mode stored before OAuth redirect, or 'migrate_listen' for new connections
   const [syncMode, setSyncMode] = useState<SyncMode>(
     () => (localStorage.getItem('gcal_pending_sync_mode') as SyncMode) || 'migrate_listen'
@@ -49,6 +51,15 @@ export function GcalCallbackPage({ code }: { code: string }) {
     (async () => {
       try {
         await exchangeGoogleCode(code);
+        // If this is a reconnect (scope upgrade), skip the setup flow
+        if (isReconnect) {
+          localStorage.removeItem('gcal_reconnect');
+          const result = await importGoogleCalendarEvents();
+          setImportCount(result.events.length);
+          setStatus('success');
+          setTimeout(() => { window.location.href = '/'; }, 1500);
+          return;
+        }
         const cals = await fetchGoogleCalendars();
         setCalendars(cals);
         // Default: select all calendars

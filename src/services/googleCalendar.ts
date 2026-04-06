@@ -10,7 +10,7 @@ import { getLocalTimeZone } from '../utils/dateTime';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
 const GCAL_TOKENS_KEY = 'gcal_tokens';
 const GCAL_EVENTS_KEY = 'gcal_imported_events';
 const GCAL_CALENDARS_KEY = 'gcal_imported_calendars';
