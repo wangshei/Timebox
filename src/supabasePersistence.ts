@@ -507,6 +507,7 @@ export function startSupabasePersistence() {
   let pendingSlice: PersistableState | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSaveCompletedAt = 0; // timestamp of last successful save — used to ignore self-triggered reloads
+  let lastLocalChangeAt = 0; // timestamp of last local store change — used to prevent stale reloads
   // Cache userId to avoid async getUser() call in beforeunload
   let cachedUserId: string | null = null;
   // Eagerly resolve userId so the realtime filter can use it
@@ -557,6 +558,7 @@ export function startSupabasePersistence() {
 
   function scheduleFlush(slice: PersistableState) {
     pendingSlice = slice;
+    lastLocalChangeAt = Date.now();
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
@@ -675,10 +677,11 @@ export function startSupabasePersistence() {
     // (or lose) the user's edits.
     // Also skip if the last save had errors — DB may be missing data that exists locally.
     if (saving || pendingSlice || debounceTimer || lastSaveHadErrors) return;
-    // Skip reloads triggered by our own recent save — Realtime events from our own
+    // Skip reloads triggered by our own recent changes — Realtime events from our own
     // writes can arrive before the DB is fully consistent (read-replica lag), causing
-    // stale data to overwrite the local state (e.g. deleted tasks reappearing).
-    if (Date.now() - lastSaveCompletedAt < 3000) return;
+    // stale data to overwrite the local state (e.g. checked-off tasks reappearing).
+    const now = Date.now();
+    if (now - lastSaveCompletedAt < 5000 || now - lastLocalChangeAt < 5000) return;
     // eslint-disable-next-line no-console
     console.log('[supabasePersistence] Remote change detected, reloading...');
     try { await loadSupabaseState(false); } catch (e) { console.error(e); }
@@ -722,6 +725,8 @@ export function startSupabasePersistence() {
   // when the app is backgrounded. Poll every 30s as a safety net.
   const syncInterval = setInterval(async () => {
     if (!supabaseLoaded || saving || pendingSlice || debounceTimer || document.hidden) return;
+    const pollNow = Date.now();
+    if (pollNow - lastSaveCompletedAt < 5000 || pollNow - lastLocalChangeAt < 5000) return;
     try { await loadSupabaseState(false); } catch { /* ignore */ }
   }, 30_000);
 
