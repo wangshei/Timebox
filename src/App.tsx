@@ -2003,8 +2003,9 @@ export default function App() {
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
-    saveSnapshot();
     const event = events.find((e) => e.id === eventId);
+    if (!event) return;
+    saveSnapshot();
     const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
     // Preserve original position for diff detection (only set once)
     if (event && !event.originalStart) { updates.originalStart = event.start; updates.originalEnd = event.end; }
@@ -2037,6 +2038,7 @@ export default function App() {
   };
 
   const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {
+    saveSnapshot();
     updateEvent(eventId, { attendanceStatus: status });
   };
 

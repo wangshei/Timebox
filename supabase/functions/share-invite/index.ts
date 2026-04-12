@@ -63,12 +63,15 @@ function generateToken(): string {
 
 async function getUserName(userId: string): Promise<string> {
   const supabase = getSupabaseAdmin()
-  const { data } = await supabase
-    .from('user_preferences')
-    .select('user_name')
-    .eq('user_id', userId)
-    .single()
-  return data?.user_name ?? 'A Timebox user'
+  // Try to get display name from auth metadata
+  try {
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId)
+    const name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0]
+    if (name) return name
+  } catch {
+    // Fallback silently
+  }
+  return 'A Timebox user'
 }
 
 // --- Email via Resend ---
@@ -421,17 +424,17 @@ async function createShare(userId: string, body: Record<string, unknown>) {
 
   // Check if any members are existing Timebox users
   for (const member of insertedMembers ?? []) {
-    const { data: existingUser } = await supabase
-      .from('auth.users' as string)
-      .select('id')
-      .eq('email', member.email)
-      .single()
-
-    if (existingUser) {
-      await supabase
-        .from('share_members')
-        .update({ user_id: existingUser.id })
-        .eq('id', member.id)
+    try {
+      const { data: { users } } = await supabase.auth.admin.listUsers()
+      const existingUser = users?.find((u: { email?: string }) => u.email === member.email)
+      if (existingUser) {
+        await supabase
+          .from('share_members')
+          .update({ user_id: existingUser.id })
+          .eq('id', member.id)
+      }
+    } catch {
+      // Skip user linking if admin API unavailable
     }
   }
 
@@ -670,12 +673,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    if (action === 'notify_booking') {
-      const result = await notifyBooking(body)
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
     if (action === 'send_test_invite') {
       const { email: testEmail, senderName: testSender, shareName: testShare } = body
       const testToken = generateToken()
@@ -718,6 +715,9 @@ serve(async (req) => {
         break
       case 'notify_event_update':
         result = await notifyEventUpdate(userId, body)
+        break
+      case 'notify_booking':
+        result = await notifyBooking(body)
         break
       default:
         throw new Error(`Unknown action: ${action}`)

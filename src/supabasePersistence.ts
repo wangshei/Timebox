@@ -145,9 +145,18 @@ export async function loadSupabaseState(isInitialLoad = true) {
   }
 
   useStore.setState((prev) => {
-    const calendarContainers = containers.map(
-      (c): CalendarContainer => ({ id: c.id, name: c.name, color: c.color })
-    );
+    // Preserve gcal items that only exist in memory (not persisted to Supabase)
+    const prevGcalContainers = prev.calendarContainers.filter(c => c.id.startsWith('gcal-'));
+    const prevGcalCategories = prev.categories.filter(c => c.id.startsWith('gcal-cat-'));
+    const prevGcalEvents = prev.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
+
+    const calendarContainers = [
+      ...containers.map((c): CalendarContainer => {
+        const existing = prev.calendarContainers.find((ex) => ex.id === c.id);
+        return { id: c.id, name: c.name, color: c.color, sortOrder: (c as any).sort_order ?? existing?.sortOrder ?? undefined };
+      }),
+      ...prevGcalContainers,
+    ];
     const visibility =
       containers.length > 0 && calendarContainers.length > 0
         ? { ...prev.containerVisibility, ...Object.fromEntries(calendarContainers.map((c) => [c.id, true])) }
@@ -160,22 +169,33 @@ export async function loadSupabaseState(isInitialLoad = true) {
       sleepTime: sleepTimeFromDb,
       calendarContainers,
       containerVisibility: visibility,
-      categories: categories.map(
-      (c): Category => ({
-        id: c.id,
-        name: c.name,
-        color: c.color,
-        calendarContainerId: c.calendar_container_id ?? null,
-        calendarContainerIds: c.calendar_container_ids ?? null,
-      })
+      categories: [
+      ...categories.map(
+      (c): Category => {
+        const existing = prev.categories.find((ex) => ex.id === c.id);
+        return {
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          calendarContainerId: c.calendar_container_id ?? null,
+          calendarContainerIds: c.calendar_container_ids ?? null,
+          sortOrder: (c as any).sort_order ?? existing?.sortOrder ?? undefined,
+        };
+      }
     ),
+      ...prevGcalCategories,
+    ],
     tags: tags.map(
-      (t): Tag => ({
-        id: t.id,
-        name: t.name,
-        type: t.type ?? undefined,
-        categoryId: t.category_id ?? null,
-      })
+      (t): Tag => {
+        const existing = prev.tags.find((ex) => ex.id === t.id);
+        return {
+          id: t.id,
+          name: t.name,
+          type: t.type ?? undefined,
+          categoryId: t.category_id ?? null,
+          sortOrder: (t as any).sort_order ?? existing?.sortOrder ?? undefined,
+        };
+      }
     ),
     tasks: tasks.map(
       (t): Task => ({
@@ -217,33 +237,36 @@ export async function loadSupabaseState(isInitialLoad = true) {
         notes: b.notes ?? null,
       })
     ),
-    events: events.map(
-      (e): Event => {
-        // Preserve locally-set timezone from current store if DB doesn't have the column yet
-        const existing = prev.events.find((ex) => ex.id === e.id);
-        return {
-          id: e.id,
-          title: e.title,
-          calendarContainerId: e.calendar_container_id,
-          categoryId: e.category_id,
-          start: e.start,
-          end: e.end,
-          date: e.date,
-          recurring: e.recurring,
-          recurrencePattern: e.recurrence_pattern ?? undefined,
-          recurrenceDays: e.recurrence_days ?? undefined,
-          recurrenceSeriesId: e.recurrence_series_id ?? null,
-          link: e.link ?? null,
-          description: e.description ?? null,
-          notes: (e as any).notes ?? null,
-          source: (e as any).source ?? undefined,
-          endDate: (e as any).end_date ?? undefined,
-          attendees: existing?.attendees ?? null,
-          // timezone lives in localStorage (via Zustand persistence), not Supabase yet
-          timezone: existing?.timezone ?? null,
-        };
-      }
-    ),
+    events: [
+      ...events.map(
+        (e): Event => {
+          // Preserve locally-set timezone from current store if DB doesn't have the column yet
+          const existing = prev.events.find((ex) => ex.id === e.id);
+          return {
+            id: e.id,
+            title: e.title,
+            calendarContainerId: e.calendar_container_id,
+            categoryId: e.category_id,
+            start: e.start,
+            end: e.end,
+            date: e.date,
+            recurring: e.recurring,
+            recurrencePattern: e.recurrence_pattern ?? undefined,
+            recurrenceDays: e.recurrence_days ?? undefined,
+            recurrenceSeriesId: e.recurrence_series_id ?? null,
+            link: e.link ?? null,
+            description: e.description ?? null,
+            notes: (e as any).notes ?? null,
+            source: (e as any).source ?? undefined,
+            endDate: (e as any).end_date ?? undefined,
+            attendees: existing?.attendees ?? null,
+            // timezone lives in localStorage (via Zustand persistence), not Supabase yet
+            timezone: existing?.timezone ?? null,
+          };
+        }
+      ),
+      ...prevGcalEvents,
+    ],
     };
   });
 
