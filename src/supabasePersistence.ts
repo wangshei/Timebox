@@ -387,7 +387,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     ));
   }
   // Filter out gcal events — they're ephemeral, sourced from Google API on each load
-  const nonGcalEvents = state.events.filter(e => !e.googleEventId);
+  const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
   if (nonGcalEvents.length) {
     check('events', 'upsert', await supabase.from('events').upsert(
       nonGcalEvents.map((e) => ({
