@@ -552,7 +552,7 @@ export function startSupabasePersistence() {
   async function flush(slice: PersistableState) {
     if (!supabaseLoaded) {
       // eslint-disable-next-line no-console
-      console.log('[supabasePersistence] Skipping save — initial load not yet complete.');
+      console.warn('[supabasePersistence] ⚠️ Skipping save — supabaseLoaded is false');
       saving = false;
       return;
     }
@@ -568,16 +568,24 @@ export function startSupabasePersistence() {
       return;
     }
     // eslint-disable-next-line no-console
-    console.log('[supabasePersistence] Saving...', { tasks: slice.tasks.length, timeBlocks: slice.timeBlocks.length, events: slice.events.length });
+    const doneTasks = slice.tasks.filter(t => t.status === 'done').map(t => t.title);
+    console.log('[supabasePersistence] Saving...', {
+      tasks: slice.tasks.length,
+      timeBlocks: slice.timeBlocks.length,
+      events: slice.events.length,
+      doneTasks,
+    });
     try {
       await saveSupabaseStateForUser(userId, slice);
       lastSaveHadErrors = false;
       lastSaveCompletedAt = Date.now();
+      // eslint-disable-next-line no-console
+      console.log('[supabasePersistence] Save completed OK');
       // Clear any previous error on success
       if (useStore.getState().saveError) useStore.getState().setSaveError(false);
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.error('[supabasePersistence] Save error', e);
+      console.error('[supabasePersistence] Save THREW error', e);
       lastSaveHadErrors = true;
       useStore.getState().setSaveError(true);
     } finally {
@@ -719,7 +727,10 @@ export function startSupabasePersistence() {
     const now = Date.now();
     if (now - lastSaveCompletedAt < 5000 || now - lastLocalChangeAt < 5000) return;
     // eslint-disable-next-line no-console
-    console.log('[supabasePersistence] Remote change detected, reloading...');
+    console.log('[supabasePersistence] Remote change detected, reloading...', {
+      timeSinceLastSave: Date.now() - lastSaveCompletedAt,
+      timeSinceLastChange: Date.now() - lastLocalChangeAt,
+    });
     try { await loadSupabaseState(false); } catch (e) { console.error(e); }
   }
 
