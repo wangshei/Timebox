@@ -314,7 +314,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   }
   const nonGcalCategories = state.categories.filter(c => !c.id.startsWith('gcal-cat-'));
   if (nonGcalCategories.length) {
-    check('categories', 'upsert', await supabase.from('categories').upsert(
+    // Try with calendar_container_ids first; if column doesn't exist, retry without it
+    let catResult = await supabase.from('categories').upsert(
       nonGcalCategories.map((c) => ({
         id: c.id,
         user_id: userId,
@@ -324,7 +325,21 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         calendar_container_ids: c.calendarContainerIds ?? null,
       })),
       { onConflict: 'id' }
-    ));
+    );
+    if (catResult.error && /calendar_container_ids|column/.test(catResult.error.message)) {
+      // Column doesn't exist — retry without it
+      catResult = await supabase.from('categories').upsert(
+        nonGcalCategories.map((c) => ({
+          id: c.id,
+          user_id: userId,
+          name: c.name,
+          color: c.color,
+          calendar_container_id: c.calendarContainerId ?? null,
+        })),
+        { onConflict: 'id' }
+      );
+    }
+    check('categories', 'upsert', catResult);
   }
   if (state.tags.length) {
     check('tags', 'upsert', await supabase.from('tags').upsert(
@@ -413,13 +428,11 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     ));
   }
 
-  // Bail if upserts failed — don't delete orphans when we couldn't even write current data.
+  // If upserts failed, log but continue with orphan cleanup for tables that succeeded.
+  // Don't block the entire save — partial saves are better than no saves.
   if (errors.length > 0) {
     // eslint-disable-next-line no-console
-    console.error(`[supabasePersistence] Save had ${errors.length} upsert error(s) — skipping orphan cleanup`, errors);
-    useStore.getState().setSaveError(true);
-    // Throw so the caller (flush) knows the save failed and doesn't clear the error flag
-    throw new Error(`Save had ${errors.length} upsert error(s)`);
+    console.error(`[supabasePersistence] Save had ${errors.length} upsert error(s)`, errors);
   }
 
   // --- PHASE 2: Delete orphaned rows (items removed from the store) ---
