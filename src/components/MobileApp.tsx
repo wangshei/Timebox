@@ -7,6 +7,7 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
+import { dismissGcalEventId } from '../services/googleCalendar';
 import {
   CheckIcon,
   XMarkIcon,
@@ -455,7 +456,10 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const handleDelete = () => {
     saveSnapshot();
     if (isBlock) deleteTimeBlock(item.id);
-    else deleteEvent(item.id);
+    else {
+      if (fullEvent?.googleEventId) dismissGcalEventId(item.id);
+      deleteEvent(item.id);
+    }
     onClose();
   };
 
@@ -1887,6 +1891,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     if (item.type === 'block') {
       useStore.getState().deleteTimeBlock(item.id);
     } else {
+      const evt = useStore.getState().events.find((e) => e.id === item.id);
+      if (evt?.googleEventId) dismissGcalEventId(item.id);
       useStore.getState().deleteEvent(item.id);
     }
     setSwipedItemId(null);

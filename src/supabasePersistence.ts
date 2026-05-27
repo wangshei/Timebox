@@ -449,7 +449,12 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
    * When too large (would exceed URL length), fetch server IDs and delete specific orphans.
    */
   async function deleteOrphans(table: string, keepIds: string[]) {
-    if (keepIds.length === 0) return; // Don't delete all — empty likely means data not loaded
+    // supabaseLoaded gates entry to flush(), so an empty keep list here means the
+    // user genuinely deleted everything in this table — propagate that to the DB.
+    if (keepIds.length === 0) {
+      check(table, 'delete-all', await supabase!.from(table).delete().eq('user_id', userId));
+      return;
+    }
     if (keepIds.length <= MAX_NOT_IN_IDS) {
       check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).not('id', 'in', `(${keepIds.join(',')})`));
       return;
