@@ -41,6 +41,14 @@ async function getCurrentUserId(): Promise<string | null> {
   return data.user.id;
 }
 
+// Local-only userId read from the cached JWT — no network call, so transient
+// network blips can't return null and trigger a spurious sign-out.
+async function getCurrentUserIdLocal(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
+}
+
 // --- Load from Supabase into the Zustand store ---
 
 export async function loadSupabaseState(isInitialLoad = true) {
@@ -544,8 +552,14 @@ export function startSupabasePersistence() {
   let lastLocalChangeAt = 0; // timestamp of last local store change — used to prevent stale reloads
   // Cache userId to avoid async getUser() call in beforeunload
   let cachedUserId: string | null = null;
-  // Eagerly resolve userId so the realtime filter can use it
-  void getCurrentUserId().then(id => { if (id) cachedUserId = id; });
+  // Eagerly resolve userId so the realtime filter and first flush can use it.
+  // Prefer the local session (no network) — falls back to server-validated getUser
+  // only if the local session is missing (shouldn't normally happen at this point).
+  void getCurrentUserIdLocal().then(async id => {
+    if (id) { cachedUserId = id; return; }
+    const fallback = await getCurrentUserId();
+    if (fallback) cachedUserId = fallback;
+  });
 
   async function flush(slice: PersistableState) {
     if (!supabaseLoaded) {
@@ -554,14 +568,14 @@ export function startSupabasePersistence() {
       saving = false;
       return;
     }
-    const userId = cachedUserId ?? await getCurrentUserId();
+    // Use the local cached JWT — a network blip on getUser() must not force-signout.
+    const userId = cachedUserId ?? await getCurrentUserIdLocal();
     if (userId) cachedUserId = userId;
     if (!userId) {
+      // No local session at all — user is genuinely signed out. Just skip the save;
+      // the auth state listener will handle teardown.
       // eslint-disable-next-line no-console
-      console.warn('[supabasePersistence] Skipping save — user deleted or not signed in. Forcing sign-out.');
-      useStore.getState().setSessionExpired(true);
-      // Force sign-out so stale JWT is cleared and UI shows auth screen
-      void supabase!.auth.signOut();
+      console.warn('[supabasePersistence] Skipping save — no local session.');
       saving = false;
       return;
     }

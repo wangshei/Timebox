@@ -286,9 +286,13 @@ export default function App() {
   const [sharedMappings, setSharedMappings] = useState<Record<string, { calendarId: string; categoryId: string }>>({});
   const handleSetSharedMapping = (shareId: string, calendarId: string, categoryId: string) => {
     setSharedMappings(prev => ({ ...prev, [shareId]: { calendarId, categoryId } }));
-    // TODO: persist mapping to Supabase and import shared events under this calendar/category
-    // eslint-disable-next-line no-console
-    console.log('[shared-mapping] Set', shareId, '→', calendarId, categoryId);
+    // Move existing shared events from this share into the chosen calendar/category
+    // so the mapping actually takes effect (was previously a no-op).
+    const state = useStore.getState();
+    const updates = state.events
+      .filter(e => e.sharedFromShareId === shareId)
+      .map(e => ({ id: e.id, changes: { calendarContainerId: calendarId, categoryId } }));
+    if (updates.length > 0) state.updateEvents(updates);
   };
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -1341,6 +1345,9 @@ export default function App() {
 
   /** Notify attendees when organizer updates their own event. Fire-and-forget. */
   const notifyAttendeesIfNeeded = (event: import('./types').Event, updates: Record<string, unknown>) => {
+    // Respect the user's email notification preference — toggling this off in
+    // Settings should actually suppress attendee notifications.
+    if (!emailNotificationsEnabled) return;
     if (!event.attendees?.length) return;
     const otherEmails = event.attendees
       .filter(a => !a.self && a.email)
