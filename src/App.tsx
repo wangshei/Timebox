@@ -2120,12 +2120,20 @@ export default function App() {
         // changes made by loadSupabaseState (e.g. default Personal calendar)
         // are captured and saved to Supabase.
         unsubscribePersistence = startSupabasePersistence();
-        try {
-          await loadSupabaseState();
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.error('[App] loadSupabaseState failed', e);
-          // Still allow app to render even if load failed (user can fix DB schema)
+        // Load state from Supabase — retry up to 3 times on transient errors (AbortError, network)
+        let loadAttempt = 0;
+        while (loadAttempt < 3) {
+          try {
+            await loadSupabaseState();
+            break; // success
+          } catch (e) {
+            loadAttempt++;
+            // eslint-disable-next-line no-console
+            console.warn(`[App] loadSupabaseState attempt ${loadAttempt} failed`, e);
+            if (loadAttempt < 3) {
+              await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
+            }
+          }
         }
         // Track session count + session date (fire-and-forget)
         try {
@@ -2204,6 +2212,9 @@ export default function App() {
       if (isPasswordRecoveryRef.current && event === 'SIGNED_IN') {
         return;
       }
+      // INITIAL_SESSION is handled by the getUser() call above — skip to avoid
+      // aborting the in-flight loadSupabaseState with a duplicate setupForSession.
+      if (event === 'INITIAL_SESSION') return;
       // TOKEN_REFRESHED and SIGNED_IN fire on tab switch when Supabase refreshes
       // the JWT. Just update the session reference without reloading all data.
       if (event === 'TOKEN_REFRESHED' || (event === 'SIGNED_IN' && sessionRef.current)) {

@@ -33,8 +33,6 @@ type PersistableState = {
 // from wiping Supabase data during the window between subscription start
 // and loadSupabaseState completion.
 let supabaseLoaded = false;
-// Skip the first flush after load — it would just echo back exactly what we loaded.
-let suppressNextFlush = false;
 
 async function getCurrentUserId(): Promise<string | null> {
   if (!supabase) return null;
@@ -88,6 +86,9 @@ export async function loadSupabaseState(isInitialLoad = true) {
         events: eventsRes.error,
       }
     );
+    // Still mark as loaded so saves aren't permanently blocked.
+    // The store already has data from localStorage — better to save that than nothing.
+    supabaseLoaded = true;
     return;
   }
 
@@ -272,13 +273,6 @@ export async function loadSupabaseState(isInitialLoad = true) {
 
   // Mark as loaded so the persistence subscription can start saving.
   supabaseLoaded = true;
-
-  // Only suppress the echo-back on the initial load. On subsequent realtime-triggered
-  // reloads, the user may have made changes just before the reload — suppressing those
-  // would silently drop their edits. The echo-back on reload is harmless (same data).
-  if (isInitialLoad) {
-    suppressNextFlush = true;
-  }
 }
 
 // --- Persist from Zustand store into Supabase ---
@@ -536,7 +530,6 @@ export function startSupabasePersistence() {
 
   // Reset the loaded flag so saves are blocked until loadSupabaseState finishes.
   supabaseLoaded = false;
-  suppressNextFlush = false;
 
   let saving = false;
   let lastSaveHadErrors = false;
@@ -607,12 +600,6 @@ export function startSupabasePersistence() {
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
       if (!pendingSlice) return;
-      // Skip the first flush after load — it just echoes back what was loaded
-      if (suppressNextFlush) {
-        suppressNextFlush = false;
-        pendingSlice = null;
-        return;
-      }
       const next = pendingSlice;
       pendingSlice = null;
       if (saving) {
