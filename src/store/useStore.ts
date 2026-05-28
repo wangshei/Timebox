@@ -860,11 +860,18 @@ export const useStore = create<AppState & AppActions>()(
     set((s) => ({
       schedulingLinks: s.schedulingLinks.map((l) => (l.id === id ? { ...l, ...updates } : l)),
     })),
-  deleteSchedulingLink: (id) =>
+  deleteSchedulingLink: (id) => {
+    // Soft-cancel bookings rather than wiping them — preserves the audit trail
+    // (booker email, time, notes). The count UI filters by status === 'confirmed',
+    // so cancelled rows naturally drop out of view.
+    const { bookings, updateBooking } = get();
+    bookings
+      .filter((b) => b.schedulingLinkId === id && b.status === 'confirmed')
+      .forEach((b) => updateBooking(b.id, { status: 'cancelled' }));
     set((s) => ({
       schedulingLinks: s.schedulingLinks.filter((l) => l.id !== id),
-      bookings: s.bookings.filter((b) => b.schedulingLinkId !== id),
-    })),
+    }));
+  },
   addBooking: (booking) => {
     const id = generateId();
     set((s) => ({

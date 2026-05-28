@@ -282,10 +282,23 @@ export default function App() {
   const toggleSharedVisibility = (shareId: string) => {
     setSharedVisibility(prev => ({ ...prev, [shareId]: !(prev[shareId] ?? true) }));
   };
-  // Mapping of shared calendars to local calendar+category
-  const [sharedMappings, setSharedMappings] = useState<Record<string, { calendarId: string; categoryId: string }>>({});
+  // Mapping of shared calendars to local calendar+category. Persisted in
+  // localStorage so the user's choice survives reload.
+  const SHARED_MAPPINGS_KEY = 'timebox_shared_mappings';
+  const [sharedMappings, setSharedMappings] = useState<Record<string, { calendarId: string; categoryId: string }>>(() => {
+    try {
+      const raw = localStorage.getItem(SHARED_MAPPINGS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const handleSetSharedMapping = (shareId: string, calendarId: string, categoryId: string) => {
-    setSharedMappings(prev => ({ ...prev, [shareId]: { calendarId, categoryId } }));
+    setSharedMappings(prev => {
+      const next = { ...prev, [shareId]: { calendarId, categoryId } };
+      try { localStorage.setItem(SHARED_MAPPINGS_KEY, JSON.stringify(next)); } catch { /* ignore quota */ }
+      return next;
+    });
     // Move existing shared events from this share into the chosen calendar/category
     // so the mapping actually takes effect (was previously a no-op).
     const state = useStore.getState();
@@ -328,17 +341,28 @@ export default function App() {
         const defaultContId = state.calendarContainers[0]?.id ?? '';
         const defaultCatId = state.categories[0]?.id ?? '';
 
+        // Read the latest saved mapping — sharedMappings closure may be stale here
+        // because this effect runs once when the session arrives.
+        let savedMappings: Record<string, { calendarId: string; categoryId: string }> = {};
+        try {
+          const raw = localStorage.getItem(SHARED_MAPPINGS_KEY);
+          if (raw) savedMappings = JSON.parse(raw);
+        } catch { /* ignore */ }
+
         const newEvents: import('./types').Event[] = [];
         for (const cal of shared) {
           if (!cal.events) continue;
+          const mapping = savedMappings[cal.shareId];
+          const targetContId = mapping?.calendarId ?? defaultContId;
+          const targetCatId = mapping?.categoryId ?? defaultCatId;
           for (const evt of cal.events) {
             const key = `${cal.shareId}:${evt.title}:${evt.date}:${evt.start}`;
             if (existingSharedEventIds.has(key)) continue;
             newEvents.push({
               id: `shared-${cal.shareId}-${evt.date}-${evt.start}-${Math.random().toString(36).slice(2, 7)}`,
               title: evt.title,
-              calendarContainerId: defaultContId,
-              categoryId: defaultCatId,
+              calendarContainerId: targetContId,
+              categoryId: targetCatId,
               date: evt.date,
               start: evt.start,
               end: evt.end,
@@ -1362,7 +1386,9 @@ export default function App() {
     if (updates.end && updates.end !== event.end) parts.push(`End: ${updates.end}`);
     if (updates.description !== undefined && updates.description !== event.description) parts.push('Description updated');
     if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
-    if (parts.length === 0) parts.push('Event details have been updated.');
+    // No detectable meaningful change — don't pester the user with a confirm modal.
+    // (Previously this pushed a generic "details updated" string and fired anyway.)
+    if (parts.length === 0) return;
 
     const capturedEmails = [...otherEmails];
     const capturedTitle = (updates.title as string) || event.title;
