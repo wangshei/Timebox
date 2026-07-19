@@ -20,7 +20,6 @@ import type {
   Booking,
 } from '../types';
 import {
-  getPlannedMinutes,
   getRecordedMinutes,
   getUnscheduledTasks,
   getPartiallyCompletedTasks,
@@ -77,8 +76,6 @@ export interface AppState {
   hasCompletedSetup: boolean;
   userName: string;
   onboardingTourComplete: boolean;
-  // Timer
-  activeTimer: { blockId: string; startedAt: number } | null;
   // Persistence status
   saveError: boolean;
   sessionExpired: boolean;
@@ -132,7 +129,6 @@ function getInitialState(): AppState {
     hasCompletedSetup: false,
     userName: '',
     onboardingTourComplete: false,
-    activeTimer: null,
     saveError: false,
     sessionExpired: false,
   };
@@ -236,9 +232,6 @@ export interface AppActions {
   updateBooking: (id: string, updates: Partial<Booking>) => void;
 
   resetToSeed: () => void;
-
-  startTimer: (blockId: string) => void;
-  stopTimer: () => void;
 
   setSaveError: (val: boolean) => void;
   setSessionExpired: (val: boolean) => void;
@@ -347,11 +340,15 @@ export const useStore = create<AppState & AppActions>()(
     // today/future blocks, or confirmed past blocks. Past unconfirmed/skipped blocks
     // don't count — they correspond to tasks that returned to the unscheduled list.
     const today = getLocalDateString();
+    // Planned = not-yet-done time only. Confirmed blocks are counted as `recorded`
+    // below, so exclude them here to avoid double-subtracting the same block.
     const activePlanned = (singleBlock)
       ? state.timeBlocks
-          .filter(b => b.taskId === task.id && b.mode === 'planned' && (b.date >= today || b.confirmationStatus === 'confirmed'))
+          .filter(b => b.taskId === task.id && b.mode === 'planned' && b.confirmationStatus !== 'confirmed' && b.date >= today)
           .reduce((sum, b) => sum + (parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start)), 0)
-      : getPlannedMinutes(task, state.timeBlocks);
+      : state.timeBlocks
+          .filter(b => b.taskId === task.id && b.mode === 'planned' && b.confirmationStatus !== 'confirmed')
+          .reduce((sum, b) => sum + (parseTimeToMinutes(b.end) - parseTimeToMinutes(b.start)), 0);
     const recorded = getRecordedMinutes(task, state.timeBlocks);
 
     // If task has no estimate (0), allow scheduling with blockMins; otherwise check remaining
@@ -490,13 +487,34 @@ export const useStore = create<AppState & AppActions>()(
   },
 
   batchConfirmDay: (date) => {
-    set((s) => ({
-      timeBlocks: s.timeBlocks.map((b) => {
+    const today = getLocalDateString();
+    const nowMins = (() => {
+      const now = new Date();
+      return now.getHours() * 60 + now.getMinutes();
+    })();
+    set((s) => {
+      const affectedTaskIds = new Set<string>();
+      const timeBlocks = s.timeBlocks.map((b) => {
         if (b.date !== date || b.mode !== 'planned' || b.source === 'unplanned') return b;
         if (b.confirmationStatus === 'confirmed' || b.confirmationStatus === 'skipped') return b;
+        // Only confirm blocks that have actually elapsed
+        if (b.date > today || (b.date === today && parseTimeToMinutes(b.end) > nowMins)) return b;
+        if (b.taskId) affectedTaskIds.add(b.taskId);
         return { ...b, confirmationStatus: 'confirmed' as const };
-      }),
-    }));
+      });
+      // Sync parent task status: mark done when all of a task's planned blocks are confirmed
+      const tasks = affectedTaskIds.size === 0
+        ? s.tasks
+        : s.tasks.map((t) => {
+            if (!affectedTaskIds.has(t.id)) return t;
+            const plannedBlocks = timeBlocks.filter((b) => b.taskId === t.id && b.mode === 'planned');
+            const allConfirmed =
+              plannedBlocks.length > 0 &&
+              plannedBlocks.every((b) => b.confirmationStatus === 'confirmed');
+            return allConfirmed ? { ...t, status: 'done' as const } : t;
+          });
+      return { timeBlocks, tasks };
+    });
   },
 
   // --- Backward-compat wrappers ---
@@ -800,7 +818,24 @@ export const useStore = create<AppState & AppActions>()(
     set((s) => ({
       events: s.events.map((e) => {
         const u = updates.find((u) => u.id === e.id);
-        return u ? { ...e, ...u.changes, editedAt: now } : e;
+        if (!u) return e;
+        // Recompute epochs when time/date changes (skip for gcal events, and
+        // skip when the caller already supplied explicit epochs — those win).
+        let epochUpdates: Partial<Event> = {};
+        if (
+          !e.googleEventId &&
+          !e.gcalStartISO &&
+          u.changes.startEpoch === undefined &&
+          (u.changes.start || u.changes.date || u.changes.end || u.changes.endDate)
+        ) {
+          const newDate = u.changes.date || e.date;
+          const newStart = u.changes.start || e.start;
+          const newEnd = u.changes.end || e.end;
+          const newEndDate = u.changes.endDate !== undefined ? u.changes.endDate : e.endDate;
+          epochUpdates.startEpoch = dateTimeToEpoch(newDate, newStart);
+          epochUpdates.endEpoch = dateTimeToEpoch(newEndDate || newDate, newEnd);
+        }
+        return { ...e, ...epochUpdates, ...u.changes, editedAt: now };
       }),
     }));
   },
@@ -886,39 +921,6 @@ export const useStore = create<AppState & AppActions>()(
 
   resetToSeed: () => set(getInitialState()),
 
-  startTimer: (blockId) => set({ activeTimer: { blockId, startedAt: Date.now() } }),
-  stopTimer: () => {
-    const { activeTimer, timeBlocks } = get();
-    if (!activeTimer) return;
-    const block = timeBlocks.find((b) => b.id === activeTimer.blockId);
-    if (block) {
-      const now = new Date();
-      const endMinutes = now.getHours() * 60 + now.getMinutes();
-      const startMinutes = parseTimeToMinutes(block.start);
-      // Handle midnight crossing: cap at 23:59 on original date
-      const clampedEnd = endMinutes >= startMinutes
-        ? Math.max(endMinutes, startMinutes + 1)
-        : 23 * 60 + 59;
-      const endStr = `${Math.floor(clampedEnd / 60)}:${String(clampedEnd % 60).padStart(2, '0')}`;
-      set((s) => ({
-        activeTimer: null,
-        timeBlocks: s.timeBlocks.map((b) =>
-          b.id === activeTimer.blockId
-            ? {
-                ...b,
-                end: endStr,
-                mode: 'recorded' as const,
-                confirmationStatus: 'confirmed' as const,
-                editedAt: Date.now(),
-              }
-            : b
-        ),
-      }));
-    } else {
-      set({ activeTimer: null });
-    }
-  },
-
   setSaveError: (val) => set({ saveError: val }),
   setSessionExpired: (val) => set({ sessionExpired: val }),
 }))
@@ -954,7 +956,6 @@ type PersistedSlice = Pick<
   | 'hasCompletedSetup'
   | 'userName'
   | 'onboardingTourComplete'
-  | 'activeTimer'
 >;
 
 /** Hydrate store from localStorage on app startup (no-op on server). */
@@ -1005,7 +1006,6 @@ export function startLocalStoragePersistence() {
       hasCompletedSetup: state.hasCompletedSetup,
       userName: state.userName,
       onboardingTourComplete: state.onboardingTourComplete,
-      activeTimer: state.activeTimer,
     }),
     (slice) => {
       try {

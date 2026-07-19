@@ -17,12 +17,17 @@ export function getPlannedMinutes(task: Task, timeBlocks: TimeBlock[]): number {
 /**
  * Calculate total recorded minutes for a task
  */
+export function isBlockRecorded(block: TimeBlock): boolean {
+  if (block.confirmationStatus === 'skipped') return false;
+  return block.mode === 'recorded' || block.confirmationStatus === 'confirmed';
+}
+
 export function getRecordedMinutes(task: Task, timeBlocks: TimeBlock[]): number {
   return timeBlocks
-    .filter(block => block.taskId === task.id && block.mode === 'recorded')
+    .filter(block => block.taskId === task.id && isBlockRecorded(block))
     .reduce((sum, block) => {
-      const start = parseTimeToMinutes(block.start);
-      const end = parseTimeToMinutes(block.end);
+      const start = parseTimeToMinutes(block.recordedStart ?? block.start);
+      const end = parseTimeToMinutes(block.recordedEnd ?? block.end);
       return sum + (end - start);
     }, 0);
 }

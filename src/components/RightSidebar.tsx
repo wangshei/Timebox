@@ -51,6 +51,7 @@ interface RightSidebarProps {
   onSplitTask?: (taskId: string, chunkMinutes: number) => void;
   events?: Event[];
   onDeleteEvent?: (eventId: string) => void;
+  onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   isMobile?: boolean;
   isBottomSheet?: boolean;
   onTogglePin?: (taskId: string) => void;
@@ -82,6 +83,7 @@ export function RightSidebar({
   onSplitTask,
   events = [],
   onDeleteEvent,
+  onDeleteEventSeries,
   isMobile = false,
   isBottomSheet = false,
   onTogglePin,
@@ -336,14 +338,23 @@ export function RightSidebar({
                     : ` · ${event.date}`}
                 </div>
               </div>
-              {onDeleteEvent && (
+              {(onDeleteEvent || onDeleteEventSeries) && (
                 <button
                   className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all flex-shrink-0"
                   style={{ color: '#AEAEB2' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = THEME.textPrimary; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#AEAEB2'; }}
-                  onClick={() => onDeleteEvent(event.id)}
-                  title="Delete event"
+                  onClick={() => {
+                    // This row summarizes a whole recurring series, so deleting it
+                    // must remove every occurrence — not just the representative row,
+                    // which would leave the rest of the series on the calendar.
+                    if (isRecurringSummary && onDeleteEventSeries) {
+                      onDeleteEventSeries(event.id, 'all');
+                    } else {
+                      onDeleteEvent?.(event.id);
+                    }
+                  }}
+                  title={isRecurringSummary ? 'Delete recurring series' : 'Delete event'}
                 >
                   <XMarkIcon className="w-3.5 h-3.5" />
                 </button>

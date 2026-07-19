@@ -36,25 +36,6 @@ function useCurrentMinutes(): number {
 
 // ─── Helpers ───────────────────────────────────────────────
 
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function getCurrentHHMM(): string {
-  const now = new Date();
-  return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-}
-
-function addMinutesHHMM(hhmm: string, mins: number): string {
-  const total = parseTimeToMinutes(hhmm) + mins;
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-}
-
 function formatTime12(hhmm: string): string {
   const [h, m] = hhmm.split(':').map(Number);
   const hour = h ?? 0;
@@ -1552,12 +1533,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const events = useStore((s) => s.events);
   const categories = useStore((s) => s.categories);
   const calendarContainers = useStore((s) => s.calendarContainers);
-  const activeTimer = useStore((s) => s.activeTimer);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
-  const updateTimeBlock = useStore((s) => s.updateTimeBlock);
   const addEvent = useStore((s) => s.addEvent);
-  const startTimer = useStore((s) => s.startTimer);
-  const stopTimer = useStore((s) => s.stopTimer);
   const confirmBlock = useStore((s) => s.confirmBlock);
   const skipBlock = useStore((s) => s.skipBlock);
   const tasks = useStore((s) => s.tasks);
@@ -1568,19 +1545,12 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
-  const [showStartForm, setShowStartForm] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
   const [eventStart, setEventStart] = useState('');
   const [eventEnd, setEventEnd] = useState('');
   const [eventCalendarId, setEventCalendarId] = useState('');
   const [eventCategoryId, setEventCategoryId] = useState('');
-  const [timerTitle, setTimerTitle] = useState('');
-  const [selectedCalendarId, setSelectedCalendarId] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState('');
-  const [elapsed, setElapsed] = useState('0:00');
-  const [sessionNotes, setSessionNotes] = useState('');
-  const [showSessionNotes, setShowSessionNotes] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<TimeOfDaySection, boolean>>({
     morning: false, afternoon: false, evening: false,
   });
@@ -1589,7 +1559,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const swipeCurrentXRef = useRef(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const eventInputRef = useRef<HTMLInputElement>(null);
 
   // Wire up the addEvent trigger ref from parent
@@ -1616,17 +1585,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
-
-  // Timer tick
-  useEffect(() => {
-    if (!activeTimer) { setElapsed('0:00'); return; }
-    setSessionNotes('');
-    setShowSessionNotes(false);
-    const tick = () => setElapsed(formatElapsed(Date.now() - activeTimer.startedAt));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [activeTimer?.blockId]);
 
   // Section boundaries
   const wakeMins = parseTimeToMinutes(wakeTime || '8:00');
@@ -1684,24 +1642,9 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   // Current block (the one happening right now)
   const currentItem = useMemo(() => {
     if (selectedDate !== today) return null;
-    // Check for active timer first
-    if (activeTimer) {
-      const timerBlock = timeBlocks.find((b) => b.id === activeTimer.blockId);
-      if (timerBlock) {
-        const cat = categories.find((c) => c.id === timerBlock.categoryId);
-        return {
-          type: 'block' as const, id: timerBlock.id, title: timerBlock.title ?? 'Timer',
-          start: timerBlock.start, end: timerBlock.end,
-          startMins: parseTimeToMinutes(timerBlock.start), endMins: parseTimeToMinutes(timerBlock.end),
-          color: cat?.color ?? THEME.primary,
-          confirmationStatus: timerBlock.confirmationStatus, taskId: timerBlock.taskId,
-          section: getSection(parseTimeToMinutes(timerBlock.start)),
-        } as ScheduleCardItem;
-      }
-    }
-    // Otherwise find the item that spans "now"
+    // Find the item that spans "now"
     return scheduleItems.find((item) => item.startMins <= nowMins && item.endMins > nowMins) ?? null;
-  }, [activeTimer, timeBlocks, scheduleItems, today, nowMins, selectedDate, categories]);
+  }, [scheduleItems, today, nowMins, selectedDate]);
 
   // Next item after current time
   const nextItem = useMemo(() => {
@@ -1724,16 +1667,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     });
   }, [tasks, timeBlocks, selectedDate, today]);
 
-  // Filtered categories for timer form
-  const filteredCategories = useMemo(() => {
-    if (!selectedCalendarId) return categories;
-    return categories.filter((c) => {
-      const ids = c.calendarContainerIds;
-      if (ids && ids.length > 0) return ids.includes(selectedCalendarId);
-      return c.calendarContainerId === selectedCalendarId || !c.calendarContainerId;
-    });
-  }, [selectedCalendarId, categories]);
-
   // Filtered categories for event form
   const eventFilteredCategories = useMemo(() => {
     if (!eventCalendarId) return categories;
@@ -1744,22 +1677,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     });
   }, [eventCalendarId, categories]);
 
-  // Auto-select calendar/category for forms
-  useEffect(() => {
-    if (showStartForm && calendarContainers.length > 0 && !selectedCalendarId)
-      setSelectedCalendarId(calendarContainers[0].id);
-  }, [showStartForm, calendarContainers, selectedCalendarId]);
-
-  useEffect(() => {
-    if (!selectedCalendarId) return;
-    const first = filteredCategories[0];
-    if (first) setSelectedCategoryId(first.id);
-  }, [selectedCalendarId, filteredCategories]);
-
-  useEffect(() => {
-    if (showStartForm) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [showStartForm]);
-
+  // Auto-select calendar/category for event form
   useEffect(() => {
     if (!eventCalendarId) return;
     const first = eventFilteredCategories[0];
@@ -1781,29 +1699,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     saveSnapshot();
     skipBlock(blockId);
   }, [saveSnapshot, skipBlock]);
-
-  const handleStartTimer = useCallback(() => {
-    if (!timerTitle.trim()) return;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return;
-    const now = getCurrentHHMM();
-    const blockId = addTimeBlock({
-      title: timerTitle.trim(),
-      calendarContainerId: selectedCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
-      categoryId: cat.id,
-      tagIds: [],
-      start: now,
-      end: addMinutesHHMM(now, 30),
-      date: getLocalDateString(),
-      mode: 'planned',
-      source: 'unplanned',
-    });
-    if (blockId) {
-      startTimer(blockId);
-      setShowStartForm(false);
-      setTimerTitle('');
-    }
-  }, [timerTitle, selectedCategoryId, selectedCalendarId, categories, calendarContainers, addTimeBlock, startTimer]);
 
   const handleCreateEvent = useCallback(() => {
     if (!eventTitle.trim() || !eventStart || !eventEnd || !eventCategoryId) return;
@@ -1898,16 +1793,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     setSwipedItemId(null);
     setSwipeOffset(0);
   }, [saveSnapshot]);
-
-  // Current block for timer display
-  const currentBlock = useMemo(() => {
-    if (!activeTimer) return null;
-    return timeBlocks.find((b) => b.id === activeTimer.blockId) ?? null;
-  }, [activeTimer, timeBlocks]);
-
-  const currentColor = currentBlock
-    ? (categories.find((c) => c.id === currentBlock.categoryId)?.color ?? THEME.primary)
-    : THEME.primary;
 
   // Section label with icon
   const sectionConfig: Record<TimeOfDaySection, { label: string; icon: string; startMins: number; endMins: number }> = {
@@ -2086,80 +1971,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      {/* Active timer banner */}
-      {activeTimer && currentBlock && (
-        <div
-          className="flex-shrink-0"
-          style={{
-            padding: '10px 16px',
-            backgroundColor: `${currentColor}10`,
-            borderBottom: `2px solid ${currentColor}40`,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p style={{ fontSize: 14, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentBlock.title ?? 'Timer'}
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="font-mono tabular-nums" style={{ fontSize: 20, fontWeight: 600, color: currentColor }}>
-                  {elapsed}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowSessionNotes(v => !v)}
-                  className="touch-manipulation flex items-center gap-1"
-                  style={{ background: 'none', border: 'none', padding: '2px 4px', borderRadius: 6, color: showSessionNotes ? currentColor : THEME.textMuted, fontSize: 11, fontWeight: 500 }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  Notes
-                  {sessionNotes.trim() && <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: currentColor, display: 'inline-block', marginLeft: 2 }} />}
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (sessionNotes.trim()) {
-                  const block = currentBlock;
-                  const existing = block?.notes?.trim() ?? '';
-                  const combined = existing ? `${existing}\n\n${sessionNotes.trim()}` : sessionNotes.trim();
-                  updateTimeBlock(activeTimer.blockId, { notes: combined });
-                }
-                setSessionNotes('');
-                setShowSessionNotes(false);
-                stopTimer();
-              }}
-              className="touch-manipulation flex items-center gap-1.5"
-              style={{
-                padding: '6px 16px', borderRadius: 20,
-                backgroundColor: 'rgba(255,59,48,0.10)', color: '#FF3B30',
-                fontSize: 13, fontWeight: 600, border: 'none', flexShrink: 0,
-              }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
-              Stop
-            </button>
-          </div>
-          {showSessionNotes && (
-            <textarea
-              value={sessionNotes}
-              onChange={e => setSessionNotes(e.target.value)}
-              placeholder="Session notes... (saved to block on stop)"
-              style={{
-                marginTop: 8, width: '100%', minHeight: 72, padding: '8px 10px',
-                borderRadius: 8, border: `1px solid ${currentColor}40`,
-                backgroundColor: 'rgba(255,255,255,0.7)', fontSize: 13,
-                color: THEME.textPrimary, resize: 'none', outline: 'none',
-                fontFamily: 'inherit', boxSizing: 'border-box',
-              }}
-            />
-          )}
-        </div>
-      )}
-
       {/* Header: Date navigation */}
       <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex items-center" style={{ padding: '10px 16px', gap: 8 }}>
@@ -2204,7 +2015,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', padding: '12px 16px 100px' } as React.CSSProperties}>
 
         {/* "Now" card — shows what's happening right now */}
-        {selectedDate === today && !activeTimer && (
+        {selectedDate === today && (
           <div style={{
             backgroundColor: '#FFFFFF',
             borderRadius: 14,
@@ -2421,7 +2232,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       </div>
 
       {/* FABs — bottom right */}
-      {!showStartForm && (
         <div style={{ position: 'absolute', bottom: 20, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, zIndex: 30 }}>
           {/* Add event button */}
           <button
@@ -2456,24 +2266,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               <line x1="10" y1="16" x2="14" y2="16" />
             </svg>
           </button>
-          {/* Play/timer button */}
-          {!activeTimer && selectedDate === today && (
-            <button
-              type="button"
-              onClick={() => setShowStartForm(true)}
-              className="touch-manipulation"
-              style={{
-                width: 44, height: 44, borderRadius: 22, border: 'none',
-                backgroundColor: `${THEME.primary}CC`, color: '#FFFFFF',
-                boxShadow: '0 3px 10px rgba(141,162,134,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-            </button>
-          )}
         </div>
-      )}
 
       {/* Detail sheet for tapped block/event */}
       {detailItem && (
@@ -2483,68 +2276,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           onConfirm={(id) => { handleConfirm(id); setDetailItem(null); }}
           onSkip={(id) => { handleSkip(id); setDetailItem(null); }}
         />
-      )}
-
-      {/* Start timer sheet */}
-      {showStartForm && (
-        <div className="flex-shrink-0" style={{
-          padding: '16px',
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.06)',
-        }}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={timerTitle}
-            onChange={(e) => setTimerTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleStartTimer();
-              if (e.key === 'Escape') { setShowStartForm(false); setTimerTitle(''); }
-            }}
-            placeholder="What are you working on?"
-            style={{
-              width: '100%', padding: '10px 12px', borderRadius: 10,
-              border: '1px solid rgba(0,0,0,0.10)', fontSize: 15,
-              color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
-              outline: 'none', boxSizing: 'border-box',
-            }}
-          />
-          {calendarContainers.length > 1 && (
-            <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
-              {calendarContainers.map((cal) => {
-                const isSel = selectedCalendarId === cal.id;
-                return (
-                  <button key={cal.id} type="button" onClick={() => setSelectedCalendarId(cal.id)} className="touch-manipulation"
-                    style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cal.color}20` : 'transparent', color: isSel ? cal.color : '#636366' }}>
-                    {cal.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2" style={{ marginTop: 8 }}>
-            {filteredCategories.map((cat) => {
-              const isSel = selectedCategoryId === cat.id;
-              return (
-                <button key={cat.id} type="button" onClick={() => setSelectedCategoryId(cat.id)} className="touch-manipulation"
-                  style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cat.color}20` : 'transparent', color: isSel ? cat.color : '#636366' }}>
-                  {cat.name}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex gap-2" style={{ marginTop: 12 }}>
-            <button type="button" onClick={() => { setShowStartForm(false); setTimerTitle(''); }} className="touch-manipulation"
-              style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366' }}>
-              Cancel
-            </button>
-            <button type="button" onClick={handleStartTimer} disabled={!timerTitle.trim()} className="touch-manipulation"
-              style={{ flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', backgroundColor: timerTitle.trim() ? THEME.primary : 'rgba(0,0,0,0.06)', color: timerTitle.trim() ? '#FFFFFF' : '#AEAEB2' }}>
-              Start Timer
-            </button>
-          </div>
-        </div>
       )}
 
       {/* Event creation sheet */}

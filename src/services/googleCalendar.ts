@@ -16,6 +16,7 @@ const GCAL_EVENTS_KEY = 'gcal_imported_events';
 const GCAL_CALENDARS_KEY = 'gcal_imported_calendars';
 const GCAL_DISMISSED_KEY = 'gcal_dismissed_event_ids';
 const GCAL_DISMISSED_CALS_KEY = 'gcal_dismissed_calendar_ids';
+const GCAL_DISMISSED_RECURRING_KEY = 'gcal_dismissed_recurring';
 const GCAL_SELECTED_CALS_KEY = 'gcal_selected_calendar_ids';
 
 function getRedirectUri(): string {
@@ -59,13 +60,15 @@ export function hasGcalWriteAccess(): boolean {
   return tokens.scope?.includes('calendar.events') || tokens.scope?.includes('calendar ') || false;
 }
 
-/** Disconnect: remove tokens and imported data from localStorage. */
+/** Disconnect: remove tokens and imported data from localStorage.
+ *  NOTE: dismissed-event / dismissed-calendar / dismissed-recurring keys are
+ *  intentionally NOT cleared here — dismissals must outlive the token lifecycle.
+ *  This runs automatically when a refresh token is invalid/expired, and wiping
+ *  dismissals would flood back every previously-deleted gcal event on reconnect. */
 export function disconnectGoogle(): void {
   localStorage.removeItem(GCAL_TOKENS_KEY);
   localStorage.removeItem(GCAL_EVENTS_KEY);
   localStorage.removeItem(GCAL_CALENDARS_KEY);
-  localStorage.removeItem(GCAL_DISMISSED_KEY);
-  localStorage.removeItem(GCAL_DISMISSED_CALS_KEY);
   localStorage.removeItem(GCAL_SELECTED_CALS_KEY);
   localStorage.removeItem('gcal_pending_sync_mode');
   localStorage.removeItem('gcal_connected_at');
@@ -108,6 +111,35 @@ export function dismissGcalCalendarId(calendarId: string): void {
 }
 
 /**
+ * Get the SERIES-level dismissal map: recurringGoogleEventId -> cutoffDate.
+ * A cutoff of '' means the whole series is dismissed; a 'YYYY-MM-DD' date means
+ * dismiss occurrences whose date is >= cutoff. This survives the ±90-day import
+ * window so future occurrences of a deleted recurring series never re-import.
+ */
+export function getDismissedGcalRecurring(): Record<string, string> {
+  const raw = localStorage.getItem(GCAL_DISMISSED_RECURRING_KEY);
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
+/**
+ * Dismiss a recurring Google event series (or its tail from a cutoff date).
+ * cutoffDate '' dismisses the entire series; a date dismisses occurrences >= cutoff.
+ * A whole-series dismissal ('') always wins over a partial one.
+ */
+export function dismissGcalRecurring(recurringId: string, cutoffDate: string): void {
+  const map = getDismissedGcalRecurring();
+  const existing = map[recurringId];
+  // Whole-series dismissal wins; otherwise keep the earliest cutoff.
+  if (existing === '' || cutoffDate === '') {
+    map[recurringId] = '';
+  } else if (existing === undefined || cutoffDate < existing) {
+    map[recurringId] = cutoffDate;
+  }
+  localStorage.setItem(GCAL_DISMISSED_RECURRING_KEY, JSON.stringify(map));
+}
+
+/**
  * Get the set of Google Calendar IDs the user has chosen to import.
  * Returns null if no selection has been made yet (import all by default for backwards compat).
  */
@@ -130,6 +162,10 @@ export class GcalAuthError extends Error {
   }
 }
 
+// Shared in-flight refresh so concurrent callers (e.g. multi-calendar import)
+// don't fire parallel refreshes that make Google invalidate all-but-one token.
+let refreshPromise: Promise<string> | null = null;
+
 /** Get a valid access token, refreshing if expired. */
 async function getAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
@@ -140,6 +176,18 @@ async function getAccessToken(): Promise<string> {
     return tokens.access_token;
   }
 
+  // Coalesce concurrent refreshes into a single request.
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = refreshAccessToken(tokens);
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+/** Perform the actual token refresh via the edge function. */
+async function refreshAccessToken(tokens: GcalTokens): Promise<string> {
   // Refresh via edge function (needs client_secret on server)
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   if (!supabaseUrl) throw new Error('Supabase URL not configured');
@@ -425,9 +473,12 @@ function detectRecurrencePattern(instances: GcalEvent[]): { pattern: RecurrenceP
   // Parse dates
   const dates = instances
     .map(e => {
+      // All-day events use a date-only 'YYYY-MM-DD' string. Parsing that with
+      // `new Date(str)` interprets it as UTC midnight, which reads back as the
+      // previous day's weekday in negative-UTC offsets. Parse date-only as LOCAL.
       const dtStr = e.start.dateTime || e.start.date;
       if (!dtStr) return null;
-      const d = new Date(dtStr);
+      const d = e.start.dateTime ? new Date(dtStr) : new Date(dtStr + 'T00:00:00');
       return new Date(d.getFullYear(), d.getMonth(), d.getDate());
     })
     .filter((d): d is Date => d !== null)

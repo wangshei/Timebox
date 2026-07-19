@@ -9,8 +9,6 @@ import {
 import { CalendarView } from './components/CalendarView';
 // DraggableBottomSheet removed — replaced by slide-from-right todo panel
 import { RightSidebar } from './components/RightSidebar';
-import { TimerWidget } from './components/TimerWidget';
-import { FocusPanel } from './components/FocusPanel';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
 import { SchedulingModal } from './components/SchedulingModal';
@@ -30,7 +28,7 @@ import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
-import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
+import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
 import { createShare, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
@@ -45,7 +43,7 @@ import {
   selectDoneTasks,
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
-import { findNextAvailableSlot, parseTimeToMinutes } from './utils/taskHelpers';
+import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
@@ -165,9 +163,14 @@ function BugReportPopoverBody({ onClose, supabase, userEmail }: {
 
 /** Remove all user-specific localStorage keys on sign-out to prevent data leaking between accounts. */
 function clearUserLocalStorage() {
-  disconnectGoogle(); // clears gcal_tokens, gcal_imported_events, gcal_imported_calendars, gcal_dismissed_*, gcal_pending_sync_mode, gcal_connected_at, gcal_device_id
-  // Additional user-specific keys
+  disconnectGoogle(); // clears gcal_tokens, gcal_imported_events, gcal_imported_calendars, gcal_pending_sync_mode, gcal_connected_at, gcal_device_id (NOT dismissals — cleared explicitly below)
+  // Additional user-specific keys. This is the explicit "forget everything" path,
+  // so dismissals ARE cleared here (unlike disconnectGoogle) to avoid leaking one
+  // account's deleted-gcal-event choices into the next signed-in account.
   const userKeys = [
+    'gcal_dismissed_event_ids',
+    'gcal_dismissed_calendar_ids',
+    'gcal_dismissed_recurring',
     'gcal_seen_invite_ids',
     'gcal_cached_timezone',
     'gcal_selected_calendar_ids',
@@ -211,7 +214,6 @@ export default function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
-  const [focusViewMode, setFocusViewMode] = useState<'fullpage' | 'sidebar'>('fullpage');
   const [showActivityInCalendar, setShowActivityInCalendar] = useState(() => localStorage.getItem('timebox_show_activity_blocks') === 'true');
   const [isActivityTracking, setIsActivityTracking] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -483,15 +485,37 @@ export default function App() {
     // Filter out events the user has dismissed (removed from Timebox)
     // AND events belonging to dismissed calendars
     const dismissedIds = getGcalDismissedIds();
-    const freshGcalEvents = data.events.filter(e =>
-      !dismissedIds.has(e.id) && freshCalendarIds.has(e.calendarContainerId)
+    // Series-level dismissals: drop future/all occurrences of deleted recurring
+    // Google series even if they fall outside the currently-loaded window.
+    const dismissedRecurring = getDismissedGcalRecurring();
+    // Dedupe write-back events: any imported gcal event whose Google id matches a
+    // non-gcal local event's googleEventId is that local event's imported twin — skip it.
+    const localGoogleEventIds = new Set(
+      state.events
+        .filter(e => e.googleEventId && !e.id.startsWith('gcal-evt-'))
+        .map(e => e.googleEventId as string)
     );
+    const freshGcalEvents = data.events.filter(e => {
+      if (dismissedIds.has(e.id)) return false;
+      if (!freshCalendarIds.has(e.calendarContainerId)) return false;
+      // Skip imported twins of locally-created (write-back) events.
+      if (e.googleEventId && localGoogleEventIds.has(e.googleEventId)) return false;
+      // Series-level dismissal: cutoff '' drops all; a date drops occurrences >= cutoff.
+      if (e.recurringGoogleEventId && e.recurringGoogleEventId in dismissedRecurring) {
+        const cutoff = dismissedRecurring[e.recurringGoogleEventId];
+        if (cutoff === '' || e.date >= cutoff) return false;
+      }
+      return true;
+    });
 
     // Timezone-aware merge: past gcal events keep their stored times (the user
     // experienced them at that wall-clock time), future gcal events get fresh
     // timezone-converted times (real absolute time in current timezone).
     const todayStr = getLocalDateString();
-    const existingGcalEvents = state.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
+    // `gcal-evt-` prefix is the single "ephemeral imported gcal" signal. Write-back
+    // events (local UUID id stamped with a googleEventId) are normal local events and
+    // must stay in nonGcalEvents so they persist and aren't dropped on inject.
+    const existingGcalEvents = state.events.filter(e => e.id.startsWith('gcal-evt-'));
     const existingGcalMap = new Map(existingGcalEvents.map(e => [e.id, e]));
 
     // Past events: keep existing store version if available, otherwise use fresh
@@ -548,13 +572,13 @@ export default function App() {
 
     // For polled refreshes, only update events (not calendars/categories)
     if (options?.isPolled) {
-      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+      const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
       useStore.setState({
         events: [...nonGcalEvents, ...mergedGcalEvents],
       });
     } else {
-      // Remove old gcal events (including any ghosts from Supabase without googleEventId)
-      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+      // Remove old imported gcal events; write-back events (no gcal-evt- prefix) persist.
+      const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
       useStore.setState({
         calendarContainers: [
           ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
@@ -812,8 +836,6 @@ export default function App() {
     setNotificationScope,
     setNotificationLeadMinutes,
     setEmailNotificationsEnabled,
-    activeTimer,
-    stopTimer,
     schedulingLinks,
     bookings,
     addSchedulingLink,
@@ -1044,12 +1066,17 @@ export default function App() {
       const blockIdsToUnconfirm = new Set(
         taskBlocks.filter((b) => b.confirmationStatus === 'confirmed').map((b) => b.id)
       );
-      useStore.setState((s) => ({
-        tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, status: undefined } : t)),
-        timeBlocks: s.timeBlocks.map((b) =>
+      useStore.setState((s) => {
+        const updatedBlocks = s.timeBlocks.map((b) =>
           blockIdsToUnconfirm.has(b.id) ? { ...b, confirmationStatus: undefined } : b
-        ),
-      }));
+        );
+        return {
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, status: getTaskStatus(t, updatedBlocks) } : t
+          ),
+          timeBlocks: updatedBlocks,
+        };
+      });
       return;
     }
 
@@ -1205,6 +1232,7 @@ export default function App() {
     // If we were editing a draft timeBlock (from drag-to-create),
     // atomically convert it to an event (or series) in a single state change.
     let newEventId: string | undefined;
+    let addFailed = false;
     if (isDraftTimeBlock && editingTimeBlockId) {
       // Preserve source from draft block so actual-panel events stay out of plan panel
       const draftBlock = timeBlocks.find((b) => b.id === editingTimeBlockId);
@@ -1227,6 +1255,7 @@ export default function App() {
           return { ...payloadWithSource, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
         }));
         newEventId = ids[0];
+        if (ids.length < dates.length) addFailed = true;
       } else {
         newEventId = convertTimeBlockToEvent(editingTimeBlockId, payloadWithSource);
       }
@@ -1249,8 +1278,17 @@ export default function App() {
         return { ...eventPayload, date: occDate, endDate: occEndDate, recurrenceSeriesId: seriesId };
       }));
       newEventId = ids[0];
+      if (ids.length < dates.length) addFailed = true;
     } else {
       newEventId = addEvent(eventPayload);
+      if (!newEventId) addFailed = true;
+    }
+
+    // If the entity limit was hit, the event(s) were dropped (or truncated). Surface an
+    // error and do NOT proceed as success (skip invites).
+    if (addFailed) {
+      toast.error("Couldn't save — event limit reached.");
+      return;
     }
 
     // Handle invites — show custom popup instead of window.confirm
@@ -1297,7 +1335,12 @@ export default function App() {
               description: capturedEventData.description ?? undefined,
               attendeeEmails: capturedEmails,
             })
-              .then(() => toast.success('Event added to attendees\' Google Calendars'))
+              .then(({ googleEventId }) => {
+                // Stamp the returned Google id onto the local event so the import
+                // path can dedupe its imported twin (avoids showing the event twice).
+                if (googleEventId) updateEvent(capturedEventId, { googleEventId });
+                toast.success('Event added to attendees\' Google Calendars');
+              })
               .catch((err) => {
                 console.warn('[gcal] Failed to create GCal event with attendees:', err);
               });
@@ -2107,11 +2150,17 @@ export default function App() {
       const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value);
       const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
       if (gcalIds.length) dismissGcalEventIds(gcalIds);
+      // Google series: dismiss the whole series so future occurrences (outside the
+      // ±90-day window) never re-import. Per-instance dismissal above is kept too.
+      if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, '');
       deleteEvents(toDelete.map((e) => e.id));
     } else if (scope === 'all_after') {
       const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date);
       const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
       if (gcalIds.length) dismissGcalEventIds(gcalIds);
+      // Google series: dismiss occurrences from this date forward so future ones
+      // outside the loaded window never re-import.
+      if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, event.date);
       deleteEvents(toDelete.map((e) => e.id));
     }
   };
@@ -2507,7 +2556,14 @@ export default function App() {
                     .then((data) => {
                       // Re-inject fresh GCal data with correct timezone
                       const state = useStore.getState();
-                      const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+                      const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
+                      // Dedupe imported twins of write-back events (see BUG 4).
+                      const localGoogleEventIds = new Set(
+                        nonGcalEvents.filter(e => e.googleEventId).map(e => e.googleEventId as string)
+                      );
+                      const freshGcalEvents = data.events.filter(
+                        e => !(e.googleEventId && localGoogleEventIds.has(e.googleEventId))
+                      );
                       useStore.setState({
                         calendarContainers: [
                           ...state.calendarContainers.filter(c => !c.id.startsWith('gcal-')),
@@ -2517,7 +2573,7 @@ export default function App() {
                           ...state.categories.filter(c => !c.id.startsWith('gcal-cat-')),
                           ...data.categories,
                         ],
-                        events: [...nonGcalEvents, ...data.events],
+                        events: [...nonGcalEvents, ...freshGcalEvents],
                       });
                       setTzChangeBanner(null);
                     })
@@ -3429,7 +3485,7 @@ export default function App() {
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
             <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
               <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>
-                {activeTimer ? 'Focus' : 'To-Dos'}
+                To-Dos
               </span>
               <div className="flex items-center gap-1.5">
                 {isTauri() && (
@@ -3464,17 +3520,9 @@ export default function App() {
                     )}
                   </button>
                 )}
-                <TimerWidget />
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden relative">
-              {activeTimer && focusViewMode === 'sidebar' ? (
-                <FocusPanel
-                  onStop={() => { stopTimer(); setFocusViewMode('fullpage'); }}
-                  fullPage={false}
-                  onToggleView={() => setFocusViewMode('fullpage')}
-                />
-              ) : (
               <RightSidebar
                 tasks={displayTasks}
                 unscheduledTasks={unscheduledDisplay}
@@ -3504,10 +3552,10 @@ export default function App() {
                 onAutoSchedule={handleAutoSchedule}
                 events={events}
                 onDeleteEvent={handleDeleteEvent}
+                onDeleteEventSeries={handleDeleteEventSeries}
                 weekStartsOnMonday={weekStartsOnMonday}
                 onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
-              )}
             </div>
           </div>
         )}
@@ -3517,15 +3565,6 @@ export default function App() {
           </div>
         )}
       </div>
-
-      {/* Full-page focus panel (portal-based, renders on top of everything) */}
-      {activeTimer && focusViewMode === 'fullpage' && (
-        <FocusPanel
-          onStop={() => { stopTimer(); setFocusViewMode('fullpage'); }}
-          fullPage={true}
-          onToggleView={() => setFocusViewMode('sidebar')}
-        />
-      )}
 
       <div className="flex lg:hidden flex-col flex-1 min-h-0 w-full overflow-hidden relative">
         <MobileApp />
@@ -3667,14 +3706,14 @@ export default function App() {
           // Notify attendees if this is the organizer's own event
           if (event) notifyAttendeesIfNeeded(event, eventUpdates);
           if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
-            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            const { date: _date, endDate: _endDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
             updateEvents(
               events
                 .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId)
                 .map((e) => ({ id: e.id, changes: sharedUpdates }))
             );
           } else if (recurrenceEditScope === 'all_after' && event?.recurrenceSeriesId) {
-            const { date: _date, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string };
+            const { date: _date, endDate: _endDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
             updateEvents(
               events
                 .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
@@ -3688,11 +3727,14 @@ export default function App() {
               const seriesId = crypto.randomUUID();
               const eventDate = (eventUpdates as any).date ?? event.date;
               const dates = generateRecurrenceDates(eventDate, eu.recurrencePattern!, eu.recurrenceDays);
-              // Update the original event with series ID
-              updateEvent(id, { ...eventUpdates, recurrenceSeriesId: seriesId });
-              // Add new events for the remaining dates
-              const { id: _id, ...baseWithoutId } = { ...event, ...eventUpdates, recurrenceSeriesId: seriesId };
-              addEvents(dates.filter((d) => d !== eventDate).map((date) => ({ ...baseWithoutId, date })));
+              // Ensure the origin occurrence sits on a day that's part of the pattern.
+              const originDate = dates.includes(eventDate) ? eventDate : (dates[0] ?? eventDate);
+              // Update the original event with series ID (re-anchored to a pattern day)
+              updateEvent(id, { ...eventUpdates, date: originDate, recurrenceSeriesId: seriesId });
+              // Add new events for the remaining dates. Strip gcal/epoch/id fields so
+              // addEvents derives fresh epochs per occurrence.
+              const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...baseWithoutId } = { ...event, ...eventUpdates, recurrenceSeriesId: seriesId };
+              addEvents(dates.filter((d) => d !== originDate).map((date) => ({ ...baseWithoutId, date })));
             } else {
               updateEvent(id, eventUpdates);
             }

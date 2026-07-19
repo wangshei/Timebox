@@ -157,7 +157,11 @@ export async function loadSupabaseState(isInitialLoad = true) {
     // Preserve gcal items that only exist in memory (not persisted to Supabase)
     const prevGcalContainers = prev.calendarContainers.filter(c => c.id.startsWith('gcal-'));
     const prevGcalCategories = prev.categories.filter(c => c.id.startsWith('gcal-cat-'));
-    const prevGcalEvents = prev.events.filter(e => e.googleEventId || e.id.startsWith('gcal-evt-'));
+    // Only imported gcal events (gcal-evt- prefix) are memory-only/ephemeral.
+    // Write-back events (local UUID id stamped with a googleEventId) are persisted
+    // to Supabase like normal events, so they load via the DB path below — don't
+    // double-preserve them here or they'd duplicate.
+    const prevGcalEvents = prev.events.filter(e => e.id.startsWith('gcal-evt-'));
 
     const calendarContainers = [
       ...containers.map((c): CalendarContainer => {
@@ -289,10 +293,14 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   if (!supabase) return;
 
   const errors: Array<{ table: string; op: string; error: unknown }> = [];
+  // Tables whose PHASE 1 upsert failed — their orphan-delete must be skipped so we
+  // don't delete rows that failed to (re-)upsert.
+  const failedTables = new Set<string>();
 
   function check(table: string, op: string, result: { error: unknown }) {
     if (result.error) {
       errors.push({ table, op, error: result.error });
+      if (op === 'upsert') failedTables.add(table);
       // eslint-disable-next-line no-console
       console.error(`[supabasePersistence] ${op} ${table} failed`, result.error);
     }
@@ -403,8 +411,11 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       { onConflict: 'id' }
     ));
   }
-  // Filter out gcal events — they're ephemeral, sourced from Google API on each load
-  const nonGcalEvents = state.events.filter(e => !e.googleEventId && !e.id.startsWith('gcal-evt-'));
+  // Filter out imported gcal events — they're ephemeral, sourced from the Google API
+  // on each load. The `gcal-evt-` prefix is the single "ephemeral" signal: write-back
+  // events (local UUID id stamped with a googleEventId) DO persist so they survive
+  // reloads instead of flickering then getting orphan-deleted.
+  const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
   if (nonGcalEvents.length) {
     check('events', 'upsert', await supabase.from('events').upsert(
       nonGcalEvents.map((e) => ({
@@ -456,14 +467,17 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
    * Delete orphans for a table. When the keep-list is small enough, use `not('id','in',...)`.
    * When too large (would exceed URL length), fetch server IDs and delete specific orphans.
    */
-  async function deleteOrphans(table: string, keepIds: string[]) {
-    // supabaseLoaded gates entry to flush(), so an empty keep list here means the
-    // user genuinely deleted everything in this table — propagate that to the DB.
-    if (keepIds.length === 0) {
+  async function deleteOrphans(table: string, keepIds: string[], allowDeleteAll: boolean) {
+    // supabaseLoaded gates entry to flush(), so an empty keep list here means either
+    // the user genuinely deleted everything (allowDeleteAll) — propagate that to the DB —
+    // or the list is empty only because gcal rows were filtered out (allowDeleteAll false),
+    // in which case we must fall through to the fetch-diff path (an empty keepSet deletes
+    // exactly the real orphan rows on the server, if any) rather than delete-all.
+    if (keepIds.length === 0 && allowDeleteAll) {
       check(table, 'delete-all', await supabase!.from(table).delete().eq('user_id', userId));
       return;
     }
-    if (keepIds.length <= MAX_NOT_IN_IDS) {
+    if (keepIds.length > 0 && keepIds.length <= MAX_NOT_IN_IDS) {
       check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).not('id', 'in', `(${keepIds.join(',')})`));
       return;
     }
@@ -484,12 +498,15 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   }
 
   // Delete children first (FK order), then parents.
-  await deleteOrphans('time_blocks', blockIds);
-  await deleteOrphans('events', eventIds);
-  await deleteOrphans('tasks', taskIds);
-  await deleteOrphans('tags', tagIds);
-  await deleteOrphans('categories', categoryIds);
-  await deleteOrphans('calendar_containers', containerIds);
+  // Skip orphan-delete for any table whose PHASE 1 upsert failed — deleting there could
+  // remove rows that failed to (re-)upsert. allowDeleteAll uses UNFILTERED store counts so
+  // a gcal-only user (empty keep-list purely from gcal filtering) isn't wiped.
+  if (!failedTables.has('time_blocks')) await deleteOrphans('time_blocks', blockIds, true);
+  if (!failedTables.has('events')) await deleteOrphans('events', eventIds, state.events.length === 0);
+  if (!failedTables.has('tasks')) await deleteOrphans('tasks', taskIds, true);
+  if (!failedTables.has('tags')) await deleteOrphans('tags', tagIds, true);
+  if (!failedTables.has('categories')) await deleteOrphans('categories', categoryIds, state.categories.length === 0);
+  if (!failedTables.has('calendar_containers')) await deleteOrphans('calendar_containers', containerIds, state.calendarContainers.length === 0);
 
   if (errors.length > 0) {
     // eslint-disable-next-line no-console
@@ -505,6 +522,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       events: state.events.length,
     });
   }
+
+  return { errors, failedTables };
 }
 
 /** Persist hasCompletedSetup to Supabase so it survives refresh and different devices. */
@@ -588,13 +607,23 @@ export function startSupabasePersistence() {
       doneTasks,
     });
     try {
-      await saveSupabaseStateForUser(userId, slice);
-      lastSaveHadErrors = false;
-      lastSaveCompletedAt = Date.now();
-      // eslint-disable-next-line no-console
-      console.log('[supabasePersistence] Save completed OK');
-      // Clear any previous error on success
-      if (useStore.getState().saveError) useStore.getState().setSaveError(false);
+      const result = await saveSupabaseStateForUser(userId, slice);
+      if (result && (result.errors.length > 0 || result.failedTables.size > 0)) {
+        // Some upserts failed. Record the error and do NOT advance lastSaveCompletedAt,
+        // so doReload's guard keeps blocking a clobbering reload. Change-triggered flushes
+        // and the syncInterval will retry.
+        lastSaveHadErrors = true;
+        useStore.getState().setSaveError(true);
+        // eslint-disable-next-line no-console
+        console.warn('[supabasePersistence] Save completed WITH errors — reload stays blocked');
+      } else {
+        lastSaveHadErrors = false;
+        lastSaveCompletedAt = Date.now();
+        // eslint-disable-next-line no-console
+        console.log('[supabasePersistence] Save completed OK');
+        // Clear any previous error on success
+        if (useStore.getState().saveError) useStore.getState().setSaveError(false);
+      }
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[supabasePersistence] Save THREW error', e);

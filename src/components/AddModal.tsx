@@ -320,17 +320,37 @@ export function AddModal({
     }
   }, [isOpen, editingEvent?.id]); // categories intentionally omitted to avoid form reset on add
 
-  // Reset add mode when modal opens (unless editing). Prefill date/time from drag-to-create.
+  // Reset the form to a clean slate whenever the modal opens for a NEW item (not editing).
+  // The modal never unmounts (it returns null while closed), so every field must be cleared
+  // here or stale values from a previous edit/create leak into the fresh form.
+  // Prefill date/time from drag-to-create when provided.
   useEffect(() => {
     if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(initialMode);
+      setTitle('');
+      setEstimatedHours(1);
+      setDate(initialDate ?? getLocalDateString());
+      setEndDate(initialDate ?? getLocalDateString());
+      setStartTime(initialStartTime ?? '09:00');
+      setEndTime(initialEndTime ?? '10:00');
+      setSelectedCalendar(calendars[0]?.id ?? 'personal');
+      setSelectedTags([]);
+      setDueDate('');
+      setLink('');
+      setDescription('');
+      setNotes('');
       setPinned(false);
       setPriority(undefined);
+      setMoreOpen(false);
+      setRecurrencePattern('none');
+      setRecurrenceDays([]);
+      setRecurrenceEditScope('this');
+      setInviteEmails([]);
+      setInviteInput('');
+      setShowInviteSection(false);
+      setExcludedSubscribers(new Set());
       setTimezone(getLocalTimeZone());
       setTimezoneEnabled(true);
-      if (initialDate) { setDate(initialDate); setEndDate(initialDate); }
-      if (initialStartTime) setStartTime(initialStartTime);
-      if (initialEndTime) setEndTime(initialEndTime);
     }
   }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent, initialDate, initialStartTime, initialEndTime]);
 

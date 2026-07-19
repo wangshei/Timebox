@@ -229,8 +229,8 @@ export function selectPlanVsActualByCategory(
       const mins = eventMins(e);
       // Events are always planned
       prev.plannedMins += mins;
-      // Attended events count as recorded
-      if (e.attendanceStatus === 'attended') {
+      // Past events count as attended unless explicitly marked not_attended
+      if (e.attendanceStatus !== 'not_attended' && (!todayStr || e.date < todayStr)) {
         prev.recordedMins += mins;
       }
       byCategory.set(cat.id, prev);
@@ -282,7 +282,8 @@ export function selectPlanVsActualByContainer(
       const prev = byContainer.get(container.id) ?? { container, plannedMins: 0, recordedMins: 0 };
       const mins = eventMins(e);
       prev.plannedMins += mins;
-      if (e.attendanceStatus === 'attended') {
+      // Past events count as attended unless explicitly marked not_attended
+      if (e.attendanceStatus !== 'not_attended' && (!todayStr || e.date < todayStr)) {
         prev.recordedMins += mins;
       }
       byContainer.set(container.id, prev);
