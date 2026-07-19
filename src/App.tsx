@@ -29,7 +29,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
-import { createShare, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
+import { createShare, addShareMember, removeShareMember, getMyShares, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -50,6 +50,7 @@ import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
+import { saveSchedulingLinkToDb, deleteSchedulingLinkFromDb, loadSchedulingLinksAndBookings } from './services/booking';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { THEME } from './constants/colors';
 
@@ -335,36 +336,46 @@ export default function App() {
           return [...prev, ...shared.filter(s => !existingIds.has(s.shareId))];
         });
 
-        // Inject shared events into the store
+        // Inject shared events into the store. Reconcile (not append-once): rebuild
+        // the full set of shared events from what the server just returned, keyed by
+        // a stable id, then drop any previously-injected shared events that are no
+        // longer returned. This makes owner edits/deletes propagate on reload
+        // instead of duplicating or leaving stale copies behind.
         const state = useStore.getState();
-        const existingSharedEventIds = new Set(
-          state.events.filter(e => e.sharedFromShareId).map(e => `${e.sharedFromShareId}:${e.title}:${e.date}:${e.start}`)
-        );
         const defaultContId = state.calendarContainers[0]?.id ?? '';
         const defaultCatId = state.categories[0]?.id ?? '';
 
         // Read the latest saved mapping — sharedMappings closure may be stale here
-        // because this effect runs once when the session arrives.
+        // because this effect runs when the session arrives.
         let savedMappings: Record<string, { calendarId: string; categoryId: string }> = {};
         try {
           const raw = localStorage.getItem(SHARED_MAPPINGS_KEY);
           if (raw) savedMappings = JSON.parse(raw);
         } catch { /* ignore */ }
 
-        const newEvents: import('./types').Event[] = [];
+        // Preserve any calendar/category the user already assigned to an existing
+        // injected shared event (keyed by stable id) so reconcile doesn't reset it.
+        const existingSharedById = new Map(
+          state.events.filter(e => e.sharedFromShareId).map(e => [e.id, e])
+        );
+
+        const desiredById = new Map<string, import('./types').Event>();
         for (const cal of shared) {
           if (!cal.events) continue;
           const mapping = savedMappings[cal.shareId];
           const targetContId = mapping?.calendarId ?? defaultContId;
           const targetCatId = mapping?.categoryId ?? defaultCatId;
           for (const evt of cal.events) {
-            const key = `${cal.shareId}:${evt.title}:${evt.date}:${evt.start}`;
-            if (existingSharedEventIds.has(key)) continue;
-            newEvents.push({
-              id: `shared-${cal.shareId}-${evt.date}-${evt.start}-${Math.random().toString(36).slice(2, 7)}`,
+            // Stable identity: prefer the server's source event id (FIX B returns it).
+            const sourceId = (evt as { id?: string }).id ?? `${evt.date}-${evt.start}`;
+            const id = `shared-${cal.shareId}-${sourceId}`;
+            const prior = existingSharedById.get(id);
+            desiredById.set(id, {
+              id,
               title: evt.title,
-              calendarContainerId: targetContId,
-              categoryId: targetCatId,
+              // Keep the user's chosen mapping if they already placed this event.
+              calendarContainerId: prior?.calendarContainerId ?? targetContId,
+              categoryId: prior?.categoryId ?? targetCatId,
               date: evt.date,
               start: evt.start,
               end: evt.end,
@@ -375,11 +386,14 @@ export default function App() {
             });
           }
         }
-        if (newEvents.length > 0) {
-          useStore.setState((s) => ({
-            events: [...s.events, ...newEvents],
-          }));
-        }
+
+        useStore.setState((s) => ({
+          // Keep non-shared events untouched; replace the shared set wholesale.
+          events: [
+            ...s.events.filter(e => !e.sharedFromShareId),
+            ...Array.from(desiredById.values()),
+          ],
+        }));
       } catch (err) {
         console.warn('[shared-calendars] Failed to load:', err);
       }
@@ -395,10 +409,47 @@ export default function App() {
   } | null>(null);
   // Local collaborators state keyed by scope+id (in production this comes from Supabase)
   const [collaboratorsByItem, setCollaboratorsByItem] = useState<Record<string, Collaborator[]>>({});
+  // The single share row backing each scope item (scope:id → shareId). One share
+  // per item; members are added/removed against it rather than creating new shares.
+  const [shareIdByItem, setShareIdByItem] = useState<Record<string, string | undefined>>({});
+
+  // Load the existing share + its members for a scope item from `my_shares`, so
+  // reopening the modal shows current collaborators (with their real member ids)
+  // and we know the shareId to add/remove members against.
+  const loadCollaborators = useCallback(async (scope: ShareScope, scopeId: string) => {
+    const key = `${scope}:${scopeId}`;
+    try {
+      const shares = (await getMyShares()) as Array<Record<string, any>>;
+      const match = shares.find((s) =>
+        s.scope === scope && (
+          (scope === 'calendar' && s.calendar_container_id === scopeId) ||
+          (scope === 'category' && s.category_id === scopeId) ||
+          (scope === 'tag' && s.tag_id === scopeId) ||
+          (scope === 'event' && s.event_id === scopeId)
+        )
+      );
+      if (!match) {
+        setShareIdByItem(prev => ({ ...prev, [key]: undefined }));
+        setCollaboratorsByItem(prev => ({ ...prev, [key]: [] }));
+        return;
+      }
+      setShareIdByItem(prev => ({ ...prev, [key]: match.id }));
+      const collabs: Collaborator[] = (match.share_members ?? []).map((m: Record<string, any>) => ({
+        id: m.id,                       // real share_members.id — used for remove_member
+        email: m.email,
+        role: 'viewer',                 // DB CHECK only allows 'viewer'
+        status: m.status ?? 'pending',
+      }));
+      setCollaboratorsByItem(prev => ({ ...prev, [key]: collabs }));
+    } catch (err) {
+      console.warn('[share] Failed to load collaborators:', err);
+    }
+  }, []);
 
   const handleOpenShare = useCallback((id: string, scope: ShareScope, name: string, color: string) => {
     setShareModal({ id, scope, name, color });
-  }, []);
+    void loadCollaborators(scope, id);
+  }, [loadCollaborators]);
 
   const handleShareCopyLink = useCallback(() => {
     if (!shareModal) return;
@@ -411,13 +462,15 @@ export default function App() {
     });
   }, [shareModal]);
 
-  const handleShareInvite = useCallback(async (email: string, role: ShareRole) => {
+  const handleShareInvite = useCallback(async (email: string, _role: ShareRole) => {
     if (!shareModal) return;
-    const key = `${shareModal.scope}:${shareModal.id}`;
+    const { scope, id, name } = shareModal;
+    const key = `${scope}:${id}`;
+    // Optimistic row (role is always viewer — DB CHECK only allows 'viewer').
     const newCollab: Collaborator = {
       id: crypto.randomUUID(),
       email,
-      role,
+      role: 'viewer',
       status: 'pending',
     };
     setCollaboratorsByItem(prev => ({
@@ -426,39 +479,60 @@ export default function App() {
     }));
     setSubscriberCounts(prev => ({
       ...prev,
-      [shareModal.id]: (prev[shareModal.id] ?? 0) + 1,
+      [id]: (prev[id] ?? 0) + 1,
     }));
 
-    // Call backend to create share and send invite email
+    // One share per scope item: create it on the first invite, then add members
+    // to that same share for every subsequent invite.
     try {
-      await createShare({
-        scope: shareModal.scope,
-        scopeId: shareModal.id,
-        displayName: shareModal.name,
-        emails: [email],
-        includeExisting: true,
-        pushToGoogle: true,
-      });
+      const existingShareId = shareIdByItem[key];
+      if (existingShareId) {
+        await addShareMember({ shareId: existingShareId, email, pushToGoogle: true });
+      } else {
+        const res = await createShare({
+          scope,
+          scopeId: id,
+          displayName: name,
+          emails: [email],
+          includeExisting: true,
+          pushToGoogle: true,
+        });
+        if (res?.shareId) setShareIdByItem(prev => ({ ...prev, [key]: res.shareId }));
+      }
       toast.success(`Invite sent to ${email}`);
     } catch (err) {
       console.warn('[share] Failed to send invite:', err);
       toast.success(`Invite saved (email may not have sent)`);
     }
-  }, [shareModal]);
+    // Reconcile with the server so the row carries the real member id (needed for
+    // removal) and true status.
+    void loadCollaborators(scope, id);
+  }, [shareModal, shareIdByItem, loadCollaborators]);
 
-  const handleShareRemove = useCallback((collaboratorId: string) => {
+  const handleShareRemove = useCallback(async (collaboratorId: string) => {
     if (!shareModal) return;
-    const key = `${shareModal.scope}:${shareModal.id}`;
+    const { scope, id } = shareModal;
+    const key = `${scope}:${id}`;
+    const shareId = shareIdByItem[key];
+    // Optimistic local removal.
     setCollaboratorsByItem(prev => ({
       ...prev,
       [key]: (prev[key] ?? []).filter(c => c.id !== collaboratorId),
     }));
     setSubscriberCounts(prev => ({
       ...prev,
-      [shareModal.id]: Math.max((prev[shareModal.id] ?? 1) - 1, 0),
+      [id]: Math.max((prev[id] ?? 1) - 1, 0),
     }));
+    // Actually remove the member from the share on the backend.
+    if (shareId) {
+      try {
+        await removeShareMember({ shareId, memberId: collaboratorId });
+      } catch (err) {
+        console.warn('[share] Failed to remove member:', err);
+      }
+    }
     toast('Collaborator removed');
-  }, [shareModal]);
+  }, [shareModal, shareIdByItem]);
 
   const handleShareUpdateRole = useCallback((collaboratorId: string, role: ShareRole) => {
     if (!shareModal) return;
@@ -2217,6 +2291,21 @@ export default function App() {
             }
           }
         }
+        // Load scheduling links + bookings from the DB (source of truth for the
+        // public booking flow). Kept out of the debounced Supabase flush — read
+        // directly and pushed into the store so the owner sees real bookings.
+        try {
+          const sched = await loadSchedulingLinksAndBookings();
+          if (sched) {
+            useStore.setState({
+              schedulingLinks: sched.schedulingLinks,
+              bookings: sched.bookings,
+            });
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('[App] loadSchedulingLinksAndBookings failed', e);
+        }
         // Track session count + session date (fire-and-forget)
         try {
           const userId = next.user.id;
@@ -2693,10 +2782,16 @@ export default function App() {
                   else setSelectedAvailSlots([]);
                   setShowSchedulingModal(true);
                 }}
-                onDeleteSchedulingLink={(id) => deleteSchedulingLink(id)}
+                onDeleteSchedulingLink={(id) => {
+                  deleteSchedulingLink(id);
+                  void deleteSchedulingLinkFromDb(id);
+                }}
                 onToggleSchedulingLinkActive={(id) => {
                   const link = schedulingLinks.find((l) => l.id === id);
-                  if (link) updateSchedulingLink(id, { active: !link.active });
+                  if (link) {
+                    updateSchedulingLink(id, { active: !link.active });
+                    void saveSchedulingLinkToDb({ ...link, active: !link.active });
+                  }
                 }}
                 onCopySchedulingLink={(slug) => {
                   const url = `${getAppOrigin()}/book/${slug}`;

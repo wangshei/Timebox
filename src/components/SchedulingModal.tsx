@@ -5,6 +5,7 @@ import type { AvailableSlot, SchedulingLink } from '../types';
 import { useStore } from '../store/useStore';
 import { THEME } from '../constants/colors';
 import { getLocalTimeZone, getAppOrigin } from '../utils/dateTime';
+import { saveSchedulingLinkToDb } from '../services/booking';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -201,11 +202,18 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
       creatorEmail: localStorage.getItem('timebox_user_email') ?? undefined,
     };
 
+    // Update the local store immediately for responsive UI, then mirror the
+    // link to the DB (source of truth) so public links work for external users.
+    let persisted: SchedulingLink;
     if (editingLink) {
       updateSchedulingLink(editingLink.id, linkData);
+      persisted = { ...editingLink, ...linkData };
     } else {
-      addSchedulingLink(linkData);
+      const id = addSchedulingLink(linkData);
+      persisted = { ...linkData, id, createdAt: new Date().toISOString() };
     }
+    // Fire-and-forget DB write — failure is logged, local state stays usable.
+    void saveSchedulingLinkToDb(persisted);
 
     setSavedSlug(slug);
     setSaved(true);

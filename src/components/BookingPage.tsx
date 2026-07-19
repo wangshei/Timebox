@@ -1,13 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
-import type { SchedulingLink, Booking } from '../types';
-
-const LS_LINKS_KEY = 'timebox_scheduling_links_public';
-const LS_BOOKINGS_KEY = 'timebox_bookings_public';
-
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-}
+import { getBookingLink, createBooking, type PublicBookingLink } from '../services/booking';
 
 /** Parse "HH:MM" to minutes from midnight. */
 function parseTime(t: string): number {
@@ -63,9 +56,18 @@ interface BookingPageProps {
 
 type Step = 'loading' | 'date' | 'time' | 'form' | 'confirmed' | 'error';
 
+/** Confirmed booking summary shown on the success screen. */
+interface ConfirmedSummary {
+  bookerEmail: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+}
+
 export function BookingPage({ slug }: BookingPageProps) {
-  const [link, setLink] = useState<SchedulingLink | null>(null);
-  const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
+  const [link, setLink] = useState<PublicBookingLink | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<Array<{ date: string; startTime: string }>>([]);
   const [step, setStep] = useState<Step>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -74,53 +76,42 @@ export function BookingPage({ slug }: BookingPageProps) {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [confirmedBooking, setConfirmedBooking] = useState<ConfirmedSummary | null>(null);
 
-  // Load scheduling link from localStorage
-  useEffect(() => {
+  // Load scheduling link from the server (get_booking_link edge action).
+  const loadLink = useCallback(async () => {
     try {
-      const raw = localStorage.getItem(LS_LINKS_KEY);
-      const links: SchedulingLink[] = raw ? JSON.parse(raw) : [];
-      let found = links.find((l) => l.slug === slug && l.active) ?? null;
-      if (!found) {
-        // Also try main store localStorage (timebox-state-v2)
-        for (const key of ['timebox-state-v2', 'timebox_state']) {
-          const storeRaw = localStorage.getItem(key);
-          if (storeRaw) {
-            try {
-              const storeState = JSON.parse(storeRaw);
-              const storeLink = (storeState.schedulingLinks || []).find(
-                (l: SchedulingLink) => l.slug === slug && l.active
-              );
-              if (storeLink) {
-                found = storeLink;
-                // Load bookings from main store too
-                setExistingBookings((storeState.bookings || []).filter(
-                  (b: Booking) => b.schedulingLinkId === storeLink.id && b.status === 'confirmed'
-                ));
-                break;
-              }
-            } catch {
-              // ignore parse errors
-            }
-          }
-        }
-      }
-      if (!found) {
-        setErrorMsg('This scheduling link is not available or has been deactivated.');
+      const result = await getBookingLink(slug);
+      if ('error' in result) {
+        setErrorMsg(
+          result.error === 'expired'
+            ? 'This scheduling link has expired.'
+            : 'This scheduling link is not available or has been deactivated.'
+        );
         setStep('error');
         return;
       }
-      setLink(found);
-
-      // Load existing bookings
-      const bookingsRaw = localStorage.getItem(LS_BOOKINGS_KEY);
-      const allBookings: Booking[] = bookingsRaw ? JSON.parse(bookingsRaw) : [];
-      setExistingBookings(allBookings.filter((b) => b.schedulingLinkId === found.id && b.status === 'confirmed'));
+      setLink(result);
+      setBookedSlots(result.bookedSlots ?? []);
       setStep('date');
     } catch {
-      setErrorMsg('Failed to load scheduling information.');
+      setErrorMsg('Failed to load scheduling information. Please try again.');
       setStep('error');
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    void loadLink();
+  }, [loadLink]);
+
+  // Refresh only the booked slots (used after a slot_taken conflict).
+  const refreshAvailability = useCallback(async () => {
+    try {
+      const result = await getBookingLink(slug);
+      if (!('error' in result)) setBookedSlots(result.bookedSlots ?? []);
+    } catch {
+      // Non-fatal: keep existing availability.
     }
   }, [slug]);
 
@@ -168,8 +159,8 @@ export function BookingPage({ slug }: BookingPageProps) {
           const chunkDate = new Date(y, mo - 1, d, Math.floor(chunk.start / 60), chunk.start % 60);
           if (chunkDate <= earliestTime) continue;
           // Check not already booked
-          const isBooked = existingBookings.some(
-            (b) => b.date === dateStr && parseTime(b.startTime) === chunk.start && parseTime(b.endTime) === chunk.end
+          const isBooked = bookedSlots.some(
+            (b) => b.date === dateStr && parseTime(b.startTime) === chunk.start
           );
           if (!isBooked) {
             available.add(dateStr);
@@ -179,7 +170,7 @@ export function BookingPage({ slug }: BookingPageProps) {
       }
     }
     return available;
-  }, [link, next14Days, existingBookings]);
+  }, [link, next14Days, bookedSlots]);
 
   // Get time slots for selected date
   const timeSlots = useMemo(() => {
@@ -202,8 +193,8 @@ export function BookingPage({ slug }: BookingPageProps) {
         const [y, mo, d] = selectedDate.split('-').map(Number);
         const chunkDate = new Date(y, mo - 1, d, Math.floor(chunk.start / 60), chunk.start % 60);
         if (chunkDate <= earliestTime) continue;
-        const isBooked = existingBookings.some(
-          (b) => b.date === selectedDate && parseTime(b.startTime) === chunk.start && parseTime(b.endTime) === chunk.end
+        const isBooked = bookedSlots.some(
+          (b) => b.date === selectedDate && parseTime(b.startTime) === chunk.start
         );
         if (!isBooked) {
           allChunks.push(chunk);
@@ -211,73 +202,50 @@ export function BookingPage({ slug }: BookingPageProps) {
       }
     }
     return allChunks.sort((a, b) => a.start - b.start);
-  }, [link, selectedDate, existingBookings]);
+  }, [link, selectedDate, bookedSlots]);
 
   const handleBook = async () => {
     if (!link || !selectedDate || !selectedSlot || !name.trim() || !email.trim()) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
-      const booking: Booking = {
-        id: generateId(),
-        schedulingLinkId: link.id,
+      const startTime = fmtTime(selectedSlot.start);
+      const endTime = fmtTime(selectedSlot.end);
+      const result = await createBooking({
+        slug,
+        date: selectedDate,
+        startTime,
+        endTime,
         bookerName: name.trim(),
         bookerEmail: email.trim(),
-        date: selectedDate,
-        startTime: fmtTime(selectedSlot.start),
-        endTime: fmtTime(selectedSlot.end),
-        status: 'confirmed',
         notes: notes.trim() || undefined,
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      // Save to public localStorage
-      const raw = localStorage.getItem(LS_BOOKINGS_KEY);
-      const existing: Booking[] = raw ? JSON.parse(raw) : [];
-      existing.push(booking);
-      localStorage.setItem(LS_BOOKINGS_KEY, JSON.stringify(existing));
-
-      // Also try saving to main store localStorage
-      for (const key of ['timebox-state-v2', 'timebox_state']) {
-        try {
-          const storeRaw = localStorage.getItem(key);
-          if (storeRaw) {
-            const storeState = JSON.parse(storeRaw);
-            storeState.bookings = [...(storeState.bookings || []), booking];
-            localStorage.setItem(key, JSON.stringify(storeState));
-          }
-        } catch {
-          // ignore
+      if ('error' in result) {
+        if (result.error === 'slot_taken') {
+          // Someone booked this slot first — refresh availability and bounce back.
+          await refreshAvailability();
+          setSelectedSlot(null);
+          setSubmitError('That time was just booked — pick another.');
+          setStep('time');
+        } else {
+          setSubmitError('Failed to create booking. Please try again.');
         }
+        return;
       }
 
-      setConfirmedBooking(booking);
+      setConfirmedBooking({
+        bookerEmail: email.trim(),
+        date: selectedDate,
+        startTime,
+        endTime,
+        notes: notes.trim() || undefined,
+      });
+      // Reflect the new booking locally so availability stays accurate.
+      setBookedSlots((prev) => [...prev, { date: selectedDate, startTime }]);
       setStep('confirmed');
-
-      // Send confirmation emails (fire-and-forget)
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-        if (supabaseUrl) {
-          fetch(`${supabaseUrl}/functions/v1/share-invite`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'notify_booking',
-              linkName: link.name,
-              bookerName: name.trim(),
-              bookerEmail: email.trim(),
-              creatorEmail: link.creatorEmail ?? undefined,
-              date: fmtDate(selectedDate),
-              startTime: fmtTimeReadable(selectedSlot.start),
-              endTime: fmtTimeReadable(selectedSlot.end),
-              notes: notes.trim() || undefined,
-            }),
-          }).catch(() => { /* email failure shouldn't block confirmation */ });
-        }
-      } catch {
-        // Silently ignore email errors
-      }
     } catch {
-      setErrorMsg('Failed to create booking. Please try again.');
+      setSubmitError('Failed to create booking. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -357,9 +325,19 @@ export function BookingPage({ slug }: BookingPageProps) {
 
           {(step === 'date' || step === 'time') && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3A3C', marginBottom: 12 }}>
+              {submitError && (
+                <div style={{ fontSize: 13, color: '#FF3B30', marginBottom: 12, textAlign: 'center' }}>
+                  {submitError}
+                </div>
+              )}
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3A3C', marginBottom: 4 }}>
                 Select a day
               </div>
+              {link && (
+                <div style={{ fontSize: 11, color: '#AEAEB2', marginBottom: 12 }}>
+                  Times shown in {link.timezone}
+                </div>
+              )}
               <div
                 style={{
                   display: 'flex',
@@ -565,6 +543,11 @@ export function BookingPage({ slug }: BookingPageProps) {
                     }}
                   />
                 </div>
+                {submitError && (
+                  <div style={{ fontSize: 12, color: '#FF3B30', marginTop: 2 }}>
+                    {submitError}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleBook}

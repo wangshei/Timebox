@@ -105,7 +105,7 @@ function inviteEmailHtml(senderName: string, shareName: string, inviteLink: stri
     </td></tr>
     <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #F0F0F0;">
       <p style="margin:0;font-size:12px;color:#AEAEB2;">
-        Not interested? Simply ignore this email. <a href="${inviteLink}&action=decline" style="color:#8DA286;">Decline</a>
+        Not interested? Simply ignore this email. <a href="${inviteLink}?action=decline" style="color:#8DA286;">Decline</a>
       </p>
     </td></tr>
   </table>
@@ -649,6 +649,280 @@ async function sharedWithMe(userId: string) {
   return { shares: memberships ?? [] }
 }
 
+// --- Shared With Me (with events) ---
+
+// Resolve the accent color for a share from its source calendar/category/tag.
+// Best-effort: any missing table/column just falls back to the brand green.
+async function getShareColor(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  share: Record<string, unknown>,
+): Promise<string> {
+  try {
+    if (share.scope === 'calendar' && share.calendar_container_id) {
+      const { data } = await supabase.from('calendar_containers').select('color').eq('id', share.calendar_container_id).single()
+      if (data?.color) return data.color as string
+    } else if (share.scope === 'category' && share.category_id) {
+      const { data } = await supabase.from('categories').select('color').eq('id', share.category_id).single()
+      if (data?.color) return data.color as string
+    } else if (share.scope === 'tag' && share.tag_id) {
+      const { data } = await supabase.from('tags').select('color').eq('id', share.tag_id).single()
+      if (data?.color) return data.color as string
+    }
+  } catch {
+    // fall through to default
+  }
+  return '#8DA286'
+}
+
+/**
+ * Resolve the actual events for every share THIS user has accepted.
+ *
+ * SECURITY BOUNDARY — two independent checks, both required:
+ *   1. Membership: we only look at share_members rows whose user_id === userId
+ *      OR whose email matches this user's auth email, AND status === 'accepted'.
+ *   2. Ownership: every event query is filtered by `user_id = share.owner_id`
+ *      (the events table stores the owner's id in user_id). We NEVER select events
+ *      without that owner filter, so a share can only ever expose its own owner's
+ *      events — never another owner's, and never for shares the user hasn't accepted.
+ */
+async function sharedWithMeEvents(userId: string) {
+  const supabase = getSupabaseAdmin()
+
+  // Resolve this user's auth email so we can also match email-based memberships
+  // (invitees who were linked by email before user_id was stamped).
+  let userEmail: string | null = null
+  try {
+    const { data: { user } } = await supabase.auth.admin.getUserById(userId)
+    userEmail = user?.email?.toLowerCase() ?? null
+  } catch {
+    // If we can't resolve the email, fall back to user_id-only matching.
+  }
+
+  // Check 1 (membership): only rows that belong to this user and are accepted.
+  const orFilters = [`user_id.eq.${userId}`]
+  if (userEmail) orFilters.push(`email.eq.${userEmail}`)
+  const { data: memberships } = await supabase
+    .from('share_members')
+    .select('*, calendar_shares(*)')
+    .or(orFilters.join(','))
+    .eq('status', 'accepted')
+
+  const calendars: Array<Record<string, unknown>> = []
+  const eventSelect = 'id, title, date, start, end, recurring'
+
+  for (const m of memberships ?? []) {
+    const share = (m as Record<string, unknown>).calendar_shares as Record<string, unknown> | null
+    if (!share) continue
+    const ownerId = share.owner_id as string | undefined
+    if (!ownerId) continue
+
+    // Check 2 (ownership): EVERY branch below filters by user_id = ownerId.
+    let events: Array<Record<string, unknown>> = []
+    if (share.scope === 'event' && share.event_id) {
+      const { data } = await supabase.from('events').select(eventSelect)
+        .eq('user_id', ownerId).eq('id', share.event_id)
+      events = data ?? []
+    } else if (share.scope === 'calendar' && share.calendar_container_id) {
+      const { data } = await supabase.from('events').select(eventSelect)
+        .eq('user_id', ownerId).eq('calendar_container_id', share.calendar_container_id)
+      events = data ?? []
+    } else if (share.scope === 'category' && share.category_id) {
+      const { data } = await supabase.from('events').select(eventSelect)
+        .eq('user_id', ownerId).eq('category_id', share.category_id)
+      events = data ?? []
+    } else if (share.scope === 'tag') {
+      // The events table has NO tag column — tags live only on tasks/blocks
+      // (verified against supabasePersistence event row schema). There is no
+      // correct event query for tag-scoped shares, so resolve to zero events
+      // rather than leak cross-scope data. Tag sharing simply yields no events.
+      events = []
+    }
+
+    const ownerName = await getUserName(ownerId)
+    const color = await getShareColor(supabase, share)
+
+    calendars.push({
+      shareId: share.id,
+      ownerId,
+      ownerName,
+      displayName: (share.display_name as string) ?? `${ownerName}'s ${share.scope}`,
+      scope: share.scope,
+      color,
+      eventCount: events.length,
+      events: events.map((e) => ({
+        // Stable source id so the client can build a stable, dedupe-able key.
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        start: e.start,
+        end: e.end,
+        recurring: (e.recurring as boolean) ?? false,
+      })),
+    })
+  }
+
+  return { calendars }
+}
+
+// --- Public Booking: get link details (no auth required) ---
+
+/** Parse "HH:MM" to minutes from midnight. */
+function parseHM(t: string): number {
+  const [h, m] = String(t).split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+/** Day of week (0=Sun..6=Sat) for a YYYY-MM-DD string, computed in UTC. */
+function dowOf(dateStr: string): number {
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  return new Date(Date.UTC(y, mo - 1, d)).getUTCDay()
+}
+
+/** Load an active, non-expired scheduling link by slug. Returns { row } or { error }. */
+async function loadBookingLinkRow(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  slug: unknown,
+): Promise<{ row?: Record<string, unknown>; error?: 'not_found' | 'expired' }> {
+  if (!slug || typeof slug !== 'string') return { error: 'not_found' }
+  const { data: row, error } = await supabase
+    .from('scheduling_links')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error || !row || row.active === false) return { error: 'not_found' }
+  // valid_until is '' when there is no expiry. Compare against today (UTC).
+  const validUntil = (row.valid_until as string) ?? ''
+  if (validUntil && validUntil.length > 0) {
+    const today = new Date().toISOString().split('T')[0]
+    if (validUntil < today) return { error: 'expired' }
+  }
+  return { row }
+}
+
+async function getBookingLink(body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { row, error } = await loadBookingLinkRow(supabase, body.slug)
+  if (error) return { error }
+  const link = row!
+
+  // Fetch existing CONFIRMED bookings so the client can show availability.
+  // Only expose (date, startTime) — never booker PII.
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('date, start_time')
+    .eq('scheduling_link_id', link.id)
+    .eq('status', 'confirmed')
+
+  const bookedSlots = (bookings ?? []).map((b: Record<string, unknown>) => ({
+    date: b.date as string,
+    startTime: b.start_time as string,
+  }))
+
+  const ownerName = await getUserName(link.owner_id as string)
+
+  // Return only the fields the public BookingPage needs — no owner email / PII.
+  return {
+    name: link.name,
+    slotDuration: link.slot_duration,
+    gapBetween: link.gap_between,
+    minAdvanceHours: link.min_advance_hours,
+    validUntil: link.valid_until ?? '',
+    availableSlots: link.available_slots ?? [],
+    timezone: link.timezone,
+    calendarContainerId: link.calendar_container_id,
+    ownerName,
+    bookedSlots,
+  }
+}
+
+// --- Public Booking: create a booking (no auth required) ---
+
+async function createBooking(body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { slug, date, startTime, endTime, bookerName, bookerEmail, notes } = body
+
+  if (!date || !startTime || !endTime || !bookerName || !bookerEmail) {
+    return { error: 'missing_fields' }
+  }
+
+  // (a) Load link; reject if missing / inactive / expired.
+  const { row, error } = await loadBookingLinkRow(supabase, slug)
+  if (error) return { error }
+  const link = row!
+
+  // (b) Validate the requested slot is inside one of the link's availability
+  // windows for that day, and satisfies minAdvanceHours.
+  const reqDate = date as string
+  const reqStart = parseHM(startTime as string)
+  const reqEnd = parseHM(endTime as string)
+  const dow = dowOf(reqDate)
+  const slots = (link.available_slots as Array<Record<string, unknown>>) ?? []
+  const withinWindow = slots.some((s) => {
+    const matchesDay =
+      s.dayOfWeek === dow || (s.dayOfWeek === -1 && s.date === reqDate)
+    if (!matchesDay) return false
+    const winStart = parseHM(s.startTime as string)
+    const winEnd = parseHM(s.endTime as string)
+    return reqStart >= winStart && reqEnd <= winEnd && reqEnd > reqStart
+  })
+  if (!withinWindow) return { error: 'invalid_slot' }
+
+  // Min-advance check. Proper wall-clock math in the link's IANA timezone is
+  // non-trivial in Deno without a TZ library, so we approximate: interpret the
+  // requested date+time as UTC and require it to be at least minAdvanceHours
+  // from now (also UTC). This can be off by the owner's UTC offset, but errs by
+  // at most a few hours and never allows a booking in the past.
+  const minAdvanceHours = Number(link.min_advance_hours ?? 0)
+  const [ry, rmo, rd] = reqDate.split('-').map(Number)
+  const reqInstant = Date.UTC(ry, rmo - 1, rd, Math.floor(reqStart / 60), reqStart % 60)
+  const earliest = Date.now() + minAdvanceHours * 60 * 60 * 1000
+  if (reqInstant < earliest) return { error: 'invalid_slot' }
+
+  // (c) Insert the booking. The UNIQUE index on (scheduling_link_id, date,
+  // start_time) WHERE status='confirmed' protects against double-booking.
+  const { data: inserted, error: insertError } = await supabase
+    .from('bookings')
+    .insert({
+      scheduling_link_id: link.id,
+      booker_name: bookerName,
+      booker_email: bookerEmail,
+      date: reqDate,
+      start_time: startTime,
+      end_time: endTime,
+      status: 'confirmed',
+      notes: notes ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (insertError) {
+    // 23505 = unique_violation → the slot was just taken.
+    if ((insertError as { code?: string }).code === '23505') {
+      return { error: 'slot_taken' }
+    }
+    console.error('[share-invite] createBooking insert error:', insertError.message)
+    return { error: 'insert_failed' }
+  }
+
+  // (d) Email the owner + booker (best-effort). Reuse the existing notify path.
+  try {
+    await notifyBooking({
+      linkName: link.name,
+      bookerName,
+      bookerEmail,
+      creatorEmail: link.creator_email ?? undefined,
+      date: reqDate,
+      startTime,
+      endTime,
+      notes,
+    })
+  } catch (e) {
+    console.error('[share-invite] createBooking notify error:', e)
+  }
+
+  return { ok: true, bookingId: inserted.id }
+}
+
 // --- Handler ---
 
 serve(async (req) => {
@@ -669,6 +943,19 @@ serve(async (req) => {
     }
     if (action === 'respond') {
       const result = await respondToInvite(body)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    // Public booking actions — must work for unauthenticated bookers.
+    if (action === 'get_booking_link') {
+      const result = await getBookingLink(body)
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (action === 'create_booking') {
+      const result = await createBooking(body)
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -712,6 +999,9 @@ serve(async (req) => {
         break
       case 'shared_with_me':
         result = await sharedWithMe(userId)
+        break
+      case 'shared_with_me_events':
+        result = await sharedWithMeEvents(userId)
         break
       case 'notify_event_update':
         result = await notifyEventUpdate(userId, body)

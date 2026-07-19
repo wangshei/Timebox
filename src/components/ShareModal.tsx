@@ -120,7 +120,12 @@ function RoleDropdown({
             overflow: 'hidden',
           }}
         >
-          {(['viewer', 'editor', 'admin'] as ShareRole[]).map((role) => (
+          {/*
+            Only 'viewer' is offered: the share_members.role DB CHECK currently
+            allows ONLY 'viewer'. Editor/Admin are hidden to avoid a silent
+            persist failure. Re-add them here if the CHECK is ever widened.
+          */}
+          {(['viewer'] as ShareRole[]).map((role) => (
             <button
               key={role}
               type="button"
