@@ -778,6 +778,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 isStartSegment={seg.isStartSegment}
                 isEndSegment={seg.isEndSegment}
                 activeStampEmoji={activeStampEmoji}
+                focusedCategoryId={focusedCategoryId}
+                focusedCalendarId={focusedCalendarId}
               />
             );
           })}

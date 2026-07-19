@@ -64,7 +64,13 @@ interface EventCardProps {
   isEndSegment?: boolean;
   /** When set, blocks are in stamp mode — clicking stamps this emoji. */
   activeStampEmoji?: string | null;
+  /** Focus mode: when a category/calendar is focused, non-matching events dim. */
+  focusedCategoryId?: string | null;
+  focusedCalendarId?: string | null;
 }
+
+/** Opacity applied to events that don't match the focused category/calendar. */
+const FOCUS_MUTED_OPACITY = 0.3;
 
 export function EventCard({
   event,
@@ -85,6 +91,8 @@ export function EventCard({
   isStartSegment = true,
   isEndSegment = true,
   activeStampEmoji,
+  focusedCategoryId = null,
+  focusedCalendarId = null,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm' | 'confirm_gcal'>(null);
@@ -148,7 +156,14 @@ export function EventCard({
       : isPast
         ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
         : hexToRgba(categoryColor, 0.65);
-  const opacity = notAttended ? 0.5 : 1;
+  // Focus mode: dim events that aren't in the focused category/calendar.
+  const focusMuted =
+    focusedCategoryId != null
+      ? event.category?.id !== focusedCategoryId
+      : focusedCalendarId != null
+        ? event.calendarContainerId !== focusedCalendarId
+        : false;
+  const opacity = focusMuted ? FOCUS_MUTED_OPACITY : notAttended ? 0.5 : 1;
   // White text when background is dark (current events with 0.65 alpha); otherwise use theme primary
   const eventTextColor =
     plannedStyle || isPast || notAttended

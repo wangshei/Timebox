@@ -765,6 +765,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     isEndSegment={seg.isEndSegment}
                                     compact={true}
                                     activeStampEmoji={activeStampEmoji}
+                                    focusedCategoryId={focusedCategoryId}
+                                    focusedCalendarId={focusedCalendarId}
                                   />
                                 );
                               })}

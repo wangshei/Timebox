@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
@@ -156,6 +156,7 @@ export function AddModal({
   const [pinned, setPinned] = useState<boolean>(false);
   const [priority, setPriority] = useState<number | undefined>(undefined);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
@@ -342,6 +343,7 @@ export function AddModal({
       setPinned(false);
       setPriority(undefined);
       setMoreOpen(false);
+      setShowNotes(false);
       setRecurrencePattern('none');
       setRecurrenceDays([]);
       setRecurrenceEditScope('this');
@@ -595,34 +597,53 @@ export function AddModal({
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2.5">
+          {/* Title — borderless with a sage underline (Google-Calendar style) */}
           <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>{mode === 'task' ? 'Todo Title' : 'Event Title'}</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'task' ? 'e.g., Finish proposal...' : 'e.g., Team standup...'} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} autoFocus />
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={mode === 'task' ? 'Add to-do title' : 'Add event title'}
+              className="w-full bg-transparent focus:outline-none"
+              style={{
+                fontSize: 20,
+                fontWeight: 500,
+                color: THEME.textPrimary,
+                padding: '2px 0 6px',
+                border: 'none',
+                borderBottom: `2px solid ${title ? THEME.primary : 'rgba(0,0,0,0.12)'}`,
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderBottomColor = THEME.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderBottomColor = title ? THEME.primary : 'rgba(0,0,0,0.12)'; }}
+              autoFocus
+            />
           </div>
 
           {mode === 'task' && (
             <>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Estimated Time</label>
-                <div className="flex gap-3 items-center">
+              {/* Estimated time — icon-led row */}
+              <div className="flex items-center gap-2.5">
+                <ClockIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
+                <div className="flex-1 flex gap-3 items-center">
                   <input
                     type="range" min="0.25" max="8" step="0.25" value={estimatedHours}
                     onChange={(e) => setEstimatedHours(parseFloat(e.target.value))}
                     className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
-                    style={{ background: `linear-gradient(to right, #8DA286 0%, #8DA286 ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) 100%)` }}
+                    style={{ background: `linear-gradient(to right, ${THEME.primary} 0%, ${THEME.primary} ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) 100%)` }}
                   />
-                  <span className="text-sm font-bold w-14 text-right" style={{ color: '#8DA286' }}>
+                  <span className="text-sm font-bold w-14 text-right" style={{ color: THEME.primary }}>
                     {estimatedHours >= 1 ? `${estimatedHours}h` : `${Math.round(estimatedHours * 60)}m`}
                   </span>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Due date <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
+              {/* Due date — icon-led row */}
+              <div className="flex items-center gap-2.5">
+                <CalendarDaysIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
                 <input
                   type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                  className="flex-1 px-2.5 py-1.5 text-sm rounded-lg focus:outline-none"
+                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
                 />
               </div>
               {moreOpen && (
@@ -778,202 +799,176 @@ export function AddModal({
             </>
           )}
 
-          {/* Calendar — horizontal pill select */}
-          <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Calendar</label>
-            {calendars.length === 0 ? (
-              <button
-                type="button"
-                onClick={onRequireCalendar}
-                className="w-full px-3 py-2 text-sm font-medium flex items-center justify-center gap-1.5 rounded-lg"
-                style={{ color: THEME.primary, backgroundColor: `rgba(141,162,134,0.08)`, border: `1.5px dashed ${THEME.primary}40` }}
-              >
-                <PlusIcon className="h-3.5 w-3.5" />
-                Add a calendar first
-              </button>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px' }}>
-                {calendars.map((cal) => {
-                  const isSel = selectedCalendar === cal.id;
-                  return (
-                    <button
-                      key={cal.id}
-                      type="button"
-                      onClick={() => setSelectedCalendar(cal.id)}
-                      className="rounded-full transition-all capitalize"
-                    >
-                      <Chip
-                        variant={isSel ? 'subtle' : 'outline'}
-                        color={isSel ? cal.color : undefined}
-                        className={!isSel ? 'border-[rgba(0,0,0,0.12)] text-[var(--muted-foreground)]' : ''}
-                        style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isSel ? cal.color : THEME.textMuted }} />
-                        {cal.name}
-                      </Chip>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Category — pill select, with colored dot */}
-          <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Category</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px', alignItems: 'center' }}>
-              {categoriesToShow
-                .filter((category) => {
+          {/* Calendar · Category · Tags — single row of compact dropdowns (Google-style) */}
+          {calendars.length === 0 ? (
+            <button
+              type="button"
+              onClick={onRequireCalendar}
+              className="w-full px-3 py-2 text-sm font-medium flex items-center justify-center gap-1.5 rounded-lg"
+              style={{ color: THEME.primary, backgroundColor: `rgba(141,162,134,0.08)`, border: `1.5px dashed ${THEME.primary}40` }}
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Add a calendar first
+            </button>
+          ) : (
+            <div>
+              {(() => {
+                const selectStyle: React.CSSProperties = {
+                  flex: 1, minWidth: 0, fontSize: 12, padding: '6px 8px', borderRadius: 8,
+                  border: '1px solid rgba(0,0,0,0.10)', backgroundColor: '#FFFFFF', color: '#1C1C1E', outline: 'none',
+                };
+                const catsForCalendar = categoriesToShow.filter((category) => {
                   if (!selectedCalendar) return true;
                   const ids = category.calendarContainerIds;
                   if (ids && ids.length > 0) return ids.includes(selectedCalendar);
                   return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
-                })
-                .map((category) => {
-                  const isSel = selectedCategory?.id === category.id;
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => setSelectedCategory(category)}
-                      className="rounded-full transition-all"
+                });
+                const tagsForCategory = tags.filter((t) => t.categoryId === selectedCategory?.id);
+                return (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {/* Calendar */}
+                    <select
+                      value={selectedCalendar}
+                      onChange={(e) => setSelectedCalendar(e.target.value)}
+                      style={{ ...selectStyle, borderLeft: `3px solid ${calendars.find((c) => c.id === selectedCalendar)?.color ?? THEME.primary}` }}
+                      title="Calendar"
                     >
-                      <Chip
-                        variant={isSel ? 'subtle' : 'outline'}
-                        color={isSel ? category.color : undefined}
-                        className={!isSel ? 'border-[rgba(0,0,0,0.12)]' : ''}
-                        style={!isSel ? { color: THEME.textSecondary, borderColor: 'rgba(0,0,0,0.12)' } : undefined}
-                      >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isSel ? category.color : THEME.textMuted }} />
-                        {category.name}
-                      </Chip>
-                    </button>
-                  );
-                })}
-              {onAddCategory && !showCategoryInput && (
-                <button
-                  type="button"
-                  onClick={() => setShowCategoryInput(true)}
-                  className="flex items-center justify-center rounded-full transition-all"
-                  style={{ width: 22, height: 22, border: '1.5px dashed rgba(0,0,0,0.18)', color: '#8E8E93' }}
-                  title="New category"
-                >
-                  <PlusIcon className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-            {showCategoryInput && (
-              <input
-                type="text"
-                value={categoryInput}
-                onChange={(e) => setCategoryInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const name = categoryInput.trim();
-                    if (name && onAddCategory && selectedCalendar) {
-                      const existing = categories.find(
-                        (c) => c.name.toLowerCase() === name.toLowerCase() &&
-                          (c.calendarContainerId === selectedCalendar || c.calendarContainerIds?.includes(selectedCalendar))
-                      );
-                      const cat = existing ?? onAddCategory({ name, color: DEFAULT_PALETTE_COLOR, calendarContainerId: selectedCalendar, calendarContainerIds: [selectedCalendar] });
-                      setSelectedCategory(cat);
-                    }
-                    setCategoryInput('');
-                    setShowCategoryInput(false);
-                  }
-                  if (e.key === 'Escape') { setCategoryInput(''); setShowCategoryInput(false); }
-                }}
-                onBlur={() => { setCategoryInput(''); setShowCategoryInput(false); }}
-                placeholder="Category name, Enter to add…"
-                autoFocus
-                className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
-                style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
-              />
-            )}
-          </div>
+                      {calendars.map((cal) => <option key={cal.id} value={cal.id}>{cal.name}</option>)}
+                    </select>
+                    {/* Category */}
+                    <select
+                      value={selectedCategory?.id ?? ''}
+                      onChange={(e) => {
+                        if (e.target.value === '__add__') { setShowCategoryInput(true); return; }
+                        setSelectedCategory(catsForCalendar.find((c) => c.id === e.target.value) ?? null);
+                      }}
+                      style={{ ...selectStyle, borderLeft: `3px solid ${selectedCategory?.color ?? 'rgba(0,0,0,0.15)'}` }}
+                      title="Category"
+                    >
+                      {catsForCalendar.length === 0 && <option value="">No categories</option>}
+                      {catsForCalendar.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {onAddCategory && <option value="__add__">+ New category…</option>}
+                    </select>
+                    {/* Tags — pick to add */}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value === '__add__') { setShowTagInput(true); return; }
+                        const tag = tagsForCategory.find((t) => t.id === e.target.value);
+                        if (tag) setSelectedTags((prev) => prev.some((s) => s.id === tag.id) ? prev : [...prev, tag]);
+                      }}
+                      style={selectStyle}
+                      title="Tags"
+                      disabled={!selectedCategory}
+                    >
+                      <option value="">Tags…</option>
+                      {tagsForCategory.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {onAddTag && selectedCategory && <option value="__add__">+ New tag…</option>}
+                    </select>
+                  </div>
+                );
+              })()}
 
-          {/* Tags — multi-select pills */}
-          <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Tags <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 8px', alignItems: 'center' }}>
-              {tags
-                .filter((t) => t.categoryId === selectedCategory?.id)
-                .map((tag) => {
-                  const isSelected = selectedTags.some((s) => s.id === tag.id);
-                  const catColor = selectedCategory?.color ?? THEME.primary;
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className="rounded-full transition-all"
-                    >
-                      <Chip
-                        variant={isSelected ? 'subtle' : 'outline'}
-                        color={isSelected ? catColor : undefined}
-                        className={!isSelected ? 'border-[rgba(0,0,0,0.09)]' : ''}
-                        style={!isSelected ? { color: THEME.textMuted, borderColor: 'rgba(0,0,0,0.09)' } : undefined}
-                      >
+              {/* Selected tags as removable chips */}
+              {selectedTags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                  {selectedTags.map((tag) => (
+                    <button key={tag.id} type="button" onClick={() => toggleTag(tag)} className="rounded-full" title="Remove tag">
+                      <Chip variant="subtle" color={selectedCategory?.color ?? THEME.primary}>
                         {tag.name}
+                        <XMarkIcon className="h-3 w-3" />
                       </Chip>
                     </button>
-                  );
-                })}
-              {onAddTag && selectedCategory && !showTagInput && (
-                <button
-                  type="button"
-                  onClick={() => setShowTagInput(true)}
-                  className="flex items-center justify-center rounded-full transition-all"
-                  style={{ width: 22, height: 22, border: '1.5px dashed rgba(0,0,0,0.18)', color: '#8E8E93' }}
-                  title="New tag"
-                >
-                  <PlusIcon className="h-3 w-3" />
-                </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Inline create inputs (category / tag) */}
+              {showCategoryInput && (
+                <input
+                  type="text"
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const name = categoryInput.trim();
+                      if (name && onAddCategory && selectedCalendar) {
+                        const existing = categories.find(
+                          (c) => c.name.toLowerCase() === name.toLowerCase() &&
+                            (c.calendarContainerId === selectedCalendar || c.calendarContainerIds?.includes(selectedCalendar))
+                        );
+                        const cat = existing ?? onAddCategory({ name, color: DEFAULT_PALETTE_COLOR, calendarContainerId: selectedCalendar, calendarContainerIds: [selectedCalendar] });
+                        setSelectedCategory(cat);
+                      }
+                      setCategoryInput('');
+                      setShowCategoryInput(false);
+                    }
+                    if (e.key === 'Escape') { setCategoryInput(''); setShowCategoryInput(false); }
+                  }}
+                  onBlur={() => { setCategoryInput(''); setShowCategoryInput(false); }}
+                  placeholder="Category name, Enter to add…"
+                  autoFocus
+                  className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
+                  style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
+                />
+              )}
+              {showTagInput && (
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const name = tagInput.trim().replace(/,/g, '');
+                      if (name && selectedCategory) {
+                        const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === selectedCategory.id);
+                        if (existing) setSelectedTags((prev) => prev.some((t) => t.id === existing.id) ? prev : [...prev, existing]);
+                        else if (onAddTag) setSelectedTags((prev) => [...prev, onAddTag({ name, categoryId: selectedCategory.id })]);
+                      }
+                      setTagInput('');
+                      setShowTagInput(false);
+                    }
+                    if (e.key === 'Escape') { setTagInput(''); setShowTagInput(false); }
+                  }}
+                  onBlur={() => { setTagInput(''); setShowTagInput(false); }}
+                  placeholder="Tag name, Enter to add…"
+                  autoFocus
+                  className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
+                  style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
+                />
               )}
             </div>
-            {showTagInput && (
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    const name = tagInput.trim().replace(/,/g, '');
-                    if (name && selectedCategory) {
-                      const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase() && t.categoryId === selectedCategory.id);
-                      if (existing) setSelectedTags((prev) => prev.some((t) => t.id === existing.id) ? prev : [...prev, existing]);
-                      else if (onAddTag) setSelectedTags((prev) => [...prev, onAddTag({ name, categoryId: selectedCategory.id })]);
-                    }
-                    setTagInput('');
-                    setShowTagInput(false);
-                  }
-                  if (e.key === 'Escape') { setTagInput(''); setShowTagInput(false); }
-                }}
-                onBlur={() => { setTagInput(''); setShowTagInput(false); }}
-                placeholder="Tag name, Enter to add…"
-                autoFocus
-                className="mt-1.5 w-full px-3 py-2 text-sm rounded-lg focus:outline-none transition-all"
-                style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.borderMedium}`, color: THEME.textPrimary }}
-              />
-            )}
-          </div>
+          )}
 
-          {/* Quick Notes — shown inline on the block */}
-          <div>
-            <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>
-              Quick Notes <span style={{ color: '#8E8E93', fontWeight: 400 }}>(shown on block)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Quick reminder, context, or link to notes…"
-              rows={2}
-              className="w-full px-3 py-2 text-xs rounded-lg focus:outline-none resize-none italic"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#636366', fontStyle: 'italic' }}
-            />
-          </div>
+          {/* Quick Notes — collapsed by default; an icon-led "Add note" row expands it */}
+          {(showNotes || notes) ? (
+            <div className="flex items-start gap-2.5">
+              <PencilSquareIcon className="h-4 w-4 shrink-0 mt-2" style={{ color: '#8E8E93' }} />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Quick reminder, context, or link to notes…"
+                rows={2}
+                autoFocus
+                className="flex-1 px-2.5 py-1.5 text-xs rounded-lg focus:outline-none resize-none"
+                style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#636366', fontStyle: 'italic' }}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowNotes(true)}
+              className="flex items-center gap-2.5 w-full text-left rounded-lg transition-colors"
+              style={{ padding: '4px 0', color: '#8E8E93' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = THEME.textPrimary)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+            >
+              <PencilSquareIcon className="h-4 w-4 shrink-0" />
+              <span className="text-sm">Add note</span>
+            </button>
+          )}
 
           {/* More — Link, Description, Repeat (collapsible) */}
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.09)' }}>

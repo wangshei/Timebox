@@ -820,24 +820,9 @@ export function CalendarView({
           )}
         </div>
 
-        {/* Add button */}
-        {onOpenAddModal && (
-          <button
-            type="button"
-            onClick={() => onOpenAddModal('event')}
-            className="flex items-center justify-center shadow-lg transition-all active:scale-95"
-            style={{
-              width: isMobile ? 48 : 52, height: isMobile ? 48 : 52, borderRadius: '50%',
-              backgroundColor: PRIMARY,
-              boxShadow: '0 4px 16px rgba(141,162,134,0.45)',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#8DA387')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PRIMARY)}
-            aria-label="Add to-do or event"
-          >
-            <PlusIcon className="h-6 w-6 text-white" />
-          </button>
-        )}
+        {/* Add is now via calendar drag-to-create (events, time pre-filled) or the
+            To-Do sidebar (tasks) — the generic + FAB was removed so new items always
+            get a real time/context like Google Calendar. */}
       </div>
     </div>
   );

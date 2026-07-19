@@ -734,6 +734,8 @@ export function ThreeDayView({
                                   isStartSegment={seg.isStartSegment}
                                   isEndSegment={seg.isEndSegment}
                                   activeStampEmoji={activeStampEmoji}
+                                  focusedCategoryId={focusedCategoryId}
+                                  focusedCalendarId={focusedCalendarId}
                                 />
                               );
                             })}

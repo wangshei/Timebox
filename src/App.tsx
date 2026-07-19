@@ -1909,6 +1909,11 @@ export default function App() {
   ) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+    // Scheduling a to-do is an action, not inspection — exit any active calendar/
+    // category focus so the newly placed block shows in its regular state instead of
+    // being dimmed to the focus-muted opacity (the "dropped todo looks transparent" bug).
+    if (focusedCalendarId != null) setFocusedCalendarId(null);
+    if (focusedCategoryId != null) setFocusedCategoryId(null);
     saveSnapshot();
     const parseTimeToMinsLocal = (t: string) => {
       const [h, m] = t.split(':').map(Number);
