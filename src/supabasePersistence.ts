@@ -272,6 +272,10 @@ export async function loadSupabaseState(isInitialLoad = true) {
             notes: (e as any).notes ?? null,
             source: (e as any).source ?? undefined,
             endDate: (e as any).end_date ?? undefined,
+            // Fall back to the in-memory value when the DB column doesn't exist yet
+            // (migration not applied) so a just-made change isn't wiped on reload.
+            attendanceStatus: (e as any).attendance_status ?? existing?.attendanceStatus ?? undefined,
+            googleEventId: (e as any).google_event_id ?? existing?.googleEventId ?? null,
             attendees: existing?.attendees ?? null,
             // timezone lives in localStorage (via Zustand persistence), not Supabase yet
             timezone: existing?.timezone ?? null,
@@ -417,28 +421,40 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   // reloads instead of flickering then getting orphan-deleted.
   const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
   if (nonGcalEvents.length) {
-    check('events', 'upsert', await supabase.from('events').upsert(
-      nonGcalEvents.map((e) => ({
-        id: e.id,
-        user_id: userId,
-        title: e.title ?? '',
-        calendar_container_id: e.calendarContainerId,
-        category_id: e.categoryId,
-        start: e.start ?? '',
-        end: e.end ?? '',
-        date: e.date ?? '',
-        recurring: e.recurring ?? false,
-        recurrence_pattern: e.recurrencePattern ?? null,
-        recurrence_days: e.recurrenceDays ?? null,
-        recurrence_series_id: e.recurrenceSeriesId ?? null,
-        link: e.link ?? null,
-        description: e.description ?? null,
-        notes: e.notes ?? null,
-        source: e.source ?? null,
-        end_date: e.endDate ?? null,
-      })),
-      { onConflict: 'id' }
-    ));
+    const eventRow = (e: Event) => ({
+      id: e.id,
+      user_id: userId,
+      title: e.title ?? '',
+      calendar_container_id: e.calendarContainerId,
+      category_id: e.categoryId,
+      start: e.start ?? '',
+      end: e.end ?? '',
+      date: e.date ?? '',
+      recurring: e.recurring ?? false,
+      recurrence_pattern: e.recurrencePattern ?? null,
+      recurrence_days: e.recurrenceDays ?? null,
+      recurrence_series_id: e.recurrenceSeriesId ?? null,
+      link: e.link ?? null,
+      description: e.description ?? null,
+      notes: e.notes ?? null,
+      source: e.source ?? null,
+      end_date: e.endDate ?? null,
+      // Newer columns — stripped on retry below if the migration isn't applied yet.
+      attendance_status: e.attendanceStatus ?? null,
+      google_event_id: e.googleEventId ?? null,
+    });
+    let evResult = await supabase.from('events').upsert(nonGcalEvents.map(eventRow), { onConflict: 'id' });
+    if (evResult.error && /attendance_status|google_event_id|column/.test(evResult.error.message)) {
+      // Column(s) don't exist yet — retry without the newer optional columns.
+      evResult = await supabase.from('events').upsert(
+        nonGcalEvents.map((e) => {
+          const { attendance_status, google_event_id, ...base } = eventRow(e);
+          return base;
+        }),
+        { onConflict: 'id' }
+      );
+    }
+    check('events', 'upsert', evResult);
   }
 
   // If upserts failed, log but continue with orphan cleanup for tables that succeeded.
