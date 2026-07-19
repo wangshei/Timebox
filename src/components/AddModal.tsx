@@ -94,7 +94,7 @@ interface AddModalProps {
   existingSubscribers?: Array<{ email: string; source: string; sourceId: string }>;
 }
 
-const PANEL_WIDTH = 380;
+const PANEL_WIDTH = 344;
 const PANEL_MAX_HEIGHT = 85; // vh
 
 export function AddModal({
@@ -625,30 +625,32 @@ export function AddModal({
                   style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>
-                  Priority
-                </label>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((level) => {
-                    const active = priority >= level;
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() => setPriority(level)}
-                        className="p-0.5 rounded-full transition-colors"
-                        style={{
-                          color: active ? '#F5A623' : '#D1D1D6',
-                          backgroundColor: active ? 'rgba(245,166,35,0.08)' : 'transparent',
-                        }}
-                      >
-                        <StarIcon className="h-4 w-4" />
-                      </button>
-                    );
-                  })}
+              {moreOpen && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>
+                    Priority
+                  </label>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((level) => {
+                      const active = priority >= level;
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setPriority(level)}
+                          className="p-0.5 rounded-full transition-colors"
+                          style={{
+                            color: active ? '#F5A623' : '#D1D1D6',
+                            backgroundColor: active ? 'rgba(245,166,35,0.08)' : 'transparent',
+                          }}
+                        >
+                          <StarIcon className="h-4 w-4" />
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
 

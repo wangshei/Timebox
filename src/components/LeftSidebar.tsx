@@ -9,6 +9,7 @@ import {
   ArrowLeftIcon,
   UserGroupIcon,
   ShareIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/solid';
 import type { CalendarContainer, Category, Tag, TimeBlock, SchedulingLink, Booking } from '../types';
 import type { CalendarContainerVisibility } from '../types';
@@ -62,6 +63,8 @@ interface LeftSidebarProps {
   sharedVisibility?: Record<string, boolean>;
   /** Toggle visibility of a shared calendar. */
   onToggleSharedVisibility?: (shareId: string) => void;
+  /** Remove a shared calendar from "Shared with me". */
+  onRemoveSharedCalendar?: (shareId: string) => void;
   /** Mapping of shareId → { calendarId, categoryId } for "set to my calendar". */
   sharedMappings?: Record<string, { calendarId: string; categoryId: string }>;
   /** Called when user maps a shared calendar to a local calendar+category. */
@@ -252,6 +255,7 @@ export function LeftSidebar({
   onManageSubscribers,
   sharedVisibility = {},
   onToggleSharedVisibility,
+  onRemoveSharedCalendar,
   sharedMappings = {},
   onSetSharedMapping,
   onShare,
@@ -280,7 +284,16 @@ export function LeftSidebar({
   const [addColor, setAddColor] = useState(DEFAULT_PALETTE_COLOR);
   const [addExistingCategoryId, setAddExistingCategoryId] = useState<string | null>(null);
   const [isPlanVsActualOpen, setIsPlanVsActualOpen] = useState(true);
-  const [isSharedOpen, setIsSharedOpen] = useState(true);
+  const [isSharedOpen, setIsSharedOpen] = useState(false);
+  // The Google Calendar connect prompt shows once; the user can dismiss it and
+  // reconnect later from Settings. Persisted so it stays dismissed across reloads.
+  const [gcalPromptDismissed, setGcalPromptDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem('timebox_gcal_prompt_dismissed') === '1'; } catch { return false; }
+  });
+  const dismissGcalPrompt = () => {
+    try { localStorage.setItem('timebox_gcal_prompt_dismissed', '1'); } catch { /* ignore */ }
+    setGcalPromptDismissed(true);
+  };
   const [expandedSharedId, setExpandedSharedId] = useState<string | null>(null);
   const [mappingShareId, setMappingShareId] = useState<string | null>(null);
   const [mappingCalId, setMappingCalId] = useState<string>('');
@@ -580,12 +593,13 @@ export function LeftSidebar({
     <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
       {/* Scrollable list — calendars, categories, tags */}
       <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 pt-1 pb-2">
-        {/* Google Calendar connect card — shown when not connected */}
-        {!gcalConnected && onConnectGcal && (
+        {/* Google Calendar connect card — shown once when not connected; dismissible.
+            After dismissing, the user can still connect from Settings. */}
+        {!gcalConnected && onConnectGcal && !gcalPromptDismissed && (
           <button
             type="button"
             onClick={onConnectGcal}
-            className="w-full rounded-lg mb-2 transition-all"
+            className="w-full rounded-lg mb-2 transition-all relative"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -631,6 +645,29 @@ export function LeftSidebar({
                 Sync your events automatically
               </div>
             </div>
+            <span
+              role="button"
+              aria-label="Dismiss"
+              title="Dismiss — you can connect later in Settings"
+              onClick={(e) => { e.stopPropagation(); dismissGcalPrompt(); }}
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 18,
+                height: 18,
+                borderRadius: 5,
+                color: '#8E8E93',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <XMarkIcon style={{ width: 13, height: 13 }} />
+            </span>
           </button>
         )}
         {[...calendarContainers].sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999)).map((calendar) => {
@@ -1019,24 +1056,48 @@ export function LeftSidebar({
                       onChevronClick={() => setExpandedSharedId(isExpanded ? null : shared.shareId)}
                       onLabelClick={() => setExpandedSharedId(isExpanded ? null : shared.shareId)}
                       actions={
-                        <button
-                          type="button"
-                          onClick={() => onToggleSharedVisibility?.(shared.shareId)}
-                          style={{
-                            padding: 2,
-                            borderRadius: 4,
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            color: isVisible ? shared.color : '#AEAEB2',
-                            flexShrink: 0,
-                          }}
-                          title={isVisible ? 'Hide' : 'Show'}
-                        >
-                          {isVisible
-                            ? <EyeIcon style={{ width: 14, height: 14 }} />
-                            : <EyeSlashIcon style={{ width: 14, height: 14 }} />}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => onToggleSharedVisibility?.(shared.shareId)}
+                            style={{
+                              padding: 2,
+                              borderRadius: 4,
+                              border: 'none',
+                              background: 'none',
+                              cursor: 'pointer',
+                              color: isVisible ? shared.color : '#AEAEB2',
+                              flexShrink: 0,
+                            }}
+                            title={isVisible ? 'Hide' : 'Show'}
+                          >
+                            {isVisible
+                              ? <EyeIcon style={{ width: 14, height: 14 }} />
+                              : <EyeSlashIcon style={{ width: 14, height: 14 }} />}
+                          </button>
+                          {onRemoveSharedCalendar && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Remove "${shared.displayName}" from your shared calendars? Its events will be removed from your view.`)) {
+                                  onRemoveSharedCalendar(shared.shareId);
+                                }
+                              }}
+                              style={{
+                                padding: 2,
+                                borderRadius: 4,
+                                border: 'none',
+                                background: 'none',
+                                cursor: 'pointer',
+                                color: '#AEAEB2',
+                                flexShrink: 0,
+                              }}
+                              title="Remove shared calendar"
+                            >
+                              <TrashIcon style={{ width: 14, height: 14 }} />
+                            </button>
+                          )}
+                        </div>
                       }
                     />
                     {/* Subtitle: from owner */}

@@ -368,27 +368,42 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     ));
   }
   if (state.tasks.length) {
-    check('tasks', 'upsert', await supabase.from('tasks').upsert(
-      state.tasks.map((t) => ({
-        id: t.id,
-        user_id: userId,
-        title: t.title ?? '',
-        estimated_minutes: t.estimatedMinutes ?? 0,
-        calendar_container_id: t.calendarContainerId,
-        category_id: t.categoryId,
-        tag_ids: Array.isArray(t.tagIds) ? t.tagIds : [],
-        flexible: t.flexible ?? true,
-        status: t.status ?? null,
-        due_date: t.dueDate ?? null,
-        link: t.link ?? null,
-        description: t.description ?? null,
-        notes: t.notes ?? null,
-        priority: typeof t.priority === 'number' ? t.priority : null,
-        pinned: t.pinned ?? false,
-        emoji: t.emoji ?? null,
-      })),
-      { onConflict: 'id' }
-    ));
+    // Full row includes newer/optional columns. If any of them don't exist yet in the
+    // DB (older schema), the whole upsert would fail — which also skips the tasks
+    // orphan-delete (so deletes don't persist) AND drops status changes (so "done"
+    // reverts on the next reload). Retry with only the core columns so a schema gap
+    // degrades to "these optional fields aren't saved" instead of "nothing saves".
+    const taskRow = (t: Task) => ({
+      id: t.id,
+      user_id: userId,
+      title: t.title ?? '',
+      estimated_minutes: t.estimatedMinutes ?? 0,
+      calendar_container_id: t.calendarContainerId,
+      category_id: t.categoryId,
+      tag_ids: Array.isArray(t.tagIds) ? t.tagIds : [],
+      flexible: t.flexible ?? true,
+      status: t.status ?? null,
+      due_date: t.dueDate ?? null,
+      link: t.link ?? null,
+      description: t.description ?? null,
+      notes: t.notes ?? null,
+      priority: typeof t.priority === 'number' ? t.priority : null,
+      pinned: t.pinned ?? false,
+      emoji: t.emoji ?? null,
+    });
+    let taskResult = await supabase.from('tasks').upsert(state.tasks.map(taskRow), { onConflict: 'id' });
+    if (taskResult.error && /column|notes|priority|pinned|emoji|link|description/.test(taskResult.error.message)) {
+      // eslint-disable-next-line no-console
+      console.warn('[supabasePersistence] tasks upsert failed on an optional column — retrying with core columns only:', taskResult.error.message);
+      taskResult = await supabase.from('tasks').upsert(
+        state.tasks.map((t) => {
+          const { notes, priority, pinned, emoji, link, description, ...core } = taskRow(t);
+          return core;
+        }),
+        { onConflict: 'id' }
+      );
+    }
+    check('tasks', 'upsert', taskResult);
   }
   if (state.timeBlocks.length) {
     check('time_blocks', 'upsert', await supabase.from('time_blocks').upsert(
@@ -480,24 +495,19 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   const MAX_NOT_IN_IDS = 150;
 
   /**
-   * Delete orphans for a table. When the keep-list is small enough, use `not('id','in',...)`.
-   * When too large (would exceed URL length), fetch server IDs and delete specific orphans.
+   * Delete orphans for a table: rows on the server that are no longer in the store.
+   *
+   * We always compute the orphan set explicitly (fetch server IDs, diff against the
+   * keep-list) and delete by ID with `.select('id')` so we can VERIFY how many rows
+   * were actually removed. This matters because RLS silently drops a DELETE the policy
+   * doesn't permit — it returns success with 0 affected rows, so a missing DELETE policy
+   * looks exactly like a successful save while the row survives and "reappears" on the
+   * next load. Verifying the affected count is the only way to catch that from the client.
+   *
+   * `allowDeleteAll` is kept for the caller's intent but no longer changes behavior —
+   * an empty keep-list simply means every server row is an orphan.
    */
-  async function deleteOrphans(table: string, keepIds: string[], allowDeleteAll: boolean) {
-    // supabaseLoaded gates entry to flush(), so an empty keep list here means either
-    // the user genuinely deleted everything (allowDeleteAll) — propagate that to the DB —
-    // or the list is empty only because gcal rows were filtered out (allowDeleteAll false),
-    // in which case we must fall through to the fetch-diff path (an empty keepSet deletes
-    // exactly the real orphan rows on the server, if any) rather than delete-all.
-    if (keepIds.length === 0 && allowDeleteAll) {
-      check(table, 'delete-all', await supabase!.from(table).delete().eq('user_id', userId));
-      return;
-    }
-    if (keepIds.length > 0 && keepIds.length <= MAX_NOT_IN_IDS) {
-      check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).not('id', 'in', `(${keepIds.join(',')})`));
-      return;
-    }
-    // Too many IDs for URL — fetch server IDs and compute diff
+  async function deleteOrphans(table: string, keepIds: string[], _allowDeleteAll: boolean) {
     const keepSet = new Set(keepIds);
     const { data: serverRows, error: fetchErr } = await supabase!.from(table).select('id').eq('user_id', userId);
     if (fetchErr) {
@@ -506,10 +516,30 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
     }
     const orphanIds = (serverRows || []).map((r: { id: string }) => r.id).filter((id: string) => !keepSet.has(id));
     if (orphanIds.length === 0) return;
-    // Delete orphans in batches of 150
+
+    let deletedCount = 0;
     for (let i = 0; i < orphanIds.length; i += MAX_NOT_IN_IDS) {
       const batch = orphanIds.slice(i, i + MAX_NOT_IN_IDS);
-      check(table, 'delete-orphans', await supabase!.from(table).delete().eq('user_id', userId).in('id', batch));
+      const res = await supabase!.from(table).delete().eq('user_id', userId).in('id', batch).select('id');
+      check(table, 'delete-orphans', res);
+      if (!res.error) deletedCount += (res.data?.length ?? 0);
+    }
+
+    // Verification: if we asked to remove N orphans but the DB removed 0 (and reported
+    // no error), the DELETE was silently blocked by RLS. Surface it loudly and flag the
+    // save as errored so a clobbering reload stays blocked and the user sees the banner.
+    if (deletedCount === 0 && orphanIds.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[supabasePersistence] ⚠️ DELETE on "${table}" removed 0 of ${orphanIds.length} orphan row(s) with no error — ` +
+          `the DELETE is being silently blocked by row-level security. Add a DELETE policy for the ` +
+          `authenticated role (see docs/SUPABASE_SETUP.md §2b). Deleted items will keep reappearing until this is fixed.`,
+        { table, orphanIds: orphanIds.slice(0, 10) }
+      );
+      errors.push({ table, op: 'delete-verify', error: `0 of ${orphanIds.length} rows deleted — DELETE RLS policy likely missing` });
+    } else if (deletedCount < orphanIds.length) {
+      // eslint-disable-next-line no-console
+      console.warn(`[supabasePersistence] DELETE on "${table}" removed ${deletedCount} of ${orphanIds.length} orphan row(s).`);
     }
   }
 

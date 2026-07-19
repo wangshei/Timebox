@@ -285,6 +285,31 @@ export default function App() {
   const toggleSharedVisibility = (shareId: string) => {
     setSharedVisibility(prev => ({ ...prev, [shareId]: !(prev[shareId] ?? true) }));
   };
+  // Shares the user has removed from "Shared with me". Persisted in localStorage so
+  // the removal survives reload (shared calendars are re-fetched from the backend on
+  // each load, so without this the removed calendar would come right back).
+  const DISMISSED_SHARES_KEY = 'timebox_dismissed_shares';
+  const [dismissedShares, setDismissedShares] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(DISMISSED_SHARES_KEY);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+  const handleRemoveSharedCalendar = (shareId: string) => {
+    setDismissedShares(prev => {
+      const next = new Set(prev);
+      next.add(shareId);
+      try { localStorage.setItem(DISMISSED_SHARES_KEY, JSON.stringify([...next])); } catch { /* ignore quota */ }
+      return next;
+    });
+    // Drop the calendar from the sidebar list and remove its injected (read-only) events.
+    setDevSharedCalendars(prev => prev.filter(s => s.shareId !== shareId));
+    useStore.setState((s) => ({
+      events: s.events.filter(e => e.sharedFromShareId !== shareId),
+    }));
+  };
   // Mapping of shared calendars to local calendar+category. Persisted in
   // localStorage so the user's choice survives reload.
   const SHARED_MAPPINGS_KEY = 'timebox_shared_mappings';
@@ -328,7 +353,10 @@ export default function App() {
 
     (async () => {
       try {
-        const shared = await getSharedCalendarsWithEvents();
+        const shared = (await getSharedCalendarsWithEvents())
+          // Drop shares the user has removed from "Shared with me" — they'd otherwise
+          // reappear on every reload since the backend still returns them.
+          .filter(s => !dismissedShares.has(s.shareId));
         if (shared.length === 0) return;
         setDevSharedCalendars(prev => {
           // Merge: keep dev entries, add production ones
@@ -2760,11 +2788,12 @@ export default function App() {
                 isEditMode={isEditMode}
                 isCompareMode={mode === 'compare'}
                 onExitCompare={() => setViewMode('overall')}
-                sharedCalendars={devSharedCalendars}
+                sharedCalendars={devSharedCalendars.filter(s => !dismissedShares.has(s.shareId))}
                 subscriberCounts={subscriberCounts}
                 onManageSubscribers={(id, scope) => { setIsSettingsOpen(true); }}
                 sharedVisibility={sharedVisibility}
                 onToggleSharedVisibility={toggleSharedVisibility}
+                onRemoveSharedCalendar={handleRemoveSharedCalendar}
                 sharedMappings={sharedMappings}
                 onSetSharedMapping={handleSetSharedMapping}
                 onShare={handleOpenShare}
