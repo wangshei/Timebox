@@ -93,7 +93,7 @@ interface AddModalProps {
   existingSubscribers?: Array<{ email: string; source: string; sourceId: string }>;
 }
 
-const PANEL_WIDTH = 344;
+const PANEL_WIDTH = 364;
 const PANEL_MAX_HEIGHT = 85; // vh
 
 /** "2026-07-26" → "Tue, Jul 26" */
@@ -560,7 +560,7 @@ export function AddModal({
       >
         {/* Drag header (drag disabled on mobile) */}
         <div
-          className="flex items-center gap-2 px-5 py-3 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-2 px-6 py-3.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
             if (isMobileModal) return;
@@ -608,7 +608,7 @@ export function AddModal({
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-3.5">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           {/* Title — borderless with a sage underline (Google-Calendar style) */}
           <div>
             <input
@@ -687,25 +687,26 @@ export function AddModal({
           )}
 
           {mode === 'event' && (
-            <div className="flex items-start gap-2.5">
-              <ClockIcon className="h-4 w-4 shrink-0 mt-1" style={{ color: '#8E8E93' }} />
+            <div className="flex items-center gap-2.5">
+              <ClockIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
               <div className="flex-1 min-w-0">
               {!timeExpanded ? (
-                // Collapsed summary — click to edit (Google-Calendar style)
+                // Collapsed summary — one line, left-aligned; click to edit (Google-Calendar style)
                 <button
                   type="button"
                   onClick={() => setTimeExpanded(true)}
-                  className="text-left w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                  className="w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                  style={{ textAlign: 'left', display: 'block' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 500, color: THEME.textPrimary }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: THEME.textPrimary }}>
                     {fmtEventDate(date)}{endDate && endDate !== date ? ` – ${fmtEventDate(endDate)}` : ''}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
-                    {fmtEventTime(startTime)} – {fmtEventTime(endTime)}
-                    {' · '}{timezoneEnabled ? getTimezoneAbbr(timezone) : 'No timezone'}
-                  </div>
+                  </span>
+                  <span style={{ fontSize: 13, color: '#8E8E93' }}>
+                    {'  ·  '}{fmtEventTime(startTime)} – {fmtEventTime(endTime)}
+                    {timezoneEnabled ? ` · ${getTimezoneAbbr(timezone)}` : ''}
+                  </span>
                 </button>
               ) : (
               <div className="space-y-2.5">
@@ -1198,7 +1199,7 @@ export function AddModal({
           )}
 
           {/* Submit row */}
-          <div className="px-5 py-3.5 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
+          <div className="px-6 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
             <button
               type="button"
               onClick={onClose}
