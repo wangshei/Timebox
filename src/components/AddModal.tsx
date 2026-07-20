@@ -96,6 +96,21 @@ interface AddModalProps {
 const PANEL_WIDTH = 344;
 const PANEL_MAX_HEIGHT = 85; // vh
 
+/** "2026-07-26" → "Tue, Jul 26" */
+function fmtEventDate(d: string): string {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, day ?? 1).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+/** "13:45" → "1:45pm" */
+function fmtEventTime(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  const hour = h ?? 0; const min = m ?? 0;
+  const suffix = hour >= 12 ? 'pm' : 'am';
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return min === 0 ? `${h12}${suffix}` : `${h12}:${String(min).padStart(2, '0')}${suffix}`;
+}
+
 export function AddModal({
   isOpen,
   onClose,
@@ -156,6 +171,8 @@ export function AddModal({
   const [priority, setPriority] = useState<number | undefined>(undefined);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  // Event date/time: collapsed to a summary line by default, expands to inputs on click.
+  const [timeExpanded, setTimeExpanded] = useState(false);
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
@@ -343,6 +360,7 @@ export function AddModal({
       setPriority(undefined);
       setMoreOpen(false);
       setShowNotes(false);
+      setTimeExpanded(false);
       setRecurrencePattern('none');
       setRecurrenceDays([]);
       setRecurrenceEditScope('this');
@@ -542,7 +560,7 @@ export function AddModal({
       >
         {/* Drag header (drag disabled on mobile) */}
         <div
-          className="flex items-center gap-2 px-4 py-2.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-2 px-5 py-3 shrink-0 cursor-grab active:cursor-grabbing select-none"
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
             if (isMobileModal) return;
@@ -590,7 +608,7 @@ export function AddModal({
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-3.5">
           {/* Title — borderless with a sage underline (Google-Calendar style) */}
           <div>
             <input
@@ -669,7 +687,28 @@ export function AddModal({
           )}
 
           {mode === 'event' && (
-            <>
+            <div className="flex items-start gap-2.5">
+              <ClockIcon className="h-4 w-4 shrink-0 mt-1" style={{ color: '#8E8E93' }} />
+              <div className="flex-1 min-w-0">
+              {!timeExpanded ? (
+                // Collapsed summary — click to edit (Google-Calendar style)
+                <button
+                  type="button"
+                  onClick={() => setTimeExpanded(true)}
+                  className="text-left w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 500, color: THEME.textPrimary }}>
+                    {fmtEventDate(date)}{endDate && endDate !== date ? ` – ${fmtEventDate(endDate)}` : ''}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
+                    {fmtEventTime(startTime)} – {fmtEventTime(endTime)}
+                    {' · '}{timezoneEnabled ? getTimezoneAbbr(timezone) : 'No timezone'}
+                  </div>
+                </button>
+              ) : (
+              <div className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start date</label>
@@ -680,16 +719,16 @@ export function AddModal({
                       // Keep endDate >= date
                       if (endDate < newDate) setEndDate(newDate);
                     }}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                    className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End date</label>
                   <input
                     type="date" value={endDate} min={date} onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                    className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -698,16 +737,16 @@ export function AddModal({
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Start time</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                    className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>End time</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }}
+                    className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -789,7 +828,10 @@ export function AddModal({
                   </div>
                 )}
               </div>
-            </>
+              </div>
+              )}
+              </div>
+            </div>
           )}
 
           {/* Calendar · Category · Tags — single row of compact dropdowns (Google-style) */}
@@ -1156,7 +1198,7 @@ export function AddModal({
           )}
 
           {/* Submit row */}
-          <div className="px-4 py-3 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
+          <div className="px-5 py-3.5 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
             <button
               type="button"
               onClick={onClose}
