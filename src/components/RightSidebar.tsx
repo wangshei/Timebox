@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon, RectangleStackIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
@@ -190,9 +190,11 @@ export function RightSidebar({
     return dates.length ? `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}` : '';
   }, [weekSet]);
 
-  // Split tasks into: this-week scheduled (grouped), unscheduled (bottom), done (folded).
-  // "By day" groups by scheduled block date and filters to the shown week; "By due"
-  // groups by due date (all weeks), with no-due-date tasks going to the Unscheduled section.
+  // Split tasks into three consistent buckets (same in both grouping modes):
+  //  • Unscheduled = any to-do with NO time block (not on the calendar) → bottom section.
+  //  • Done       = completed to-dos scheduled in the shown week, grouped by day → fold.
+  //  • Main       = the rest (scheduled, not done): "By day" is week-filtered + grouped by
+  //                 scheduled day; "By due" groups by due date across all weeks.
   const { mainGroups, unscheduledList, doneGroups } = useMemo(() => {
     const mainMap = new Map<string, Task[]>();
     const doneMap = new Map<string, Task[]>();
@@ -201,16 +203,14 @@ export function RightSidebar({
       const arr = map.get(key); if (arr) arr.push(t); else map.set(key, [t]);
     };
     for (const t of tasks) {
+      const sd = scheduledDateOf(t.id);
       const done = doneIdSet.has(t.id);
+      if (!sd) { if (!done) unscheduled.push(t); continue; }   // no block → Unscheduled (done+unscheduled hidden)
+      if (done) { if (weekSet.has(sd)) push(doneMap, sd, t); continue; } // done → this-week only, by day
       if (groupBy === 'day') {
-        const sd = scheduledDateOf(t.id);
-        if (!sd) { if (!done) unscheduled.push(t); continue; }   // no block → Unscheduled (done+unscheduled hidden)
-        if (!weekSet.has(sd)) continue;                          // scheduled in another week → hidden here
-        push(done ? doneMap : mainMap, sd, t);
+        if (weekSet.has(sd)) push(mainMap, sd, t);             // week-filtered scheduled view
       } else {
-        const due = ((t as any).dueDate as string | null) || null;
-        if (!due) { if (!done) unscheduled.push(t); continue; }
-        push(done ? doneMap : mainMap, due, t);
+        push(mainMap, ((t as any).dueDate as string | null) || 'none', t); // by due date, all weeks
       }
     }
     const toGroups = (map: Map<string, Task[]>) =>
@@ -320,13 +320,15 @@ export function RightSidebar({
             <button
               type="button"
               onClick={() => setPlanMode((v) => !v)}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg transition-all"
+              className="flex items-center justify-center rounded-lg transition-all"
               style={planMode
-                ? { backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1px solid rgba(141,162,134,0.30)' }
-                : { backgroundColor: 'rgba(0,0,0,0.04)', color: '#636366', border: '1px solid rgba(0,0,0,0.08)' }}
-              title="Toggle plan view — sizes each to-do by how long it takes"
+                ? { width: 26, height: 26, backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1px solid rgba(141,162,134,0.30)' }
+                : { width: 26, height: 26, backgroundColor: 'rgba(0,0,0,0.04)', color: '#636366', border: '1px solid rgba(0,0,0,0.08)' }}
+              title="Plan view — sizes each to-do by how long it takes"
+              aria-label="Toggle plan view"
+              aria-pressed={planMode}
             >
-              Plan
+              <RectangleStackIcon className="h-3.5 w-3.5" />
             </button>
             {onOpenAddModal && (
               <button
@@ -355,7 +357,7 @@ export function RightSidebar({
         )}
         {mainGroups.length === 0 ? (
           <div className="text-xs text-center py-6 px-2" style={{ color: '#AEAEB2' }}>
-            {groupBy === 'day' ? 'Nothing scheduled this week' : 'No to-dos with a due date'}
+            {groupBy === 'day' ? 'Nothing scheduled this week' : 'No scheduled to-dos'}
           </div>
         ) : (
           renderGroups(mainGroups)
