@@ -197,6 +197,8 @@ export default function App() {
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
   const [pendingBlockPreview, setPendingBlockPreview] = useState<{ date: string; startTime: string; endTime: string } | null>(null);
   const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
+  // A drag-move of a recurring event, held until the user picks a scope (this / following / all).
+  const [pendingEventMove, setPendingEventMove] = useState<{ eventId: string; params: { date: string; startTime: string; endTime: string } } | null>(null);
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [schedulingSelectionMode, setSchedulingSelectionMode] = useState(false);
   const [selectedAvailSlots, setSelectedAvailSlots] = useState<import('./types').AvailableSlot[]>([]);
@@ -2188,12 +2190,30 @@ export default function App() {
     if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
+    // Recurring events: ask which occurrences the move applies to. Until the user
+    // picks, hold the move; dismissing the prompt defaults to just this occurrence.
+    const isRecurring = !!(event.recurrenceSeriesId || event.recurringGoogleEventId);
+    if (isRecurring) {
+      setPendingEventMove({ eventId, params });
+      return;
+    }
+    applyEventMove(eventId, params, 'this');
+  };
+
+  /** Apply a (possibly recurring) event move at the chosen scope. */
+  const applyEventMove = (
+    eventId: string,
+    params: { date: string; startTime: string; endTime: string },
+    scope: 'this' | 'all' | 'all_after',
+  ) => {
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return;
     saveSnapshot();
     const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
     // Preserve original position for diff detection (only set once)
-    if (event && !event.originalStart) { updates.originalStart = event.start; updates.originalEnd = event.end; }
+    if (!event.originalStart) { updates.originalStart = event.start; updates.originalEnd = event.end; }
     // Preserve cross-date span: shift endDate by same day offset
-    if (event?.endDate && event.endDate !== event.date) {
+    if (event.endDate && event.endDate !== event.date) {
       const oldStart = new Date(event.date + 'T00:00:00');
       const newStart = new Date(params.date + 'T00:00:00');
       const dayOffset = Math.round((newStart.getTime() - oldStart.getTime()) / 86400000);
@@ -2201,8 +2221,18 @@ export default function App() {
       oldEnd.setDate(oldEnd.getDate() + dayOffset);
       updates.endDate = oldEnd.toISOString().split('T')[0];
     }
-    updateEvent(eventId, updates);
-    if (event) notifyAttendeesIfNeeded(event, updates);
+    if ((scope === 'all' || scope === 'all_after') && event.recurrenceSeriesId) {
+      // Apply the new time-of-day to the scoped occurrences (each keeps its own date);
+      // the dragged occurrence also gets the new date.
+      const timeChange: Partial<import('./types').Event> = { start: params.startTime, end: params.endTime };
+      const scoped = events.filter((e) =>
+        e.recurrenceSeriesId === event.recurrenceSeriesId && (scope === 'all' || e.date >= event.date)
+      );
+      updateEvents(scoped.map((e) => ({ id: e.id, changes: e.id === eventId ? updates : timeChange })));
+    } else {
+      updateEvent(eventId, updates);
+    }
+    notifyAttendeesIfNeeded(event, updates);
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
@@ -3779,6 +3809,61 @@ export default function App() {
         </div>,
         document.body
       )}
+
+      {/* Recurring-event move scope prompt — dismissing defaults to "this event". */}
+      {pendingEventMove && (() => {
+        const move = pendingEventMove;
+        const choose = (scope: 'this' | 'all' | 'all_after') => {
+          applyEventMove(move.eventId, move.params, scope);
+          setPendingEventMove(null);
+        };
+        const opts: Array<{ scope: 'this' | 'all' | 'all_after'; label: string }> = [
+          { scope: 'this', label: 'This event' },
+          { scope: 'all_after', label: 'This and following events' },
+          { scope: 'all', label: 'All events' },
+        ];
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.18)' }} onClick={() => choose('this')} aria-hidden />
+            <div
+              className="relative flex flex-col overflow-hidden"
+              style={{ width: 320, maxWidth: '100%', backgroundColor: '#FFFFFF', borderRadius: 14, border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.16)' }}
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="px-4 pt-4 pb-2">
+                <h3 className="font-semibold" style={{ fontSize: 15, color: '#1C1C1E' }}>Move recurring event</h3>
+                <p className="mt-1" style={{ fontSize: 12, color: '#8E8E93' }}>Apply this move to:</p>
+              </div>
+              <div className="px-2 pb-2">
+                {opts.map((o) => (
+                  <button
+                    key={o.scope}
+                    type="button"
+                    onClick={() => choose(o.scope)}
+                    className="w-full text-left px-3 py-2.5 rounded-lg transition-colors"
+                    style={{ fontSize: 13, color: '#1C1C1E' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.10)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-2.5 flex justify-end" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                <button
+                  type="button"
+                  onClick={() => setPendingEventMove(null)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ color: '#8E8E93', backgroundColor: 'rgba(0,0,0,0.04)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <AddModal
         isOpen={isAddModalOpen}

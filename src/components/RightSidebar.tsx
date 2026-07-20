@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, BoltIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
@@ -86,6 +86,8 @@ export function RightSidebar({
   const [planMode, setPlanMode] = useState(false);
   // Grouping: by the day each to-do is scheduled on, or by its due date.
   const [groupBy, setGroupBy] = useState<'day' | 'due'>('day');
+  // Done section is folded away by default.
+  const [doneOpen, setDoneOpen] = useState(false);
 
   const getPriority = (t: Task): number | null =>
     typeof t.priority === 'number' && t.priority >= 1 && t.priority <= 5
@@ -165,31 +167,66 @@ export function RightSidebar({
     return key < todayStr ? `${label} · overdue` : label;
   };
 
-  const groups = useMemo(() => {
-    const map = new Map<string, Task[]>();
-    for (const t of tasks) {
-      const key = groupBy === 'day'
-        ? (scheduledDateOf(t.id) ?? 'unscheduled')
-        : (((t as any).dueDate as string | null) || 'none');
-      const arr = map.get(key) ?? [];
-      arr.push(t);
-      map.set(key, arr);
+  // The week currently shown on the calendar (the week containing selectedDate).
+  const weekSet = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const base = new Date(y, (m ?? 1) - 1, d ?? 1);
+    const start = getStartOfWeek(base, weekStartsOnMonday);
+    const s = new Set<string>();
+    for (let i = 0; i < 7; i++) {
+      const di = new Date(start);
+      di.setDate(start.getDate() + i);
+      s.add(getLocalDateString(di));
     }
-    const special = groupBy === 'day' ? 'unscheduled' : 'none';
-    const dateKeys = [...map.keys()].filter((k) => k !== special).sort();
-    const orderedKeys = groupBy === 'day'
-      ? [...(map.has('unscheduled') ? ['unscheduled'] : []), ...dateKeys]   // unscheduled first, then chronological
-      : [...dateKeys, ...(map.has('none') ? ['none'] : [])];                // overdue→future, no-due-date last
-    return orderedKeys.map((key) => {
-      const list = map.get(key)!.slice().sort((a, b) => {
-        const ad = doneIdSet.has(a.id) ? 1 : 0;
-        const bd = doneIdSet.has(b.id) ? 1 : 0;
-        if (ad !== bd) return ad - bd; // not-done first, done sinks to the bottom of its day
-        return sortByUrgencyAndPriority(a, b);
-      });
-      return { key, label: dayLabel(key), tasks: list };
-    });
-  }, [tasks, timeBlocks, groupBy, doneIdSet, todayStr, tomorrowStr]);
+    return s;
+  }, [selectedDate, weekStartsOnMonday]);
+
+  const weekRangeLabel = useMemo(() => {
+    const dates = [...weekSet].sort();
+    const fmt = (k: string) => {
+      const [y, m, d] = k.split('-').map(Number);
+      return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+    return dates.length ? `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}` : '';
+  }, [weekSet]);
+
+  // Split tasks into: this-week scheduled (grouped), unscheduled (bottom), done (folded).
+  // "By day" groups by scheduled block date and filters to the shown week; "By due"
+  // groups by due date (all weeks), with no-due-date tasks going to the Unscheduled section.
+  const { mainGroups, unscheduledList, doneGroups } = useMemo(() => {
+    const mainMap = new Map<string, Task[]>();
+    const doneMap = new Map<string, Task[]>();
+    const unscheduled: Task[] = [];
+    const push = (map: Map<string, Task[]>, key: string, t: Task) => {
+      const arr = map.get(key); if (arr) arr.push(t); else map.set(key, [t]);
+    };
+    for (const t of tasks) {
+      const done = doneIdSet.has(t.id);
+      if (groupBy === 'day') {
+        const sd = scheduledDateOf(t.id);
+        if (!sd) { if (!done) unscheduled.push(t); continue; }   // no block → Unscheduled (done+unscheduled hidden)
+        if (!weekSet.has(sd)) continue;                          // scheduled in another week → hidden here
+        push(done ? doneMap : mainMap, sd, t);
+      } else {
+        const due = ((t as any).dueDate as string | null) || null;
+        if (!due) { if (!done) unscheduled.push(t); continue; }
+        push(done ? doneMap : mainMap, due, t);
+      }
+    }
+    const toGroups = (map: Map<string, Task[]>) =>
+      [...map.keys()].sort().map((key) => ({
+        key,
+        label: dayLabel(key),
+        tasks: map.get(key)!.slice().sort(sortByUrgencyAndPriority),
+      }));
+    return {
+      mainGroups: toGroups(mainMap),
+      unscheduledList: unscheduled.slice().sort(sortByUrgencyAndPriority),
+      doneGroups: toGroups(doneMap),
+    };
+  }, [tasks, timeBlocks, groupBy, doneIdSet, weekSet, todayStr, tomorrowStr]);
+
+  const doneCount = useMemo(() => doneGroups.reduce((n, g) => n + g.tasks.length, 0), [doneGroups]);
 
   // ─── Drag & drop (pointer-based) ──────────────────────────────────────────
   const sidebarDropRef = React.useRef<HTMLDivElement>(null);
@@ -231,48 +268,23 @@ export function RightSidebar({
     />
   );
 
-  const totalTasks = tasks.length;
-
-  const renderGroupedView = () => {
-    if (totalTasks === 0) {
-      return (
-        <div className="text-xs text-center py-6 px-2" style={{ color: '#AEAEB2' }}>No to-dos yet</div>
-      );
-    }
-    return (
-      <div className="space-y-4">
-        {groups.map((group) => {
-          const isUnscheduled = group.key === 'unscheduled';
-          return (
-            <div key={group.key}>
-              <div className="flex items-center justify-between mb-1.5 px-1">
-                <h2 className="text-sm font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
-                  {group.label}
-                  <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{group.tasks.length}</span>
-                </h2>
-                {isUnscheduled && onAutoSchedule && group.tasks.some((t) => !doneIdSet.has(t.id)) && (
-                  <button
-                    type="button"
-                    onClick={() => onAutoSchedule(group.tasks.filter((t) => !doneIdSet.has(t.id)).map((t) => t.id))}
-                    className="flex items-center gap-1 text-xs font-medium transition-colors rounded-md px-2 py-1"
-                    style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.16)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
-                  >
-                    <BoltIcon className="h-3 w-3" />
-                    Auto Schedule
-                  </button>
-                )}
-              </div>
-              <div className={planMode ? 'space-y-2' : ''}>
-                {group.tasks.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  const renderGroups = (groupList: Array<{ key: string; label: string; tasks: Task[] }>) => (
+    <div className="space-y-4">
+      {groupList.map((group) => (
+        <div key={group.key}>
+          <div className="flex items-center justify-between mb-1.5 px-1">
+            <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
+              {group.label}
+              <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{group.tasks.length}</span>
+            </h2>
+          </div>
+          <div className={planMode ? 'space-y-2' : ''}>
+            {group.tasks.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -334,9 +346,71 @@ export function RightSidebar({
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${isBottomSheet ? 'px-3 py-3 pb-6' : 'px-3 py-3 pb-8'}`}>
-        {renderGroupedView()}
+      {/* Main scroll area: this-week scheduled to-dos + a folded Done section */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3">
+        {groupBy === 'day' && (
+          <div className="px-1 mb-2" style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>
+            Week of {weekRangeLabel}
+          </div>
+        )}
+        {mainGroups.length === 0 ? (
+          <div className="text-xs text-center py-6 px-2" style={{ color: '#AEAEB2' }}>
+            {groupBy === 'day' ? 'Nothing scheduled this week' : 'No to-dos with a due date'}
+          </div>
+        ) : (
+          renderGroups(mainGroups)
+        )}
+
+        {/* Done — folded, grouped by day, this week only */}
+        {doneCount > 0 && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setDoneOpen((v) => !v)}
+              className="flex items-center gap-1 w-full text-left px-1 mb-1.5"
+            >
+              {doneOpen
+                ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />}
+              <span className="font-semibold" style={{ fontSize: 13, color: THEME.textPrimary }}>Done</span>
+              <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{doneCount}</span>
+            </button>
+            {doneOpen && renderGroups(doneGroups)}
+          </div>
+        )}
+      </div>
+
+      {/* Unscheduled — its own section pinned at the bottom, scrolls independently */}
+      <div
+        className="flex-shrink-0 flex flex-col min-h-0"
+        style={{ borderTop: `1px solid ${BORDER}`, maxHeight: '40%' }}
+      >
+        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5 flex-shrink-0">
+          <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
+            Unscheduled
+            <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{unscheduledList.length}</span>
+          </h2>
+          {onAutoSchedule && unscheduledList.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onAutoSchedule(unscheduledList.map((t) => t.id))}
+              className="flex items-center gap-1 text-xs font-medium transition-colors rounded-md px-2 py-1"
+              style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.16)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
+            >
+              <BoltIcon className="h-3 w-3" />
+              Auto Schedule
+            </button>
+          )}
+        </div>
+        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3 ${planMode ? 'space-y-2' : ''}`}>
+          {unscheduledList.length === 0 ? (
+            <div className="text-xs text-center py-3" style={{ color: '#AEAEB2' }}>Nothing unscheduled</div>
+          ) : (
+            unscheduledList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))
+          )}
+        </div>
       </div>
     </div>
   );

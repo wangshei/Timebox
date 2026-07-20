@@ -459,13 +459,25 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       google_event_id: e.googleEventId ?? null,
     });
     let evResult = await supabase.from('events').upsert(nonGcalEvents.map(eventRow), { onConflict: 'id' });
-    if (evResult.error && /attendance_status|google_event_id|column/.test(evResult.error.message)) {
-      // Column(s) don't exist yet — retry without the newer optional columns.
+    if (evResult.error && /column|does not exist|schema cache/i.test(evResult.error.message)) {
+      // A column is missing from this DB's schema. Retry with only the core columns so
+      // a schema gap can't fail the whole events upsert — which would otherwise SKIP the
+      // events orphan-delete (deletes never persist) and drop event edits. Optional
+      // fields just won't be saved until the migration is applied.
+      // eslint-disable-next-line no-console
+      console.warn('[supabasePersistence] events upsert failed on an optional column — retrying with core columns only:', evResult.error.message);
       evResult = await supabase.from('events').upsert(
-        nonGcalEvents.map((e) => {
-          const { attendance_status, google_event_id, ...base } = eventRow(e);
-          return base;
-        }),
+        nonGcalEvents.map((e) => ({
+          id: e.id,
+          user_id: userId,
+          title: e.title ?? '',
+          calendar_container_id: e.calendarContainerId,
+          category_id: e.categoryId,
+          start: e.start ?? '',
+          end: e.end ?? '',
+          date: e.date ?? '',
+          recurring: e.recurring ?? false,
+        })),
         { onConflict: 'id' }
       );
     }
@@ -852,7 +864,10 @@ export function startSupabasePersistence() {
   // Periodic sync fallback for Capacitor/mobile — realtime WebSocket may drop
   // when the app is backgrounded. Poll every 30s as a safety net.
   const syncInterval = setInterval(async () => {
-    if (!supabaseLoaded || saving || pendingSlice || debounceTimer || document.hidden) return;
+    // Also bail while a save has unresolved errors — reloading would re-read the DB
+    // (which still has the un-deleted / un-updated row) and clobber the local change,
+    // making a deleted item "come back" moments later.
+    if (!supabaseLoaded || saving || pendingSlice || debounceTimer || lastSaveHadErrors || document.hidden) return;
     const pollNow = Date.now();
     if (pollNow - lastSaveCompletedAt < 5000 || pollNow - lastLocalChangeAt < 5000) return;
     try { await loadSupabaseState(false); } catch { /* ignore */ }

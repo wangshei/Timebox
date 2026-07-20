@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
@@ -23,7 +23,6 @@ function getAllTimezones(): string[] {
 
 const ALL_TIMEZONES = getAllTimezones();
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
-import { SegmentedControl } from './ui/SegmentedControl';
 import { Chip } from './ui/chip';
 
 type AddMode = 'task' | 'event';
@@ -562,6 +561,22 @@ export function AddModal({
                   ? 'New To-Do'
                   : 'New Event'}
           </h2>
+          {/* Compact mode switch — small icon to flip between To-Do and Event (new only) */}
+          {!editingTimeBlock && !editingEvent && !editingTask && (
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'task' ? 'event' : 'task')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 transition-colors"
+              style={{ color: THEME.primary, backgroundColor: 'rgba(141,162,134,0.10)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.10)')}
+              title={mode === 'task' ? 'Switch to Event' : 'Switch to To-Do'}
+            >
+              {mode === 'task'
+                ? <><CalendarDaysIcon className="h-3.5 w-3.5" /> Event</>
+                : <><CheckCircleIcon className="h-3.5 w-3.5" /> To-Do</>}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -570,34 +585,12 @@ export function AddModal({
           </button>
         </div>
 
-        {/* Task/Event Toggle — when adding (not editing) */}
-        {!editingTimeBlock && !editingEvent && !editingTask && (
-          <div className="px-4 pt-3" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex' }}>
-              <SegmentedControl
-                options={[
-                  { value: 'task' as AddMode, label: 'Todo' },
-                  { value: 'event' as AddMode, label: 'Event' },
-                ]}
-                value={mode}
-                onChange={setMode}
-                style={{ flex: 1 }}
-              />
-            </div>
-            <p className="text-[10px] px-1" style={{ color: '#8E8E93' }}>
-              {mode === 'task'
-                ? 'Todos are flexible — schedule them anytime'
-                : 'Events are fixed — they happen at a set time'}
-            </p>
-          </div>
-        )}
-
         {/* Form — compact, scrollable; primary button is type="submit" so Enter submits */}
         <form
           onSubmit={handleSubmit}
           className="flex-1 min-h-0 flex flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2.5">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
           {/* Title — borderless with a sage underline (Google-Calendar style) */}
           <div>
             <input
@@ -607,10 +600,10 @@ export function AddModal({
               placeholder={mode === 'task' ? 'Add to-do title' : 'Add event title'}
               className="w-full bg-transparent focus:outline-none"
               style={{
-                fontSize: 20,
+                fontSize: 15,
                 fontWeight: 500,
                 color: THEME.textPrimary,
-                padding: '2px 0 6px',
+                padding: '2px 0 7px',
                 border: 'none',
                 borderBottom: `2px solid ${title ? THEME.primary : 'rgba(0,0,0,0.12)'}`,
               }}
@@ -642,8 +635,8 @@ export function AddModal({
                 <CalendarDaysIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
                 <input
                   type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
+                  className="flex-1 px-2.5 text-sm rounded-lg focus:outline-none"
+                  style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
                 />
               </div>
               {moreOpen && (
@@ -813,10 +806,14 @@ export function AddModal({
           ) : (
             <div>
               {(() => {
+                // Soft, borderless dropdowns: light gray shadow instead of a border.
                 const selectStyle: React.CSSProperties = {
-                  flex: 1, minWidth: 0, fontSize: 12, padding: '6px 8px', borderRadius: 8,
-                  border: '1px solid rgba(0,0,0,0.10)', backgroundColor: '#FFFFFF', color: '#1C1C1E', outline: 'none',
+                  width: '100%', minWidth: 0, fontSize: 12, height: 30, borderRadius: 8,
+                  border: 'none', backgroundColor: '#FFFFFF', color: THEME.textPrimary, outline: 'none',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                  appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
                 };
+                const chevronBg = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 20 20\' fill=\'%238E8E93\'><path d=\'M5.5 7.5l4.5 4.5 4.5-4.5\' stroke=\'%238E8E93\' stroke-width=\'2\' fill=\'none\' stroke-linecap=\'round\'/></svg>")';
                 const catsForCalendar = categoriesToShow.filter((category) => {
                   if (!selectedCalendar) return true;
                   const ids = category.calendarContainerIds;
@@ -824,47 +821,55 @@ export function AddModal({
                   return category.calendarContainerId === selectedCalendar || !category.calendarContainerId;
                 });
                 const tagsForCategory = tags.filter((t) => t.categoryId === selectedCategory?.id);
-                return (
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    {/* Calendar */}
+                const calColor = calendars.find((c) => c.id === selectedCalendar)?.color ?? THEME.primary;
+                const catColor = selectedCategory?.color ?? 'rgba(0,0,0,0.18)';
+                // A dropdown wrapper that shows a leading color dot + chevron.
+                const Dropdown = ({ dot, padLeft = 24, children, ...rest }: any) => (
+                  <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                    {dot !== undefined && (
+                      <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 8, height: 8, borderRadius: '50%', backgroundColor: dot, pointerEvents: 'none' }} />
+                    )}
                     <select
-                      value={selectedCalendar}
-                      onChange={(e) => setSelectedCalendar(e.target.value)}
-                      style={{ ...selectStyle, borderLeft: `3px solid ${calendars.find((c) => c.id === selectedCalendar)?.color ?? THEME.primary}` }}
-                      title="Calendar"
+                      {...rest}
+                      style={{ ...selectStyle, paddingLeft: padLeft, paddingRight: 20, backgroundImage: chevronBg, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 7px center' }}
                     >
-                      {calendars.map((cal) => <option key={cal.id} value={cal.id}>{cal.name}</option>)}
+                      {children}
                     </select>
-                    {/* Category */}
-                    <select
+                  </div>
+                );
+                return (
+                  <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                    <Dropdown dot={calColor} value={selectedCalendar} onChange={(e: any) => setSelectedCalendar(e.target.value)} title="Calendar">
+                      {calendars.map((cal) => <option key={cal.id} value={cal.id}>{cal.name}</option>)}
+                    </Dropdown>
+                    <Dropdown
+                      dot={catColor}
                       value={selectedCategory?.id ?? ''}
-                      onChange={(e) => {
+                      title="Category"
+                      onChange={(e: any) => {
                         if (e.target.value === '__add__') { setShowCategoryInput(true); return; }
                         setSelectedCategory(catsForCalendar.find((c) => c.id === e.target.value) ?? null);
                       }}
-                      style={{ ...selectStyle, borderLeft: `3px solid ${selectedCategory?.color ?? 'rgba(0,0,0,0.15)'}` }}
-                      title="Category"
                     >
                       {catsForCalendar.length === 0 && <option value="">No categories</option>}
                       {catsForCalendar.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       {onAddCategory && <option value="__add__">+ New category…</option>}
-                    </select>
-                    {/* Tags — pick to add */}
-                    <select
+                    </Dropdown>
+                    <Dropdown
+                      padLeft={10}
                       value=""
-                      onChange={(e) => {
+                      title="Tags"
+                      disabled={!selectedCategory}
+                      onChange={(e: any) => {
                         if (e.target.value === '__add__') { setShowTagInput(true); return; }
                         const tag = tagsForCategory.find((t) => t.id === e.target.value);
                         if (tag) setSelectedTags((prev) => prev.some((s) => s.id === tag.id) ? prev : [...prev, tag]);
                       }}
-                      style={selectStyle}
-                      title="Tags"
-                      disabled={!selectedCategory}
                     >
                       <option value="">Tags…</option>
                       {tagsForCategory.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                       {onAddTag && selectedCategory && <option value="__add__">+ New tag…</option>}
-                    </select>
+                    </Dropdown>
                   </div>
                 );
               })()}
