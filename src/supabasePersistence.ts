@@ -134,7 +134,13 @@ export async function loadSupabaseState(isInitialLoad = true) {
   const tags = (tagsRes.data ?? []) as any[];
   const tasks = (tasksRes.data ?? []) as any[];
   const blocks = (blocksRes.data ?? []) as any[];
-  const events = ((eventsRes.data ?? []) as any[]).filter((e: any) => !String(e.id).startsWith('gcal-evt-'));
+  // Ephemeral events (never our own persisted rows): imported gcal mirrors and
+  // shared-calendar events. Both are re-injected in memory on each load, so filter
+  // them out of the DB read; any that leaked into the table (older versions persisted
+  // shared events) get cleaned up by the orphan-delete phase on the next save.
+  const events = ((eventsRes.data ?? []) as any[]).filter(
+    (e: any) => !String(e.id).startsWith('gcal-evt-') && !String(e.id).startsWith('shared-') && !e.shared_from_share_id
+  );
 
   // New user (or data lost): give them a default Personal calendar + a General
   // category so they can start adding tasks/events immediately. The persistence
@@ -157,11 +163,11 @@ export async function loadSupabaseState(isInitialLoad = true) {
     // Preserve gcal items that only exist in memory (not persisted to Supabase)
     const prevGcalContainers = prev.calendarContainers.filter(c => c.id.startsWith('gcal-'));
     const prevGcalCategories = prev.categories.filter(c => c.id.startsWith('gcal-cat-'));
-    // Only imported gcal events (gcal-evt- prefix) are memory-only/ephemeral.
-    // Write-back events (local UUID id stamped with a googleEventId) are persisted
-    // to Supabase like normal events, so they load via the DB path below — don't
-    // double-preserve them here or they'd duplicate.
-    const prevGcalEvents = prev.events.filter(e => e.id.startsWith('gcal-evt-'));
+    // Memory-only/ephemeral events: imported gcal mirrors (gcal-evt-) and shared
+    // events (re-injected from the share on load). Preserve them across the DB read so
+    // they don't flicker. Write-back events (local UUID id stamped with a googleEventId)
+    // ARE persisted and load via the DB path — don't double-preserve those.
+    const prevGcalEvents = prev.events.filter(e => e.id.startsWith('gcal-evt-') || !!e.sharedFromShareId);
 
     const calendarContainers = [
       ...containers.map((c): CalendarContainer => {
@@ -430,11 +436,12 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       { onConflict: 'id' }
     ));
   }
-  // Filter out imported gcal events — they're ephemeral, sourced from the Google API
-  // on each load. The `gcal-evt-` prefix is the single "ephemeral" signal: write-back
-  // events (local UUID id stamped with a googleEventId) DO persist so they survive
-  // reloads instead of flickering then getting orphan-deleted.
-  const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-'));
+  // Persist only our OWN events. Exclude ephemeral mirrors: imported gcal events
+  // (gcal-evt-, sourced from Google each load) and shared-calendar events
+  // (sharedFromShareId, re-injected from the share each load). Persisting shared events
+  // made them un-deletable — they'd get re-injected on the next load. Write-back events
+  // (local UUID id + googleEventId, no share id) DO persist and survive reloads.
+  const nonGcalEvents = state.events.filter(e => !e.id.startsWith('gcal-evt-') && !e.sharedFromShareId);
   if (nonGcalEvents.length) {
     const eventRow = (e: Event) => ({
       id: e.id,
