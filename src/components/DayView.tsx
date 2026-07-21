@@ -296,7 +296,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const { block, startClientY } = resizingBlock;
     const startMins = parseTimeToMins(block.start);
     const minEndMins = startMins + SNAP_MINUTES_UTIL;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
       let newEndMins = parseTimeToMins(block.end) + deltaMins;
       newEndMins = Math.round(newEndMins / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
@@ -304,11 +304,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       onResizeBlock(block.id, { date: block.date, endTime: minutesToTimeString(newEndMins) });
     };
     const onUp = () => setResizingBlock(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
   }, [resizingBlock, onResizeBlock]);
 
@@ -317,7 +317,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const { event, startClientY } = resizingEvent;
     const startMins = parseTimeToMins(event.start);
     const minEndMins = startMins + SNAP_MINUTES_UTIL;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
       let newEndMins = parseTimeToMins(event.end) + deltaMins;
       newEndMins = Math.round(newEndMins / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
@@ -325,26 +325,26 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       onResizeEvent(event.id, { date: event.date, endTime: minutesToTimeString(newEndMins) });
     };
     const onUp = () => setResizingEvent(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
   }, [resizingEvent, onResizeEvent]);
 
-  const handleResizeStart = React.useCallback((block: ResolvedTimeBlock, e: React.MouseEvent) => {
+  const handleResizeStart = React.useCallback((block: ResolvedTimeBlock, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setResizingBlock({ block, startClientY: e.clientY });
   }, []);
 
-  const handleResizeStartByBlockId = React.useCallback((blockId: string, e: React.MouseEvent) => {
+  const handleResizeStartByBlockId = React.useCallback((blockId: string, e: React.PointerEvent) => {
     const block = timeBlocks.find((b) => b.id === blockId);
     if (block) handleResizeStart(block, e);
   }, [timeBlocks, handleResizeStart]);
 
-  const handleEventResizeStart = React.useCallback((event: ResolvedEvent, e: React.MouseEvent) => {
+  const handleEventResizeStart = React.useCallback((event: ResolvedEvent, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setResizingEvent({ event, startClientY: e.clientY });
@@ -366,7 +366,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
     const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-    const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
+    const height = Math.max((duration / 60) * PX_PER_HOUR, 21);
     return { top, height };
   };
 
@@ -461,7 +461,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const endMins = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveEnd) : parseTimeToMins(block.end);
       const duration = endMins - startMins;
       const top = ((startMins - START_HOUR * 60) / 60) * PX_PER_HOUR;
-      const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
+      const height = Math.max((duration / 60) * PX_PER_HOUR, 21);
       const layout = overlapMap.get(block.id);
       const colWidth = layout ? 100 / layout.totalColumns : 100;
       const leftPercent = layout ? layout.columnIndex * colWidth : 0;
@@ -746,7 +746,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             const endMinutes = trunc && !trunc.hidden ? parseTimeToMins(trunc.effectiveEnd) : parseTimeToMins(seg.displayEnd);
             const duration = endMinutes - startMinutes;
             const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-            const height = Math.max((duration / 60) * PX_PER_HOUR, 20);
+            const height = Math.max((duration / 60) * PX_PER_HOUR, 21);
             const layout = overlapMap.get(`event-${seg.event.id}`);
             const evColWidth = layout ? 100 / layout.totalColumns : 100;
             const leftPercent = layout ? layout.columnIndex * evColWidth : 0;

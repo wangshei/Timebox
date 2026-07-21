@@ -278,7 +278,7 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
 
   // ── Scroll calendar to ~7 AM so demo content is visible ──
   useEffect(() => {
-    const PX_PER_HOUR = 64;
+    const PX_PER_HOUR = 68;
     const t = setTimeout(() => {
       if (!overlayRef.current) return;
       // Find all scrollable calendar containers (overflow-auto divs inside the grid area)

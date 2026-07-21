@@ -162,7 +162,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     const endMinutes = parseTimeToMins(block.end);
     const duration = endMinutes - startMinutes;
     const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-    const height = Math.max((duration / 60) * PX_PER_HOUR, 18);
+    const height = Math.max((duration / 60) * PX_PER_HOUR, 21);
     return { top, height };
   };
 
@@ -253,7 +253,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     if (!resizingBlock || !onResizeBlock) return;
     const { block, startClientY } = resizingBlock;
     const minEndMins = parseTimeToMins(block.start) + SNAP_MINUTES;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
       let newEndMins = parseTimeToMins(block.end) + deltaMins;
       newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
@@ -261,11 +261,11 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       onResizeBlock(block.id, { date: block.date, endTime: minsToTime(newEndMins) });
     };
     const onUp = () => setResizingBlock(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
   }, [resizingBlock, onResizeBlock]);
 
@@ -278,7 +278,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
     if (!resizingEvent || !onResizeEvent) return;
     const { event, startClientY } = resizingEvent;
     const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
       let newEndMins = parseTimeToMins(event.end) + deltaMins;
       newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
@@ -286,11 +286,11 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
     };
     const onUp = () => setResizingEvent(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
   }, [resizingEvent, onResizeEvent]);
 
@@ -739,7 +739,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 const endMinutes = eTrunc && !eTrunc.hidden ? parseTimeToMins(eTrunc.effectiveEnd) : parseTimeToMins(seg.displayEnd);
                                 const duration = endMinutes - startMinutes;
                                 const top = ((startMinutes - START_HOUR * 60) / 60) * PX_PER_HOUR;
-                                const height = Math.max((duration / 60) * PX_PER_HOUR, 16);
+                                const height = Math.max((duration / 60) * PX_PER_HOUR, 21);
                                 const layout = dayOverlapMap.get(eTruncKey);
                                 const eColWidth = layout ? 100 / layout.totalColumns : 100;
                                 const leftPercent = layout ? layout.columnIndex * eColWidth : 0;

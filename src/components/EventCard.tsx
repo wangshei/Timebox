@@ -51,8 +51,8 @@ interface EventCardProps {
   plannedStyle?: boolean;
   /** When true and onMoveEvent is used, card is draggable */
   draggable?: boolean;
-  /** Called when user mousedowns on the bottom-edge resize handle */
-  onResizeStart?: (e: React.MouseEvent) => void;
+  /** Called when the user presses the bottom-edge resize handle */
+  onResizeStart?: (e: React.PointerEvent) => void;
   /** When true, shows compact card without duration, description, or category chip */
   compact?: boolean;
   /** Toggle attendance for past events */
@@ -211,6 +211,10 @@ export function EventCard({
         ? parseFloat(style.height)
         : 0;
 
+  // Short cards (e.g. 30-min events) can't fit the full title + meta layout,
+  // so fall back to the single-line compact layout automatically.
+  const useCompact = compact || (heightPx > 0 && heightPx < 44);
+
   const getDuration = () => {
     const [startHour, startMin] = event.start.split(':').map(Number);
     const [endHour, endMin] = event.end.split(':').map(Number);
@@ -330,7 +334,7 @@ export function EventCard({
     >
       <div
         className={cn(
-          `h-full w-full transition-all flex flex-col min-h-0 overflow-hidden ${compact ? 'px-1.5 py-1' : 'px-3 py-2'}`,
+          `h-full w-full transition-all flex flex-col min-h-0 overflow-hidden ${useCompact ? 'px-1.5 py-0.5' : 'px-3 py-2'}`,
           plannedStyle ? '' : 'border-l-4',
           isSelected && 'ring-2 ring-offset-1'
         )}
@@ -343,7 +347,7 @@ export function EventCard({
           ...segmentRadius,
         }}
       >
-        {compact ? (
+        {useCompact ? (
           <div className="flex flex-col h-full min-w-0 w-full overflow-hidden" style={{ color: eventTextColor }}>
             <div className="flex items-start min-w-0 w-full flex-1 gap-1.5 overflow-hidden min-h-0">
               <span
@@ -465,8 +469,9 @@ export function EventCard({
 
       {onResizeStart && (
         <div
+          data-no-drag
           className="absolute bottom-0 left-0 right-0 h-2 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity"
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(e); }}
+          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(e); }}
         >
           <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full" />
         </div>

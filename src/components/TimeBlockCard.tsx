@@ -41,7 +41,7 @@ interface TimeBlockCardProps {
   onEditBlock?: (blockId: string) => void;
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
-  onResizeStart?: (blockId: string, e: React.MouseEvent) => void;
+  onResizeStart?: (blockId: string, e: React.PointerEvent) => void;
   compareMatchedTaskIds?: string[];
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
@@ -939,8 +939,9 @@ function TimeBlockCardInner({
         {/* Resize handle — compact mode (all blocks, not locked/past; or confirmed past) */}
         {onResizeStart && (!noDrag || allowResizePast) && compactTier !== 'micro' && (
           <div
+            data-no-drag
             className="absolute bottom-0 left-0 right-0 h-2 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
           </div>
@@ -982,7 +983,7 @@ function TimeBlockCardInner({
   // Padding scales with size
   const fullPadding =
     sizeTier === 'micro' ? '1px 6px' :
-    sizeTier === 'tiny'  ? '2px 8px' :
+    sizeTier === 'tiny'  ? '1px 8px' :
     isEvent ? '5px 8px 5px 10px' : '5px 8px';
 
   // Format short time like "9:00" or "9am"
@@ -1165,11 +1166,15 @@ function TimeBlockCardInner({
           </div>
         )}
 
-        {/* Resize handle (all blocks, small+, not locked/past; or confirmed past) */}
-        {onResizeStart && (!noDragFull || allowResizePast) && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {/* Resize handle (all blocks incl. tight 30-min, not micro/locked/past; or confirmed past) */}
+        {onResizeStart && (!noDragFull || allowResizePast) && sizeTier !== 'micro' && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-3 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity"
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
+            data-no-drag
+            className={cn(
+              'absolute bottom-0 left-0 right-0 z-10 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity',
+              sizeTier === 'tiny' ? 'h-2' : 'h-3',
+            )}
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(block.id, e); }}
           >
             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ backgroundColor: hexToRgba(blockColor, 0.35) }} />
           </div>

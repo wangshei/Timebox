@@ -1,4 +1,4 @@
-export const PX_PER_HOUR = 64;
+export const PX_PER_HOUR = 68;
 export const SNAP_MINUTES = 15;
 export const TASK_BLOCK_WIDTH_PERCENT = 72;
 
