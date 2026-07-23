@@ -882,6 +882,7 @@ export default function App() {
     categories,
     tags,
     addTask,
+    expandRecurringTasks,
     addTimeBlock,
     updateTimeBlock,
     updateTask,
@@ -1069,6 +1070,12 @@ export default function App() {
     () => getViewDateRange(selectedDate, view),
     [selectedDate, view]
   );
+
+  // Lazily materialize recurring-task instances for the week/range currently in view,
+  // so they appear "when that week comes" without pre-creating dozens of rows upfront.
+  useEffect(() => {
+    if (analyticsDateRange.length) expandRecurringTasks(analyticsDateRange);
+  }, [analyticsDateRange, expandRecurringTasks]);
   const planVsActualByCategory = useMemo(
     () => selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories, undefined, events),
     [timeBlocks, analyticsDateRange, categories, events]
@@ -1248,9 +1255,17 @@ export default function App() {
     description?: string | null;
     notes?: string | null;
     priority?: number;
+    recurring?: boolean;
+    recurrencePattern?: import('./types').RecurrencePattern;
+    recurrenceDays?: number[];
     scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => {
     saveSnapshot();
+    // Recurring to-do: the created task becomes the series head. It anchors on its
+    // due date (or today if none). Instances for other days are materialized lazily
+    // as the user reaches those weeks (see expandRecurringTasks).
+    const isRecurringTask = !!taskData.recurring && !!taskData.recurrencePattern && taskData.recurrencePattern !== 'none';
+    const anchorDueDate = isRecurringTask ? (taskData.dueDate ?? getLocalDateString()) : (taskData.dueDate ?? undefined);
     const taskId = addTask({
       title: taskData.title,
       estimatedMinutes: taskData.estimatedHours * 60,
@@ -1258,12 +1273,22 @@ export default function App() {
       categoryId: taskData.category.id,
       tagIds: taskData.tags.map((t) => t.id),
       flexible: true,
-      dueDate: taskData.dueDate ?? undefined,
+      dueDate: anchorDueDate,
       link: taskData.link ?? undefined,
       description: taskData.description ?? undefined,
       notes: taskData.notes ?? undefined,
       priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
+      ...(isRecurringTask
+        ? {
+            recurring: true,
+            recurrencePattern: taskData.recurrencePattern,
+            recurrenceDays: taskData.recurrencePattern === 'custom' ? taskData.recurrenceDays : undefined,
+            recurrenceSeriesId: crypto.randomUUID(),
+          }
+        : {}),
     });
+    // Surface instances for the currently visible range right away.
+    if (isRecurringTask) expandRecurringTasks(analyticsDateRange);
     // If created from a calendar drag, also schedule the task at that time slot
     if (taskData.scheduleAt && taskId) {
       const slot = taskData.scheduleAt;
@@ -1488,6 +1513,15 @@ export default function App() {
     existingGoogleEventId?: string | null;
   }) => {
     const { eventId, title, emails, date, startTime, endTime, endDate, description, existingGoogleEventId } = params;
+    // Interpret the event's wall-clock time in the browser's local zone → UTC instants
+    // for the .ics attachment carried by the invite email.
+    const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+    const eventIcs = {
+      start: toIso(date, startTime),
+      end: toIso(endDate ?? date, endTime),
+      title,
+      description,
+    };
     setInviteConfirm({
       type: 'new',
       eventTitle: title,
@@ -1496,7 +1530,7 @@ export default function App() {
         setInviteConfirm(null);
         // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
         const sendShare = (attempt = 1) => {
-          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails })
+          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails, event: eventIcs })
             .then((result) => {
               toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
             })
@@ -4010,7 +4044,20 @@ export default function App() {
         anchorPoint={addModalAnchor}
         onAddTask={handleAddTask}
         onUpdateTask={(id, updates) => {
-          updateTask(id, updates);
+          const task = tasks.find((t) => t.id === id);
+          const u = { ...(updates as Partial<import('./types').Task>) };
+          const wantsRecurring = !!u.recurring && !!u.recurrencePattern && u.recurrencePattern !== 'none';
+          if (wantsRecurring) {
+            // Editing a task into a recurring series: give it a series id + an anchor date.
+            if (task && !task.recurrenceSeriesId) u.recurrenceSeriesId = crypto.randomUUID();
+            if (!(u.dueDate ?? task?.dueDate)) u.dueDate = getLocalDateString();
+          } else if (u.recurring === false && task?.recurring) {
+            // Recurrence turned off — drop the series metadata on the head.
+            u.recurrencePattern = undefined;
+            u.recurrenceDays = undefined;
+          }
+          updateTask(id, u);
+          if (wantsRecurring) expandRecurringTasks(analyticsDateRange);
           // Propagate title/category/tags/calendar changes to all linked time blocks
           const blockUpdates: Partial<import('./types').TimeBlock> = {};
           if (updates.title) blockUpdates.title = updates.title;

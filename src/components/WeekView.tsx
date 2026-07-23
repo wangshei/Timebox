@@ -8,7 +8,7 @@ import { EventCard } from './EventCard';
 import {
   PX_PER_HOUR, SNAP_MINUTES, MINS_PER_DAY,
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
-  offsetYToMinutes as offsetYToMinsUtil, absMinsToEndParts, dayOffsetBetween,
+  offsetYToMinutes as offsetYToMinsUtil, absMinsToEndParts, dayOffsetBetween, resolveGridColumnAtPoint,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
@@ -278,15 +278,23 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
 
   React.useEffect(() => {
     if (!resizingEvent || !onResizeEvent) return;
-    const { event, startClientY } = resizingEvent;
+    const { event } = resizingEvent;
     const startAbs = parseTimeToMins(event.start);
-    const spanDays = event.endDate && event.endDate !== event.date ? dayOffsetBetween(event.date, event.endDate) : 0;
-    const baseEndAbs = spanDays * MINS_PER_DAY + parseTimeToMins(event.end);
+    const collectCols = () => {
+      const cols: Array<{ date: string; rect: DOMRect }> = [];
+      document.querySelectorAll<HTMLElement>('[data-week-day-col]').forEach((el) => {
+        const date = el.getAttribute('data-week-day-col');
+        const grid = el.querySelector('[data-week-grid]');
+        if (date && grid) cols.push({ date, rect: grid.getBoundingClientRect() });
+      });
+      return cols;
+    };
     const onMove = (e: PointerEvent) => {
-      const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndAbs = baseEndAbs + deltaMins;
-      newEndAbs = Math.round(newEndAbs / SNAP_MINUTES) * SNAP_MINUTES;
-      // Allow crossing midnight (into the next column); cap total duration at 24h.
+      const hit = resolveGridColumnAtPoint(collectCols(), e.clientX, e.clientY, PX_PER_HOUR);
+      if (!hit) return;
+      // Absolute end minutes from the start day, following the cursor across columns.
+      let newEndAbs = dayOffsetBetween(event.date, hit.date) * MINS_PER_DAY + hit.minsInDay;
+      // Keep end after start; cap total duration at 24h.
       newEndAbs = Math.max(startAbs + SNAP_MINUTES, Math.min(newEndAbs, startAbs + MINS_PER_DAY));
       const { endDate, endTime } = absMinsToEndParts(event.date, newEndAbs);
       onResizeEvent(event.id, { date: event.date, endTime, endDate });

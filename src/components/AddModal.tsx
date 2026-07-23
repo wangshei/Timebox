@@ -61,6 +61,9 @@ interface AddModalProps {
     link?: string | null;
     description?: string | null;
     notes?: string | null;
+    recurring?: boolean;
+    recurrencePattern?: RecurrencePattern;
+    recurrenceDays?: number[];
     /** When created from a calendar drag, schedule the task at this slot. */
     scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => void;
@@ -304,6 +307,8 @@ export function AddModal({
       setNotes(editingTask.notes ?? '');
       setPinned(!!editingTask.pinned);
       setPriority(typeof editingTask.priority === 'number' ? editingTask.priority : undefined);
+      setRecurrencePattern(editingTask.recurrencePattern ?? 'none');
+      setRecurrenceDays(editingTask.recurrenceDays ?? []);
     }
   }, [isOpen, editingTask?.id]); // categories/tags intentionally omitted to avoid form reset on add
 
@@ -472,6 +477,9 @@ export function AddModal({
         notes: notes.trim() || null,
         pinned,
         priority,
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
       });
     } else if (editingEvent && onUpdateEvent) {
       onUpdateEvent(editingEvent.id, {
@@ -522,6 +530,9 @@ export function AddModal({
         description: description.trim() || null,
         notes: notes.trim() || null,
         priority,
+        recurring: recurrencePattern !== 'none',
+        recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
+        recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
         scheduleAt: initialDate && initialStartTime && initialEndTime
           ? { date: initialDate, startTime: initialStartTime, endTime: initialEndTime }
           : null,
@@ -1076,7 +1087,7 @@ export function AddModal({
                 borderBottom: moreOpen ? '1px solid rgba(0,0,0,0.08)' : 'none',
               }}
             >
-              <span>More options {mode === 'event' ? '(link, description, repeat)' : '(link, description)'}</span>
+              <span>More options (link, description, repeat)</span>
               {moreOpen ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
             </button>
             {moreOpen && (
@@ -1089,9 +1100,14 @@ export function AddModal({
                   <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Description <span style={{ color: '#8E8E93', fontWeight: 400 }}>(optional)</span></label>
                   <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Longer description or context…" rows={2} className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none resize-y" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E' }} />
                 </div>
-                {mode === 'event' && (
+                {(mode === 'event' || mode === 'task') && (
                   <div>
                     <label className="block text-xs font-semibold mb-1" style={{ color: '#636366' }}>Repeat</label>
+                    {mode === 'task' && recurrencePattern !== 'none' && (
+                      <p className="mb-1.5 text-xs" style={{ color: '#8E8E93' }}>
+                        Repeats from {dueDate.trim() ? 'the due date' : 'today'}. Upcoming copies appear as you reach each week.
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-x-1.5 gap-y-2">
                       {(['none', 'daily', 'every_other_day', 'weekly', 'monthly', 'custom'] as const).map((p) => (
                         <button

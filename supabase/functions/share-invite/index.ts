@@ -118,7 +118,64 @@ function inviteEmailHtml(senderName: string, shareName: string, inviteLink: stri
 </html>`
 }
 
-async function sendInviteEmail(recipientEmail: string, senderName: string, shareName: string, inviteToken: string) {
+// --- Calendar invite (.ics) generation ---
+// Attaching a METHOD:REQUEST iCalendar file makes Gmail/Outlook/Apple Mail render
+// native RSVP buttons and add the event straight to the recipient's calendar — no
+// Google OAuth write scope or app verification required, and it works for any
+// recipient regardless of whether they use Timebox.
+
+/** Escape reserved characters in an ICS text value (RFC 5545 §3.3.11). */
+function escapeIcsText(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+}
+
+/** Convert an ISO datetime to ICS UTC basic format: YYYYMMDDTHHMMSSZ. */
+function toIcsUtc(iso: string): string {
+  return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
+interface IcsInvite {
+  uid: string
+  title: string
+  start: string   // ISO datetime
+  end: string     // ISO datetime
+  description?: string
+  organizerEmail: string
+  organizerName: string
+  attendeeEmail: string
+}
+
+function buildInviteIcs(p: IcsInvite): string {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//The Timeboxing Club//Invite//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${p.uid}`,
+    `DTSTAMP:${toIcsUtc(new Date().toISOString())}`,
+    `DTSTART:${toIcsUtc(p.start)}`,
+    `DTEND:${toIcsUtc(p.end)}`,
+    `SUMMARY:${escapeIcsText(p.title)}`,
+    ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
+    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${p.organizerEmail}`,
+    `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.attendeeEmail}`,
+    'SEQUENCE:0',
+    'STATUS:CONFIRMED',
+    'TRANSP:OPAQUE',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+  return lines.join('\r\n')
+}
+
+/** Base64-encode a UTF-8 string (Resend attachments expect base64 content). */
+function base64Utf8(s: string): string {
+  return btoa(unescape(encodeURIComponent(s)))
+}
+
+async function sendInviteEmail(recipientEmail: string, senderName: string, shareName: string, inviteToken: string, ics?: IcsInvite) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
 
@@ -130,18 +187,30 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
   const inviteLink = `${APP_URL}/invite/${inviteToken}`
   const html = inviteEmailHtml(senderName, shareName, inviteLink)
 
+  const payload: Record<string, unknown> = {
+    from: fromEmail,
+    to: recipientEmail,
+    subject: ics
+      ? `${senderName} invited you to "${shareName}"`
+      : `${senderName} shared "${shareName}" with you on Timeboxing Club`,
+    html,
+  }
+  if (ics) {
+    // Attach the calendar invite so it lands in the recipient's calendar (Gmail RSVP UI).
+    payload.attachments = [{
+      filename: 'invite.ics',
+      content: base64Utf8(buildInviteIcs(ics)),
+      content_type: 'text/calendar; method=REQUEST; charset=utf-8',
+    }]
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${resendApiKey}`,
     },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: recipientEmail,
-      subject: `${senderName} shared "${shareName}" with you on Timeboxing Club`,
-      html,
-    }),
+    body: JSON.stringify(payload),
   })
 
   if (!res.ok) {
@@ -380,11 +449,16 @@ async function notifyEventUpdate(userId: string, body: Record<string, unknown>) 
 
 async function createShare(userId: string, body: Record<string, unknown>) {
   const supabase = getSupabaseAdmin()
-  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle } = body
+  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle, event } = body
 
   if (!scope || !scopeId || !emails || !Array.isArray(emails)) {
     throw new Error('Missing required fields: scope, scopeId, emails')
   }
+
+  // For event-scoped invites with timing, we attach a calendar (.ics) invite to the
+  // email so it lands in the recipient's Google/Outlook/Apple calendar with RSVP.
+  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string } | undefined
+  const hasIcs = scope === 'event' && !!eventInfo?.start && !!eventInfo?.end
 
   // Create the share
   const shareData: Record<string, unknown> = {
@@ -445,9 +519,37 @@ async function createShare(userId: string, body: Record<string, unknown>) {
     link: `${APP_URL}/invite/${m.token}`,
   }))
 
+  // Resolve the organizer's email (for the ICS ORGANIZER line) once, if we'll attach invites.
+  let organizerEmail: string | null = null
+  if (hasIcs) {
+    try {
+      const { data: { user } } = await supabase.auth.admin.getUserById(userId)
+      organizerEmail = user?.email ?? null
+    } catch {
+      organizerEmail = null
+    }
+  }
+
   // Send emails in parallel
   const emailPromises = (insertedMembers ?? []).map((m: Record<string, unknown>) =>
-    sendInviteEmail(m.email as string, senderName, (displayName as string) ?? 'a calendar', m.token as string)
+    sendInviteEmail(
+      m.email as string,
+      senderName,
+      (displayName as string) ?? 'a calendar',
+      m.token as string,
+      hasIcs && organizerEmail
+        ? {
+            uid: `${scopeId}@timeboxing.club`,
+            title: (eventInfo?.title as string) || (displayName as string) || 'Event',
+            start: eventInfo!.start as string,
+            end: eventInfo!.end as string,
+            description: eventInfo?.description,
+            organizerEmail,
+            organizerName: senderName,
+            attendeeEmail: m.email as string,
+          }
+        : undefined,
+    )
   )
   await Promise.allSettled(emailPromises)
 

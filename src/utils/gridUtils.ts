@@ -54,3 +54,26 @@ export function absMinsToEndParts(
     endDate: dayOffset > 0 ? addDaysToDateString(startDate, dayOffset) : undefined,
   };
 }
+
+/**
+ * Given a set of day-columns (each with its date + on-screen grid rect) and a
+ * cursor position, return which column the cursor is over and the snapped minutes
+ * from the top of that column. Clamps horizontally to the first/last column so a
+ * drag past the edge still resolves. Used to make event resize follow the cursor
+ * across day columns (drag into tomorrow → cross-date event).
+ */
+export function resolveGridColumnAtPoint(
+  columns: Array<{ date: string; rect: DOMRect }>,
+  clientX: number,
+  clientY: number,
+  pxPerHour: number,
+): { date: string; minsInDay: number } | null {
+  if (!columns.length) return null;
+  // Columns are in left-to-right order: pick the last whose left edge is ≤ x.
+  let chosen = columns[0];
+  for (const c of columns) {
+    if (clientX >= c.rect.left) chosen = c;
+  }
+  const mins = snapToGrid(((clientY - chosen.rect.top) / pxPerHour) * 60);
+  return { date: chosen.date, minsInDay: Math.max(0, Math.min(mins, MINS_PER_DAY)) };
+}

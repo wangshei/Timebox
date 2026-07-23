@@ -28,6 +28,7 @@ import {
 } from '../utils/taskHelpers';
 import { convertOldTimeBlockToNew, convertOldTaskToNew } from '../utils/migrateData';
 import { getLocalDateString } from '../utils/dateTime';
+import { generateRecurrenceDates } from '../utils/recurrenceExpander';
 import {
   calendarContainers as seedContainers,
   categories as seedCategories,
@@ -152,6 +153,8 @@ export interface AppActions {
   addTask: (task: Omit<Task, 'id'>) => string | undefined;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  /** Materialize recurring-task instances whose due date falls in the given dates. Lazy/idempotent. */
+  expandRecurringTasks: (rangeDates: string[]) => void;
 
   addTimeBlock: (block: Omit<TimeBlock, 'id'>) => string;
   updateTimeBlock: (id: string, updates: Partial<TimeBlock>) => void;
@@ -299,10 +302,59 @@ export const useStore = create<AppState & AppActions>()(
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
   deleteTask: (id) =>
-    set((s) => ({
-      tasks: s.tasks.filter((t) => t.id !== id),
-      timeBlocks: s.timeBlocks.filter((b) => b.taskId !== id),
-    })),
+    set((s) => {
+      const removed = s.tasks.find((t) => t.id === id);
+      let tasks = s.tasks.filter((t) => t.id !== id);
+      // If a materialized recurring instance is deleted, record its date as an
+      // exception on the series head so it isn't re-created on the next expand.
+      if (removed?.recurrenceSeriesId && removed.dueDate && !removed.recurring) {
+        tasks = tasks.map((t) =>
+          t.recurrenceSeriesId === removed.recurrenceSeriesId && t.recurring
+            ? { ...t, recurrenceExceptions: [...(t.recurrenceExceptions ?? []), removed.dueDate!] }
+            : t
+        );
+      }
+      return { tasks, timeBlocks: s.timeBlocks.filter((b) => b.taskId !== id) };
+    }),
+
+  expandRecurringTasks: (rangeDates) =>
+    set((s) => {
+      if (!rangeDates.length) return {};
+      const sorted = [...rangeDates].sort();
+      const minD = sorted[0];
+      const maxD = sorted[sorted.length - 1];
+      const anchors = s.tasks.filter(
+        (t) => t.recurring && t.recurrenceSeriesId && t.recurrencePattern && t.recurrencePattern !== 'none' && t.dueDate,
+      );
+      if (!anchors.length) return {};
+      const newTasks: Task[] = [];
+      for (const anchor of anchors) {
+        const anchorDate = anchor.dueDate!;
+        const exceptions = new Set(anchor.recurrenceExceptions ?? []);
+        const existing = new Set(
+          s.tasks.filter((t) => t.recurrenceSeriesId === anchor.recurrenceSeriesId).map((t) => t.dueDate),
+        );
+        const occ = generateRecurrenceDates(anchorDate, anchor.recurrencePattern!, anchor.recurrenceDays)
+          .filter((d) => d >= minD && d <= maxD && d > anchorDate && !existing.has(d) && !exceptions.has(d));
+        for (const d of occ) {
+          if (s.tasks.length + newTasks.length >= ENTITY_LIMITS.tasks) break;
+          const { id: _id, ...rest } = anchor;
+          newTasks.push({
+            ...rest,
+            id: generateId(),
+            dueDate: d,
+            status: 'inbox',
+            // Instances are not series heads — only the anchor carries the pattern.
+            recurring: false,
+            recurrencePattern: undefined,
+            recurrenceDays: undefined,
+            recurrenceExceptions: undefined,
+            recurrenceSeriesId: anchor.recurrenceSeriesId,
+          });
+        }
+      }
+      return newTasks.length ? { tasks: [...s.tasks, ...newTasks] } : {};
+    }),
 
   addTimeBlock: (block) => {
     const s = get();
@@ -1031,3 +1083,6 @@ export function startLocalStoragePersistence() {
   );
   return unsubscribe;
 }
+
+// @ts-ignore — temporary debug handle for manual verification
+if (typeof window !== 'undefined') (window as any).__store = useStore;

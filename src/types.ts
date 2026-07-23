@@ -56,6 +56,18 @@ export interface Task {
   pinned?: boolean;
   emoji?: string | null;
 
+  // ─── Recurrence ───────────────────────────────────────────
+  /** Whether this task is the head of a recurring series (template). Instances are false. */
+  recurring?: boolean;
+  /** Recurrence pattern (only meaningful on the series head). */
+  recurrencePattern?: RecurrencePattern;
+  /** For custom pattern: weekdays (0=Sun..6=Sat). */
+  recurrenceDays?: number[];
+  /** Shared by every task (head + materialized instances) in one recurring series. */
+  recurrenceSeriesId?: string | null;
+  /** Dates (YYYY-MM-DD) the user removed from the series — never re-materialized. */
+  recurrenceExceptions?: string[];
+
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;
   // recordedMinutes: number;

@@ -22,6 +22,9 @@ export async function createShare(params: {
   emails: string[];
   includeExisting?: boolean;
   pushToGoogle?: boolean;
+  /** For event-scoped shares: timing/details so the invite email carries an .ics
+   *  calendar attachment (lands in the recipient's Google/Outlook/Apple calendar). */
+  event?: { start: string; end: string; title: string; description?: string };
 }): Promise<{
   shareId: string;
   memberCount: number;
