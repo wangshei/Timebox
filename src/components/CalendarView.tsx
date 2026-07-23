@@ -58,7 +58,7 @@ interface CalendarViewProps {
   onDeleteEvent?: (eventId: string) => void;
   onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
-  onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onResizeEvent?: (eventId: string, params: { date: string; endTime: string; endDate?: string }) => void;
   onSplitBlock?: (blockId: string) => void;
   onSplitEvent?: (eventId: string) => void;
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;

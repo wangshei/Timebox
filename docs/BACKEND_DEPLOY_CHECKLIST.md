@@ -12,6 +12,9 @@ Apply these against your Supabase project (SQL editor → paste & run, or `supab
 2. `supabase/migrations/20260718_scheduling_links_and_bookings.sql`
    - Creates `scheduling_links` + `bookings` (owner-only RLS; partial UNIQUE index preventing double-booking).
    - Activates: the public booking flow.
+3. `supabase/migrations/20260722_event_attendees.sql`
+   - Adds `events.attendees` (nullable jsonb, backward-compatible).
+   - Activates: the invited guest list surviving reload (previously in-memory only → lost on refresh).
 
 *(The older `20260307_gcal_and_sharing.sql` and timezone migrations should already be applied — the sharing tables exist. If not, run those first.)*
 

@@ -7,10 +7,10 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
 import {
-  PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL,
+  PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL, MINS_PER_DAY,
   minutesToTimeString,
   offsetYToMinutes as offsetYToMinsUtil,
-  parseTimeToMins,
+  parseTimeToMins, absMinsToEndParts, dayOffsetBetween,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
@@ -67,7 +67,7 @@ interface DayViewProps {
   /** Move an event to new time/date. */
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   /** Resize an event by dragging its bottom edge (end time only). */
-  onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onResizeEvent?: (eventId: string, params: { date: string; endTime: string; endDate?: string }) => void;
   /** Split an overlapping block/event around the items it overlaps. */
   onSplitBlock?: (blockId: string) => void;
   onSplitEvent?: (eventId: string) => void;
@@ -326,14 +326,17 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   React.useEffect(() => {
     if (!resizingEvent || !onResizeEvent) return;
     const { event, startClientY } = resizingEvent;
-    const startMins = parseTimeToMins(event.start);
-    const minEndMins = startMins + SNAP_MINUTES_UTIL;
+    const startAbs = parseTimeToMins(event.start);
+    const spanDays = event.endDate && event.endDate !== event.date ? dayOffsetBetween(event.date, event.endDate) : 0;
+    const baseEndAbs = spanDays * MINS_PER_DAY + parseTimeToMins(event.end);
     const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndMins = parseTimeToMins(event.end) + deltaMins;
-      newEndMins = Math.round(newEndMins / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
-      newEndMins = Math.max(minEndMins, newEndMins);
-      onResizeEvent(event.id, { date: event.date, endTime: minutesToTimeString(newEndMins) });
+      let newEndAbs = baseEndAbs + deltaMins;
+      newEndAbs = Math.round(newEndAbs / SNAP_MINUTES_UTIL) * SNAP_MINUTES_UTIL;
+      // Allow crossing midnight into the next day; cap total duration at 24h.
+      newEndAbs = Math.max(startAbs + SNAP_MINUTES_UTIL, Math.min(newEndAbs, startAbs + MINS_PER_DAY));
+      const { endDate, endTime } = absMinsToEndParts(event.date, newEndAbs);
+      onResizeEvent(event.id, { date: event.date, endTime, endDate });
     };
     const onUp = () => setResizingEvent(null);
     window.addEventListener('pointermove', onMove);

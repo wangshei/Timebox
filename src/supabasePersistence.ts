@@ -282,7 +282,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
             // (migration not applied) so a just-made change isn't wiped on reload.
             attendanceStatus: (e as any).attendance_status ?? existing?.attendanceStatus ?? undefined,
             googleEventId: (e as any).google_event_id ?? existing?.googleEventId ?? null,
-            attendees: existing?.attendees ?? null,
+            attendees: (e as any).attendees ?? existing?.attendees ?? null,
             // timezone lives in localStorage (via Zustand persistence), not Supabase yet
             timezone: existing?.timezone ?? null,
           };
@@ -464,6 +464,7 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       // Newer columns — stripped on retry below if the migration isn't applied yet.
       attendance_status: e.attendanceStatus ?? null,
       google_event_id: e.googleEventId ?? null,
+      attendees: e.attendees ?? null,
     });
     let evResult = await supabase.from('events').upsert(nonGcalEvents.map(eventRow), { onConflict: 'id' });
     if (evResult.error && /column|does not exist|schema cache/i.test(evResult.error.message)) {

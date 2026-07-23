@@ -761,7 +761,9 @@ export const useStore = create<AppState & AppActions>()(
           const newDate = updates.date || oldEvent.date;
           const newStart = updates.start || oldEvent.start;
           const newEnd = updates.end || oldEvent.end;
-          const newEndDate = updates.endDate !== undefined ? updates.endDate : oldEvent.endDate;
+          // Use 'in' so an explicit `endDate: undefined` clears the cross-date span
+          // (rather than falling back to the stale value).
+          const newEndDate = 'endDate' in updates ? updates.endDate : oldEvent.endDate;
           epochUpdates.startEpoch = dateTimeToEpoch(newDate, newStart);
           epochUpdates.endEpoch = dateTimeToEpoch(newEndDate || newDate, newEnd);
         }

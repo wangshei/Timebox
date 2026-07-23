@@ -758,6 +758,8 @@ export async function updateGcalEvent(params: {
   endDate?: string;
   description?: string;
   location?: string;
+  /** Emails to add as attendees, merged with any already on the event. */
+  addAttendeeEmails?: string[];
   sendUpdates?: boolean;
 }): Promise<void> {
   const token = await getAccessToken();
@@ -777,6 +779,18 @@ export async function updateGcalEvent(params: {
   if (params.title !== undefined) body.summary = params.title;
   if (params.description !== undefined) body.description = params.description;
   if (params.location !== undefined) body.location = params.location;
+  if (params.addAttendeeEmails && params.addAttendeeEmails.length > 0) {
+    const existing: Array<{ email?: string }> = Array.isArray(current.attendees) ? current.attendees : [];
+    const seen = new Set(existing.map((a) => (a.email || '').toLowerCase()));
+    const merged = [...existing];
+    for (const email of params.addAttendeeEmails) {
+      if (!seen.has(email.toLowerCase())) {
+        merged.push({ email });
+        seen.add(email.toLowerCase());
+      }
+    }
+    body.attendees = merged;
+  }
   if (params.date && params.startTime) {
     body.start = { dateTime: `${params.date}T${params.startTime}:00`, timeZone: tz };
   }

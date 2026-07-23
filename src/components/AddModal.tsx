@@ -66,7 +66,7 @@ interface AddModalProps {
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
-  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after' }) => void;
+  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[] }) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -331,9 +331,21 @@ export function AddModal({
       setMode('event');
       setTitle(editingEvent.title ?? '');
       setDate(editingEvent.date);
-      setEndDate(editingEvent.endDate ?? editingEvent.date);
+      // Defensively normalize legacy events whose end wrapped past midnight into an
+      // invalid time like "25:00" (from an older resize bug): fold the overflow into
+      // endDate so the <input type="time"> shows a valid value.
+      const [eh, em] = (editingEvent.end ?? '00:00').split(':').map(Number);
+      if ((eh ?? 0) >= 24) {
+        const overflowDays = Math.floor((eh ?? 0) / 24);
+        const d = new Date(editingEvent.date + 'T00:00:00');
+        d.setDate(d.getDate() + overflowDays);
+        setEndDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        setEndTime(`${String((eh ?? 0) % 24).padStart(2, '0')}:${String(em ?? 0).padStart(2, '0')}`);
+      } else {
+        setEndDate(editingEvent.endDate ?? editingEvent.date);
+        setEndTime(editingEvent.end);
+      }
       setStartTime(editingEvent.start);
-      setEndTime(editingEvent.end);
       setSelectedCategory(categories.find((c) => c.id === editingEvent.categoryId) ?? firstCategoryForCalendar(editingEvent.calendarContainerId) ?? null);
       setSelectedTags([]);
       setSelectedCalendar(editingEvent.calendarContainerId);
@@ -438,6 +450,15 @@ export function AddModal({
     // Tags are committed immediately via the inline "+" form or pill toggle
     const tagsToUse = [...selectedTags];
 
+    // Flush a pending invite email the user typed but didn't commit with Enter/"Add".
+    // Without this, typing an address and clicking Save silently drops it (no invite,
+    // no confirmation popup) — the #1 "invites don't work" trap.
+    const pendingInvite = inviteInput.trim().toLowerCase();
+    const effectiveInviteEmails =
+      pendingInvite && pendingInvite.includes('@') && !inviteEmails.includes(pendingInvite)
+        ? [...inviteEmails, pendingInvite]
+        : inviteEmails;
+
     if (editingTask && onUpdateTask) {
       onUpdateTask(editingTask.id, {
         title,
@@ -469,6 +490,8 @@ export function AddModal({
         description: description.trim() || null,
         notes: notes.trim() || null,
         timezone: timezoneEnabled ? timezone : null,
+        inviteEmails: effectiveInviteEmails.length > 0 ? effectiveInviteEmails : undefined,
+        excludedSubscribers: excludedSubscribers.size > 0 ? [...excludedSubscribers] : undefined,
       });
     } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
@@ -519,7 +542,7 @@ export function AddModal({
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
-        inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
+        inviteEmails: effectiveInviteEmails.length > 0 ? effectiveInviteEmails : undefined,
         excludedSubscribers: excludedSubscribers.size > 0 ? [...excludedSubscribers] : undefined,
         timezone: timezoneEnabled ? timezone : null,
       });

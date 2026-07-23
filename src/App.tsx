@@ -46,6 +46,7 @@ import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
+import { MINS_PER_DAY, absMinsToEndParts, dayOffsetBetween, addDaysToDateString } from './utils/gridUtils';
 import { splitAroundOverlaps, rangesOverlap, TimeRange } from './utils/splitAroundOverlaps';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
@@ -1399,60 +1400,15 @@ export default function App() {
 
     // Handle invites — show custom popup instead of window.confirm
     if (eventData.inviteEmails && eventData.inviteEmails.length > 0 && newEventId) {
-      const capturedEventId = newEventId;
-      const capturedEmails = [...eventData.inviteEmails];
-      const capturedTitle = eventData.title;
-      const capturedEventData = { ...eventData };
-      setInviteConfirm({
-        type: 'new',
-        eventTitle: capturedTitle,
-        emails: capturedEmails,
-        onConfirm: () => {
-          setInviteConfirm(null);
-          // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
-          const sendShare = (attempt = 1) => {
-            createShare({
-              scope: 'event',
-              scopeId: capturedEventId,
-              displayName: capturedTitle,
-              emails: capturedEmails,
-            })
-              .then((result) => {
-                toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
-              })
-              .catch((err) => {
-                if (attempt < 3) {
-                  setTimeout(() => sendShare(attempt + 1), 2000);
-                } else {
-                  console.error('[invite] Failed to send invitations:', err);
-                  toast.error(`Failed to send invitations: ${err?.message || err}`);
-                }
-              });
-          };
-          setTimeout(() => sendShare(), 2000);
-          // Also push to Google Calendar so attendees see it in their GCal
-          if (isGoogleConnected() && hasGcalWriteAccess()) {
-            createGcalEvent({
-              title: capturedTitle,
-              date: capturedEventData.date,
-              startTime: capturedEventData.startTime,
-              endTime: capturedEventData.endTime,
-              endDate: capturedEventData.endDate,
-              description: capturedEventData.description ?? undefined,
-              attendeeEmails: capturedEmails,
-            })
-              .then(({ googleEventId }) => {
-                // Stamp the returned Google id onto the local event so the import
-                // path can dedupe its imported twin (avoids showing the event twice).
-                if (googleEventId) updateEvent(capturedEventId, { googleEventId });
-                toast.success('Event added to attendees\' Google Calendars');
-              })
-              .catch((err) => {
-                console.warn('[gcal] Failed to create GCal event with attendees:', err);
-              });
-          }
-        },
-        onSkip: () => setInviteConfirm(null),
+      sendNewInvites({
+        eventId: newEventId,
+        title: eventData.title,
+        emails: eventData.inviteEmails,
+        date: eventData.date,
+        startTime: eventData.startTime,
+        endTime: eventData.endTime,
+        endDate: eventData.endDate,
+        description: eventData.description ?? undefined,
       });
     }
   };
@@ -1514,6 +1470,69 @@ export default function App() {
     setIsDraftTimeBlock(false);
     setAddModalMode('task');
     setIsAddModalOpen(true);
+  };
+
+  /** Show the invite popup and, on confirm, send Timebox email invites + push to
+   *  attendees' Google Calendars. Shared by the create-event and edit-event paths.
+   *  Pass existingGoogleEventId when the event is already on Google Calendar so we
+   *  add guests to that event instead of creating a duplicate. */
+  const sendNewInvites = (params: {
+    eventId: string;
+    title: string;
+    emails: string[];
+    date: string;
+    startTime: string;
+    endTime: string;
+    endDate?: string;
+    description?: string;
+    existingGoogleEventId?: string | null;
+  }) => {
+    const { eventId, title, emails, date, startTime, endTime, endDate, description, existingGoogleEventId } = params;
+    setInviteConfirm({
+      type: 'new',
+      eventTitle: title,
+      emails,
+      onConfirm: () => {
+        setInviteConfirm(null);
+        // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
+        const sendShare = (attempt = 1) => {
+          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails })
+            .then((result) => {
+              toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
+            })
+            .catch((err) => {
+              if (attempt < 3) {
+                setTimeout(() => sendShare(attempt + 1), 2000);
+              } else {
+                console.error('[invite] Failed to send invitations:', err);
+                toast.error(`Failed to send invitations: ${err?.message || err}`);
+              }
+            });
+        };
+        setTimeout(() => sendShare(), 2000);
+        // Also push to Google Calendar so attendees see it in their GCal.
+        if (isGoogleConnected() && hasGcalWriteAccess()) {
+          if (existingGoogleEventId) {
+            // Event already exists on Google — add guests in place (no duplicate).
+            updateGcalEvent({ googleEventId: existingGoogleEventId, addAttendeeEmails: emails, sendUpdates: true })
+              .then(() => toast.success('Guests added to the Google Calendar event'))
+              .catch((err) => console.warn('[gcal] Failed to add attendees to GCal event:', err));
+          } else {
+            createGcalEvent({ title, date, startTime, endTime, endDate, description, attendeeEmails: emails })
+              .then(({ googleEventId }) => {
+                // Stamp the returned Google id onto the local event so the import
+                // path can dedupe its imported twin (avoids showing the event twice).
+                if (googleEventId) updateEvent(eventId, { googleEventId });
+                toast.success('Event added to attendees\' Google Calendars');
+              })
+              .catch((err) => {
+                console.warn('[gcal] Failed to create GCal event with attendees:', err);
+              });
+          }
+        }
+      },
+      onSkip: () => setInviteConfirm(null),
+    });
   };
 
   /** Notify attendees when organizer updates their own event. Fire-and-forget. */
@@ -2190,7 +2209,6 @@ export default function App() {
   };
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
-    if (parseTimeToMins(params.endTime) <= parseTimeToMins(params.startTime)) return;
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
     // Recurring events: ask which occurrences the move applies to. Until the user
@@ -2212,42 +2230,44 @@ export default function App() {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
     saveSnapshot();
-    const updates: Partial<import('./types').Event> = { date: params.date, start: params.startTime, end: params.endTime };
+    // Keep the event's duration constant on move; wrap the end across midnight
+    // (into a cross-date event) when the new start pushes it past the day boundary.
+    const spanDays = event.endDate && event.endDate !== event.date ? dayOffsetBetween(event.date, event.endDate) : 0;
+    const durationMins = spanDays * MINS_PER_DAY + parseTimeToMins(event.end) - parseTimeToMins(event.start);
+    const newStartAbs = parseTimeToMins(params.startTime);
+    const moved = absMinsToEndParts(params.date, newStartAbs + durationMins);
+    const updates: Partial<import('./types').Event> = {
+      date: params.date, start: params.startTime, end: moved.endTime, endDate: moved.endDate,
+    };
     // Preserve original position for diff detection (only set once)
     if (!event.originalStart) { updates.originalStart = event.start; updates.originalEnd = event.end; }
-    // Preserve cross-date span: shift endDate by same day offset
-    if (event.endDate && event.endDate !== event.date) {
-      const oldStart = new Date(event.date + 'T00:00:00');
-      const newStart = new Date(params.date + 'T00:00:00');
-      const dayOffset = Math.round((newStart.getTime() - oldStart.getTime()) / 86400000);
-      const oldEnd = new Date(event.endDate + 'T00:00:00');
-      oldEnd.setDate(oldEnd.getDate() + dayOffset);
-      updates.endDate = oldEnd.toISOString().split('T')[0];
-    }
     if ((scope === 'all' || scope === 'all_after') && event.recurrenceSeriesId) {
-      // Apply the new time-of-day to the scoped occurrences (each keeps its own date);
-      // the dragged occurrence also gets the new date.
-      const timeChange: Partial<import('./types').Event> = { start: params.startTime, end: params.endTime };
+      // Apply the new time-of-day (and cross-date span) to the scoped occurrences —
+      // each keeps its own date; the dragged occurrence also gets the new date.
       const scoped = events.filter((e) =>
         e.recurrenceSeriesId === event.recurrenceSeriesId && (scope === 'all' || e.date >= event.date)
       );
-      updateEvents(scoped.map((e) => ({ id: e.id, changes: e.id === eventId ? updates : timeChange })));
+      updateEvents(scoped.map((e) => {
+        if (e.id === eventId) return { id: e.id, changes: updates };
+        const occ = absMinsToEndParts(e.date, newStartAbs + durationMins);
+        return { id: e.id, changes: { start: params.startTime, end: occ.endTime, endDate: occ.endDate } };
+      }));
     } else {
       updateEvent(eventId, updates);
     }
     notifyAttendeesIfNeeded(event, updates);
   };
 
-  const handleResizeEvent = (eventId: string, params: { date: string; endTime: string }) => {
+  const handleResizeEvent = (eventId: string, params: { date: string; endTime: string; endDate?: string }) => {
     const event = events.find((e) => e.id === eventId);
     if (!event) return;
+    // Normalize endDate: a value equal to the start date means "same day" (no cross-date).
+    const newEndDate = params.endDate && params.endDate !== event.date ? params.endDate : undefined;
+    // Reject only genuinely-empty ranges (same day AND end not after start).
+    if (!newEndDate && parseTimeToMins(params.endTime) <= parseTimeToMins(event.start)) return;
     saveSnapshot();
-    // For cross-date events, resize only changes the end time (end segment)
-    const effectiveStart = event.endDate && event.endDate !== event.date && params.date === event.endDate
-      ? '00:00' : event.start;
-    if (parseTimeToMins(params.endTime) <= parseTimeToMins(effectiveStart)) return;
     // Preserve original end for diff detection (only set once)
-    const resizeEvUpdate: Partial<import('./types').Event> = { end: params.endTime };
+    const resizeEvUpdate: Partial<import('./types').Event> = { end: params.endTime, endDate: newEndDate };
     if (!event.originalEnd) { resizeEvUpdate.originalEnd = event.end; }
     updateEvent(eventId, resizeEvUpdate);
     notifyAttendeesIfNeeded(event, resizeEvUpdate);
@@ -4004,8 +4024,32 @@ export default function App() {
           }
         }}
         onUpdateEvent={(id, updates) => {
-          const { recurrenceEditScope, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after' };
+          const { recurrenceEditScope, inviteEmails, excludedSubscribers: _excluded, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[] };
           const event = events.find((e) => e.id === id);
+          // New invitees added while editing: merge onto the event's attendee list and
+          // fire the same invite flow as create (email invite + push to Google Calendar).
+          if (event && inviteEmails && inviteEmails.length > 0) {
+            const existingEmails = new Set((event.attendees ?? []).map((a) => a.email.toLowerCase()));
+            const newEmails = inviteEmails.filter((e) => !existingEmails.has(e.toLowerCase()));
+            if (newEmails.length > 0) {
+              const mergedAttendees = [
+                ...(event.attendees ?? []),
+                ...newEmails.map((email) => ({ email, responseStatus: 'needsAction' })),
+              ];
+              updateEvent(id, { attendees: mergedAttendees });
+              sendNewInvites({
+                eventId: id,
+                title: (eventUpdates as { title?: string }).title ?? event.title,
+                emails: newEmails,
+                date: (eventUpdates as { date?: string }).date ?? event.date,
+                startTime: (eventUpdates as { start?: string }).start ?? event.start,
+                endTime: (eventUpdates as { end?: string }).end ?? event.end,
+                endDate: (eventUpdates as { endDate?: string }).endDate ?? event.endDate,
+                description: (eventUpdates as { description?: string | null }).description ?? event.description ?? undefined,
+                existingGoogleEventId: event.googleEventId,
+              });
+            }
+          }
           // Notify attendees if this is the organizer's own event
           if (event) notifyAttendeesIfNeeded(event, eventUpdates);
           if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
@@ -4032,12 +4076,16 @@ export default function App() {
               const dates = generateRecurrenceDates(eventDate, eu.recurrencePattern!, eu.recurrenceDays);
               // Ensure the origin occurrence sits on a day that's part of the pattern.
               const originDate = dates.includes(eventDate) ? eventDate : (dates[0] ?? eventDate);
+              // Cross-date span: each occurrence's endDate is offset from its own start date.
+              const baseEndDate = (eventUpdates as { endDate?: string }).endDate ?? event.endDate;
+              const spanDays = baseEndDate && baseEndDate !== eventDate ? dayOffsetBetween(eventDate, baseEndDate) : 0;
+              const endDateFor = (d: string) => (spanDays > 0 ? addDaysToDateString(d, spanDays) : undefined);
               // Update the original event with series ID (re-anchored to a pattern day)
-              updateEvent(id, { ...eventUpdates, date: originDate, recurrenceSeriesId: seriesId });
+              updateEvent(id, { ...eventUpdates, date: originDate, endDate: endDateFor(originDate), recurrenceSeriesId: seriesId });
               // Add new events for the remaining dates. Strip gcal/epoch/id fields so
               // addEvents derives fresh epochs per occurrence.
               const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...baseWithoutId } = { ...event, ...eventUpdates, recurrenceSeriesId: seriesId };
-              addEvents(dates.filter((d) => d !== originDate).map((date) => ({ ...baseWithoutId, date })));
+              addEvents(dates.filter((d) => d !== originDate).map((date) => ({ ...baseWithoutId, date, endDate: endDateFor(date) })));
             } else {
               updateEvent(id, eventUpdates);
             }

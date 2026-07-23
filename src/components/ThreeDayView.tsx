@@ -7,9 +7,9 @@ import { computeOverlapLayout } from '../utils/overlapLayout';
 import { TimeBlockCard } from './TimeBlockCard';
 import { EventCard } from './EventCard';
 import {
-  PX_PER_HOUR, SNAP_MINUTES,
+  PX_PER_HOUR, SNAP_MINUTES, MINS_PER_DAY,
   snapToGrid, minutesToTimeString as minsToTime, parseTimeToMins,
-  offsetYToMinutes as offsetYToMinsUtil,
+  offsetYToMinutes as offsetYToMinsUtil, absMinsToEndParts, dayOffsetBetween,
 } from '../utils/gridUtils';
 import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
@@ -39,7 +39,7 @@ interface ThreeDayViewProps {
   onMoveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
-  onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onResizeEvent?: (eventId: string, params: { date: string; endTime: string; endDate?: string }) => void;
   onSplitBlock?: (blockId: string) => void;
   onSplitEvent?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
@@ -262,13 +262,17 @@ export function ThreeDayView({
   React.useEffect(() => {
     if (!resizingEvent || !onResizeEvent) return;
     const { event, startClientY } = resizingEvent;
-    const minEndMins = parseTimeToMins(event.start) + SNAP_MINUTES;
+    const startAbs = parseTimeToMins(event.start);
+    const spanDays = event.endDate && event.endDate !== event.date ? dayOffsetBetween(event.date, event.endDate) : 0;
+    const baseEndAbs = spanDays * MINS_PER_DAY + parseTimeToMins(event.end);
     const onMove = (e: PointerEvent) => {
       const deltaMins = ((e.clientY - startClientY) / PX_PER_HOUR) * 60;
-      let newEndMins = parseTimeToMins(event.end) + deltaMins;
-      newEndMins = Math.round(newEndMins / SNAP_MINUTES) * SNAP_MINUTES;
-      newEndMins = Math.max(minEndMins, newEndMins);
-      onResizeEvent(event.id, { date: event.date, endTime: minsToTime(newEndMins) });
+      let newEndAbs = baseEndAbs + deltaMins;
+      newEndAbs = Math.round(newEndAbs / SNAP_MINUTES) * SNAP_MINUTES;
+      // Allow crossing midnight (into the next column); cap total duration at 24h.
+      newEndAbs = Math.max(startAbs + SNAP_MINUTES, Math.min(newEndAbs, startAbs + MINS_PER_DAY));
+      const { endDate, endTime } = absMinsToEndParts(event.date, newEndAbs);
+      onResizeEvent(event.id, { date: event.date, endTime, endDate });
     };
     const onUp = () => setResizingEvent(null);
     window.addEventListener('pointermove', onMove);
