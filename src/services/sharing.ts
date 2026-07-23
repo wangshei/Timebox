@@ -109,12 +109,15 @@ export async function getSharedCalendarsWithEvents(): Promise<import('../types/s
   }
 }
 
-/** Notify attendees when the organizer updates an event. */
+/** Notify attendees when the organizer updates an event. When eventId + event timing
+ *  are provided, a revised .ics is attached so guests' calendars update in place. */
 export async function notifyEventUpdate(params: {
   eventTitle: string;
   attendeeEmails: string[];
   changes: string;
   senderName?: string;
+  eventId?: string;
+  event?: { start: string; end: string; description?: string };
 }): Promise<{ success: boolean; notified: number }> {
   return callEdgeFunction({ action: 'notify_event_update', ...params });
 }

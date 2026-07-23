@@ -146,6 +146,13 @@ function parseFromAddress(from: string): string {
   return (m ? m[1] : from).trim()
 }
 
+/** A monotonically increasing ICS SEQUENCE (seconds since epoch). Each edit produces a
+ *  strictly higher value than the last, so updates/cancels supersede the original invite
+ *  (SEQUENCE 0) and each other in calendar clients. */
+function nowSequence(): number {
+  return Math.floor(new Date().getTime() / 1000)
+}
+
 interface IcsInvite {
   uid: string
   title: string
@@ -156,12 +163,15 @@ interface IcsInvite {
   attendeeEmail: string
 }
 
-function buildInviteIcs(p: IcsInvite, organizerAddress: string): string {
+function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): string {
   // ORGANIZER is the service's own send address (matching the email From), NOT the
   // Timebox user's real email. If we used a Google-Workspace user's address here,
   // Gmail tries to load the event from Google Calendar's servers (where it doesn't
   // exist, since we never used the write API) and shows "Unable to load event".
   // The organizer's display name still shows the user via CN.
+  //
+  // SEQUENCE lets a later REQUEST with the same UID UPDATE the guest's existing
+  // calendar entry in place (0 = original invite; >0 = edit).
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -177,7 +187,7 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string): string {
     ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
     `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
     `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.attendeeEmail}`,
-    'SEQUENCE:0',
+    `SEQUENCE:${sequence}`,
     'STATUS:CONFIRMED',
     'TRANSP:OPAQUE',
     'END:VEVENT',
@@ -188,7 +198,7 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string): string {
 
 /** Build a METHOD:CANCEL calendar object so the event is removed from the guest's
  *  calendar. Must reuse the invite's UID and use a higher SEQUENCE than the REQUEST. */
-function buildCancelIcs(p: IcsInvite, organizerAddress: string): string {
+function buildCancelIcs(p: IcsInvite, organizerAddress: string, sequence: number): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -203,7 +213,7 @@ function buildCancelIcs(p: IcsInvite, organizerAddress: string): string {
     `SUMMARY:${escapeIcsText(p.title)}`,
     `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
     `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${p.attendeeEmail}`,
-    'SEQUENCE:1',
+    `SEQUENCE:${sequence}`,
     'STATUS:CANCELLED',
     'END:VEVENT',
     'END:VCALENDAR',
@@ -234,7 +244,7 @@ async function sendCancelEmail(recipientEmail: string, senderName: string, ics: 
       html: `<p style="font-family:system-ui,sans-serif;font-size:15px;color:#1C1C1E;">${senderName} removed you from <strong>"${ics.title}"</strong>. It has been removed from your calendar.</p>`,
       attachments: [{
         filename: 'cancel.ics',
-        content: base64Utf8(buildCancelIcs(ics, parseFromAddress(fromEmail))),
+        content: base64Utf8(buildCancelIcs(ics, parseFromAddress(fromEmail), nowSequence())),
         content_type: 'text/calendar; method=CANCEL; charset=utf-8',
       }],
     }),
@@ -463,7 +473,7 @@ function eventUpdateEmailHtml(senderName: string, eventTitle: string, changes: s
 </html>`
 }
 
-async function sendEventUpdateEmail(recipientEmail: string, senderName: string, eventTitle: string, changes: string) {
+async function sendEventUpdateEmail(recipientEmail: string, senderName: string, eventTitle: string, changes: string, ics?: IcsInvite) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
 
@@ -474,18 +484,29 @@ async function sendEventUpdateEmail(recipientEmail: string, senderName: string, 
 
   const html = eventUpdateEmailHtml(senderName, eventTitle, changes)
 
+  const payload: Record<string, unknown> = {
+    from: fromEmail,
+    to: recipientEmail,
+    subject: `${senderName} updated "${eventTitle}"`,
+    html,
+  }
+  if (ics) {
+    // Attach a revised REQUEST .ics (same UID, higher SEQUENCE) so the guest's existing
+    // calendar entry updates in place instead of creating a duplicate.
+    payload.attachments = [{
+      filename: 'invite.ics',
+      content: base64Utf8(buildInviteIcs(ics, parseFromAddress(fromEmail), nowSequence())),
+      content_type: 'text/calendar; method=REQUEST; charset=utf-8',
+    }]
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${resendApiKey}`,
     },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: recipientEmail,
-      subject: `${senderName} updated "${eventTitle}"`,
-      html,
-    }),
+    body: JSON.stringify(payload),
   })
 
   if (!res.ok) {
@@ -495,7 +516,7 @@ async function sendEventUpdateEmail(recipientEmail: string, senderName: string, 
 }
 
 async function notifyEventUpdate(userId: string, body: Record<string, unknown>) {
-  const { eventTitle, attendeeEmails, changes, senderName: providedName } = body
+  const { eventTitle, attendeeEmails, changes, senderName: providedName, eventId, event } = body
 
   if (!eventTitle || !attendeeEmails || !Array.isArray(attendeeEmails)) {
     throw new Error('Missing required fields: eventTitle, attendeeEmails')
@@ -504,11 +525,27 @@ async function notifyEventUpdate(userId: string, body: Record<string, unknown>) 
   const senderName = (providedName as string) || await getUserName(userId)
   const changesText = (changes as string) || 'Event details have been updated.'
 
+  // If we have the new timing, attach a revised REQUEST .ics so guests' calendars update.
+  const evt = event as { start?: string; end?: string; description?: string } | undefined
+  const canPushIcs = !!eventId && !!evt?.start && !!evt?.end
+
   // Send notification emails in parallel (skip the organizer's own email)
   const emailPromises = (attendeeEmails as string[])
     .filter((email: string) => email && email.trim())
     .map((email: string) =>
-      sendEventUpdateEmail(email, senderName, eventTitle as string, changesText)
+      sendEventUpdateEmail(email, senderName, eventTitle as string, changesText,
+        canPushIcs
+          ? {
+              uid: `${eventId}@timeboxing.club`,
+              title: eventTitle as string,
+              start: evt!.start as string,
+              end: evt!.end as string,
+              description: evt?.description,
+              organizerName: senderName,
+              attendeeEmail: email,
+            }
+          : undefined,
+      )
     )
   await Promise.allSettled(emailPromises)
 

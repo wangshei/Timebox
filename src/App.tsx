@@ -1595,6 +1595,15 @@ export default function App() {
     const capturedEmails = [...otherEmails];
     const capturedTitle = (updates.title as string) || event.title;
     const capturedChanges = parts.join('\n');
+    // Resolve the new timing (updated fields fall back to the event's current values)
+    // so the revised .ics carries correct start/end.
+    const newDate = (updates.date as string) ?? event.date;
+    const newEndDate = ('endDate' in updates ? (updates.endDate as string | undefined) : event.endDate) ?? newDate;
+    const newStart = (updates.start as string) ?? event.start;
+    const newEnd = (updates.end as string) ?? event.end;
+    const newDescription = (updates.description as string | undefined) ?? event.description ?? undefined;
+    const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+    const capturedEventId = event.id;
 
     setInviteConfirm({
       type: 'update',
@@ -1621,6 +1630,9 @@ export default function App() {
           eventTitle: capturedTitle,
           attendeeEmails: capturedEmails,
           changes: capturedChanges,
+          senderName: userName || undefined,
+          eventId: capturedEventId,
+          event: { start: toIso(newDate, newStart), end: toIso(newEndDate, newEnd), description: newDescription },
         })
           .then(() => toast.success(`Update sent to ${capturedEmails.length} attendee${capturedEmails.length !== 1 ? 's' : ''}`))
           .catch((err) => {
