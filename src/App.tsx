@@ -4071,19 +4071,21 @@ export default function App() {
           }
         }}
         onUpdateEvent={(id, updates) => {
-          const { recurrenceEditScope, inviteEmails, excludedSubscribers: _excluded, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[] };
+          const { recurrenceEditScope, inviteEmails, excludedSubscribers: _excluded, removedAttendeeEmails, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] };
           const event = events.find((e) => e.id === id);
-          // New invitees added while editing: merge onto the event's attendee list and
-          // fire the same invite flow as create (email invite + push to Google Calendar).
-          if (event && inviteEmails && inviteEmails.length > 0) {
+          // Attendee changes while editing: recompute the guest list (drop removed, keep
+          // the rest, add newly-invited) and fire the invite flow for the new emails only.
+          if (event && ((inviteEmails && inviteEmails.length > 0) || (removedAttendeeEmails && removedAttendeeEmails.length > 0))) {
+            const removedSet = new Set((removedAttendeeEmails ?? []).map((e) => e.toLowerCase()));
             const existingEmails = new Set((event.attendees ?? []).map((a) => a.email.toLowerCase()));
-            const newEmails = inviteEmails.filter((e) => !existingEmails.has(e.toLowerCase()));
+            const newEmails = (inviteEmails ?? []).filter((e) => !existingEmails.has(e.toLowerCase()));
+            const keptAttendees = (event.attendees ?? []).filter((a) => !removedSet.has(a.email.toLowerCase()));
+            const mergedAttendees = [
+              ...keptAttendees,
+              ...newEmails.map((email) => ({ email, responseStatus: 'needsAction' })),
+            ];
+            updateEvent(id, { attendees: mergedAttendees });
             if (newEmails.length > 0) {
-              const mergedAttendees = [
-                ...(event.attendees ?? []),
-                ...newEmails.map((email) => ({ email, responseStatus: 'needsAction' })),
-              ];
-              updateEvent(id, { attendees: mergedAttendees });
               sendNewInvites({
                 eventId: id,
                 title: (eventUpdates as { title?: string }).title ?? event.title,

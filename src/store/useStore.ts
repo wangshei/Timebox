@@ -1083,6 +1083,3 @@ export function startLocalStoragePersistence() {
   );
   return unsubscribe;
 }
-
-// @ts-ignore — temporary debug handle for manual verification
-if (typeof window !== 'undefined') (window as any).__store = useStore;

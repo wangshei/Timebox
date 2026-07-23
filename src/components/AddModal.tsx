@@ -69,7 +69,7 @@ interface AddModalProps {
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
-  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[] }) => void;
+  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] }) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -193,6 +193,10 @@ export function AddModal({
   const [inviteInput, setInviteInput] = useState('');
   const [showInviteSection, setShowInviteSection] = useState(false);
   const [excludedSubscribers, setExcludedSubscribers] = useState<Set<string>>(new Set());
+  // People already invited to the event being edited (from event.attendees, minus self).
+  const [existingAttendees, setExistingAttendees] = useState<Array<{ email: string; name?: string; responseStatus?: string }>>([]);
+  // Existing attendees the user toggled off in this edit → removed on save.
+  const [removedAttendees, setRemovedAttendees] = useState<Set<string>>(new Set());
 
   // Timezone state (event mode only)
   const [timezone, setTimezone] = useState<string>(getLocalTimeZone());
@@ -369,6 +373,15 @@ export function AddModal({
         setTimezoneEnabled(false);
         setTimezone(getLocalTimeZone());
       }
+      // Show who's already invited to this event (exclude the organizer themselves).
+      const already = (editingEvent.attendees ?? []).filter((a) => !a.self && a.email);
+      setExistingAttendees(already.map((a) => ({ email: a.email, name: a.name, responseStatus: a.responseStatus })));
+      setRemovedAttendees(new Set());
+      setInviteEmails([]);
+      setInviteInput('');
+      setExcludedSubscribers(new Set());
+      // Auto-expand the invite section so existing guests are visible on open.
+      if (already.length > 0) setShowInviteSection(true);
     }
   }, [isOpen, editingEvent?.id]); // categories intentionally omitted to avoid form reset on add
 
@@ -403,6 +416,8 @@ export function AddModal({
       setInviteInput('');
       setShowInviteSection(false);
       setExcludedSubscribers(new Set());
+      setExistingAttendees([]);
+      setRemovedAttendees(new Set());
       setTimezone(getLocalTimeZone());
       setTimezoneEnabled(true);
     }
@@ -500,6 +515,7 @@ export function AddModal({
         timezone: timezoneEnabled ? timezone : null,
         inviteEmails: effectiveInviteEmails.length > 0 ? effectiveInviteEmails : undefined,
         excludedSubscribers: excludedSubscribers.size > 0 ? [...excludedSubscribers] : undefined,
+        removedAttendeeEmails: removedAttendees.size > 0 ? [...removedAttendees] : undefined,
       });
     } else if (editingTimeBlock && onUpdateTimeBlock) {
       onUpdateTimeBlock(editingTimeBlock.id, {
@@ -580,6 +596,8 @@ export function AddModal({
     setInviteInput('');
     setShowInviteSection(false);
     setExcludedSubscribers(new Set());
+    setExistingAttendees([]);
+    setRemovedAttendees(new Set());
     onClose();
   };
 
@@ -1161,14 +1179,66 @@ export function AddModal({
                 type="button"
                 onClick={() => setShowInviteSection((o) => !o)}
                 className="w-full flex items-center gap-1.5 py-1 text-xs font-semibold transition-colors"
-                style={{ color: (inviteEmails.length > 0 || existingSubscribers.length > 0) ? '#8DA286' : '#636366' }}
+                style={{ color: (inviteEmails.length > 0 || existingSubscribers.length > 0 || existingAttendees.length > 0) ? '#8DA286' : '#636366' }}
               >
                 <UserPlusIcon className="h-3.5 w-3.5" />
-                <span>Invite people{(inviteEmails.length + existingSubscribers.filter(s => !excludedSubscribers.has(s.email)).length) > 0 ? ` (${inviteEmails.length + existingSubscribers.filter(s => !excludedSubscribers.has(s.email)).length})` : ''}</span>
+                {(() => {
+                  const count = inviteEmails.length
+                    + existingSubscribers.filter(s => !excludedSubscribers.has(s.email)).length
+                    + existingAttendees.filter(a => !removedAttendees.has(a.email)).length;
+                  return <span>Invite people{count > 0 ? ` (${count})` : ''}</span>;
+                })()}
                 {showInviteSection ? <ChevronUpIcon className="h-3 w-3 ml-auto" /> : <ChevronDownIcon className="h-3 w-3 ml-auto" />}
               </button>
               {showInviteSection && (
                 <div className="mt-2 space-y-2">
+                  {/* People already invited to this event (edit mode) */}
+                  {existingAttendees.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 4px' }}>
+                        Invited
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {existingAttendees.map((att) => {
+                          const isRemoved = removedAttendees.has(att.email);
+                          const status = att.responseStatus === 'accepted' ? 'going'
+                            : att.responseStatus === 'declined' ? 'declined'
+                            : att.responseStatus === 'tentative' ? 'maybe'
+                            : 'pending';
+                          return (
+                            <span
+                              key={att.email}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                              style={{
+                                backgroundColor: isRemoved ? 'rgba(0,0,0,0.04)' : 'rgba(141,162,134,0.12)',
+                                color: isRemoved ? '#AEAEB2' : '#636366',
+                                border: `1px solid ${isRemoved ? 'rgba(0,0,0,0.06)' : 'rgba(141,162,134,0.25)'}`,
+                                textDecoration: isRemoved ? 'line-through' : 'none',
+                              }}
+                            >
+                              {att.email}
+                              <span style={{ fontSize: 9, color: '#AEAEB2' }}>({status})</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRemovedAttendees(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(att.email)) next.delete(att.email);
+                                    else next.add(att.email);
+                                    return next;
+                                  });
+                                }}
+                                className="rounded-full p-0.5 transition-colors hover:bg-black/10"
+                                title={isRemoved ? 'Keep invited' : 'Remove from event'}
+                              >
+                                <XMarkIcon className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {/* Existing subscribers from calendar/category/tag */}
                   {existingSubscribers.length > 0 && (
                     <div>
