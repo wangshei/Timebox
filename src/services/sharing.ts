@@ -52,6 +52,16 @@ export async function removeShareMember(params: {
   await callEdgeFunction({ action: 'remove_member', ...params });
 }
 
+/** Remove guests from an event by email: revokes their access and emails a
+ *  cancellation so the event leaves their calendar. */
+export async function removeAttendees(params: {
+  eventId: string;
+  emails: string[];
+  event?: { title: string; start: string; end: string };
+}): Promise<{ success: boolean; removed: number }> {
+  return callEdgeFunction({ action: 'remove_attendees', ...params });
+}
+
 /** Accept or decline a share invite (can be called without auth). */
 export async function respondToInvite(params: {
   token: string;

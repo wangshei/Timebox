@@ -186,9 +186,63 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string): string {
   return lines.join('\r\n')
 }
 
+/** Build a METHOD:CANCEL calendar object so the event is removed from the guest's
+ *  calendar. Must reuse the invite's UID and use a higher SEQUENCE than the REQUEST. */
+function buildCancelIcs(p: IcsInvite, organizerAddress: string): string {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//The Timeboxing Club//Invite//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:CANCEL',
+    'BEGIN:VEVENT',
+    `UID:${p.uid}`,
+    `DTSTAMP:${toIcsUtc(new Date().toISOString())}`,
+    `DTSTART:${toIcsUtc(p.start)}`,
+    `DTEND:${toIcsUtc(p.end)}`,
+    `SUMMARY:${escapeIcsText(p.title)}`,
+    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
+    `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${p.attendeeEmail}`,
+    'SEQUENCE:1',
+    'STATUS:CANCELLED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+  return lines.join('\r\n')
+}
+
 /** Base64-encode a UTF-8 string (Resend attachments expect base64 content). */
 function base64Utf8(s: string): string {
   return btoa(unescape(encodeURIComponent(s)))
+}
+
+/** Email a removed guest a cancellation so the event leaves their calendar. */
+async function sendCancelEmail(recipientEmail: string, senderName: string, ics: IcsInvite) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
+  if (!resendApiKey) {
+    console.warn('[share-invite] No RESEND_API_KEY — skipping cancel email')
+    return
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendApiKey}` },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: recipientEmail,
+      subject: `Cancelled: "${ics.title}"`,
+      html: `<p style="font-family:system-ui,sans-serif;font-size:15px;color:#1C1C1E;">${senderName} removed you from <strong>"${ics.title}"</strong>. It has been removed from your calendar.</p>`,
+      attachments: [{
+        filename: 'cancel.ics',
+        content: base64Utf8(buildCancelIcs(ics, parseFromAddress(fromEmail))),
+        content_type: 'text/calendar; method=CANCEL; charset=utf-8',
+      }],
+    }),
+  })
+  if (!res.ok) {
+    const b = await res.text()
+    console.error(`[share-invite] Resend cancel error: ${b}`)
+  }
 }
 
 async function sendInviteEmail(recipientEmail: string, senderName: string, shareName: string, inviteToken: string, ics?: IcsInvite) {
@@ -617,6 +671,52 @@ async function removeMember(userId: string, body: Record<string, unknown>) {
 
   await supabase.from('share_members').delete().eq('id', memberId).eq('share_id', shareId)
   return { success: true }
+}
+
+/** Remove guests from an event by email: revoke their share membership and (if event
+ *  timing is provided) email them a cancellation so it leaves their calendar. */
+async function removeAttendees(userId: string, body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { eventId, emails, event } = body
+  if (!eventId || !Array.isArray(emails) || emails.length === 0) {
+    throw new Error('Missing required fields: eventId, emails')
+  }
+  const lowered = (emails as string[]).map((e) => e.toLowerCase())
+
+  // Find the owner's event-scoped share(s) for this event.
+  const { data: shares } = await supabase
+    .from('calendar_shares')
+    .select('id')
+    .eq('owner_id', userId)
+    .eq('scope', 'event')
+    .eq('event_id', eventId)
+
+  const shareIds = (shares ?? []).map((s: { id: string }) => s.id)
+  if (shareIds.length > 0) {
+    await supabase
+      .from('share_members')
+      .delete()
+      .in('share_id', shareIds)
+      .in('email', lowered)
+  }
+
+  // Send cancellations so the event is pulled from each removed guest's calendar.
+  const evt = event as { title?: string; start?: string; end?: string } | undefined
+  if (evt?.start && evt?.end) {
+    const senderName = await getUserName(userId)
+    await Promise.allSettled(lowered.map((email) =>
+      sendCancelEmail(email, senderName, {
+        uid: `${eventId}@timeboxing.club`,
+        title: evt.title || 'Event',
+        start: evt.start as string,
+        end: evt.end as string,
+        organizerName: senderName,
+        attendeeEmail: email,
+      })
+    ))
+  }
+
+  return { success: true, removed: lowered.length }
 }
 
 // --- Get Invite Details (no auth required) ---
@@ -1102,6 +1202,9 @@ serve(async (req) => {
         break
       case 'remove_member':
         result = await removeMember(userId, body)
+        break
+      case 'remove_attendees':
+        result = await removeAttendees(userId, body)
         break
       case 'my_shares':
         result = await myShares(userId)

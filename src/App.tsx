@@ -29,7 +29,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
-import { createShare, addShareMember, removeShareMember, getMyShares, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
+import { createShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -4097,6 +4097,32 @@ export default function App() {
                 description: (eventUpdates as { description?: string | null }).description ?? event.description ?? undefined,
                 existingGoogleEventId: event.googleEventId,
               });
+            }
+            // Actually revoke removed guests: drop their share membership and email a
+            // cancellation so the event leaves their calendar. Best-effort.
+            const removedEmails = (event.attendees ?? [])
+              .filter((a) => removedSet.has(a.email.toLowerCase()))
+              .map((a) => a.email);
+            if (removedEmails.length > 0) {
+              const rDate = (eventUpdates as { date?: string }).date ?? event.date;
+              const rEndDate = (eventUpdates as { endDate?: string }).endDate ?? event.endDate ?? rDate;
+              const rStart = (eventUpdates as { start?: string }).start ?? event.start;
+              const rEnd = (eventUpdates as { end?: string }).end ?? event.end;
+              const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+              removeAttendees({
+                eventId: id,
+                emails: removedEmails,
+                event: {
+                  title: (eventUpdates as { title?: string }).title ?? event.title,
+                  start: toIso(rDate, rStart),
+                  end: toIso(rEndDate, rEnd),
+                },
+              })
+                .then((res) => toast.success(`Removed ${res.removed} guest${res.removed !== 1 ? 's' : ''}`))
+                .catch((err) => {
+                  console.warn('[invite] Failed to remove guests:', err);
+                  toast.error(`Failed to remove guests: ${err?.message || err}`);
+                });
             }
           }
           // Notify attendees if this is the organizer's own event
