@@ -3,6 +3,7 @@ import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
+import { useStore } from '../store/useStore';
 
 // Common IANA timezones shown at top of picker
 const COMMON_TIMEZONES = [
@@ -48,6 +49,8 @@ interface AddModalProps {
   initialDate?: string | null;
   initialStartTime?: string | null;
   initialEndTime?: string | null;
+  /** Viewport pixel point to open the panel beside (e.g. the selected calendar slot). */
+  anchorPoint?: { x: number; y: number } | null;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -132,6 +135,7 @@ export function AddModal({
   onAddCategory,
   onAddTag,
   initialDate = null,
+  anchorPoint = null,
   initialStartTime = null,
   initialEndTime = null,
   existingSubscribers = [],
@@ -143,6 +147,8 @@ export function AddModal({
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
+  const lastCategoryId = useStore((s) => s.lastCategoryId);
+  const setLastCategoryId = useStore((s) => s.setLastCategoryId);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(categories[0] || null);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [categoryInput, setCategoryInput] = useState('');
@@ -232,11 +238,23 @@ export function AddModal({
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
       const maxH = (window.innerHeight * PANEL_MAX_HEIGHT) / 100;
+      if (anchorPoint) {
+        // Open beside the selected slot: prefer the right of the anchor, flip left if it won't fit.
+        const GAP = 12;
+        let x = anchorPoint.x + GAP;
+        if (x + PANEL_WIDTH > window.innerWidth - 16) x = anchorPoint.x - PANEL_WIDTH - GAP;
+        x = Math.max(16, Math.min(x, window.innerWidth - PANEL_WIDTH - 16));
+        // Start the panel a little above the slot; clamp so a reasonably tall panel stays on-screen.
+        const estHeight = Math.min(maxH, 440);
+        const y = Math.max(16, Math.min(anchorPoint.y - 24, window.innerHeight - estHeight - 16));
+        setPanelPos({ x, y });
+        return;
+      }
       const x = Math.max(16, window.innerWidth - PANEL_WIDTH - 24);
       const y = Math.max(16, window.innerHeight - maxH - 24);
       setPanelPos({ x, y });
     }
-  }, [isOpen]);
+  }, [isOpen, anchorPoint]);
 
   // Reset recurrence when modal closes; apply initial scope when opening
   useEffect(() => {
@@ -373,15 +391,18 @@ export function AddModal({
     }
   }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent, initialDate, initialStartTime, initialEndTime]);
 
-  // Keep category in sync with selected calendar: when opening for new event/task, or when user changes calendar, use first category for that calendar.
+  // Keep category in sync with selected calendar: when opening for new event/task, or when user
+  // changes calendar, prefer the last-used category (if it belongs to this calendar), else the first.
   useEffect(() => {
     if (!isOpen || editingTask || editingTimeBlock || editingEvent) return;
-    const first = firstCategoryForCalendar(selectedCalendar);
+    const forCalendar = getCategoriesForCalendar(selectedCalendar);
+    const lastUsed = lastCategoryId ? forCalendar.find((c) => c.id === lastCategoryId) ?? null : null;
+    const fallback = lastUsed ?? firstCategoryForCalendar(selectedCalendar);
     setSelectedCategory((prev) => {
-      const belongs = prev && getCategoriesForCalendar(selectedCalendar).some((c) => c.id === prev.id);
-      return belongs ? prev : first ?? prev;
+      const belongs = prev && forCalendar.some((c) => c.id === prev.id);
+      return belongs ? prev : fallback ?? prev;
     });
-  }, [isOpen, selectedCalendar, editingTask, editingTimeBlock, editingEvent, categories]);
+  }, [isOpen, selectedCalendar, editingTask, editingTimeBlock, editingEvent, categories, lastCategoryId]);
 
   // Auto-advance endDate when endTime < startTime (cross-midnight event)
   useEffect(() => {
@@ -411,6 +432,8 @@ export function AddModal({
     const categoryToUse: Category | null =
       selectedCategory ?? firstCategoryForCalendar(fallbackCalendar) ?? null;
     if (!categoryToUse) return;
+    // Remember this category so the next new item pre-selects it.
+    setLastCategoryId(categoryToUse.id);
 
     // Tags are committed immediately via the inline "+" form or pill toggle
     const tagsToUse = [...selectedTags];
@@ -560,7 +583,7 @@ export function AddModal({
       >
         {/* Drag header (drag disabled on mobile) */}
         <div
-          className="flex items-center gap-2 px-6 py-3.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center gap-2 px-6 pt-6 pb-3.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
           style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
             if (isMobileModal) return;

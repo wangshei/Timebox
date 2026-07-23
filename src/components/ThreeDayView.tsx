@@ -40,6 +40,8 @@ interface ThreeDayViewProps {
   onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onSplitBlock?: (blockId: string) => void;
+  onSplitEvent?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
   onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditBlock?: (blockId: string) => void;
@@ -80,7 +82,7 @@ export function ThreeDayView({
   mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
   focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm,
   onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock,
-  onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock,
+  onMoveEvent, onResizeEvent, onSplitBlock, onSplitEvent, onEditEvent, onEditEventWithScope, onEditBlock,
   events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock,
   hideTimeGutter, panelLabel, locked, showDifferences, compact, disableScroll,
   onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji,
@@ -686,6 +688,7 @@ export function ThreeDayView({
                                     const found = dayBlocks.find(b => b.id === blockId);
                                     if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                   } : undefined}
+                                  onSplit={onSplitBlock && !locked && (layout?.totalColumns ?? 1) > 1 ? () => onSplitBlock(block.id) : undefined}
                                   locked={locked}
                                   showDifferences={showDifferences}
                                   compact
@@ -729,6 +732,7 @@ export function ThreeDayView({
                                   plannedStyle={false}
                                   draggable={!!onMoveEvent}
                                   onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => setResizingEvent({ event: seg.event, startClientY: e.clientY }) : undefined}
+                                  onSplit={onSplitEvent && (layout?.totalColumns ?? 1) > 1 ? () => onSplitEvent(seg.event.id) : undefined}
                                   onToggleAttendance={onToggleEventAttendance}
                                   showDifferences={showDifferences}
                                   isStartSegment={seg.isStartSegment}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon, ScissorsIcon } from '@heroicons/react/24/solid';
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
 import { cn } from './ui/utils';
@@ -53,6 +53,8 @@ interface EventCardProps {
   draggable?: boolean;
   /** Called when the user presses the bottom-edge resize handle */
   onResizeStart?: (e: React.PointerEvent) => void;
+  /** When set, this event overlaps others and can be split around them to fill gaps. */
+  onSplit?: () => void;
   /** When true, shows compact card without duration, description, or category chip */
   compact?: boolean;
   /** Toggle attendance for past events */
@@ -85,6 +87,7 @@ export function EventCard({
   plannedStyle = false,
   draggable = false,
   onResizeStart,
+  onSplit,
   compact = false,
   onToggleAttendance,
   showDifferences = false,
@@ -110,6 +113,7 @@ export function EventCard({
   const addSticker = useStore((s) => s.addSticker);
   const stickers = useStore((s) => s.stickers);
   const deleteSticker = useStore((s) => s.deleteSticker);
+  const revealPast = useStore((s) => s.revealPast);
   const eventStickers = React.useMemo(() => stickers.filter((s) => s.eventId === event.id), [stickers, event.id]);
 
   const handleStamp = (e: React.MouseEvent) => {
@@ -143,6 +147,8 @@ export function EventCard({
     return (h ?? 0) * 60 + (m ?? 0);
   })();
   const isPast = event.date < todayStr || (event.date === todayStr && eventEndMins <= nowMins);
+  // "Reveal past" toggle: when on, past events render at full strength (not faded).
+  const fadePast = isPast && !revealPast;
 
   const categoryColor = event.category?.color ?? THEME.primary;
   const calendarColor = event.calendarContainer?.color ?? THEME.primary;
@@ -153,7 +159,7 @@ export function EventCard({
     ? baseBg
     : notAttended
       ? 'rgba(0,0,0,0.025)'
-      : isPast
+      : fadePast
         ? hexToRgba(desaturate(categoryColor, 0.50), 0.22)
         : hexToRgba(categoryColor, 0.65);
   // Focus mode: dim events that aren't in the focused category/calendar.
@@ -166,14 +172,14 @@ export function EventCard({
   const opacity = focusMuted ? FOCUS_MUTED_OPACITY : notAttended ? 0.5 : 1;
   // White text when background is dark (current events with 0.65 alpha); otherwise use theme primary
   const eventTextColor =
-    plannedStyle || isPast || notAttended
+    plannedStyle || fadePast || notAttended
       ? THEME.textPrimary
       : getContrastTextColor(categoryColor, 0.65);
   const borderStyle = plannedStyle
     ? { border: `2px solid ${categoryColor}`, borderLeft: `4px solid ${calendarColor}` }
     : notAttended
       ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.15)}` }
-      : isPast
+      : fadePast
         ? { borderLeft: `4px solid ${hexToRgba(calendarColor, 0.40)}` }
         : { borderLeft: `4px solid ${calendarColor}` };
 
@@ -676,6 +682,25 @@ export function EventCard({
                     </>
                   )}
                 </button>
+              )}
+
+              {/* Split around overlaps — carve this event into the free gaps around what it overlaps */}
+              {onSplit && !event.readOnly && (
+                <>
+                  <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
+                    style={{ fontSize: 11, color: THEME.textSecondary, backgroundColor: 'transparent' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onClick={(e) => { e.stopPropagation(); onSplit(); setShowPopover(false); onDeselect(); }}
+                    title="Reshape around overlapping items so time isn't counted twice"
+                  >
+                    <ScissorsIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} />
+                    Split around overlaps
+                  </button>
+                </>
               )}
 
               {/* Source badge for synced/shared events */}

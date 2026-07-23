@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event, AvailableSlot } from '../types';
+import { useStore } from '../store/useStore';
 import { resolveTimeBlocks, resolveEvents, selectMainViewBlocks } from '../utils/dataResolver';
 import { getLocalDateString, getStartOfWeek, getLocalTimeZone } from '../utils/dateTime';
 import { isPlannedIntent, isRecordedBlock } from '../store/selectors';
@@ -58,6 +59,8 @@ interface CalendarViewProps {
   onDeleteEventSeries?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onSplitBlock?: (blockId: string) => void;
+  onSplitEvent?: (eventId: string) => void;
   onToggleEventAttendance?: (eventId: string, status: 'attended' | 'not_attended' | undefined) => void;
   /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday?: boolean;
@@ -96,6 +99,7 @@ export function CalendarView({
   onOpenAddModal, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask,
   onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onEditEvent, onEditEventWithScope, onEditBlock,
   events: eventsProp = [], onDeleteEvent, onDeleteEventSeries, onMoveEvent, onResizeEvent,
+  onSplitBlock, onSplitEvent,
   onToggleEventAttendance,
   weekStartsOnMonday = false,
   onRescheduleLater,
@@ -113,6 +117,8 @@ export function CalendarView({
   highlightSlots,
 }: CalendarViewProps) {
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
+  const revealPast = useStore((s) => s.revealPast);
+  const setRevealPast = useStore((s) => s.setRevealPast);
   const [showDifferences, setShowDifferences] = useState(defaultShowDifferences ?? false);
   const [compareTab, setCompareTab] = useState<'plan' | 'actual'>('actual');
   const [stampMode, setStampMode] = useState(false);
@@ -553,6 +559,23 @@ export function CalendarView({
                 </button>
               )}
 
+              {/* Reveal-past toggle — show past events/blocks at full strength instead of faded */}
+              <button
+                type="button"
+                onClick={() => setRevealPast(!revealPast)}
+                className="p-1.5 rounded-lg transition-all shrink-0 flex items-center justify-center"
+                title={revealPast ? 'Fade past events' : 'Show past events'}
+                aria-label={revealPast ? 'Fade past events' : 'Show past events'}
+                aria-pressed={revealPast}
+                style={{
+                  backgroundColor: revealPast ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
+                  color: revealPast ? PRIMARY : TEXT_SECONDARY,
+                  border: revealPast ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
+                }}
+              >
+                {revealPast ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
+              </button>
+
               {/* Show Difference button — only in compare mode (wide layout) */}
               {mode === 'compare' && !isNarrow && (
                 <button
@@ -667,13 +690,13 @@ export function CalendarView({
         /* Normal view (or week/month compare — single view with showDifferences) */
         <div className="flex-1 overflow-y-auto min-h-0">
           {view === 'day' && (
-            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} showDateHeader viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
+            <DayView mode={mode} timeBlocks={mainViewBlocks} events={resolvedEvents} selectedDate={selectedDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onDropTask={onDropTask} onCreateBlock={onCreateBlock} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onSplitBlock={onSplitBlock} onSplitEvent={onSplitEvent} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} showDateHeader viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
           )}
           {view === '3day' && (
-            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
+            <ThreeDayView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onSplitBlock={onSplitBlock} onSplitEvent={onSplitEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} pendingBlockPreview={pendingBlockPreview} activeStampEmoji={activeStampEmoji} viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
           )}
           {view === 'week' && (
-            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} activeStampEmoji={activeStampEmoji} pendingBlockPreview={pendingBlockPreview} selectionMode={selectionMode} selectedSlots={selectedSlots} onToggleSlot={onToggleSlot} onSelectionDone={onSelectionDone} onSelectionCancel={onSelectionCancel} viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
+            <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onSplitBlock={onSplitBlock} onSplitEvent={onSplitEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} activeStampEmoji={activeStampEmoji} pendingBlockPreview={pendingBlockPreview} selectionMode={selectionMode} selectedSlots={selectedSlots} onToggleSlot={onToggleSlot} onSelectionDone={onSelectionDone} onSelectionCancel={onSelectionCancel} viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
           )}
           {view === 'month' && (
             <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} weekStartsOnMonday={weekStartsOnMonday} />

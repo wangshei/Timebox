@@ -62,6 +62,10 @@ export interface AppState {
   defaultBlockMinutes: number;
   /** When true, week view shows Mon–Sun; when false, Sun–Sat. */
   weekStartsOnMonday: boolean;
+  /** When true, past events/blocks render at full strength instead of the faded "past" look. */
+  revealPast: boolean;
+  /** Category id most recently used when adding an item — used to pre-select on the next add. */
+  lastCategoryId: string | null;
   /** User's wake time — earliest scheduling boundary. "HH:mm", default "08:00". */
   wakeTime: string;
   /** User's sleep time — latest scheduling boundary. "HH:mm", default "23:00". */
@@ -121,6 +125,8 @@ function getInitialState(): AppState {
     containerVisibility: visibility,
     defaultBlockMinutes: 60,
     weekStartsOnMonday: false,
+    revealPast: false,
+    lastCategoryId: null,
     wakeTime: '08:00',
     sleepTime: '23:00',
     notificationScope: 'events',
@@ -171,6 +177,8 @@ export interface AppActions {
 
   // Onboarding
   setWeekStartsOnMonday: (val: boolean) => void;
+  setRevealPast: (val: boolean) => void;
+  setLastCategoryId: (id: string | null) => void;
   setWakeTime: (time: string) => void;
   setSleepTime: (time: string) => void;
   setNotificationScope: (scope: 'events' | 'events_and_tasks' | 'off') => void;
@@ -533,6 +541,8 @@ export const useStore = create<AppState & AppActions>()(
   },
 
   setWeekStartsOnMonday: (val) => set({ weekStartsOnMonday: val }),
+  setRevealPast: (val) => set({ revealPast: val }),
+  setLastCategoryId: (id) => set({ lastCategoryId: id }),
   setWakeTime: (time) => set({ wakeTime: time }),
   setSleepTime: (time) => set({ sleepTime: time }),
   setNotificationScope: (scope) => set({ notificationScope: scope }),
@@ -948,6 +958,7 @@ type PersistedSlice = Pick<
   | 'containerVisibility'
   | 'defaultBlockMinutes'
   | 'weekStartsOnMonday'
+  | 'lastCategoryId'
   | 'wakeTime'
   | 'sleepTime'
   | 'notificationScope'
@@ -998,6 +1009,7 @@ export function startLocalStoragePersistence() {
       containerVisibility: state.containerVisibility,
       defaultBlockMinutes: state.defaultBlockMinutes,
       weekStartsOnMonday: state.weekStartsOnMonday,
+      lastCategoryId: state.lastCategoryId,
       wakeTime: state.wakeTime,
       sleepTime: state.sleepTime,
       notificationScope: state.notificationScope,

@@ -36,6 +36,8 @@ interface WeekViewProps {
   onResizeBlock?: (blockId: string, params: { date: string; endTime: string }) => void;
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  onSplitBlock?: (blockId: string) => void;
+  onSplitEvent?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
   onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditBlock?: (blockId: string) => void;
@@ -72,7 +74,7 @@ interface WeekViewProps {
   highlightSlots?: AvailableSlot[];
 }
 
-export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel, viewTimezone, onSetViewTimezone, highlightSlots = [] }: WeekViewProps) {
+export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDropTask, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onSplitBlock, onSplitEvent, onEditEvent, onEditEventWithScope, onEditBlock, events = [], onDeleteEvent, onDeleteEventSeries, onCreateBlock, locked, showDifferences, weekStartsOnMonday = false, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, activeStampEmoji, pendingBlockPreview, selectionMode, selectedSlots = [], onToggleSlot, onSelectionDone, onSelectionCancel, viewTimezone, onSetViewTimezone, highlightSlots = [] }: WeekViewProps) {
   const [localSelectedBlock, setLocalSelectedBlock] = React.useState<string | null>(selectedBlock || null);
   const handleSelect = onSelectBlock || setLocalSelectedBlock;
   const currentSelected = selectedBlock !== undefined ? selectedBlock : localSelectedBlock;
@@ -722,6 +724,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                       const found = dayBlocks.find(b => b.id === blockId);
                                       if (found) setResizingBlock({ block: found, startClientY: e.clientY });
                                     } : undefined}
+                                    onSplit={onSplitBlock && !locked && (layout?.totalColumns ?? 1) > 1 ? () => onSplitBlock(block.id) : undefined}
                                     locked={locked}
                                     showDifferences={showDifferences}
                                     compact
@@ -759,6 +762,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                     plannedStyle={false}
                                     draggable={!!onMoveEvent}
                                     onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => setResizingEvent({ event: seg.event, startClientY: e.clientY }) : undefined}
+                                    onSplit={onSplitEvent && (layout?.totalColumns ?? 1) > 1 ? () => onSplitEvent(seg.event.id) : undefined}
                                     onToggleAttendance={onToggleEventAttendance}
                                     showDifferences={showDifferences}
                                     isStartSegment={seg.isStartSegment}

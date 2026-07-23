@@ -37,6 +37,8 @@ export interface CreateBlockParams {
   endTime: string;
   /** When true, block was created from the actual/recorded panel in compare mode. */
   isRecordedPanel?: boolean;
+  /** Viewport pixel position of the created slot, so the Add popup can open beside it. */
+  anchor?: { x: number; y: number };
 }
 
 interface DayViewProps {
@@ -66,6 +68,9 @@ interface DayViewProps {
   onMoveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
   /** Resize an event by dragging its bottom edge (end time only). */
   onResizeEvent?: (eventId: string, params: { date: string; endTime: string }) => void;
+  /** Split an overlapping block/event around the items it overlaps. */
+  onSplitBlock?: (blockId: string) => void;
+  onSplitEvent?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
   onEditEventWithScope?: (eventId: string, scope: 'this' | 'all' | 'all_after') => void;
   onEditBlock?: (blockId: string) => void;
@@ -97,7 +102,7 @@ interface DayViewProps {
 const START_HOUR = 0;
 const GRID_HEIGHT = 24 * PX_PER_HOUR; // 24h grid (midnight-midnight)
 
-export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji, viewTimezone, onSetViewTimezone, highlightSlots = [] }: DayViewProps) {
+export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask, onDeleteEvent, onDeleteEventSeries, onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onMoveEvent, onResizeEvent, onSplitBlock, onSplitEvent, onEditEvent, onEditEventWithScope, onEditBlock, compareMatchedTaskIds, locked, showDifferences, showDateHeader, disableScroll, onToggleEventAttendance, onRescheduleLater, onAddTimeToComplete, pendingBlockPreview, activeStampEmoji, viewTimezone, onSetViewTimezone, highlightSlots = [] }: DayViewProps) {
   const nowCtx = useNow();
   const frozen = useNowFrozen();
   const [now, setNow] = React.useState(() => frozen ? nowCtx : new Date());
@@ -272,14 +277,20 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
         return { startMins, endMins, anchorMins: anchor };
       });
     };
-    const onUp = () => {
+    const onUp = (e: MouseEvent) => {
       const cur = creatingBlockRef.current ?? creatingBlock;
       setCreatingBlock(null);
       creatingBlockRef.current = null;
       if (!cur || !onCreateBlock) return;
       const startTime = minutesToTimeString(cur.startMins);
       const endTime = minutesToTimeString(cur.endMins);
-      onCreateBlock({ date: selectedDate, startTime, endTime });
+      // Anchor the Add popup beside the selected slot: use the day column's right edge
+      // (so the popup sits next to the block) at the release height.
+      const gridRect = gridRef.current?.getBoundingClientRect();
+      const anchor = gridRect
+        ? { x: gridRect.right, y: e.clientY }
+        : { x: e.clientX, y: e.clientY };
+      onCreateBlock({ date: selectedDate, startTime, endTime, anchor });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -698,6 +709,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 onDeleteTask={onDeleteTask}
                 onEditBlock={onEditBlock}
                 onResizeStart={onResizeBlock ? handleResizeStartByBlockId : undefined}
+                onSplit={onSplitBlock && !locked && (overlapMap.get(block.id)?.totalColumns ?? 1) > 1 ? () => onSplitBlock(block.id) : undefined}
                 compareMatchedTaskIds={compareMatchedTaskIds}
                 locked={locked}
                 showDifferences={showDifferences}
@@ -773,6 +785,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 plannedStyle={false}
                 draggable={!!onMoveEvent}
                 onResizeStart={onResizeEvent && seg.isEndSegment ? (e) => handleEventResizeStart(seg.event, e) : undefined}
+                onSplit={onSplitEvent && (layout?.totalColumns ?? 1) > 1 ? () => onSplitEvent(seg.event.id) : undefined}
                 onToggleAttendance={onToggleEventAttendance}
                 showDifferences={showDifferences}
                 isStartSegment={seg.isStartSegment}

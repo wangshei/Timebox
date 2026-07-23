@@ -46,6 +46,7 @@ import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
 import { generateRecurrenceDates } from './utils/recurrenceExpander';
+import { splitAroundOverlaps, rangesOverlap, TimeRange } from './utils/splitAroundOverlaps';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
@@ -191,6 +192,7 @@ export default function App() {
   const [addModalInitialDate, setAddModalInitialDate] = useState<string | null>(null);
   const [addModalInitialStart, setAddModalInitialStart] = useState<string | null>(null);
   const [addModalInitialEnd, setAddModalInitialEnd] = useState<string | null>(null);
+  const [addModalAnchor, setAddModalAnchor] = useState<{ x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -2075,6 +2077,7 @@ export default function App() {
     setAddModalInitialDate(params.date);
     setAddModalInitialStart(params.startTime);
     setAddModalInitialEnd(params.endTime);
+    setAddModalAnchor(params.anchor ?? null);
     setAddModalMode('event');
     setPendingBlockPreview({ date: params.date, startTime: params.startTime, endTime: params.endTime });
     setIsAddModalOpen(true);
@@ -2248,6 +2251,88 @@ export default function App() {
     if (!event.originalEnd) { resizeEvUpdate.originalEnd = event.end; }
     updateEvent(eventId, resizeEvUpdate);
     notifyAttendeesIfNeeded(event, resizeEvUpdate);
+  };
+
+  // The portion of an event that falls on a given date (cross-date aware), or null if it doesn't.
+  const eventRangeOnDate = (e: import('./types').Event, dateStr: string): TimeRange | null => {
+    const eEnd = e.endDate ?? e.date;
+    if (dateStr < e.date || dateStr > eEnd) return null;
+    return {
+      start: dateStr === e.date ? e.start : '00:00',
+      end: dateStr === eEnd ? e.end : '23:59',
+    };
+  };
+
+  /** Carve an overlapping time block around everything else on its day, keeping all gap pieces
+   *  as separate blocks so overlapping time isn't counted twice. */
+  const handleSplitBlock = (blockId: string) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block || isPastPlannedBlock(block)) return;
+    const dateStr = block.date;
+    const target: TimeRange = { start: block.start, end: block.end };
+    const blockers: TimeRange[] = [];
+    for (const b of timeBlocks) {
+      if (b.id === blockId || b.date !== dateStr) continue;
+      blockers.push({ start: b.start, end: b.end });
+    }
+    for (const e of events) {
+      const r = eventRangeOnDate(e, dateStr);
+      if (r) blockers.push(r);
+    }
+    const overlapping = blockers.filter((r) => rangesOverlap(target, r));
+    if (!overlapping.length) return;
+    const fragments = splitAroundOverlaps(target, overlapping);
+    if (!fragments.length) return;
+    if (fragments.length === 1 && fragments[0].start === block.start && fragments[0].end === block.end) return;
+    saveSnapshot();
+    updateTimeBlock(blockId, { start: fragments[0].start, end: fragments[0].end });
+    for (let i = 1; i < fragments.length; i++) {
+      const { id: _omit, ...rest } = block;
+      addTimeBlock({ ...rest, start: fragments[i].start, end: fragments[i].end });
+    }
+  };
+
+  /** Same as handleSplitBlock, for calendar events. Split fragments become independent
+   *  single-occurrence events (recurrence/Google links dropped on the copies). */
+  const handleSplitEvent = (eventId: string) => {
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return;
+    // Cross-date events are ambiguous to split — skip.
+    if (event.endDate && event.endDate !== event.date) return;
+    const dateStr = event.date;
+    const target: TimeRange = { start: event.start, end: event.end };
+    const blockers: TimeRange[] = [];
+    for (const e of events) {
+      if (e.id === eventId) continue;
+      const r = eventRangeOnDate(e, dateStr);
+      if (r) blockers.push(r);
+    }
+    for (const b of timeBlocks) {
+      if (b.date !== dateStr) continue;
+      blockers.push({ start: b.start, end: b.end });
+    }
+    const overlapping = blockers.filter((r) => rangesOverlap(target, r));
+    if (!overlapping.length) return;
+    const fragments = splitAroundOverlaps(target, overlapping);
+    if (!fragments.length) return;
+    if (fragments.length === 1 && fragments[0].start === event.start && fragments[0].end === event.end) return;
+    saveSnapshot();
+    updateEvent(eventId, { start: fragments[0].start, end: fragments[0].end });
+    for (let i = 1; i < fragments.length; i++) {
+      const {
+        id: _omit, googleEventId: _g, recurringGoogleEventId: _rg, gcalStartISO: _gs,
+        gcalEndISO: _ge, startEpoch: _se, endEpoch: _ee, recurrenceSeriesId: _rs, ...rest
+      } = event;
+      addEvent({
+        ...rest,
+        recurring: false,
+        recurrencePattern: 'none',
+        recurrenceDays: [],
+        start: fragments[i].start,
+        end: fragments[i].end,
+        date: dateStr,
+      });
+    }
   };
 
   const handleToggleEventAttendance = (eventId: string, status: 'attended' | 'not_attended' | undefined) => {
@@ -3557,6 +3642,8 @@ export default function App() {
           onResizeBlock={handleResizeBlock}
           onMoveEvent={handleMoveEvent}
           onResizeEvent={handleResizeEvent}
+          onSplitBlock={handleSplitBlock}
+          onSplitEvent={handleSplitEvent}
           onEditEvent={handleEditEvent}
           onEditEventWithScope={handleEditEventWithScope}
           onEditBlock={handleEditBlock}
@@ -3886,6 +3973,7 @@ export default function App() {
           setAddModalInitialDate(null);
           setAddModalInitialStart(null);
           setAddModalInitialEnd(null);
+          setAddModalAnchor(null);
           setPendingBlockPreview(null);
         }}
         categories={categories}
@@ -3899,6 +3987,7 @@ export default function App() {
         initialDate={addModalInitialDate}
         initialStartTime={addModalInitialStart}
         initialEndTime={addModalInitialEnd}
+        anchorPoint={addModalAnchor}
         onAddTask={handleAddTask}
         onUpdateTask={(id, updates) => {
           updateTask(id, updates);

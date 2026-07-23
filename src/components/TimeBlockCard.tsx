@@ -6,7 +6,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
-import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
+import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon, ScissorsIcon } from '@heroicons/react/24/solid';
 import { useStore } from '../store/useStore';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
@@ -42,6 +42,8 @@ interface TimeBlockCardProps {
   onDeleteBlock?: (blockId: string) => void;
   onDeleteTask?: (taskId: string) => void;
   onResizeStart?: (blockId: string, e: React.PointerEvent) => void;
+  /** When set, this block overlaps others and can be split around them to fill gaps. */
+  onSplit?: () => void;
   compareMatchedTaskIds?: string[];
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
@@ -78,6 +80,7 @@ function TimeBlockCardInner({
   onDeleteBlock,
   onDeleteTask,
   onResizeStart,
+  onSplit,
   compareMatchedTaskIds,
   focusedCategoryId,
   focusedCalendarId,
@@ -98,6 +101,7 @@ function TimeBlockCardInner({
   const addSticker = useStore((s) => s.addSticker);
   const stickers = useStore((s) => s.stickers);
   const deleteSticker = useStore((s) => s.deleteSticker);
+  const revealPast = useStore((s) => s.revealPast);
   const blockStickers = React.useMemo(() => stickers.filter((s) => s.blockId === block.id), [stickers, block.id]);
   const [stampBounce, setStampBounce] = useState(false);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
@@ -203,8 +207,10 @@ function TimeBlockCardInner({
     return (h ?? 0) * 60 + (m ?? 0);
   })();
   const isPast = block.date < todayStr || (block.date === todayStr && blockEndMins <= nowMins);
+  // "Reveal past" toggle: when on, past blocks render at full strength (styled as if current).
+  const visualPast = isPast && !revealPast;
   type TimeState = 'future' | 'pastPending' | 'pastConfirmed' | 'pastSkipped';
-  const timeState: TimeState = isPast
+  const timeState: TimeState = visualPast
     ? confirmed
       ? 'pastConfirmed'
       : skipped
@@ -388,11 +394,11 @@ function TimeBlockCardInner({
     if (isEvent) {
       // Events: prominent left stripe on light background
       // Past states: desaturate color for a grayer, more faded look
-      const eventDisplayColor = (blockVisualState === 'pastUnconfirmed' || blockVisualState === 'pastConfirmed')
+      const eventDisplayColor = (blockVisualState === 'pastPending' || blockVisualState === 'pastConfirmed')
         ? desaturate(blockColor, 0.45)
         : blockColor;
-      const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.06 : blockVisualState === 'pastUnconfirmed' ? 0.08 : 0.1;
-      const stripeAlpha = blockVisualState === 'pastConfirmed' ? 0.30 : blockVisualState === 'pastUnconfirmed' ? 0.50 : 1;
+      const bgAlpha = blockVisualState === 'pastConfirmed' ? 0.06 : blockVisualState === 'pastPending' ? 0.08 : 0.1;
+      const stripeAlpha = blockVisualState === 'pastConfirmed' ? 0.30 : blockVisualState === 'pastPending' ? 0.50 : 1;
       return {
         borderLeft: `3px solid ${hexToRgba(eventDisplayColor, stripeAlpha)}`,
         backgroundColor: hexToRgba(eventDisplayColor, bgAlpha),
@@ -702,6 +708,20 @@ function TimeBlockCardInner({
           >
             <CheckIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
             {confirmed ? 'Mark as not done' : 'Mark as done'}
+          </button>
+        )}
+        {!locked && onSplit && (
+          <button
+            type="button"
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
+            style={{ color: THEME.textSecondary, fontSize: 11 }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            onClick={() => { onSplit(); setShowPopover(false); doDeselect(); }}
+            title="Reshape around overlapping items so time isn't counted twice"
+          >
+            <ScissorsIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
+            Split around overlaps
           </button>
         )}
         {!locked && isTask && onRescheduleLater && (
