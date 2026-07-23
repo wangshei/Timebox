@@ -1434,6 +1434,7 @@ export default function App() {
         endTime: eventData.endTime,
         endDate: eventData.endDate,
         description: eventData.description ?? undefined,
+        notes: eventData.notes ?? undefined,
       });
     }
   };
@@ -1510,17 +1511,21 @@ export default function App() {
     endTime: string;
     endDate?: string;
     description?: string;
+    notes?: string;
     existingGoogleEventId?: string | null;
   }) => {
-    const { eventId, title, emails, date, startTime, endTime, endDate, description, existingGoogleEventId } = params;
+    const { eventId, title, emails, date, startTime, endTime, endDate, description, notes, existingGoogleEventId } = params;
     // Interpret the event's wall-clock time in the browser's local zone → UTC instants
     // for the .ics attachment carried by the invite email.
     const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+    // The .ics DESCRIPTION combines both the event's Description and Notes fields — the
+    // guest should see whichever the organizer filled in (Notes is the prominent one).
+    const icsDescription = [description, notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
     const eventIcs = {
       start: toIso(date, startTime),
       end: toIso(endDate ?? date, endTime),
       title,
-      description,
+      description: icsDescription,
     };
     setInviteConfirm({
       type: 'new',
@@ -1587,6 +1592,7 @@ export default function App() {
     if (updates.start && updates.start !== event.start) parts.push(`Start: ${updates.start}`);
     if (updates.end && updates.end !== event.end) parts.push(`End: ${updates.end}`);
     if (updates.description !== undefined && updates.description !== event.description) parts.push('Description updated');
+    if (updates.notes !== undefined && updates.notes !== event.notes) parts.push('Notes updated');
     if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
     // No detectable meaningful change — don't pester the user with a confirm modal.
     // (Previously this pushed a generic "details updated" string and fired anyway.)
@@ -1602,6 +1608,8 @@ export default function App() {
     const newStart = (updates.start as string) ?? event.start;
     const newEnd = (updates.end as string) ?? event.end;
     const newDescription = (updates.description as string | undefined) ?? event.description ?? undefined;
+    const newNotes = (updates.notes as string | undefined) ?? event.notes ?? undefined;
+    const icsDescription = [newDescription, newNotes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
     const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
     const capturedEventId = event.id;
 
@@ -1632,7 +1640,7 @@ export default function App() {
           changes: capturedChanges,
           senderName: userName || undefined,
           eventId: capturedEventId,
-          event: { start: toIso(newDate, newStart), end: toIso(newEndDate, newEnd), description: newDescription },
+          event: { start: toIso(newDate, newStart), end: toIso(newEndDate, newEnd), description: icsDescription },
         })
           .then(() => toast.success(`Update sent to ${capturedEmails.length} attendee${capturedEmails.length !== 1 ? 's' : ''}`))
           .catch((err) => {
@@ -4107,6 +4115,7 @@ export default function App() {
                 endTime: (eventUpdates as { end?: string }).end ?? event.end,
                 endDate: (eventUpdates as { endDate?: string }).endDate ?? event.endDate,
                 description: (eventUpdates as { description?: string | null }).description ?? event.description ?? undefined,
+                notes: (eventUpdates as { notes?: string | null }).notes ?? event.notes ?? undefined,
                 existingGoogleEventId: event.googleEventId,
               });
             }

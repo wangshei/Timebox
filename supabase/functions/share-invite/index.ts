@@ -135,6 +135,20 @@ function escapeIcsText(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 }
 
+/** Fold a content line to ≤75 chars per RFC 5545 §3.1 (continuation lines start with a
+ *  space). Long unfolded lines can make strict parsers drop the whole property. */
+function foldIcsLine(line: string): string {
+  if (line.length <= 75) return line
+  const chunks = [line.slice(0, 75)]
+  for (let i = 75; i < line.length; i += 74) chunks.push(' ' + line.slice(i, i + 74))
+  return chunks.join('\r\n')
+}
+
+/** Join ICS content lines, folding each to the 75-char limit. */
+function assembleIcs(lines: string[]): string {
+  return lines.map(foldIcsLine).join('\r\n')
+}
+
 /** Convert an ISO datetime to ICS UTC basic format: YYYYMMDDTHHMMSSZ. */
 function toIcsUtc(iso: string): string {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
@@ -193,7 +207,7 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): s
     'END:VEVENT',
     'END:VCALENDAR',
   ]
-  return lines.join('\r\n')
+  return assembleIcs(lines)
 }
 
 /** Build a METHOD:CANCEL calendar object so the event is removed from the guest's
@@ -218,7 +232,7 @@ function buildCancelIcs(p: IcsInvite, organizerAddress: string, sequence: number
     'END:VEVENT',
     'END:VCALENDAR',
   ]
-  return lines.join('\r\n')
+  return assembleIcs(lines)
 }
 
 /** Base64-encode a UTF-8 string (Resend attachments expect base64 content). */
