@@ -1530,7 +1530,7 @@ export default function App() {
         setInviteConfirm(null);
         // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
         const sendShare = (attempt = 1) => {
-          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails, event: eventIcs })
+          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails, event: eventIcs, senderName: userName || undefined })
             .then((result) => {
               toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
             })

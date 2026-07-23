@@ -76,7 +76,13 @@ async function getUserName(userId: string): Promise<string> {
 
 // --- Email via Resend ---
 
-function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string): string {
+function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string, isEvent = false): string {
+  const introLine = isEvent
+    ? `<strong>${senderName}</strong> invited you to <strong>"${shareName}"</strong>.`
+    : `<strong>${senderName}</strong> shared <strong>"${shareName}"</strong> with you on The Timeboxing Club.`
+  const subLine = isEvent
+    ? `The event is attached — add it to your calendar below, or accept in Timebox.`
+    : `You'll see their events on your calendar. Accept to get started.`
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
@@ -92,12 +98,12 @@ function inviteEmailHtml(senderName: string, shareName: string, inviteLink: stri
     <tr><td style="padding:24px 32px 16px;text-align:center;">
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1C1C1E;">You're invited!</h1>
       <p style="margin:0;font-size:15px;color:#636366;line-height:1.5;">
-        <strong>${senderName}</strong> shared <strong>"${shareName}"</strong> with you on The Timeboxing Club.
+        ${introLine}
       </p>
     </td></tr>
     <tr><td style="padding:8px 32px 24px;text-align:center;">
       <p style="margin:0 0 20px;font-size:14px;color:#8E8E93;line-height:1.5;">
-        You'll see their events on your calendar. Accept to get started.
+        ${subLine}
       </p>
       <a href="${inviteLink}" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">
         View Invite
@@ -134,18 +140,28 @@ function toIcsUtc(iso: string): string {
   return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 }
 
+/** Extract the bare email address from a "Name <email>" FROM header. */
+function parseFromAddress(from: string): string {
+  const m = from.match(/<([^>]+)>/)
+  return (m ? m[1] : from).trim()
+}
+
 interface IcsInvite {
   uid: string
   title: string
   start: string   // ISO datetime
   end: string     // ISO datetime
   description?: string
-  organizerEmail: string
   organizerName: string
   attendeeEmail: string
 }
 
-function buildInviteIcs(p: IcsInvite): string {
+function buildInviteIcs(p: IcsInvite, organizerAddress: string): string {
+  // ORGANIZER is the service's own send address (matching the email From), NOT the
+  // Timebox user's real email. If we used a Google-Workspace user's address here,
+  // Gmail tries to load the event from Google Calendar's servers (where it doesn't
+  // exist, since we never used the write API) and shows "Unable to load event".
+  // The organizer's display name still shows the user via CN.
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -159,7 +175,7 @@ function buildInviteIcs(p: IcsInvite): string {
     `DTEND:${toIcsUtc(p.end)}`,
     `SUMMARY:${escapeIcsText(p.title)}`,
     ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
-    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${p.organizerEmail}`,
+    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
     `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.attendeeEmail}`,
     'SEQUENCE:0',
     'STATUS:CONFIRMED',
@@ -185,7 +201,7 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
   }
 
   const inviteLink = `${APP_URL}/invite/${inviteToken}`
-  const html = inviteEmailHtml(senderName, shareName, inviteLink)
+  const html = inviteEmailHtml(senderName, shareName, inviteLink, !!ics)
 
   const payload: Record<string, unknown> = {
     from: fromEmail,
@@ -199,7 +215,7 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
     // Attach the calendar invite so it lands in the recipient's calendar (Gmail RSVP UI).
     payload.attachments = [{
       filename: 'invite.ics',
-      content: base64Utf8(buildInviteIcs(ics)),
+      content: base64Utf8(buildInviteIcs(ics, parseFromAddress(fromEmail))),
       content_type: 'text/calendar; method=REQUEST; charset=utf-8',
     }]
   }
@@ -449,7 +465,7 @@ async function notifyEventUpdate(userId: string, body: Record<string, unknown>) 
 
 async function createShare(userId: string, body: Record<string, unknown>) {
   const supabase = getSupabaseAdmin()
-  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle, event } = body
+  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle, event, senderName: senderNameFromClient } = body
 
   if (!scope || !scopeId || !emails || !Array.isArray(emails)) {
     throw new Error('Missing required fields: scope, scopeId, emails')
@@ -512,23 +528,15 @@ async function createShare(userId: string, body: Record<string, unknown>) {
     }
   }
 
-  // Send invite emails
-  const senderName = await getUserName(userId)
+  // Send invite emails. Prefer the display name the client passed (the logged-in
+  // user's name from the app) — the admin getUserById lookup can be unavailable and
+  // fall back to a generic "A Timebox user".
+  const clientName = typeof senderNameFromClient === 'string' ? senderNameFromClient.trim() : ''
+  const senderName = clientName || await getUserName(userId)
   const inviteLinks = (insertedMembers ?? []).map((m: Record<string, unknown>) => ({
     email: m.email,
     link: `${APP_URL}/invite/${m.token}`,
   }))
-
-  // Resolve the organizer's email (for the ICS ORGANIZER line) once, if we'll attach invites.
-  let organizerEmail: string | null = null
-  if (hasIcs) {
-    try {
-      const { data: { user } } = await supabase.auth.admin.getUserById(userId)
-      organizerEmail = user?.email ?? null
-    } catch {
-      organizerEmail = null
-    }
-  }
 
   // Send emails in parallel
   const emailPromises = (insertedMembers ?? []).map((m: Record<string, unknown>) =>
@@ -537,14 +545,13 @@ async function createShare(userId: string, body: Record<string, unknown>) {
       senderName,
       (displayName as string) ?? 'a calendar',
       m.token as string,
-      hasIcs && organizerEmail
+      hasIcs
         ? {
             uid: `${scopeId}@timeboxing.club`,
             title: (eventInfo?.title as string) || (displayName as string) || 'Event',
             start: eventInfo!.start as string,
             end: eventInfo!.end as string,
             description: eventInfo?.description,
-            organizerEmail,
             organizerName: senderName,
             attendeeEmail: m.email as string,
           }
