@@ -190,7 +190,8 @@ interface IcsInvite {
   end: string     // ISO datetime
   description?: string
   organizerName: string
-  attendeeEmail: string
+  attendeeEmail: string       // the recipient of this particular email
+  attendeeEmails?: string[]   // the FULL guest list, so each participant sees the others
 }
 
 function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): string {
@@ -216,7 +217,14 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): s
     `SUMMARY:${escapeIcsText(p.title)}`,
     ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
     `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
-    `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.attendeeEmail}`,
+    // List every guest so each participant can see the others on their calendar.
+    ...(() => {
+      const guests = (p.attendeeEmails && p.attendeeEmails.length > 0) ? p.attendeeEmails : [p.attendeeEmail]
+      const seen = new Set<string>()
+      return guests
+        .filter((e) => e && !seen.has(e.toLowerCase()) && seen.add(e.toLowerCase()))
+        .map((email) => `ATTENDEE;CN=${email};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${email}`)
+    })(),
     `SEQUENCE:${sequence}`,
     'STATUS:CONFIRMED',
     'TRANSP:OPAQUE',
@@ -574,6 +582,7 @@ async function notifyEventUpdate(userId: string, body: Record<string, unknown>) 
               description: evt?.description,
               organizerName: senderName,
               attendeeEmail: email,
+              attendeeEmails: attendeeEmails as string[],
             }
           : undefined,
       )
@@ -595,8 +604,13 @@ async function createShare(userId: string, body: Record<string, unknown>) {
 
   // For event-scoped invites with timing, we attach a calendar (.ics) invite to the
   // email so it lands in the recipient's Google/Outlook/Apple calendar with RSVP.
-  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string } | undefined
+  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string; attendeeEmails?: string[] } | undefined
   const hasIcs = scope === 'event' && !!eventInfo?.start && !!eventInfo?.end
+  // Full guest list for the .ics (so each participant sees the others). Falls back to
+  // the batch being invited when the client didn't send the complete list.
+  const allGuests = (eventInfo?.attendeeEmails && eventInfo.attendeeEmails.length > 0)
+    ? eventInfo.attendeeEmails
+    : (emails as string[])
 
   // Create the share
   const shareData: Record<string, unknown> = {
@@ -676,6 +690,7 @@ async function createShare(userId: string, body: Record<string, unknown>) {
             description: eventInfo?.description,
             organizerName: senderName,
             attendeeEmail: m.email as string,
+            attendeeEmails: allGuests,
           }
         : undefined,
     )
@@ -702,9 +717,12 @@ async function resendInvite(userId: string, body: Record<string, unknown>) {
     throw new Error('Missing required fields: eventId, emails')
   }
 
-  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string } | undefined
+  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string; attendeeEmails?: string[] } | undefined
   const hasIcs = !!eventInfo?.start && !!eventInfo?.end
   const displayName = (eventInfo?.title as string) || 'Event'
+  const allGuests = (eventInfo?.attendeeEmails && eventInfo.attendeeEmails.length > 0)
+    ? eventInfo.attendeeEmails
+    : (emails as string[])
 
   // Find the existing event share (owner-scoped); create one if it's somehow missing.
   let { data: share } = await supabase
@@ -763,6 +781,7 @@ async function resendInvite(userId: string, body: Record<string, unknown>) {
             description: eventInfo?.description,
             organizerName: senderName,
             attendeeEmail: email,
+            attendeeEmails: allGuests,
           }
         : undefined,
     )

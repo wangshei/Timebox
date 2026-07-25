@@ -1533,9 +1533,11 @@ export default function App() {
     endDate?: string;
     description?: string;
     notes?: string;
+    /** Full guest list for the .ics, so each participant sees the others. Defaults to `emails`. */
+    allAttendeeEmails?: string[];
     existingGoogleEventId?: string | null;
   }) => {
-    const { eventId, title, emails, date, startTime, endTime, endDate, description, notes, existingGoogleEventId } = params;
+    const { eventId, title, emails, date, startTime, endTime, endDate, description, notes, allAttendeeEmails, existingGoogleEventId } = params;
     // Interpret the event's wall-clock time in the browser's local zone → UTC instants
     // for the .ics attachment carried by the invite email.
     const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
@@ -1547,6 +1549,7 @@ export default function App() {
       end: toIso(endDate ?? date, endTime),
       title,
       description: icsDescription,
+      attendeeEmails: (allAttendeeEmails && allAttendeeEmails.length > 0) ? allAttendeeEmails : emails,
     };
     setInviteConfirm({
       type: 'new',
@@ -4074,10 +4077,11 @@ export default function App() {
           if (!ev) return;
           const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
           const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
+          const guestList = (ev.attendees ?? []).filter((a) => !a.self && a.email).map((a) => a.email);
           resendInvite({
             eventId: ev.id,
             emails: [email],
-            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription },
+            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription, attendeeEmails: guestList },
             senderName: userName || undefined,
           })
             .then(() => toast.success(`Invite resent to ${email}`))
@@ -4088,10 +4092,11 @@ export default function App() {
           if (!ev || emails.length === 0) return;
           const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
           const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
+          const guestList = (ev.attendees ?? []).filter((a) => !a.self && a.email).map((a) => a.email);
           resendInvite({
             eventId: ev.id,
             emails,
-            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription },
+            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription, attendeeEmails: guestList.length > 0 ? guestList : emails },
             senderName: userName || undefined,
           })
             .then((r) => toast.success(`Invitation resent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}`))
@@ -4185,6 +4190,7 @@ export default function App() {
                 endDate: (eventUpdates as { endDate?: string }).endDate ?? event.endDate,
                 description: (eventUpdates as { description?: string | null }).description ?? event.description ?? undefined,
                 notes: (eventUpdates as { notes?: string | null }).notes ?? event.notes ?? undefined,
+                allAttendeeEmails: mergedAttendees.map((a) => a.email),
                 existingGoogleEventId: event.googleEventId,
               });
             }

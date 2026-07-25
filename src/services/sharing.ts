@@ -24,7 +24,7 @@ export async function createShare(params: {
   pushToGoogle?: boolean;
   /** For event-scoped shares: timing/details so the invite email carries an .ics
    *  calendar attachment (lands in the recipient's Google/Outlook/Apple calendar). */
-  event?: { start: string; end: string; title: string; description?: string };
+  event?: { start: string; end: string; title: string; description?: string; attendeeEmails?: string[] };
   /** The inviting user's display name, for the email + .ics organizer. */
   senderName?: string;
 }): Promise<{
@@ -114,7 +114,7 @@ export async function getSharedCalendarsWithEvents(): Promise<import('../types/s
 export async function resendInvite(params: {
   eventId: string;
   emails: string[];
-  event?: { start: string; end: string; title: string; description?: string };
+  event?: { start: string; end: string; title: string; description?: string; attendeeEmails?: string[] };
   senderName?: string;
 }): Promise<{ success: boolean; sent: number }> {
   return callEdgeFunction({ action: 'resend_invite', ...params });
