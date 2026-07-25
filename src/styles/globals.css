@@ -354,6 +354,10 @@ html, body {
   to { transform: translateY(0); }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* === Segmented control base === */
 .segmented-control {
   display: inline-flex;

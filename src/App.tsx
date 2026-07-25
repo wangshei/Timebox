@@ -351,12 +351,9 @@ export default function App() {
 
   // ─── Load shared calendars from accepted invites (production) ──────────
   const sharedCalLoadedRef = useRef(false);
-  useEffect(() => {
-    if (!session || sharedCalLoadedRef.current) return;
+  const loadSharedCalendars = useCallback(async () => {
     if (!import.meta.env.VITE_SUPABASE_URL) return;
-    sharedCalLoadedRef.current = true;
-
-    (async () => {
+    {
       try {
         const shared = (await getSharedCalendarsWithEvents())
           // Drop shares the user has removed from "Shared with me" — they'd otherwise
@@ -430,8 +427,32 @@ export default function App() {
       } catch (err) {
         console.warn('[shared-calendars] Failed to load:', err);
       }
-    })();
-  }, [session]);
+    }
+  }, [dismissedShares]);
+
+  useEffect(() => {
+    if (!session || sharedCalLoadedRef.current) return;
+    sharedCalLoadedRef.current = true;
+    void loadSharedCalendars();
+  }, [session, loadSharedCalendars]);
+
+  // Manual refresh — re-pull own data + shared calendars from the server on demand
+  // (invites/edits from others don't always arrive via realtime, so give a button).
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await loadSupabaseState();
+      await loadSharedCalendars();
+      toast.success('Refreshed');
+    } catch (err) {
+      console.warn('[refresh] Failed:', err);
+      toast.error('Refresh failed');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, loadSharedCalendars]);
 
   // ─── Share Modal state ─────────────────────────────────────────────────────
   const [shareModal, setShareModal] = useState<{
@@ -3229,7 +3250,8 @@ export default function App() {
             <div className="flex-shrink-0" style={{ position: 'relative', borderTop: '1px solid rgba(0,0,0,0.09)' }}>
               {/* Toolbar row */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
-                {/* Profile circle */}
+                {/* Profile circle + refresh */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button
                   type="button"
                   onClick={() => setShowProfileMenu((o) => !o)}
@@ -3245,6 +3267,25 @@ export default function App() {
                 >
                   {profileLetter}
                 </button>
+                {/* Refresh — pull latest events + shared calendars from the server */}
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  title="Refresh — pull latest events & shared calendars"
+                  style={{
+                    padding: 4, borderRadius: 8, border: 'none', cursor: isRefreshing ? 'default' : 'pointer',
+                    backgroundColor: 'transparent', color: '#8E8E93', display: 'flex', alignItems: 'center', flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { if (!isRefreshing) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isRefreshing ? 'spin 0.7s linear infinite' : 'none' }}>
+                    <path d="M13.65 8a5.65 5.65 0 1 1-1.65-4" />
+                    <path d="M13.5 1.5V5H10" />
+                  </svg>
+                </button>
+                </div>
 
                 {/* Right icons: message + bug report + keyboard shortcuts */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
