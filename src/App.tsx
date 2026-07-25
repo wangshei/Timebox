@@ -29,7 +29,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
-import { createShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, getSharedCalendarsWithEvents } from './services/sharing';
+import { createShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, resendInvite, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -4028,6 +4028,20 @@ export default function App() {
 
       <AddModal
         isOpen={isAddModalOpen}
+        onResendInvite={(email) => {
+          const ev = editingEvent;
+          if (!ev) return;
+          const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+          const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
+          resendInvite({
+            eventId: ev.id,
+            emails: [email],
+            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription },
+            senderName: userName || undefined,
+          })
+            .then(() => toast.success(`Invite resent to ${email}`))
+            .catch((err) => toast.error(`Failed to resend: ${err?.message || err}`));
+        }}
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingTaskId(null);

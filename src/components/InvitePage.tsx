@@ -18,6 +18,15 @@ interface InviteData {
 const PRIMARY = '#8DA286';
 const BG = '#F8F7F4';
 
+/** Build a Google Calendar "add event" template URL, pre-filled so one click + Save adds
+ *  it to the recipient's calendar. Times are floating (interpreted in the viewer's zone). */
+function gcalTemplateUrl(ev: { title: string; date: string; start: string; end: string }): string {
+  const fmt = (d: string, t: string) => `${d.replace(/-/g, '')}T${t.replace(/:/g, '')}00`;
+  const dates = `${fmt(ev.date, ev.start)}/${fmt(ev.date, ev.end)}`;
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: ev.title, dates });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 export function InvitePage({ token }: { token: string }) {
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,8 +168,31 @@ export function InvitePage({ token }: { token: string }) {
               </h1>
               {responseStatus === 'accepted' && (
                 <p style={{ fontSize: 14, color: '#636366', lineHeight: 1.6, margin: '0 0 16px' }}>
-                  The shared events will appear on your Google Calendar.
+                  {invite?.scope === 'event'
+                    ? 'Add the event to your calendar below.'
+                    : 'Sign up to see all the shared events in one view.'}
                 </p>
+              )}
+              {/* Add-to-Google-Calendar — pre-filled, one click to save (event invites) */}
+              {responseStatus === 'accepted' && invite?.scope === 'event' && invite.events?.[0] && (
+                <a
+                  href={gcalTemplateUrl(invite.events[0])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: PRIMARY,
+                    color: '#FFFFFF',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    padding: '12px 24px',
+                    borderRadius: 12,
+                    textDecoration: 'none',
+                    margin: '0 0 20px',
+                  }}
+                >
+                  Add to Google Calendar
+                </a>
               )}
               {responseStatus === 'declined' && (
                 <p style={{ fontSize: 14, color: '#8E8E93', lineHeight: 1.5, margin: '0 0 28px' }}>
@@ -200,17 +232,6 @@ export function InvitePage({ token }: { token: string }) {
                 </a>
               </div>
 
-              {/* Small GCal link at bottom */}
-              {responseStatus === 'accepted' && (
-                <a
-                  href="https://calendar.google.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'inline-block', fontSize: 12, color: '#8E8E93', marginTop: 16, textDecoration: 'underline' }}
-                >
-                  Go to my Google Calendar
-                </a>
-              )}
             </div>
           )}
 

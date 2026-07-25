@@ -76,13 +76,18 @@ async function getUserName(userId: string): Promise<string> {
 
 // --- Email via Resend ---
 
-function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string, isEvent = false): string {
+function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string, isEvent = false, gcalUrl = ''): string {
   const introLine = isEvent
     ? `<strong>${senderName}</strong> invited you to <strong>"${shareName}"</strong>.`
     : `<strong>${senderName}</strong> shared <strong>"${shareName}"</strong> with you on The Timeboxing Club.`
   const subLine = isEvent
-    ? `The event is attached — add it to your calendar below, or accept in Timebox.`
+    ? `Add it to your calendar below, or accept in Timebox.`
     : `You'll see their events on your calendar. Accept to get started.`
+  // For event invites, a Google Calendar "add event" button (pre-filled → one click Save)
+  // is the most reliable way to land the event on the recipient's calendar.
+  const gcalButton = (isEvent && gcalUrl)
+    ? `<a href="${gcalUrl}" target="_blank" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;margin:0 0 12px;">Add to Google Calendar</a><br/>`
+    : ''
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
@@ -105,7 +110,8 @@ function inviteEmailHtml(senderName: string, shareName: string, inviteLink: stri
       <p style="margin:0 0 20px;font-size:14px;color:#8E8E93;line-height:1.5;">
         ${subLine}
       </p>
-      <a href="${inviteLink}" style="display:inline-block;background-color:#8DA286;color:#FFFFFF;font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">
+      ${gcalButton}
+      <a href="${inviteLink}" style="display:inline-block;background-color:${isEvent ? 'transparent' : '#8DA286'};color:${isEvent ? '#8DA286' : '#FFFFFF'};font-size:15px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;${isEvent ? 'border:1px solid #8DA286;' : ''}">
         View Invite
       </a>
     </td></tr>
@@ -165,6 +171,16 @@ function parseFromAddress(from: string): string {
  *  (SEQUENCE 0) and each other in calendar clients. */
 function nowSequence(): number {
   return Math.floor(new Date().getTime() / 1000)
+}
+
+/** Build a Google Calendar "add event" template URL. Clicking it opens Google Calendar
+ *  with the event pre-filled — the recipient just clicks Save. This is the most reliable
+ *  way to land on someone's Google Calendar (no OAuth, no .ics parsing quirks). */
+function googleCalendarUrl(p: { title: string; start: string; end: string; description?: string }): string {
+  const dates = `${toIcsUtc(p.start)}/${toIcsUtc(p.end)}`
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: p.title, dates })
+  if (p.description) params.set('details', p.description)
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
 interface IcsInvite {
@@ -279,7 +295,8 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
   }
 
   const inviteLink = `${APP_URL}/invite/${inviteToken}`
-  const html = inviteEmailHtml(senderName, shareName, inviteLink, !!ics)
+  const gcalUrl = ics ? googleCalendarUrl({ title: ics.title, start: ics.start, end: ics.end, description: ics.description }) : ''
+  const html = inviteEmailHtml(senderName, shareName, inviteLink, !!ics, gcalUrl)
 
   const payload: Record<string, unknown> = {
     from: fromEmail,
@@ -671,6 +688,88 @@ async function createShare(userId: string, body: Record<string, unknown>) {
     inviteLinks,
     senderName,
   }
+}
+
+// --- Resend Invite ---
+// Re-send the invite email (+ .ics + Add-to-Google-Calendar) to people already invited
+// to an event, without creating duplicate shares. Finds the event's existing share and
+// member rows (reusing their tokens), creating any that are missing.
+async function resendInvite(userId: string, body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { eventId, emails, event, senderName: senderNameFromClient } = body
+
+  if (!eventId || !emails || !Array.isArray(emails) || emails.length === 0) {
+    throw new Error('Missing required fields: eventId, emails')
+  }
+
+  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string } | undefined
+  const hasIcs = !!eventInfo?.start && !!eventInfo?.end
+  const displayName = (eventInfo?.title as string) || 'Event'
+
+  // Find the existing event share (owner-scoped); create one if it's somehow missing.
+  let { data: share } = await supabase
+    .from('calendar_shares')
+    .select('*')
+    .eq('owner_id', userId)
+    .eq('scope', 'event')
+    .eq('event_id', eventId)
+    .limit(1)
+    .maybeSingle()
+  if (!share) {
+    const { data: newShare, error } = await supabase
+      .from('calendar_shares')
+      .insert({ owner_id: userId, scope: 'event', event_id: eventId, display_name: displayName })
+      .select()
+      .single()
+    if (error) throw new Error(`Failed to create share: ${error.message}`)
+    share = newShare
+  }
+
+  const clientName = typeof senderNameFromClient === 'string' ? senderNameFromClient.trim() : ''
+  const senderName = clientName || await getUserName(userId)
+
+  let sent = 0
+  for (const rawEmail of emails as string[]) {
+    const email = String(rawEmail).toLowerCase().trim()
+    if (!email) continue
+    // Reuse the existing member token so the invite link stays stable; create if missing.
+    let { data: member } = await supabase
+      .from('share_members')
+      .select('*')
+      .eq('share_id', share.id)
+      .eq('email', email)
+      .limit(1)
+      .maybeSingle()
+    if (!member) {
+      const { data: newMember, error } = await supabase
+        .from('share_members')
+        .insert({ share_id: share.id, email, push_to_google: true, token: generateToken() })
+        .select()
+        .single()
+      if (error) continue
+      member = newMember
+    }
+    await sendInviteEmail(
+      email,
+      senderName,
+      displayName,
+      member.token as string,
+      hasIcs
+        ? {
+            uid: `${eventId}@timeboxing.club`,
+            title: displayName,
+            start: eventInfo!.start as string,
+            end: eventInfo!.end as string,
+            description: eventInfo?.description,
+            organizerName: senderName,
+            attendeeEmail: email,
+          }
+        : undefined,
+    )
+    sent++
+  }
+
+  return { success: true, sent }
 }
 
 // --- Add Member ---
@@ -1256,6 +1355,9 @@ serve(async (req) => {
         break
       case 'remove_attendees':
         result = await removeAttendees(userId, body)
+        break
+      case 'resend_invite':
+        result = await resendInvite(userId, body)
         break
       case 'my_shares':
         result = await myShares(userId)

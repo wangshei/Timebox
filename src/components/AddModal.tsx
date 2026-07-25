@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, CheckCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';
@@ -97,6 +97,8 @@ interface AddModalProps {
   onAddTag?: (t: Omit<Tag, 'id'>) => Tag;
   /** Existing subscribers inherited from the selected calendar/category/tags. */
   existingSubscribers?: Array<{ email: string; source: string; sourceId: string }>;
+  /** Re-send the invite to an already-invited attendee (edit mode). */
+  onResendInvite?: (email: string) => void;
 }
 
 const PANEL_WIDTH = 364;
@@ -142,6 +144,7 @@ export function AddModal({
   initialStartTime = null,
   initialEndTime = null,
   existingSubscribers = [],
+  onResendInvite,
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -1218,6 +1221,16 @@ export function AddModal({
                             >
                               {att.email}
                               <span style={{ fontSize: 9, color: '#AEAEB2' }}>({status})</span>
+                              {!isRemoved && onResendInvite && (
+                                <button
+                                  type="button"
+                                  onClick={() => onResendInvite(att.email)}
+                                  className="rounded-full p-0.5 transition-colors hover:bg-black/10"
+                                  title="Resend invite"
+                                >
+                                  <PaperAirplaneIcon className="h-2.5 w-2.5" style={{ color: '#8DA286' }} />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {

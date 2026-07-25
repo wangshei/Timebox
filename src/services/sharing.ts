@@ -109,6 +109,17 @@ export async function getSharedCalendarsWithEvents(): Promise<import('../types/s
   }
 }
 
+/** Re-send the invite (email + .ics + Add-to-Google-Calendar) to people already invited
+ *  to an event. Reuses the existing share/member rows — no duplicates. */
+export async function resendInvite(params: {
+  eventId: string;
+  emails: string[];
+  event?: { start: string; end: string; title: string; description?: string };
+  senderName?: string;
+}): Promise<{ success: boolean; sent: number }> {
+  return callEdgeFunction({ action: 'resend_invite', ...params });
+}
+
 /** Notify attendees when the organizer updates an event. When eventId + event timing
  *  are provided, a revised .ics is attached so guests' calendars update in place. */
 export async function notifyEventUpdate(params: {
