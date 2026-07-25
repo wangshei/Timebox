@@ -4083,6 +4083,20 @@ export default function App() {
             .then(() => toast.success(`Invite resent to ${email}`))
             .catch((err) => toast.error(`Failed to resend: ${err?.message || err}`));
         }}
+        onResendInvites={(emails) => {
+          const ev = editingEvent;
+          if (!ev || emails.length === 0) return;
+          const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+          const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
+          resendInvite({
+            eventId: ev.id,
+            emails,
+            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription },
+            senderName: userName || undefined,
+          })
+            .then((r) => toast.success(`Invitation resent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}`))
+            .catch((err) => toast.error(`Failed to resend: ${err?.message || err}`));
+        }}
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingTaskId(null);

@@ -99,6 +99,8 @@ interface AddModalProps {
   existingSubscribers?: Array<{ email: string; source: string; sourceId: string }>;
   /** Re-send the invite to an already-invited attendee (edit mode). */
   onResendInvite?: (email: string) => void;
+  /** Re-send the invite to multiple already-invited attendees at once (edit mode). */
+  onResendInvites?: (emails: string[]) => void;
 }
 
 const PANEL_WIDTH = 364;
@@ -145,6 +147,7 @@ export function AddModal({
   initialEndTime = null,
   existingSubscribers = [],
   onResendInvite,
+  onResendInvites,
 }: AddModalProps) {
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
@@ -1250,6 +1253,17 @@ export function AddModal({
                           );
                         })}
                       </div>
+                      {/* Resend the invite (email + .ics + Add-to-Google-Calendar) to everyone still invited */}
+                      {onResendInvites && existingAttendees.some((a) => !removedAttendees.has(a.email)) && (
+                        <button
+                          type="button"
+                          onClick={() => onResendInvites(existingAttendees.filter((a) => !removedAttendees.has(a.email)).map((a) => a.email))}
+                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                          style={{ backgroundColor: 'rgba(141,162,134,0.12)', color: '#8DA286', border: '1px solid rgba(141,162,134,0.3)' }}
+                        >
+                          <PaperAirplaneIcon className="h-3 w-3" /> Resend invitation
+                        </button>
+                      )}
                     </div>
                   )}
                   {/* Existing subscribers from calendar/category/tag */}
