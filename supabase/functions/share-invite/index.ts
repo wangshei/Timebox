@@ -166,6 +166,13 @@ function parseFromAddress(from: string): string {
   return (m ? m[1] : from).trim()
 }
 
+/** The .ics ORGANIZER address. When RSVP_INBOUND_EMAIL is configured, use it so guests'
+ *  calendar RSVP replies route to the inbound address (→ rsvp-inbound webhook). Otherwise
+ *  fall back to the From address (RSVP capture simply won't happen). */
+function organizerAddress(fromEmail: string): string {
+  return (Deno.env.get('RSVP_INBOUND_EMAIL') || '').trim() || parseFromAddress(fromEmail)
+}
+
 /** A monotonically increasing ICS SEQUENCE (seconds since epoch). Each edit produces a
  *  strictly higher value than the last, so updates/cancels supersede the original invite
  *  (SEQUENCE 0) and each other in calendar clients. */
@@ -194,7 +201,7 @@ interface IcsInvite {
   attendeeEmails?: string[]   // the FULL guest list, so each participant sees the others
 }
 
-function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): string {
+function buildInviteIcs(p: IcsInvite, organizerAddr: string, sequence = 0): string {
   // ORGANIZER is the service's own send address (matching the email From), NOT the
   // Timebox user's real email. If we used a Google-Workspace user's address here,
   // Gmail tries to load the event from Google Calendar's servers (where it doesn't
@@ -216,7 +223,7 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): s
     `DTEND:${toIcsUtc(p.end)}`,
     `SUMMARY:${escapeIcsText(p.title)}`,
     ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
-    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
+    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddr}`,
     // List every guest so each participant can see the others on their calendar.
     ...(() => {
       const guests = (p.attendeeEmails && p.attendeeEmails.length > 0) ? p.attendeeEmails : [p.attendeeEmail]
@@ -236,7 +243,7 @@ function buildInviteIcs(p: IcsInvite, organizerAddress: string, sequence = 0): s
 
 /** Build a METHOD:CANCEL calendar object so the event is removed from the guest's
  *  calendar. Must reuse the invite's UID and use a higher SEQUENCE than the REQUEST. */
-function buildCancelIcs(p: IcsInvite, organizerAddress: string, sequence: number): string {
+function buildCancelIcs(p: IcsInvite, organizerAddr: string, sequence: number): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -249,7 +256,7 @@ function buildCancelIcs(p: IcsInvite, organizerAddress: string, sequence: number
     `DTSTART:${toIcsUtc(p.start)}`,
     `DTEND:${toIcsUtc(p.end)}`,
     `SUMMARY:${escapeIcsText(p.title)}`,
-    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddress}`,
+    `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddr}`,
     `ATTENDEE;CN=${p.attendeeEmail};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${p.attendeeEmail}`,
     `SEQUENCE:${sequence}`,
     'STATUS:CANCELLED',
@@ -282,7 +289,7 @@ async function sendCancelEmail(recipientEmail: string, senderName: string, ics: 
       html: `<p style="font-family:system-ui,sans-serif;font-size:15px;color:#1C1C1E;">${senderName} removed you from <strong>"${ics.title}"</strong>. It has been removed from your calendar.</p>`,
       attachments: [{
         filename: 'cancel.ics',
-        content: base64Utf8(buildCancelIcs(ics, parseFromAddress(fromEmail), nowSequence())),
+        content: base64Utf8(buildCancelIcs(ics, organizerAddress(fromEmail), nowSequence())),
         content_type: 'text/calendar; method=CANCEL; charset=utf-8',
       }],
     }),
@@ -318,7 +325,7 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
     // Attach the calendar invite so it lands in the recipient's calendar (Gmail RSVP UI).
     payload.attachments = [{
       filename: 'invite.ics',
-      content: base64Utf8(buildInviteIcs(ics, parseFromAddress(fromEmail))),
+      content: base64Utf8(buildInviteIcs(ics, organizerAddress(fromEmail))),
       content_type: 'text/calendar; method=REQUEST; charset=utf-8',
     }]
   }
@@ -534,7 +541,7 @@ async function sendEventUpdateEmail(recipientEmail: string, senderName: string, 
     // calendar entry updates in place instead of creating a duplicate.
     payload.attachments = [{
       filename: 'invite.ics',
-      content: base64Utf8(buildInviteIcs(ics, parseFromAddress(fromEmail), nowSequence())),
+      content: base64Utf8(buildInviteIcs(ics, organizerAddress(fromEmail), nowSequence())),
       content_type: 'text/calendar; method=REQUEST; charset=utf-8',
     }]
   }

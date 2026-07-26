@@ -1,0 +1,6 @@
+# Supabase project config.
+# Only the rsvp-inbound function is configured here: it's an inbound webhook called by
+# Resend (no Supabase JWT), so JWT verification must be disabled for it. All other
+# functions keep the default (verify_jwt = true).
+[functions.rsvp-inbound]
+verify_jwt = false
