@@ -26,7 +26,7 @@ import { MobileApp } from './components/MobileApp';
 import ActivityPanel from './components/ActivityPanel';
 import UpdateChecker from './components/UpdateChecker';
 import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTracking } from './services/desktopActivity';
-import { useStore } from './store/useStore';
+import { useStore, ENTITY_LIMITS } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
 import { createShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, resendInvite, getSharedCalendarsWithEvents } from './services/sharing';
@@ -45,7 +45,7 @@ import {
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
-import { generateRecurrenceDates } from './utils/recurrenceExpander';
+import { generateRecurrenceDates, generateRecurrenceDatesAfter } from './utils/recurrenceExpander';
 import { MINS_PER_DAY, absMinsToEndParts, dayOffsetBetween, addDaysToDateString } from './utils/gridUtils';
 import { splitAroundOverlaps, rangesOverlap, TimeRange } from './utils/splitAroundOverlaps';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
@@ -4132,6 +4132,9 @@ export default function App() {
         editingTimeBlock={editingTimeBlock}
         editingEvent={editingEvent}
         initialRecurrenceEditScope={pendingRecurrenceEditScope}
+        editingSeriesLastDate={editingEvent?.recurrenceSeriesId
+          ? events.filter((e) => e.recurrenceSeriesId === editingEvent.recurrenceSeriesId).reduce((m, e) => (e.date > m ? e.date : m), editingEvent.date)
+          : null}
         initialDate={addModalInitialDate}
         initialStartTime={addModalInitialStart}
         initialEndTime={addModalInitialEnd}
@@ -4165,7 +4168,7 @@ export default function App() {
           }
         }}
         onUpdateEvent={(id, updates) => {
-          const { recurrenceEditScope, inviteEmails, excludedSubscribers: _excluded, removedAttendeeEmails, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] };
+          const { recurrenceEditScope, repeatUntil, inviteEmails, excludedSubscribers: _excluded, removedAttendeeEmails, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; repeatUntil?: string; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] };
           const event = events.find((e) => e.id === id);
           // Attendee changes while editing: recompute the guest list (drop removed, keep
           // the rest, add newly-invited) and fire the invite flow for the new emails only.
@@ -4238,6 +4241,24 @@ export default function App() {
                   changes: { ...sharedUpdates, endDate: spanDays > 0 ? addDaysToDateString(e.date, spanDays) : undefined },
                 }))
             );
+            // "Repeat until": extend the series past its last occurrence, or trim occurrences after the new end.
+            // Never fills gaps, so occurrences the user deleted earlier stay deleted.
+            if (repeatUntil) {
+              const series = events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId);
+              const lastDate = series.reduce((m, e) => (e.date > m ? e.date : m), event.date);
+              const pattern = (eventUpdates as { recurrencePattern?: import('./types').RecurrencePattern }).recurrencePattern ?? event.recurrencePattern;
+              const days = (eventUpdates as { recurrenceDays?: number[] }).recurrenceDays ?? event.recurrenceDays;
+              if (repeatUntil < lastDate) {
+                deleteEvents(series.filter((e) => e.date > repeatUntil).map((e) => e.id));
+              } else if (pattern && pattern !== 'none') {
+                const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...base } = { ...event, ...sharedUpdates };
+                const room = Math.max(0, ENTITY_LIMITS.events - events.length);
+                const newDates = generateRecurrenceDatesAfter(lastDate, pattern, days, repeatUntil).slice(0, room);
+                if (newDates.length) {
+                  addEvents(newDates.map((d) => ({ ...base, date: d, endDate: spanDays > 0 ? addDaysToDateString(d, spanDays) : undefined })));
+                }
+              }
+            }
           } else {
             // Check if a singular event is becoming recurring
             const eu = eventUpdates as typeof eventUpdates & { recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };

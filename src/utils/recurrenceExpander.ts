@@ -84,3 +84,21 @@ export function generateRecurrenceDates(
 
   return [startDate];
 }
+
+/** Max occurrences a "repeat until" extension may generate in one go. */
+const MAX_UNTIL_INSTANCES = 800;
+
+/**
+ * Occurrence dates strictly after `afterDate` (which must itself be an occurrence)
+ * up to and including `untilDate`. Used to extend an existing materialized series.
+ */
+export function generateRecurrenceDatesAfter(
+  afterDate: string,
+  pattern: RecurrencePattern,
+  recurrenceDays: number[] | undefined,
+  untilDate: string
+): string[] {
+  if (pattern === 'none' || untilDate <= afterDate) return [];
+  return generateRecurrenceDates(afterDate, pattern, recurrenceDays, MAX_UNTIL_INSTANCES)
+    .filter((d) => d > afterDate && d <= untilDate);
+}

@@ -895,7 +895,8 @@ export const useStore = create<AppState & AppActions>()(
           const newDate = u.changes.date || e.date;
           const newStart = u.changes.start || e.start;
           const newEnd = u.changes.end || e.end;
-          const newEndDate = u.changes.endDate !== undefined ? u.changes.endDate : e.endDate;
+          // 'in' so an explicit `endDate: undefined` clears the span instead of keeping the stale one.
+          const newEndDate = 'endDate' in u.changes ? u.changes.endDate : e.endDate;
           epochUpdates.startEpoch = dateTimeToEpoch(newDate, newStart);
           epochUpdates.endEpoch = dateTimeToEpoch(newEndDate || newDate, newEnd);
         }

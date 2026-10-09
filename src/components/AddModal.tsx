@@ -45,6 +45,8 @@ interface AddModalProps {
   editingEvent?: Event | null;
   /** Pre-selected scope for editing a recurring event (passed from the scope picker popup). */
   initialRecurrenceEditScope?: 'this' | 'all' | 'all_after';
+  /** Date of the last occurrence of the series being edited (pre-fills "Repeat until"). */
+  editingSeriesLastDate?: string | null;
   /** Pre-fill date/time from drag-to-create (used when adding, not editing). */
   initialDate?: string | null;
   initialStartTime?: string | null;
@@ -69,7 +71,7 @@ interface AddModalProps {
   }) => void;
   onUpdateTask?: (id: string, updates: Partial<Task>) => void;
   onUpdateTimeBlock?: (id: string, updates: Partial<TimeBlock>) => void;
-  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] }) => void;
+  onUpdateEvent?: (id: string, updates: Partial<Event> & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; repeatUntil?: string; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] }) => void;
   onAddEvent: (event: {
     title: string;
     startTime: string;
@@ -133,6 +135,7 @@ export function AddModal({
   editingTimeBlock = null,
   editingEvent = null,
   initialRecurrenceEditScope,
+  editingSeriesLastDate,
   onAddTask,
   onUpdateTask,
   onUpdateTimeBlock,
@@ -191,6 +194,7 @@ export function AddModal({
   const [recurrencePattern, setRecurrencePattern] = useState<RecurrencePattern>('none');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
+  const [repeatUntil, setRepeatUntil] = useState('');
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
 
@@ -279,8 +283,14 @@ export function AddModal({
       setRecurrencePattern('none');
       setRecurrenceDays([]);
       setRecurrenceEditScope('this');
+      setRepeatUntil('');
     }
   }, [isOpen, initialRecurrenceEditScope]);
+
+  // Pre-fill "Repeat until" with the series' current last occurrence when editing a series
+  useEffect(() => {
+    if (isOpen && editingEvent) setRepeatUntil(editingSeriesLastDate ?? '');
+  }, [isOpen, editingEvent?.id, editingSeriesLastDate]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -515,6 +525,8 @@ export function AddModal({
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
         recurrenceEditScope: (editingEvent.recurring || recurrencePattern !== 'none') ? recurrenceEditScope : undefined,
+        // Only sent when the user moved it, so a plain edit never regenerates the series
+        repeatUntil: recurrenceEditScope !== 'this' && repeatUntil && repeatUntil !== editingSeriesLastDate ? repeatUntil : undefined,
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
@@ -1162,6 +1174,16 @@ export function AddModal({
                             {day}
                           </button>
                         ))}
+                      </div>
+                    )}
+                    {editingEvent && editingSeriesLastDate && recurrencePattern !== 'none' && recurrenceEditScope !== 'this' && (
+                      <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: '#636366' }}>
+                        <label htmlFor="repeat-until" className="font-semibold">Repeat until</label>
+                        <input
+                          id="repeat-until" type="date" value={repeatUntil} min={date}
+                          onChange={(e) => setRepeatUntil(e.target.value)}
+                          className="px-2 py-1 rounded-md" style={{ border: '1px solid rgba(0,0,0,0.12)' }}
+                        />
                       </div>
                     )}
                     {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (
