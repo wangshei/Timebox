@@ -4223,19 +4223,20 @@ export default function App() {
           }
           // Notify attendees if this is the organizer's own event
           if (event) notifyAttendeesIfNeeded(event, eventUpdates);
-          if (recurrenceEditScope === 'all' && event?.recurrenceSeriesId) {
-            const { date: _date, endDate: _endDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+          if ((recurrenceEditScope === 'all' || recurrenceEditScope === 'all_after') && event?.recurrenceSeriesId) {
+            const { date: newDate, endDate: newEndDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+            // Each occurrence keeps its own start date, so propagate the end date as a
+            // day-span from the edited occurrence's (possibly new) start date.
+            const spanDays = newEndDate && newEndDate !== (newDate ?? event.date)
+              ? dayOffsetBetween(newDate ?? event.date, newEndDate)
+              : 0;
             updateEvents(
               events
-                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId)
-                .map((e) => ({ id: e.id, changes: sharedUpdates }))
-            );
-          } else if (recurrenceEditScope === 'all_after' && event?.recurrenceSeriesId) {
-            const { date: _date, endDate: _endDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
-            updateEvents(
-              events
-                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && e.date >= event.date)
-                .map((e) => ({ id: e.id, changes: sharedUpdates }))
+                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && (recurrenceEditScope === 'all' || e.date >= event.date))
+                .map((e) => ({
+                  id: e.id,
+                  changes: { ...sharedUpdates, endDate: spanDays > 0 ? addDaysToDateString(e.date, spanDays) : undefined },
+                }))
             );
           } else {
             // Check if a singular event is becoming recurring
