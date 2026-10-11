@@ -9,3 +9,4 @@ export * from './Chip';
 export * from './Toggle';
 export * from './SegmentedControl';
 export * from './ColorSwatch';
+export * from './Sheet';

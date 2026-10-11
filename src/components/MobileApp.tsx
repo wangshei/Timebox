@@ -1,4 +1,5 @@
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
+import { Sheet } from './ds/Sheet';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
@@ -263,27 +264,7 @@ export function MobileApp() {
       {/* Add popup / bottom sheet — picker */}
       {showAddPopup && (
         <>
-          <div
-            onClick={() => setShowAddPopup(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px 16px 0 0',
-              boxShadow: 'var(--tb-sh-sheet)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-              animation: 'slideUp 0.2s ease-out',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
-            </div>
+          <Sheet onBackdropClick={() => setShowAddPopup(false)}>
             <div style={{ padding: '8px 20px 16px' }}>
               <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 12px' }}>Create new...</p>
               <button type="button" onClick={handleNewTask} className="touch-manipulation"
@@ -301,7 +282,7 @@ export function MobileApp() {
                 New Event
               </button>
             </div>
-          </div>
+          </Sheet>
         </>
       )}
 
@@ -315,9 +296,10 @@ export function MobileApp() {
 
 // ─── Shared Section Label ──────────────────────────────────
 
-function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
+function SectionLabel({ children, count, as = 'div', mb = 10, style }: { children: React.ReactNode; count?: number; as?: 'div' | 'label'; mb?: number; style?: React.CSSProperties }) {
+  const Wrapper = as;
   return (
-    <div className="flex items-center gap-2" style={{ margin: '0 0 10px' }}>
+    <Wrapper className="flex items-center gap-2" style={{ margin: `0 0 ${mb}px`, ...style }}>
       <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
         {children}
       </span>
@@ -335,7 +317,7 @@ function SectionLabel({ children, count }: { children: React.ReactNode; count?: 
           {count}
         </span>
       )}
-    </div>
+    </Wrapper>
   );
 }
 
@@ -471,31 +453,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   return (
     <>
       {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      />
-      {/* Sheet */}
-      <div
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px 16px 0 0',
-          boxShadow: 'var(--tb-sh-sheet)',
-          maxHeight: '80dvh',
-          overflowY: 'auto',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-          animation: 'slideUp 0.2s ease-out',
-        }}
-      >
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
-        </div>
+      <Sheet onBackdropClick={onClose} maxHeight="80dvh">
 
         <div style={{ padding: '4px 20px 16px' }}>
           {isEditing ? (
@@ -503,7 +461,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
             <>
               {/* Title input */}
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Title</label>
+                <SectionLabel as="label" mb={4}>Title</SectionLabel>
                 <input
                   type="text"
                   value={editTitle}
@@ -519,7 +477,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
               {/* Date input */}
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
+                <SectionLabel as="label" mb={4}>Date</SectionLabel>
                 <input
                   type="date"
                   value={editDate}
@@ -536,7 +494,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               {/* Time inputs */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <SectionLabel as="label" mb={4}>Start</SectionLabel>
                   <input
                     type="time"
                     value={toInputTime(editStart)}
@@ -550,7 +508,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <SectionLabel as="label" mb={4}>End</SectionLabel>
                   <input
                     type="time"
                     value={toInputTime(editEnd)}
@@ -567,7 +525,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
               {/* Category picker */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Category</label>
+                <SectionLabel as="label" mb={6}>Category</SectionLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {categories.map((c) => {
                     const isSel = editCategoryId === c.id;
@@ -816,7 +774,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
             </>
           )}
         </div>
-      </div>
+      </Sheet>
     </>
   );
 }
@@ -929,7 +887,6 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
   const fmtDuration = (m: number) => m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 > 0 ? ` ${m % 60}m` : ''}`;
 
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 };
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', fontSize: 16, color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)', outline: 'none', boxSizing: 'border-box', minHeight: 44 };
   const chipStyle = (sel: boolean, color?: string): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
@@ -940,19 +897,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)', backgroundColor: 'rgba(0,0,0,0.35)', WebkitTapHighlightColor: 'transparent' }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
-        backgroundColor: '#FFFFFF', borderRadius: '18px 18px 0 0',
-        boxShadow: '0 -4px 24px rgba(0,0,0,0.14)',
-        maxHeight: '90dvh', overflowY: 'auto',
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-        animation: 'slideUp 0.22s ease-out',
-      }}>
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
-        </div>
+      <Sheet onBackdropClick={onClose} maxHeight="90dvh">
 
         <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Header */}
@@ -967,7 +912,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
           {/* Title */}
           <div>
-            <label style={labelStyle}>Title</label>
+            <SectionLabel as="label" mb={5}>Title</SectionLabel>
             <input
               ref={inputRef}
               type="text"
@@ -983,17 +928,17 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {mode === 'event' && (
             <>
               <div>
-                <label style={labelStyle}>Date</label>
+                <SectionLabel as="label" mb={5}>Date</SectionLabel>
                 <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} style={{ ...inputStyle, fontSize: 16 }} />
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Start</label>
+                  <SectionLabel as="label" mb={5}>Start</SectionLabel>
                   <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)}
                     style={{ ...inputStyle, fontSize: 14, padding: '10px 10px' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>End</label>
+                  <SectionLabel as="label" mb={5}>End</SectionLabel>
                   <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
                     style={{ ...inputStyle, fontSize: 14, padding: '10px 10px' }} />
                 </div>
@@ -1013,7 +958,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {mode === 'task' && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Estimated Time</label>
+                <SectionLabel as="label" mb={0}>Estimated Time</SectionLabel>
                 <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textPrimary }}>{fmtDuration(estimatedMins)}</span>
               </div>
               <input
@@ -1031,7 +976,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Calendar (if multiple) */}
           {calendarContainers.length > 1 && (
             <div>
-              <label style={labelStyle}>Calendar</label>
+              <SectionLabel as="label" mb={5}>Calendar</SectionLabel>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {calendarContainers.map((cal) => (
                   <button key={cal.id} type="button" onClick={() => setCalendarId(cal.id)} className="touch-manipulation"
@@ -1046,7 +991,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
           {/* Category */}
           <div>
-            <label style={labelStyle}>Category</label>
+            <SectionLabel as="label" mb={5}>Category</SectionLabel>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {filteredCategories.map((c) => (
                 <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} className="touch-manipulation"
@@ -1061,7 +1006,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Tags (task only, if category has tags) */}
           {mode === 'task' && selectedCategory && categoryTags.length > 0 && (
             <div>
-              <label style={labelStyle}>Tags <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
+              <SectionLabel as="label" mb={5}>Tags <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></SectionLabel>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {categoryTags.map((tag) => (
                   <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)} className="touch-manipulation"
@@ -1076,7 +1021,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Task-only: due date */}
           {mode === 'task' && (
             <div>
-              <label style={labelStyle}>Due Date <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
+              <SectionLabel as="label" mb={5}>Due Date <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></SectionLabel>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                 style={{ ...inputStyle, fontSize: 16 }} />
             </div>
@@ -1084,7 +1029,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
           {/* Notes */}
           <div>
-            <label style={labelStyle}>Notes <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
+            <SectionLabel as="label" mb={5}>Notes <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></SectionLabel>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -1111,7 +1056,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
             {mode === 'task' ? 'Add Note' : 'Create Event'}
           </button>
         </div>
-      </div>
+      </Sheet>
     </>
   );
 }
@@ -2286,26 +2231,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       {/* Event creation sheet */}
       {showEventForm && (
         <>
-          <div
-            onClick={() => { setShowEventForm(false); setEventTitle(''); }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
-              backgroundColor: '#FFFFFF', borderRadius: '16px 16px 0 0',
-              boxShadow: 'var(--tb-sh-sheet)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-              animation: 'slideUp 0.2s ease-out',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
-            </div>
+          <Sheet onBackdropClick={() => { setShowEventForm(false); setEventTitle(''); }}>
             <div style={{ padding: '8px 20px 16px' }}>
               <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 12px' }}>New Event</p>
               <input
@@ -2327,12 +2253,12 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               />
               <div className="flex gap-2" style={{ marginBottom: 10 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <SectionLabel as="label" mb={4}>Start</SectionLabel>
                   <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <SectionLabel as="label" mb={4}>End</SectionLabel>
                   <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
@@ -2372,7 +2298,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                 </button>
               </div>
             </div>
-          </div>
+          </Sheet>
         </>
       )}
     </div>
@@ -2580,32 +2506,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
       {showReschedulePicker && (
         <>
           {/* Backdrop */}
-          <div
-            onClick={(e) => { e.stopPropagation(); setShowReschedulePicker(false); }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          />
-          {/* Bottom sheet picker */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px 16px 0 0',
-              boxShadow: 'var(--tb-sh-sheet)',
-              maxHeight: '75dvh',
-              overflowY: 'auto',
-              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-              animation: 'slideUp 0.2s ease-out',
-            }}
-          >
-            {/* Drag handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.12)' }} />
-            </div>
+          <Sheet onBackdropClick={(e) => { e.stopPropagation(); setShowReschedulePicker(false); }} maxHeight="75dvh" stopClicks>
 
             <div style={{ padding: '4px 20px 16px' }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 14px' }}>
@@ -2614,7 +2515,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
               {/* Date picker — day buttons */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a day</span>
+                <SectionLabel mb={6}>Pick a day</SectionLabel>
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                   {dayOptions.map((opt) => {
                     const isSel = pickerDate === opt.date;
@@ -2643,7 +2544,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
               {/* Time slot picker */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a time</span>
+                <SectionLabel mb={6}>Pick a time</SectionLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {timeSlots.map((slot) => {
                     const isSel = pickerTime === slot.value;
@@ -2712,7 +2613,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
                 </button>
               </div>
             </div>
-          </div>
+          </Sheet>
         </>
       )}
     </div>
