@@ -1,3 +1,4 @@
+import { FEATURES } from '../config/features';
 import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
@@ -392,7 +393,7 @@ export function RightSidebar({
             Unscheduled
             <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{unscheduledList.length}</span>
           </h2>
-          {onAutoSchedule && unscheduledList.length > 0 && (
+          {FEATURES.autoSchedule && onAutoSchedule && unscheduledList.length > 0 && (
             <button
               type="button"
               onClick={() => onAutoSchedule(unscheduledList.map((t) => t.id))}

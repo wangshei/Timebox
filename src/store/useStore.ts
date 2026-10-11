@@ -3,6 +3,7 @@
  * See docs/SYSTEM_INTEGRATION.md and docs/ENGINEERING_LEAD.md.
  */
 
+import { FEATURES } from '../config/features';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type {
@@ -1036,7 +1037,7 @@ export function hydrateFromLocalStorage() {
       ...parsed,
     }));
     const stored = parsed.viewMode as string | undefined;
-    if (stored !== 'overall' && stored !== 'compare') {
+    if ((stored !== 'overall' && stored !== 'compare') || (stored === 'compare' && !FEATURES.compareMode)) {
       useStore.setState({ viewMode: 'overall' });
     }
   } catch {

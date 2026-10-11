@@ -11,6 +11,7 @@ import { CalendarView } from './components/CalendarView';
 import { RightSidebar } from './components/RightSidebar';
 import { AddModal } from './components/AddModal';
 import { ScheduleTaskModal } from './components/ScheduleTaskModal';
+import { FEATURES } from './config/features';
 import { SchedulingModal } from './components/SchedulingModal';
 import { LeftSidebar } from './components/LeftSidebar';
 import { ShareModal } from './components/ShareModal';
@@ -989,7 +990,7 @@ export default function App() {
   const [activityTimeBlocks, setActivityTimeBlocks] = useState<TimeBlock[]>([]);
   const defaultContainerId = calendarContainers[0]?.id ?? '';
   useEffect(() => {
-    const shouldLoad = activityPanelOpen || showActivityInCalendar;
+    const shouldLoad = FEATURES.activityPanel && (activityPanelOpen || showActivityInCalendar);
     if (!isTauri() || !shouldLoad || !defaultContainerId) {
       setActivityTimeBlocks([]);
       return;
@@ -1032,7 +1033,7 @@ export default function App() {
 
   // Poll activity tracking status for the red dot indicator
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!FEATURES.activityPanel || !isTauri()) return;
     let cancelled = false;
     const check = async () => {
       try {
@@ -1098,15 +1099,15 @@ export default function App() {
     if (analyticsDateRange.length) expandRecurringTasks(analyticsDateRange);
   }, [analyticsDateRange, expandRecurringTasks]);
   const planVsActualByCategory = useMemo(
-    () => selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories, undefined, events),
+    () => !FEATURES.compareMode ? [] : selectPlanVsActualByCategory(timeBlocks, analyticsDateRange, categories, undefined, events),
     [timeBlocks, analyticsDateRange, categories, events]
   );
   const planVsActualByContainer = useMemo(
-    () => selectPlanVsActualByContainer(timeBlocks, analyticsDateRange, calendarContainers, undefined, events),
+    () => !FEATURES.compareMode ? [] : selectPlanVsActualByContainer(timeBlocks, analyticsDateRange, calendarContainers, undefined, events),
     [timeBlocks, analyticsDateRange, calendarContainers, events]
   );
   const planVsActualByTag = useMemo(
-    () => selectPlanVsActualByTag(timeBlocks, analyticsDateRange, tags),
+    () => !FEATURES.compareMode ? [] : selectPlanVsActualByTag(timeBlocks, analyticsDateRange, tags),
     [timeBlocks, analyticsDateRange, tags]
   );
 
@@ -2703,7 +2704,7 @@ export default function App() {
       else if (key === '3') { setView('3day'); e.preventDefault(); }
       else if (key === 'w') { setView('week'); e.preventDefault(); }
       else if (key === 'm') { setView('month'); e.preventDefault(); }
-      else if (key === 'c') { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
+      else if (key === 'c' && FEATURES.compareMode) { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
       else if (key === 'a') { setAllCalendarsVisible(); e.preventDefault(); }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -3015,9 +3016,9 @@ export default function App() {
                 sharedMappings={sharedMappings}
                 onSetSharedMapping={handleSetSharedMapping}
                 onShare={handleOpenShare}
-                schedulingLinks={schedulingLinks}
+                schedulingLinks={FEATURES.bookingLinks ? schedulingLinks : []}
                 bookings={bookings}
-                onCreateSchedulingLink={() => {
+                onCreateSchedulingLink={!FEATURES.bookingLinks ? undefined : () => {
                   setEditingSchedulingLinkId(null);
                   setSelectedAvailSlots([]);
                   setShowSchedulingModal(true);
@@ -3735,7 +3736,7 @@ export default function App() {
 
         <CalendarView
           mode={mode}
-          onModeChange={setViewMode}
+          onModeChange={FEATURES.compareMode ? setViewMode : undefined}
           view={view}
           onViewChange={setView}
           selectedDate={selectedDate}
@@ -3852,7 +3853,7 @@ export default function App() {
                 To-Dos
               </span>
               <div className="flex items-center gap-1.5">
-                {isTauri() && (
+                {FEATURES.activityPanel && isTauri() && (
                   <button
                     type="button"
                     onClick={() => setActivityPanelOpen(!activityPanelOpen)}
@@ -3913,7 +3914,7 @@ export default function App() {
                   updateTask(taskId, { priority: next });
                 }}
                 onRescheduleLater={handleRescheduleLater}
-                onAutoSchedule={handleAutoSchedule}
+                onAutoSchedule={FEATURES.autoSchedule ? handleAutoSchedule : undefined}
                 events={events}
                 onDeleteEvent={handleDeleteEvent}
                 onDeleteEventSeries={handleDeleteEventSeries}
@@ -3923,7 +3924,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {activityPanelOpen && (
+        {FEATURES.activityPanel && activityPanelOpen && (
           <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', borderLeft: '1px solid rgba(0,0,0,0.09)' }}>
             <ActivityPanel selectedDate={selectedDate} onClose={() => setActivityPanelOpen(false)} onShowInCalendarChange={setShowActivityInCalendar} />
           </div>
@@ -3944,6 +3945,7 @@ export default function App() {
         onClose={() => setSchedulingTaskId(null)}
       />
 
+      {FEATURES.bookingLinks && (
       <SchedulingModal
         isOpen={showSchedulingModal}
         onClose={handleSchedulingModalClose}
@@ -3953,6 +3955,7 @@ export default function App() {
         onEnterSelectionMode={handleEnterSelectionFromModal}
         selectionModeActive={schedulingSelectionMode}
       />
+      )}
 
       {/* Invite / Update notification confirmation popup */}
       {inviteConfirm && createPortal(

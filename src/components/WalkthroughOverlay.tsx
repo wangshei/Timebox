@@ -1,3 +1,4 @@
+import { FEATURES } from '../config/features';
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { NowProvider } from '../contexts/NowContext';
 import { LeftSidebar } from './LeftSidebar';
@@ -30,7 +31,7 @@ interface TourStep {
   showSettings: boolean;
 }
 
-const STEPS: TourStep[] = [
+const ALL_STEPS: TourStep[] = [
   {
     target: 'left-sidebar',
     title: 'Your Calendar, Your Way',
@@ -77,6 +78,8 @@ const STEPS: TourStep[] = [
     showSettings: true,
   },
 ];
+
+const STEPS: TourStep[] = FEATURES.compareMode ? ALL_STEPS : ALL_STEPS.filter((s) => s.mode !== 'compare');
 
 // ── Spotlight helpers (reused from OnboardingTour) ───────────────────────────
 

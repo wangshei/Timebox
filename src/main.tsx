@@ -4,6 +4,7 @@ import App from './App.tsx';
 import { InvitePage } from './components/InvitePage';
 import { GcalCallbackPage } from './components/GcalCallbackPage';
 import { DesktopPage } from './components/DesktopPage';
+import { FEATURES } from './config/features';
 import { BookingPage } from './components/BookingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
@@ -36,7 +37,7 @@ function getGcalCode(): string | null {
 
 const desktopPage = isDesktopPage();
 const inviteToken = getInviteToken();
-const bookingSlug = getBookingSlug();
+const bookingSlug = FEATURES.bookingLinks ? getBookingSlug() : null;
 const gcalCode = getGcalCode();
 
 // Phase 2: local persistence bootstrap (runs once on startup in browser)
