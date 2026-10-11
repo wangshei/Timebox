@@ -1,3 +1,4 @@
+import { RADIUS } from '../styles/tokens';
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -352,7 +353,7 @@ export function EventCard({
       <div
         className={cn(
           `h-full w-full transition-all flex flex-col min-h-0 overflow-hidden ${useCompact ? 'px-1.5 py-0.5' : 'px-3 py-2'}`,
-          plannedStyle ? '' : 'border-l-4 rounded-r-[6px]',
+          plannedStyle ? '' : 'border-l-4',
           isSelected && 'ring-2 ring-offset-1'
         )}
         style={{
@@ -361,6 +362,7 @@ export function EventCard({
           ...(isSelected ? { '--tw-ring-color': '#8DA286' } as React.CSSProperties : {}),
           ...borderStyle,
           boxShadow: diffBoxShadow,
+          borderRadius: RADIUS.sm,
           ...segmentRadius,
         }}
       >
@@ -494,7 +496,7 @@ export function EventCard({
           <div
             ref={popoverRef}
             className="fixed rounded-xl p-3 overflow-hidden"
-            style={{
+            style={{ borderRadius: RADIUS.lg,
               zIndex: 'var(--tb-z-popover)',
               width: 220,
               maxWidth: 220,

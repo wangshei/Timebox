@@ -789,7 +789,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Wake time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Earliest scheduling boundary</p>
                   </div>
-                  <Input type="time" size="sm" value={wakeTime} onChange={(e) => onWakeTimeChange?.(e.target.value)} style={{ width: 120, padding: "0 8px", flexShrink: 0 }} />
+                  <Input type="time" size="sm" value={wakeTime} onChange={(e) => onWakeTimeChange?.(e.target.value)} style={{ width: 104, padding: "0 6px", fontSize: 12, flexShrink: 0 }} />
                 </div>
                 <div
                   className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
@@ -799,7 +799,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Sleep time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Latest scheduling boundary</p>
                   </div>
-                  <Input type="time" size="sm" value={sleepTime} onChange={(e) => onSleepTimeChange?.(e.target.value)} style={{ width: 120, padding: "0 8px", flexShrink: 0 }} />
+                  <Input type="time" size="sm" value={sleepTime} onChange={(e) => onSleepTimeChange?.(e.target.value)} style={{ width: 104, padding: "0 6px", fontSize: 12, flexShrink: 0 }} />
                 </div>
 
                 {/* ── Timezone ── */}
@@ -828,7 +828,7 @@ export function SettingsPanel({
                         style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', textAlign: 'left' }}
                       >
                         <span className="truncate">{selectedTz}</span>
-                        {tzDropdownOpen ? <ChevronUpIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} /> : <ChevronDownIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} />}
+                        {tzDropdownOpen ? <ChevronUpIcon className="flex-shrink-0" style={{ width: 12, height: 12, marginLeft: 4 }} /> : <ChevronDownIcon className="flex-shrink-0" style={{ width: 12, height: 12, marginLeft: 4 }} />}
                       </button>
                       {tzDropdownOpen && (
                         <Popover style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)' as unknown as number, borderRadius: 8, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 2, padding: 0 }}>

@@ -44,8 +44,8 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
   return (
     <Popover
       ref={popoverRef}
-      className="absolute left-0 top-full mt-1 w-64"
-      style={{ padding: 12 }}
+      className="absolute left-0 top-full"
+      style={{ padding: 12, marginTop: 4, width: 256 }}
 >
       <p className="text-sm font-semibold mb-2.5" style={{ color: '#3A3A3C' }}>Add calendar</p>
       <form onSubmit={handleSubmit} className="space-y-2.5">

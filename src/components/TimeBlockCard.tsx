@@ -839,7 +839,7 @@ function TimeBlockCardInner({
     const blockStyle = getBlockInlineStyle();
     // Events: rounded right side. Tasks: borderRadius from inline style.
     const containerClass = isEvent
-      ? 'h-full overflow-hidden min-w-0 rounded-r-[6px]'
+      ? 'h-full overflow-hidden min-w-0'
       : 'h-full overflow-hidden min-w-0';
 
     const diffColor = diffStatus === 'unplanned' ? 'rgba(52,199,89,0.75)'
@@ -967,7 +967,7 @@ function TimeBlockCardInner({
           <div
             ref={popoverRef}
             className="fixed rounded-xl p-3"
-            style={{
+            style={{ borderRadius: RADIUS.lg,
               zIndex: 'var(--tb-z-popover)',
               width: 220,
               maxWidth: 220,
@@ -992,7 +992,7 @@ function TimeBlockCardInner({
   const blockStyle = getBlockInlineStyle();
   // Events: rounded right side. Tasks: borderRadius from inline style.
   const containerClass = isEvent
-    ? 'h-full overflow-hidden min-w-0 rounded-r-[6px]'
+    ? 'h-full overflow-hidden min-w-0'
     : 'h-full overflow-hidden min-w-0';
 
   // Padding scales with size
@@ -1198,7 +1198,7 @@ function TimeBlockCardInner({
         <div
           ref={popoverRef}
           className="fixed rounded-xl p-3"
-          style={{
+          style={{ borderRadius: RADIUS.lg,
             zIndex: 'var(--tb-z-popover)',
             width: 240,
             maxWidth: 240,

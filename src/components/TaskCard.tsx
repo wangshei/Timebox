@@ -535,7 +535,7 @@ export function TaskCard({
           <div
             ref={popoverRef}
             className="fixed rounded-xl p-3 min-w-[268px] max-w-xs overflow-hidden"
-            style={{
+            style={{ borderRadius: RADIUS.lg,
               zIndex: 'var(--tb-z-popover)',
               top: popoverRect.top,
               left: popoverRect.left,
@@ -675,7 +675,7 @@ export function TaskCard({
         <div
           ref={popoverRef}
           className="fixed rounded-xl p-3 min-w-[272px] max-w-xs overflow-hidden"
-          style={{
+          style={{ borderRadius: RADIUS.lg,
             zIndex: 'var(--tb-z-popover)',
             top: popoverRect.top,
             left: popoverRect.left,

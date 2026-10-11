@@ -732,7 +732,7 @@ export function AddModal({
           {mode === 'task' && (
             <>
               {/* Todo checkbox — unticked = sticky note */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none" style={{ fontSize: 13, color: THEME.textPrimary }}>
+              <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: THEME.textPrimary }}>
                 <input
                   type="checkbox"
                   checked={isTodo}
@@ -887,8 +887,8 @@ export function AddModal({
                 </div>
                 {tzPickerOpen && timezoneEnabled && (
                   <Popover
-                    className="absolute left-0 mt-1 overflow-hidden"
-                    style={{ zIndex: 'var(--tb-z-dropdown)' as unknown as number, width: 260, padding: 0 }}
+                    className="absolute left-0 overflow-hidden"
+                    style={{ marginTop: 4, zIndex: 'var(--tb-z-dropdown)' as unknown as number, width: 260, padding: 0 }}
                   >
                     <div className="p-1.5">
                       <input
