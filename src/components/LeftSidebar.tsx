@@ -1,17 +1,6 @@
 import { FEATURES } from '../config/features';
 import React, { useState } from 'react';
-import {
-  PlusIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  PencilIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ArrowLeftIcon,
-  UserGroupIcon,
-  ShareIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/solid';
+import { PlusIcon, ChevronRightIcon, ChevronDownIcon, PencilIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, UserGroupIcon, ShareIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { CalendarContainer, Category, Tag, TimeBlock, SchedulingLink, Booking } from '../types';
 import type { CalendarContainerVisibility } from '../types';
 import {

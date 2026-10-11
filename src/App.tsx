@@ -1,11 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Cog6ToothIcon,
-  CheckIcon,
-  PencilIcon,
-  CalendarIcon,
-} from '@heroicons/react/24/solid';
+import { Cog6ToothIcon, CheckIcon, PencilIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftOnRectangleIcon, ArrowPathIcon, ArrowRightOnRectangleIcon, BugAntIcon, ChatBubbleLeftEllipsisIcon, ChevronLeftIcon, ChevronRightIcon, ComputerDesktopIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { CalendarView } from './components/CalendarView';
 // DraggableBottomSheet removed — replaced by slide-from-right todo panel
 import { RightSidebar } from './components/RightSidebar';
@@ -3284,10 +3280,7 @@ export default function App() {
                   onMouseEnter={(e) => { if (!isRefreshing) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isRefreshing ? 'spin 0.7s linear infinite' : 'none' }}>
-                    <path d="M13.65 8a5.65 5.65 0 1 1-1.65-4" />
-                    <path d="M13.5 1.5V5H10" />
-                  </svg>
+                  <ArrowPathIcon style={{ width: 14, height: 14, animation: isRefreshing ? 'spin 0.7s linear infinite' : 'none' }} />
                 </button>
                 </div>
 
@@ -3310,10 +3303,7 @@ export default function App() {
                       onMouseLeave={(e) => { if (!showBroadcastPopup) e.currentTarget.style.backgroundColor = showBroadcastPopup ? 'rgba(88,86,214,0.09)' : 'transparent'; }}
                       title="New message"
                     >
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 3h12v8H4l-2 2V3z" />
-                        <path d="M5 7h6M5 9h3" />
-                      </svg>
+                      <ChatBubbleLeftEllipsisIcon style={{ width: 14, height: 14 }} />
                       {/* Unread dot — shows when popup hasn't been dismissed yet */}
                       {showBroadcastPopup && (
                         <div style={{
@@ -3339,12 +3329,7 @@ export default function App() {
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       title="Download desktop app"
                     >
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="2" width="12" height="9" rx="1.5" />
-                        <path d="M5 14h6" />
-                        <path d="M8 11v3" />
-                        <path d="M8 5v3M6 7l2 2 2-2" />
-                      </svg>
+                      <ComputerDesktopIcon style={{ width: 14, height: 14 }} />
                     </a>
                   )}
 
@@ -3361,10 +3346,7 @@ export default function App() {
                     onMouseLeave={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
                     title="Report a bug"
                   >
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="8" cy="9" r="4" /><path d="M8 5V3" /><path d="M4 9H2M14 9h-2" />
-                      <path d="M4.5 5.5 3 4M11.5 5.5 13 4" /><path d="M4.5 12.5 3 14M11.5 12.5 13 14" />
-                    </svg>
+                    <BugAntIcon style={{ width: 14, height: 14 }} />
                   </button>
 
                   {/* Keyboard shortcuts button */}
@@ -3431,9 +3413,7 @@ export default function App() {
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M10 8H2M2 8L5 5M2 8l3 3" /><path d="M6 5V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2" />
-                          </svg>
+                          <ArrowRightOnRectangleIcon style={{ width: 14, height: 14 }} />
                           Sign out
                         </button>
                         <button
@@ -3443,9 +3423,7 @@ export default function App() {
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.05)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 0 1 1.34-1.34h2.66a1.33 1.33 0 0 1 1.34 1.34V4M12 5.33v8a1.33 1.33 0 0 1-1.33 1.34H5.33A1.33 1.33 0 0 1 4 13.33v-8" />
-                          </svg>
+                          <TrashIcon style={{ width: 14, height: 14 }} />
                           Delete account
                         </button>
                       </>
@@ -3457,9 +3435,7 @@ export default function App() {
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
                       >
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 8h8M11 5l3 3-3 3" /><path d="M10 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2" />
-                        </svg>
+                        <ArrowLeftOnRectangleIcon style={{ width: 14, height: 14 }} />
                         Sign in to save data
                       </button>
                     )}
@@ -3684,9 +3660,7 @@ export default function App() {
             }}
             title="Show panel"
           >
-            <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
-              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronRightIcon style={{ width: 16, height: 16 }} />
           </button>
         )}
         {/* Left bar — 8px, warm center line; click toggles, drag left closes / drag right opens */}
@@ -3841,9 +3815,7 @@ export default function App() {
             }}
             title="Show to-dos"
           >
-            <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
-              <path d="M7 1L2 6l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronLeftIcon style={{ width: 16, height: 16 }} />
           </button>
         )}
         {rightPanelOpen && (
@@ -3865,11 +3837,7 @@ export default function App() {
                     }}
                     title="Screen activity"
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-                      <path d="M5 14h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      <path d="M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                    </svg>
+                    <ComputerDesktopIcon style={{ width: 16, height: 16 }} />
                     {isActivityTracking && (
                       <span
                         className="absolute"

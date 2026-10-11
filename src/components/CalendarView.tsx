@@ -1,6 +1,7 @@
 import { MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { Bars3BottomLeftIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event, AvailableSlot } from '../types';
 import { useStore } from '../store/useStore';
 import { resolveTimeBlocks, resolveEvents, selectMainViewBlocks } from '../utils/dataResolver';
@@ -396,7 +397,7 @@ export function CalendarView({
               style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
               aria-label="Open calendars"
             >
-              <svg width="16" height="12" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+              <Bars3Icon style={{ width: 16, height: 16 }} />
             </button>
           )}
 
@@ -500,9 +501,7 @@ export function CalendarView({
               style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
               aria-label="Open to-dos"
             >
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <path d="M3 4h14M3 8h14M3 12h10M3 16h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+              <Bars3BottomLeftIcon style={{ width: 16, height: 16 }} />
             </button>
           )}
         </div>

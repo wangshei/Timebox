@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import type { CalendarContainer, Category, Tag } from '../types';
 import { ColorPicker } from './ColorPicker';
 import { EditColorModal } from './EditColorModal';

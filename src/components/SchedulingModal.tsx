@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import type { AvailableSlot, SchedulingLink } from '../types';
 import { useStore } from '../store/useStore';
 import { THEME } from '../constants/colors';

@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Task, Category, Tag } from '../App';
 import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
-import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon, RectangleStackIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon, RectangleStackIcon } from '@heroicons/react/24/outline';
 import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon, UserPlusIcon, UserGroupIcon, CloudIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon, UserPlusIcon, UserGroupIcon, CloudIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, ComputerDesktopIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
 import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
@@ -880,9 +881,7 @@ export function SettingsPanel({
                         style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', textAlign: 'left' }}
                       >
                         <span className="truncate">{selectedTz}</span>
-                        <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tzDropdownOpen ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
-                        </svg>
+                        {tzDropdownOpen ? <ChevronUpIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} /> : <ChevronDownIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} />}
                       </button>
                       {tzDropdownOpen && (
                         <div
@@ -1515,10 +1514,7 @@ export function SettingsPanel({
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8DA286" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-                          <line x1="12" y1="18" x2="12.01" y2="18" />
-                        </svg>
+                        <DevicePhoneMobileIcon style={{ width: 18, height: 18, color: '#8DA286' }} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>Add to Home Screen</p>
@@ -1551,11 +1547,7 @@ export function SettingsPanel({
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}>
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                          <rect x="1.5" y="2.5" width="15" height="11" rx="1.5" stroke="#8DA286" strokeWidth="1.3" />
-                          <path d="M5.5 15.5h7" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
-                          <path d="M9 13.5v2" stroke="#8DA286" strokeWidth="1.3" strokeLinecap="round" />
-                        </svg>
+                        <ComputerDesktopIcon style={{ width: 18, height: 18, color: '#8DA286' }} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p style={{ fontSize: 12, fontWeight: 600, color: '#1C1C1E', margin: 0 }}>Screen activity tracking</p>
@@ -1579,10 +1571,7 @@ export function SettingsPanel({
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A3A3C')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1C1C1E')}
                     >
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                        <path d="M7 1v9M3.5 6.5L7 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M2 12h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                      </svg>
+                      <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
                       Download for macOS
                     </a>
                   </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bars3Icon } from '@heroicons/react/24/solid';
+import { Bars3Icon } from '@heroicons/react/24/outline';
 import { Task, Category, Tag } from '../App';
 import { RightSidebar } from './RightSidebar';
 import type { TimeBlock } from '../types';

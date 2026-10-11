@@ -11,15 +11,8 @@ import { formatTime12, formatDateHeader, parseTaskInput } from '../utils/formatt
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
 import { dismissGcalEventId } from '../services/googleCalendar';
-import {
-  CheckIcon,
-  XMarkIcon,
-  ClockIcon,
-  CalendarIcon,
-  StarIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/solid';
+import { CheckIcon, XMarkIcon, ClockIcon, CalendarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
 
 /** Hook that returns current time in minutes, updating every 30s. */
 function useCurrentMinutes(): number {

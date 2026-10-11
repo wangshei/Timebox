@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useBreakpoint } from '../utils/useBreakpoint';
-import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, CheckCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { StarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
 import { getLocalDateString, getLocalTimeZone, getTimezoneAbbr } from '../utils/dateTime';

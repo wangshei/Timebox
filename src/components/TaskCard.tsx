@@ -3,16 +3,8 @@ import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { BREAKPOINTS } from '../utils/useBreakpoint';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
-import {
-  Bars3Icon,
-  CalendarIcon,
-  CheckIcon,
-  ClockIcon,
-  PencilIcon,
-  XMarkIcon,
-  StarIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/solid';
+import { Bars3Icon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
 import { THEME } from '../constants/colors';

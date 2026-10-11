@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarIcon } from '@heroicons/react/24/solid';
+import { CalendarIcon } from '@heroicons/react/24/outline';
 import { CalendarContainer, CalendarContainerVisibility } from '../types';
 
 interface CalendarContainerListProps {

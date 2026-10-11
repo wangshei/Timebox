@@ -1,7 +1,8 @@
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon, ScissorsIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon, ScissorsIcon } from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon, ChevronRightIcon, LockClosedIcon, MapPinIcon, PlusCircleIcon, UsersIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { ResolvedEvent } from '../utils/dataResolver';
 import type { RecurrencePattern } from '../types';
 import { cn } from './ui/utils';
@@ -560,9 +561,7 @@ export function EventCard({
               {event.attendees && event.attendees.length > 0 && (
                 <div className="mt-1 mb-1">
                   <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textMuted, fontSize: 11 }}>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
-                      <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4H4zm9-7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm1 7c0-.7-.1-1.4-.4-2h2.4c.6 0 1 .4 1 1v1h-3z" />
-                    </svg>
+                    <UsersIcon style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.6 }} />
                     <span style={{ fontWeight: 500 }}>{event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="pl-4 flex flex-col gap-0.5">
@@ -604,9 +603,7 @@ export function EventCard({
                     style={{ color: THEME.textMuted, fontSize: 11 }}
                     onClick={() => setShowDetails(d => !d)}
                   >
-                    <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
-                      <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    </svg>
+                    <ChevronRightIcon style={{ width: 12, height: 12, transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
                     Details
                   </button>
                   {showDetails && (
@@ -623,9 +620,9 @@ export function EventCard({
                           onClick={(e) => e.stopPropagation()}
                         >
                           {/meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) ? (
-                            <svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M1 3.5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z" stroke="#8DA286" strokeWidth="1"/><path d="M7 4l2-1v4l-2-1" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <VideoCameraIcon style={{ width: 12, height: 12, flexShrink: 0, color: '#8DA286' }} />
                           ) : (
-                            <svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M8 5.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a1 1 0 011-1h2" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/><path d="M6 1.5h2.5V4" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5L8.5 1.5" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/></svg>
+                            <ArrowTopRightOnSquareIcon style={{ width: 12, height: 12, flexShrink: 0, color: '#8DA286' }} />
                           )}
                           <span style={{ color: '#8DA286', fontSize: 11, fontWeight: 500 }}>
                             {/meet\.google/i.test(event.link) ? 'Join Google Meet'
@@ -638,7 +635,7 @@ export function EventCard({
                       )}
                       {event.location && (
                         <div className="flex items-center gap-1 mb-1" style={{ fontSize: 11, color: THEME.textMuted }}>
-                          <svg width="12" height="12" viewBox="0 0 9 9" fill="none"><path d="M4.5 8C4.5 8 7.5 5.5 7.5 3.5a3 3 0 10-6 0C1.5 5.5 4.5 8 4.5 8z" stroke="currentColor" strokeWidth="0.9"/><circle cx="4.5" cy="3.5" r="1" stroke="currentColor" strokeWidth="0.9"/></svg>
+                          <MapPinIcon style={{ width: 12, height: 12, flexShrink: 0 }} />
                           <span>{event.location}</span>
                         </div>
                       )}
@@ -719,16 +716,12 @@ export function EventCard({
                 <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 11 }}>
                   {event.readOnly ? (
                     <>
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
-                        <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
-                      </svg>
+                      <LockClosedIcon style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.6 }} />
                       <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Synced from Google Calendar'}</span>
                     </>
                   ) : (
                     <>
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
-                        <path d="M8 16A8 8 0 108 0a8 8 0 000 16zm1-11v2h2a1 1 0 110 2H9v2a1 1 0 11-2 0V9H5a1 1 0 010-2h2V5a1 1 0 012 0z" />
-                      </svg>
+                      <PlusCircleIcon style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.5 }} />
                       <span>Your event · Google Calendar</span>
                     </>
                   )}
@@ -736,9 +729,7 @@ export function EventCard({
               )}
               {!event.googleEventId && event.readOnly && (
                 <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 11 }}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
-                    <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
-                  </svg>
+                  <LockClosedIcon style={{ width: 12, height: 12, flexShrink: 0, opacity: 0.6 }} />
                   <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
                 </div>
               )}

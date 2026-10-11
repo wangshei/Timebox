@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderIcon } from '@heroicons/react/24/solid';
+import { FolderIcon } from '@heroicons/react/24/outline';
 import type { Category } from '../types';
 
 interface CategoryFocusListProps {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { BugAntIcon, CheckIcon } from '@heroicons/react/24/outline';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface BugReportModalProps {
@@ -79,13 +80,7 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
               className="w-6 h-6 rounded-md flex items-center justify-center"
               style={{ backgroundColor: 'rgba(141,162,134,0.12)' }}
             >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#8DA286" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="8" cy="9" r="4" />
-                <path d="M8 5V3" />
-                <path d="M4 9H2M14 9h-2" />
-                <path d="M4.5 5.5 3 4M11.5 5.5 13 4" />
-                <path d="M4.5 12.5 3 14M11.5 12.5 13 14" />
-              </svg>
+              <BugAntIcon style={{ width: 14, height: 14, color: '#8DA286' }} />
             </div>
             <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Report a bug</span>
           </div>
@@ -108,9 +103,7 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(141,162,134,0.15)' }}
               >
-                <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
-                  <path d="M1.5 7l4.5 4.5 10-9" stroke="#8DA286" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <CheckIcon style={{ width: 18, height: 18, color: '#8DA286' }} />
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Report submitted — thank you!</p>

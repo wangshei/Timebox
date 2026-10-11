@@ -8,7 +8,8 @@ import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
-import { CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, StarIcon, ArrowPathIcon, ScissorsIcon } from '@heroicons/react/24/solid';
+import { ChevronRightIcon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, ArrowPathIcon, ScissorsIcon } from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
 import { useStore } from '../store/useStore';
 import { cn } from './ui/utils';
 import { Chip } from './ui/chip';
@@ -646,9 +647,7 @@ function TimeBlockCardInner({
               style={{ color: THEME.textMuted, fontSize: 11 }}
               onClick={() => setShowDetails(d => !d)}
             >
-              <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
-                <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
+              <ChevronRightIcon style={{ width: 12, height: 12, transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
               Details
             </button>
             {showDetails && (
@@ -764,9 +763,7 @@ function TimeBlockCardInner({
             >
               <ClockIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
               Add time to complete
-              <svg width="7" height="7" viewBox="0 0 8 8" className="ml-auto" style={{ transform: showTimePicker ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
-                <path d="M2 1L6 4L2 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
+              <ChevronRightIcon className="ml-auto" style={{ width: 12, height: 12, transform: showTimePicker ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
             </button>
             {showTimePicker && (
               <div className="flex items-center gap-1 pb-1.5 pl-5">

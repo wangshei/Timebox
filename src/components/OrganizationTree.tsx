@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, CalendarIcon, FolderIcon, TagIcon } from '@heroicons/react/24/solid';
+import { ChevronDownIcon, ChevronRightIcon, CalendarIcon, FolderIcon, TagIcon } from '@heroicons/react/24/outline';
 import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarContainerVisibility } from '../types';
 

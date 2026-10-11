@@ -1,13 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IconButton } from './ds';
 import { createPortal } from 'react-dom';
-import {
-  XMarkIcon,
-  LinkIcon,
-  CheckIcon,
-  TrashIcon,
-  ChevronDownIcon,
-} from '@heroicons/react/24/solid';
+import { XMarkIcon, LinkIcon, CheckIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import type { ShareScope } from '../types/sharing';
 
 export type ShareRole = 'viewer' | 'editor' | 'admin';
