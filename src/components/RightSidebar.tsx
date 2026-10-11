@@ -9,6 +9,7 @@ import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
 import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { COLOR } from '../styles/tokens';
+import { Button, IconButton } from './ds';
 
 const BORDER = COLOR.border;
 const BG_PANEL = '#FCFBF7';
@@ -277,7 +278,7 @@ export function RightSidebar({
           <div className="flex items-center justify-between mb-1.5 px-1">
             <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
               {group.label}
-              <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{group.tasks.length}</span>
+              <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 500 }}>{group.tasks.length}</span>
             </h2>
           </div>
           <div className={planMode ? 'space-y-2' : ''}>
@@ -310,7 +311,7 @@ export function RightSidebar({
       ref={sidebarDropRef}
     >
       {/* Controls: grouping switch · Plan toggle · add */}
-      <div className="px-3 pt-2 pb-2.5 flex-shrink-0">
+      <div className="flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-2)' }}>
         <div className="flex items-center justify-between gap-2">
           <SegmentedControl
             options={groupOptions}
@@ -319,32 +320,27 @@ export function RightSidebar({
             compact
           />
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
+            <IconButton
+              icon={RectangleStackIcon}
+              size={isMobile ? 'touch' : 'md'}
+              variant="outline"
+              active={planMode}
               onClick={() => setPlanMode((v) => !v)}
-              className="flex items-center justify-center rounded-lg transition-all"
-              style={planMode
-                ? { width: 26, height: 26, backgroundColor: 'rgba(141,162,134,0.14)', color: '#8DA286', border: '1px solid rgba(141,162,134,0.30)' }
-                : { width: 26, height: 26, backgroundColor: 'rgba(0,0,0,0.04)', color: '#636366', border: '1px solid rgba(0,0,0,0.08)' }}
               title="Plan view — sizes each to-do by how long it takes"
               aria-label="Toggle plan view"
               aria-pressed={planMode}
-            >
-              <RectangleStackIcon className="h-3.5 w-3.5" />
-            </button>
+              style={{ color: planMode ? 'var(--tb-accent)' : 'var(--tb-text-2)' }}
+            />
             {onOpenAddModal && (
-              <button
+              <IconButton
                 data-tour="add-task-btn"
-                type="button"
+                icon={PlusIcon}
+                size={isMobile ? 'touch' : 'md'}
+                variant="outline"
                 onClick={() => onOpenAddModal('task')}
-                className="flex items-center justify-center rounded-lg transition-colors"
-                style={{ width: 26, height: 26, color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#8DA286'; e.currentTarget.style.borderColor = 'rgba(141,162,134,0.40)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#636366'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)'; }}
                 title="Add to-do"
-              >
-                <PlusIcon className="h-3.5 w-3.5" />
-              </button>
+                aria-label="Add to-do"
+              />
             )}
           </div>
         </div>
@@ -389,28 +385,25 @@ export function RightSidebar({
         className="flex-shrink-0 flex flex-col min-h-0"
         style={{ borderTop: `1px solid ${BORDER}`, maxHeight: '40%' }}
       >
-        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5 flex-shrink-0">
+        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-2)', gap: 'var(--tb-sp-2)', minHeight: 40, boxSizing: 'border-box' }}>
           <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
             Unscheduled
             <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{unscheduledList.length}</span>
           </h2>
           {FEATURES.autoSchedule && onAutoSchedule && unscheduledList.length > 0 && (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              icon={BoltIcon}
               onClick={() => onAutoSchedule(unscheduledList.map((t) => t.id))}
-              className="flex items-center gap-1 text-xs font-medium transition-colors rounded-md px-2 py-1"
-              style={{ color: '#8DA286', backgroundColor: 'rgba(141,162,134,0.08)', border: '1px solid rgba(141,162,134,0.20)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.16)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
+              style={{ color: 'var(--tb-accent-hover)', background: 'var(--tb-accent-soft)', borderColor: 'var(--tb-accent-ring)' }}
             >
-              <BoltIcon className="h-3 w-3" />
               Auto Schedule
-            </button>
+            </Button>
           )}
         </div>
-        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3 ${planMode ? 'space-y-2' : ''}`}>
+        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-1 pb-3 ${planMode ? 'space-y-2' : ''}`}>
           {unscheduledList.length === 0 ? (
-            <div className="text-xs text-center py-3" style={{ color: '#AEAEB2' }}>Nothing unscheduled</div>
+            <div className="text-xs text-center py-3" style={{ color: '#8E8E93' }}>Nothing unscheduled</div>
           ) : (
             unscheduledList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))
           )}

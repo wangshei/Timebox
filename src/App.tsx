@@ -55,6 +55,7 @@ import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
 import { saveSchedulingLinkToDb, deleteSchedulingLinkFromDb, loadSchedulingLinksAndBookings } from './services/booking';
 import { SegmentedControl } from './components/ui/SegmentedControl';
+import { IconButton } from './components/ds';
 import { THEME } from './constants/colors';
 
 // Re-export for components that still import from App
@@ -2955,42 +2956,25 @@ export default function App() {
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
-          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '220px', backgroundColor: '#FCFBF7' }}>
+          <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: 'var(--tb-w-left)', backgroundColor: 'var(--tb-surface-2)' }}>
             {/* Header: My Calendars label + settings + edit icons (hidden in compare mode — sidebar has its own header) */}
             {mode !== 'compare' && (
-              <div className="flex items-center justify-between gap-1.5 px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-                <span className="text-[16px] font-semibold" style={{ color: THEME.textPrimary, letterSpacing: '0.12em' }}>
+              <div className="flex items-center justify-between flex-shrink-0" style={{ height: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-4)', gap: 'var(--tb-sp-2)', boxSizing: 'border-box', borderBottom: '1px solid var(--tb-border)' }}>
+                <span style={{ fontSize: 'var(--tb-fs-md)', fontWeight: 600, color: THEME.textPrimary }}>
                   My Calendars
                 </span>
                 <div className="flex items-center gap-0.5">
                   {/* Settings */}
-                  <button
-                    type="button"
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-1.5 rounded-lg transition-colors"
-                    style={{ color: THEME.textPrimary }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    title="Settings"
-                    aria-label="Open settings"
-                  >
-                    <Cog6ToothIcon className="h-3.5 w-3.5" />
-                  </button>
+                  <IconButton icon={Cog6ToothIcon} aria-label="Open settings" title="Settings" onClick={() => setIsSettingsOpen(true)} style={{ color: THEME.textPrimary }} />
                   {/* Edit mode */}
-                  <button
-                    type="button"
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className="p-1.5 rounded-lg transition-colors"
-                    style={{
-                      color: isEditMode ? '#8DA286' : THEME.textPrimary,
-                      backgroundColor: isEditMode ? 'rgba(141,162,134,0.09)' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                    onMouseLeave={(e) => { if (!isEditMode) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  <IconButton
+                    icon={isEditMode ? CheckIcon : PencilIcon}
+                    aria-label={isEditMode ? 'Done editing' : 'Edit calendars'}
                     title={isEditMode ? 'Done editing' : 'Edit calendars'}
-                  >
-                    {isEditMode ? <CheckIcon className="h-3.5 w-3.5" /> : <PencilIcon className="h-3.5 w-3.5" />}
-                  </button>
+                    active={isEditMode}
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    style={{ color: isEditMode ? 'var(--tb-accent)' : THEME.textPrimary, border: 'none' }}
+                  />
                 </div>
               </div>
             )}
@@ -3689,7 +3673,7 @@ export default function App() {
             onClick={() => setLeftPanelOpen(true)}
             className="flex-shrink-0 flex items-center justify-center self-center z-10"
             style={{
-              width: 18, height: 40, backgroundColor: '#FCFBF7',
+              width: 18, height: 40, marginLeft: 'var(--tb-sp-2)', backgroundColor: '#FCFBF7',
               border: '1px solid rgba(0,0,0,0.09)',
               borderLeft: 'none',
               borderRadius: '0 6px 6px 0',
@@ -3860,9 +3844,9 @@ export default function App() {
           </button>
         )}
         {rightPanelOpen && (
-            <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: '260px', backgroundColor: '#FCFBF7' }}>
-            <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.09)' }}>
-              <span className="text-base font-semibold" style={{ color: THEME.textPrimary }}>
+            <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: 'var(--tb-w-right)', backgroundColor: 'var(--tb-surface-2)' }}>
+            <div className="flex items-center justify-between flex-shrink-0" style={{ height: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-4)', boxSizing: 'border-box', borderBottom: '1px solid var(--tb-border)' }}>
+              <span style={{ fontSize: 'var(--tb-fs-md)', fontWeight: 600, color: THEME.textPrimary }}>
                 To-Dos
               </span>
               <div className="flex items-center gap-1.5">
@@ -3870,8 +3854,9 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setActivityPanelOpen(!activityPanelOpen)}
-                    className="relative p-1 rounded transition-colors"
+                    className="relative rounded-lg transition-colors flex items-center justify-center"
                     style={{
+                      width: 28, height: 28,
                       color: activityPanelOpen ? '#8DA286' : '#8E8E93',
                       backgroundColor: activityPanelOpen ? 'rgba(141,162,134,0.12)' : 'transparent',
                     }}

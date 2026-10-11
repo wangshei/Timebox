@@ -11,6 +11,7 @@ import { ThreeDayView } from './ThreeDayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { Button, IconButton } from './ds';
 import { PX_PER_HOUR } from '../utils/gridUtils';
 import { COLOR } from '../styles/tokens';
 
@@ -507,39 +508,23 @@ export function CalendarView({
         </div>
       ) : (
         /* ── Desktop header ── */
-        <div className="px-5 py-2 shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG }}>
-          <div className="flex items-center justify-between gap-3">
+        <div className="shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, height: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-5)', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
+          <div className="flex items-center justify-between w-full" style={{ minWidth: 0, gap: 'var(--tb-sp-2)' }}>
             {/* Left: nav + title */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={navigatePrevious}
-                  className="p-1.5 rounded-lg transition-colors touch-manipulation"
-                  style={{ color: TEXT_MUTED }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={navigateNext}
-                  className="p-1.5 rounded-lg transition-colors touch-manipulation"
-                  style={{ color: TEXT_MUTED }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
+            <div className="flex items-center" style={{ minWidth: 0, gap: 'var(--tb-sp-2)' }}>
+              <div className="flex items-center shrink-0" style={{ gap: 'var(--tb-sp-0_5)' }}>
+                <IconButton icon={ChevronLeftIcon} aria-label="Previous" size="md" onClick={navigatePrevious} style={{ color: TEXT_MUTED }} />
+                <IconButton icon={ChevronRightIcon} aria-label="Next" size="md" onClick={navigateNext} style={{ color: TEXT_MUTED }} />
               </div>
 
-              <div className="min-w-0">
+              <div style={{ minWidth: 0 }}>
                 {view === 'day' ? (
-                  <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
+                  <h1 className="truncate" style={{ color: TEXT_PRIMARY, fontSize: 'var(--tb-fs-md)', fontWeight: 600, margin: 0 }}>
                     <span>{(headerTitle as any).dayName}</span>
-                    <span className="font-normal ml-1" style={{ color: TEXT_SECONDARY, fontSize: '13px' }}>, {(headerTitle as any).dateStr}</span>
+                    <span style={{ color: TEXT_SECONDARY, fontSize: 'var(--tb-fs-base)', fontWeight: 400 }}>, {(headerTitle as any).dateStr}</span>
                   </h1>
                 ) : (
-                  <h1 className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
+                  <h1 className="truncate" style={{ color: TEXT_PRIMARY, fontSize: 'var(--tb-fs-md)', fontWeight: 600, margin: 0 }}>
                     {typeof headerTitle === 'string' ? headerTitle : `${(headerTitle as any).dayName}`}
                   </h1>
                 )}
@@ -547,72 +532,47 @@ export function CalendarView({
 
               {/* Compare toggle */}
               {onModeChange && (
-                <button
-                  type="button"
+                <Button
+                  size="md"
+                  active={mode === 'compare'}
                   onClick={() => onModeChange(mode === 'compare' ? 'overall' : 'compare')}
-                  className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
-                  style={{
-                    backgroundColor: mode === 'compare' ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
-                    color: mode === 'compare' ? PRIMARY : TEXT_SECONDARY,
-                    border: mode === 'compare' ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
-                  }}
+                  className="shrink-0"
+                  style={{ color: mode === 'compare' ? PRIMARY : TEXT_SECONDARY }}
                 >
                   Compare
-                </button>
+                </Button>
               )}
 
               {/* Reveal-past toggle — show past events/blocks at full strength instead of faded */}
-              <button
-                type="button"
+              <IconButton
+                icon={revealPast ? EyeIcon : EyeSlashIcon}
+                variant="outline"
+                active={revealPast}
+                size="md"
                 onClick={() => setRevealPast(!revealPast)}
-                className="p-1.5 rounded-lg transition-all shrink-0 flex items-center justify-center"
                 title={revealPast ? 'Fade past events' : 'Show past events'}
                 aria-label={revealPast ? 'Fade past events' : 'Show past events'}
                 aria-pressed={revealPast}
-                style={{
-                  backgroundColor: revealPast ? 'rgba(141,162,134,0.12)' : 'rgba(0,0,0,0.05)',
-                  color: revealPast ? PRIMARY : TEXT_SECONDARY,
-                  border: revealPast ? `1px solid rgba(141,162,134,0.28)` : `1px solid ${BORDER}`,
-                }}
-              >
-                {revealPast ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
-              </button>
+                style={{ color: revealPast ? PRIMARY : TEXT_SECONDARY, width: 32, height: 32 }}
+              />
 
               {/* Show Difference button — only in compare mode (wide layout) */}
               {mode === 'compare' && !isNarrow && (
-                <button
-                  type="button"
+                <Button
+                  variant="danger"
+                  className="shrink-0"
                   onClick={() => setShowDifferences((v) => !v)}
-                  className="py-1.5 px-3 rounded-lg text-xs font-medium transition-all shrink-0"
-                  style={{
-                    color: '#FF3B30',
-                    border: '1px solid #FF3B30',
-                    backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent',
-                  }}
+                  style={{ backgroundColor: showDifferences ? 'rgba(255,59,48,0.08)' : 'transparent' }}
                 >
                   Show Difference
-                </button>
+                </Button>
               )}
             </div>
 
             {/* Right: today + view selector */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={navigateToday}
-                className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1 font-medium touch-manipulation"
-                style={{ color: TEXT_SECONDARY, backgroundColor: 'rgba(0,0,0,0.05)', border: `1px solid ${BORDER}` }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
-              >
-                <CalendarIcon className="h-3.5 w-3.5" />
-                Today
-              </button>
-
-              <SegmentedControl
-                options={VIEW_OPTIONS}
-                value={view}
-                onChange={onViewChange}
-              />
+            <div className="flex items-center shrink-0" style={{ gap: 'var(--tb-sp-2)' }}>
+              <Button icon={CalendarIcon} onClick={navigateToday} style={{ color: TEXT_SECONDARY }}>Today</Button>
+              <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={onViewChange} size="md" />
             </div>
           </div>
         </div>
