@@ -42,6 +42,8 @@ export type PaletteColorName = (typeof PALETTE_COLORS)[number]['name'];
 /** Default color when creating a new calendar or category. */
 export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[12].value; // Fern green
 
+import { COLOR } from '../styles/tokens';
+
 /**
  * Semantic color tokens for the design system.
  * Parchment palette: warm earthy tones, sage green primary.
@@ -49,14 +51,14 @@ export const DEFAULT_PALETTE_COLOR = PALETTE_COLORS[12].value; // Fern green
 export const THEME = {
   // Background palette
   background: 'rgba(219,228,215,0.05)', // 5% sage tint — near-white canvas
-  sidebar: '#FCFBF7',            // Slightly lighter parchment (solid)
+  sidebar: COLOR.surface2,            // Slightly lighter parchment (solid)
   secondaryBg: '#DBE4D7',        // Input bg, subtle sections
-  card: '#FFFFFF',               // Pure white cards / modals
+  card: COLOR.surface,               // Pure white cards / modals
   muted: '#F2F2F0',              // Muted surfaces
 
   // Text colors — single source for body/heading text; change here to update app-wide
   textPrimary: '#5F615F',        // Primary text (dark gray)
-  textSecondary: '#636366',      // Medium gray
+  textSecondary: COLOR.text2,      // Medium gray
   textMuted: '#5F615F',          // Muted text (same as primary for consistency)
   textPlaceholder: '#C7C7CC',    // Placeholder
 
@@ -66,8 +68,8 @@ export const THEME = {
   borderStrong: 'rgba(0,0,0,0.16)',
 
   // Primary sage green — use DARK text on this bg (#1C1C1E, not white)
-  primary: '#8DA286',
-  primaryHover: '#7A9278',       // 10% darker sage
+  primary: COLOR.accent,
+  primaryHover: COLOR.accentHover,       // 10% darker sage
   primaryPale: '#DBE4D7',        // Pale sage for tints
 
   // Accent — warm yellow-green for highlights
@@ -78,11 +80,11 @@ export const THEME = {
   gridHalf: 'rgba(0,0,0,0.035)',
 
   // States
-  successGreen: '#34C759',
+  successGreen: COLOR.success,
   successLight: '#E8FAF0',
-  warningOrange: '#FF9500',
+  warningOrange: COLOR.warning,
   warningLight: '#FFF4E6',
-  destructiveRed: '#FF3B30',
+  destructiveRed: COLOR.danger,
   destructiveLight: '#FFF0EF',
 } as const;
 

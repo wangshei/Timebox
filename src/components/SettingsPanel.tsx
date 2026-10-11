@@ -7,6 +7,7 @@ import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle, fetchGoogleCalendars, getGcalSelectedCalendarIds, setGcalSelectedCalendarIds } from '../services/googleCalendar';
 import { useStore } from '../store/useStore';
 import { getLocalTimeZone, getBrowserTimeZone } from '../utils/dateTime';
+import { COLOR } from '../styles/tokens';
 
 // Common IANA timezones shown at the top of the picker
 const COMMON_TIMEZONES = [
@@ -73,12 +74,12 @@ interface SettingsPanelProps {
 
 type TabType = 'calendars' | 'categories' | 'tags' | 'general';
 
-const PRIMARY = '#8DA286';
-const BG = '#FCFBF7';
-const BORDER = 'rgba(0,0,0,0.08)';
+const PRIMARY = COLOR.accent;
+const BG = COLOR.surface2;
+const BORDER = COLOR.border;
 const TEXT = '#1C1C1E';
-const TEXT_MUTED = '#8E8E93';
-const TEXT_SECONDARY = '#636366';
+const TEXT_MUTED = COLOR.muted;
+const TEXT_SECONDARY = COLOR.text2;
 
 export function SettingsPanel({
   isOpen,

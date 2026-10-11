@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { COLOR } from '../styles/tokens';
 
 interface InviteData {
   shareName: string;
@@ -15,8 +16,8 @@ interface InviteData {
   status: 'pending' | 'accepted' | 'declined';
 }
 
-const PRIMARY = '#8DA286';
-const BG = '#F8F7F4';
+const PRIMARY = COLOR.accent;
+const BG = COLOR.surface2;
 
 /** Build a Google Calendar "add event" template URL, pre-filled so one click + Save adds
  *  it to the recipient's calendar. Times are floating (interpreted in the viewer's zone). */

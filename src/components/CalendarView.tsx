@@ -12,13 +12,14 @@ import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { PX_PER_HOUR } from '../utils/gridUtils';
+import { COLOR } from '../styles/tokens';
 
-const PRIMARY = '#8DA286';
-const BG = '#FDFDFB';
-const BORDER = 'rgba(0,0,0,0.08)';
+const PRIMARY = COLOR.accent;
+const BG = COLOR.surface2;
+const BORDER = COLOR.border;
 const TEXT_PRIMARY = '#5F615F';
-const TEXT_MUTED = '#8E8E93';
-const TEXT_SECONDARY = '#636366';
+const TEXT_MUTED = COLOR.muted;
+const TEXT_SECONDARY = COLOR.text2;
 
 /** Default stamp emojis */
 const STAMP_DEFAULTS = ['🔋', '🪫', '❤️', '🤍', MISSED_STAMP];

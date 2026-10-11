@@ -7,6 +7,7 @@ import { DesktopPage } from './components/DesktopPage';
 import { FEATURES } from './config/features';
 import { BookingPage } from './components/BookingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import './styles/tokens.css';
 import './index.css';
 import './styles/globals.css';
 import { hydrateFromLocalStorage, startLocalStoragePersistence } from './store/useStore';

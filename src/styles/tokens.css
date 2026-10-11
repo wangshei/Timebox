@@ -1,0 +1,66 @@
+/* Design tokens: single source of truth (mirrored in tokens.ts for inline styles).
+   Namespaced --tb-* so they never collide with shadcn vars in globals.css. */
+:root {
+  /* spacing (4px base) */
+  --tb-sp-0_5: 2px; --tb-sp-1: 4px; --tb-sp-2: 8px; --tb-sp-3: 12px;
+  --tb-sp-4: 16px; --tb-sp-5: 20px; --tb-sp-6: 24px; --tb-sp-8: 32px;
+
+  /* radii */
+  --tb-r-sm: 6px; --tb-r-md: 8px; --tb-r-lg: 12px; --tb-r-xl: 16px; --tb-r-pill: 999px;
+
+  /* typography */
+  --tb-font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tb-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tb-fs-2xs: 10px; --tb-fs-xs: 11px; --tb-fs-sm: 12px; --tb-fs-base: 13px;
+  --tb-fs-md: 15px; --tb-fs-lg: 18px; --tb-fs-xl: 28px;
+  --tb-fw-regular: 400; --tb-fw-medium: 500; --tb-fw-semibold: 600;
+  --tb-lh-tight: 1.2; --tb-lh-base: 1.5; --tb-lh-loose: 1.6;
+
+  /* icons */
+  --tb-icon-xs: 12px; --tb-icon-sm: 14px; --tb-icon-md: 16px; --tb-icon-lg: 20px;
+
+  /* colors */
+  --tb-text: #1C1C1E;
+  --tb-text-2: #636366;
+  --tb-muted: #8E8E93;
+  --tb-faint: #AEAEB2;
+  --tb-border: rgba(0,0,0,0.08);
+  --tb-border-strong: rgba(0,0,0,0.14);
+  --tb-surface: #FFFFFF;
+  --tb-surface-2: #FCFBF7;
+  --tb-hover: rgba(0,0,0,0.05);
+  --tb-accent: #8DA286;
+  --tb-accent-hover: #7A9278;
+  --tb-accent-soft: rgba(141,162,134,0.12);
+  --tb-accent-ring: rgba(141,162,134,0.30);
+  --tb-danger: #FF3B30;
+  --tb-success: #34C759;
+  --tb-warning: #FF9500;
+  --tb-backdrop: rgba(0,0,0,0.35);
+
+  /* shadows */
+  --tb-sh-1: 0 1px 3px rgba(0,0,0,0.10);
+  --tb-sh-2: 0 4px 16px rgba(0,0,0,0.12);
+  --tb-sh-3: 0 8px 32px rgba(0,0,0,0.14);
+  --tb-sh-sheet: 0 -4px 24px rgba(0,0,0,0.12);
+
+  /* z-index */
+  --tb-z-fab: 30; --tb-z-sticky: 40; --tb-z-dropdown: 100; --tb-z-popover: 200;
+  --tb-z-modal-backdrop: 300; --tb-z-modal: 310; --tb-z-toast: 400; --tb-z-top: 500;
+
+  /* layout */
+  --tb-w-left: 224px; --tb-w-right: 264px; --tb-header-h: 48px;
+  --tb-touch: 44px;
+  --tb-safe-top: env(safe-area-inset-top, 0px);
+  --tb-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tb-safe-left: env(safe-area-inset-left, 0px);
+  --tb-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* global control hygiene */
+button, input, select, textarea { font-family: inherit; }
+button { touch-action: manipulation; }
+@media (hover: hover) {
+  .tb-hover:hover { background: var(--tb-hover); }
+}
+.tb-hover:active { background: var(--tb-hover); }

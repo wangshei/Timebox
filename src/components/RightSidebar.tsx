@@ -8,8 +8,9 @@ import type { TimeBlock, Event } from '../types';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
 import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
+import { COLOR } from '../styles/tokens';
 
-const BORDER = 'rgba(0,0,0,0.08)';
+const BORDER = COLOR.border;
 const BG_PANEL = '#FCFBF7';
 
 export type TaskViewMode = 'overview' | 'plan';
