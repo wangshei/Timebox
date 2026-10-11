@@ -140,25 +140,23 @@ async function recordRsvp(reply: ParsedReply): Promise<boolean> {
       }
       return a
     })
-    // If the responder wasn't already listed, add them (defensive).
-    if (!matched) updated.push({ email: reply.email, responseStatus })
+    // Only existing attendees may RSVP: never append unknown emails (forged replies).
+    if (!matched) return false
     await supabase.from('events').update({ attendees: updated }).eq('id', reply.eventId)
   }
 
   // 2. Update the share membership status (accepted/declined) if a share exists.
   if (memberStatus) {
-    const { data: share } = await supabase
+    const { data: shares } = await supabase
       .from('calendar_shares')
       .select('id')
       .eq('scope', 'event')
       .eq('event_id', reply.eventId)
-      .limit(1)
-      .maybeSingle()
-    if (share) {
+    if (shares && shares.length > 0) {
       await supabase
         .from('share_members')
         .update({ status: memberStatus })
-        .eq('share_id', share.id)
+        .in('share_id', shares.map((x: { id: string }) => x.id))
         .eq('email', reply.email)
     }
   }
@@ -174,7 +172,13 @@ serve(async (req) => {
   // Simple shared-secret auth: the webhook URL carries ?secret=... matching the env.
   const expected = Deno.env.get('RSVP_WEBHOOK_SECRET')
   const provided = new URL(req.url).searchParams.get('secret')
-  if (expected && provided !== expected) {
+  // Fail closed: if the secret isn't configured the endpoint refuses everything (B-33).
+  if (!expected) {
+    console.error('[rsvp-inbound] RSVP_WEBHOOK_SECRET is not set; refusing request')
+    return new Response('Service not configured', { status: 503 })
+  }
+  if (!provided || provided.length !== expected.length ||
+      !provided.split('').every((c, i) => c === expected[i])) {
     return new Response('Unauthorized', { status: 401 })
   }
 

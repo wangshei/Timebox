@@ -20,6 +20,12 @@
  *   POST /share-invite { action: 'shared_with_me' }
  *     → List shares the current user is a member of.
  *
+ *   POST /share-invite { action: 'cancel_share', eventId, event:{title,start,end}, emails?, seriesId?, senderName? }
+ *     → Send METHOD:CANCEL .ics to invitees and revoke the event's share.
+ *
+ *   create_share / resend_invite / add_member / notify_event_update also accept optional
+ *   seriesId and event.{rrule, until, location} to send recurring invites (RRULE in the .ics).
+ *
  *   POST /share-invite { action: 'notify_event_update', eventTitle, attendeeEmails[], changes, senderName }
  *     → Notify attendees when the organizer updates an event.
  *
@@ -74,9 +80,92 @@ async function getUserName(userId: string): Promise<string> {
   return 'A Timebox user'
 }
 
+// --- Security helpers (B-24 / B-32) ---
+
+/** HTML-escape a user-provided value before interpolating into an email template. */
+function esc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/** Strip CR/LF so a value can't inject headers/lines (subjects, ICS properties). */
+function oneLine(v: unknown): string {
+  return String(v ?? '').replace(/[\r\n]+/g, ' ').trim()
+}
+
+// Best-effort per-user rate limiting (per function instance; resets on cold start).
+const RATE_WINDOW_MS = 60 * 60 * 1000
+const RATE_MAX_EMAILS = 100       // emails per user per hour
+const MAX_RECIPIENTS_PER_CALL = 25
+const rateBuckets = new Map<string, number[]>()
+
+function consumeEmailQuota(userId: string, count: number) {
+  if (count > MAX_RECIPIENTS_PER_CALL) {
+    throw new Error(`Too many recipients (max ${MAX_RECIPIENTS_PER_CALL} per request)`)
+  }
+  const now = Date.now()
+  const recent = (rateBuckets.get(userId) ?? []).filter((t) => now - t < RATE_WINDOW_MS)
+  if (recent.length + count > RATE_MAX_EMAILS) {
+    throw new Error('Rate limit exceeded: too many invitation emails sent recently. Try again later.')
+  }
+  for (let i = 0; i < count; i++) recent.push(now)
+  rateBuckets.set(userId, recent)
+}
+
+const EMAIL_RE = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/
+function cleanEmails(list: unknown): string[] {
+  if (!Array.isArray(list)) return []
+  const out = new Set<string>()
+  for (const e of list) {
+    const v = String(e ?? '').trim().toLowerCase()
+    if (v && v.length <= 254 && EMAIL_RE.test(v)) out.add(v)
+  }
+  return [...out]
+}
+
+const SCOPE_TABLE: Record<string, string> = {
+  calendar: 'calendar_containers',
+  category: 'categories',
+  tag: 'tags',
+  event: 'events',
+}
+
+/** Throws unless the JWT caller owns the row (events / calendars / categories / tags). */
+async function assertOwnsScope(userId: string, scope: string, scopeId: string) {
+  const table = SCOPE_TABLE[scope]
+  if (!table) throw new Error(`Invalid scope: ${scope}`)
+  const supabase = getSupabaseAdmin()
+  const { data } = await supabase.from(table).select('id').eq('id', scopeId).eq('user_id', userId).maybeSingle()
+  if (!data) throw new Error('Not found or not owned by you')
+}
+
+/** Look up an auth user id by email across ALL pages, case-insensitively (B-56). */
+async function buildUserEmailIndex(): Promise<Map<string, string>> {
+  const supabase = getSupabaseAdmin()
+  const idx = new Map<string, string>()
+  try {
+    for (let page = 1; page <= 50; page++) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error) break
+      const users = data?.users ?? []
+      for (const u of users) if (u.email) idx.set(u.email.toLowerCase(), u.id)
+      if (users.length < 1000) break
+    }
+  } catch { /* admin API unavailable */ }
+  return idx
+}
+
 // --- Email via Resend ---
 
-function inviteEmailHtml(senderName: string, shareName: string, inviteLink: string, isEvent = false, gcalUrl = ''): string {
+function inviteEmailHtml(senderNameRaw: string, shareNameRaw: string, inviteLinkRaw: string, isEvent = false, gcalUrlRaw = ''): string {
+  const senderName = esc(senderNameRaw)
+  const shareName = esc(shareNameRaw)
+  const inviteLink = esc(inviteLinkRaw)
+  const gcalUrl = esc(gcalUrlRaw)
   const introLine = isEvent
     ? `<strong>${senderName}</strong> invited you to <strong>"${shareName}"</strong>.`
     : `<strong>${senderName}</strong> shared <strong>"${shareName}"</strong> with you on The Timeboxing Club.`
@@ -199,6 +288,21 @@ interface IcsInvite {
   organizerName: string
   attendeeEmail: string       // the recipient of this particular email
   attendeeEmails?: string[]   // the FULL guest list, so each participant sees the others
+  location?: string
+  rrule?: string              // e.g. "FREQ=WEEKLY;BYDAY=MO" (no "RRULE:" prefix needed)
+  until?: string              // ISO datetime; appended as UNTIL= when rrule has none
+}
+
+/** Validate/normalise a client-supplied RRULE into a safe ICS RRULE value, or ''. */
+function sanitizeRrule(rrule?: string, until?: string): string {
+  if (!rrule) return ''
+  let r = oneLine(rrule).replace(/^RRULE:/i, '').toUpperCase()
+  if (!/^[A-Z0-9=;,+\-]+$/.test(r) || !/(^|;)FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;|$)/.test(r) || r.length > 200) return ''
+  if (until && !/(^|;)(UNTIL|COUNT)=/.test(r)) {
+    const d = new Date(until)
+    if (!isNaN(d.getTime())) r += `;UNTIL=${toIcsUtc(d.toISOString())}`
+  }
+  return r
 }
 
 function buildInviteIcs(p: IcsInvite, organizerAddr: string, sequence = 0): string {
@@ -223,6 +327,8 @@ function buildInviteIcs(p: IcsInvite, organizerAddr: string, sequence = 0): stri
     `DTEND:${toIcsUtc(p.end)}`,
     `SUMMARY:${escapeIcsText(p.title)}`,
     ...(p.description ? [`DESCRIPTION:${escapeIcsText(p.description)}`] : []),
+    ...(p.location ? [`LOCATION:${escapeIcsText(p.location)}`] : []),
+    ...(sanitizeRrule(p.rrule, p.until) ? [`RRULE:${sanitizeRrule(p.rrule, p.until)}`] : []),
     `ORGANIZER;CN=${escapeIcsText(p.organizerName)}:mailto:${organizerAddr}`,
     // List every guest so each participant can see the others on their calendar.
     ...(() => {
@@ -272,7 +378,7 @@ function base64Utf8(s: string): string {
 }
 
 /** Email a removed guest a cancellation so the event leaves their calendar. */
-async function sendCancelEmail(recipientEmail: string, senderName: string, ics: IcsInvite) {
+async function sendCancelEmail(recipientEmail: string, senderName: string, ics: IcsInvite, cancelVerb = 'removed you from') {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('FROM_EMAIL') || 'The Timeboxing Club <onboarding@resend.dev>'
   if (!resendApiKey) {
@@ -285,8 +391,8 @@ async function sendCancelEmail(recipientEmail: string, senderName: string, ics: 
     body: JSON.stringify({
       from: fromEmail,
       to: recipientEmail,
-      subject: `Cancelled: "${ics.title}"`,
-      html: `<p style="font-family:system-ui,sans-serif;font-size:15px;color:#1C1C1E;">${senderName} removed you from <strong>"${ics.title}"</strong>. It has been removed from your calendar.</p>`,
+      subject: `Cancelled: "${oneLine(ics.title)}"`,
+      html: `<p style="font-family:system-ui,sans-serif;font-size:15px;color:#1C1C1E;">${esc(senderName)} ${cancelVerb} <strong>"${esc(ics.title)}"</strong>. It has been removed from your calendar.</p>`,
       attachments: [{
         filename: 'cancel.ics',
         content: base64Utf8(buildCancelIcs(ics, organizerAddress(fromEmail), nowSequence())),
@@ -317,8 +423,8 @@ async function sendInviteEmail(recipientEmail: string, senderName: string, share
     from: fromEmail,
     to: recipientEmail,
     subject: ics
-      ? `${senderName} invited you to "${shareName}"`
-      : `${senderName} shared "${shareName}" with you on Timeboxing Club`,
+      ? `${oneLine(senderName)} invited you to "${oneLine(shareName)}"`
+      : `${oneLine(senderName)} shared "${oneLine(shareName)}" with you on Timeboxing Club`,
     html,
   }
   if (ics) {
@@ -357,6 +463,9 @@ function bookingConfirmEmailHtml(
   endTime: string,
   notes?: string,
 ): string {
+  linkName = esc(linkName); bookerName = esc(bookerName); bookerEmail = esc(bookerEmail)
+  date = esc(date); startTime = esc(startTime); endTime = esc(endTime)
+  if (notes) notes = esc(notes)
   const heading = recipientType === 'booker'
     ? 'Booking Confirmed'
     : 'New Booking Received'
@@ -426,8 +535,8 @@ async function sendBookingEmail(
   }
 
   const subject = recipientType === 'booker'
-    ? `Booking confirmed: ${linkName}`
-    : `New booking: ${bookerName} booked "${linkName}"`
+    ? `Booking confirmed: ${oneLine(linkName)}`
+    : `New booking: ${oneLine(bookerName)} booked "${oneLine(linkName)}"`
   const html = bookingConfirmEmailHtml(recipientType, linkName, bookerName, bookerEmail, date, startTime, endTime, notes)
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -480,7 +589,10 @@ async function notifyBooking(body: Record<string, unknown>) {
 
 // --- Event Update Notification ---
 
-function eventUpdateEmailHtml(senderName: string, eventTitle: string, changes: string): string {
+function eventUpdateEmailHtml(senderNameRaw: string, eventTitleRaw: string, changesRaw: string): string {
+  const senderName = esc(senderNameRaw)
+  const eventTitle = esc(eventTitleRaw)
+  const changes = esc(changesRaw)
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
@@ -533,7 +645,7 @@ async function sendEventUpdateEmail(recipientEmail: string, senderName: string, 
   const payload: Record<string, unknown> = {
     from: fromEmail,
     to: recipientEmail,
-    subject: `${senderName} updated "${eventTitle}"`,
+    subject: `${oneLine(senderName)} updated "${oneLine(eventTitle)}"`,
     html,
   }
   if (ics) {
@@ -561,128 +673,160 @@ async function sendEventUpdateEmail(recipientEmail: string, senderName: string, 
   }
 }
 
-async function notifyEventUpdate(userId: string, body: Record<string, unknown>) {
-  const { eventTitle, attendeeEmails, changes, senderName: providedName, eventId, event } = body
 
-  if (!eventTitle || !attendeeEmails || !Array.isArray(attendeeEmails)) {
-    throw new Error('Missing required fields: eventTitle, attendeeEmails')
+type EventInfo = {
+  start?: string; end?: string; title?: string; description?: string; location?: string
+  attendeeEmails?: string[]; rrule?: string; until?: string
+}
+
+/** Event uid: series id (shared by all occurrences of a recurring invite) or event id. */
+function icsUid(seriesId: unknown, eventId: unknown): string {
+  return `${String(seriesId || eventId)}@timeboxing.club`
+}
+
+/** Fetch (or create) the single share row for (owner, scope, scopeId). Race-safe via the
+ *  unique indexes added in 20261012_calendar_shares_unique.sql. */
+async function getOrCreateShare(
+  userId: string, scope: string, scopeId: string, fields: Record<string, unknown>,
+) {
+  const supabase = getSupabaseAdmin()
+  const col = scope === 'calendar' ? 'calendar_container_id' : scope === 'category' ? 'category_id' : scope === 'tag' ? 'tag_id' : 'event_id'
+  const find = async () => {
+    const { data } = await supabase.from('calendar_shares').select('*')
+      .eq('owner_id', userId).eq('scope', scope).eq(col, scopeId)
+      .order('created_at', { ascending: true }).limit(1).maybeSingle()
+    return data
   }
+  const existing = await find()
+  if (existing) {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (fields.display_name) patch.display_name = fields.display_name
+    await supabase.from('calendar_shares').update(patch).eq('id', existing.id)
+    return existing
+  }
+  const { data: created, error } = await supabase.from('calendar_shares')
+    .insert({ owner_id: userId, scope, [col]: scopeId, ...fields }).select().single()
+  if (error) {
+    const raced = await find() // unique violation from a concurrent call
+    if (raced) return raced
+    throw new Error(`Failed to create share: ${error.message}`)
+  }
+  return created
+}
 
-  const senderName = (providedName as string) || await getUserName(userId)
+/** Upsert members by (share_id,email), keeping existing tokens so links stay stable.
+ *  Returns every requested member row (existing + new) plus which were newly created. */
+async function upsertMembers(shareId: string, emails: string[], pushToGoogle: boolean) {
+  const supabase = getSupabaseAdmin()
+  const { data: existing } = await supabase.from('share_members').select('*')
+    .eq('share_id', shareId).in('email', emails)
+  const have = new Map((existing ?? []).map((m: Record<string, unknown>) => [m.email as string, m]))
+  const toInsert = emails.filter((e) => !have.has(e)).map((email) => ({
+    share_id: shareId, email, push_to_google: pushToGoogle, token: generateToken(),
+  }))
+  let inserted: Record<string, unknown>[] = []
+  if (toInsert.length > 0) {
+    const { data, error } = await supabase.from('share_members').insert(toInsert).select()
+    if (error) throw new Error(`Failed to add members: ${error.message}`)
+    inserted = data ?? []
+    // Link new members to existing Timebox accounts (all pages, case-insensitive).
+    const idx = await buildUserEmailIndex()
+    for (const m of inserted) {
+      const uid = idx.get(String(m.email).toLowerCase())
+      if (uid) {
+        await supabase.from('share_members').update({ user_id: uid }).eq('id', m.id as string)
+        m.user_id = uid
+      }
+    }
+  }
+  const members = emails.map((e) => have.get(e) ?? inserted.find((m) => m.email === e)).filter(Boolean) as Record<string, unknown>[]
+  return { members, createdCount: inserted.length }
+}
+
+async function notifyEventUpdate(userId: string, body: Record<string, unknown>) {
+  const { eventTitle, attendeeEmails, changes, senderName: providedName, eventId, event, seriesId } = body
+
+  if (!eventId || !eventTitle || !Array.isArray(attendeeEmails)) {
+    throw new Error('Missing required fields: eventId, eventTitle, attendeeEmails')
+  }
+  await assertOwnsScope(userId, 'event', String(eventId))
+
+  // Only email people actually on this event (its attendees column or share members).
+  const supabase = getSupabaseAdmin()
+  const allowed = new Set<string>()
+  const { data: ev } = await supabase.from('events').select('attendees').eq('id', String(eventId)).maybeSingle()
+  for (const a of Array.isArray(ev?.attendees) ? ev!.attendees : []) {
+    if (a && typeof a.email === 'string') allowed.add(a.email.toLowerCase())
+  }
+  const { data: shares } = await supabase.from('calendar_shares').select('id')
+    .eq('owner_id', userId).eq('scope', 'event').eq('event_id', String(eventId))
+  const shareIds = (shares ?? []).map((x: { id: string }) => x.id)
+  if (shareIds.length > 0) {
+    const { data: ms } = await supabase.from('share_members').select('email').in('share_id', shareIds)
+    for (const m of ms ?? []) allowed.add(String(m.email).toLowerCase())
+  }
+  const recipients = cleanEmails(attendeeEmails).filter((e) => allowed.has(e))
+  consumeEmailQuota(userId, recipients.length)
+
+  const senderName = oneLine(providedName) || await getUserName(userId)
   const changesText = (changes as string) || 'Event details have been updated.'
 
-  // If we have the new timing, attach a revised REQUEST .ics so guests' calendars update.
-  const evt = event as { start?: string; end?: string; description?: string } | undefined
-  const canPushIcs = !!eventId && !!evt?.start && !!evt?.end
+  const evt = event as EventInfo | undefined
+  const canPushIcs = !!evt?.start && !!evt?.end
 
-  // Send notification emails in parallel (skip the organizer's own email)
-  const emailPromises = (attendeeEmails as string[])
-    .filter((email: string) => email && email.trim())
-    .map((email: string) =>
-      sendEventUpdateEmail(email, senderName, eventTitle as string, changesText,
-        canPushIcs
-          ? {
-              uid: `${eventId}@timeboxing.club`,
-              title: eventTitle as string,
-              start: evt!.start as string,
-              end: evt!.end as string,
-              description: evt?.description,
-              organizerName: senderName,
-              attendeeEmail: email,
-              attendeeEmails: attendeeEmails as string[],
-            }
-          : undefined,
-      )
+  const results = await Promise.allSettled(recipients.map((email) =>
+    sendEventUpdateEmail(email, senderName, String(eventTitle), changesText,
+      canPushIcs
+        ? {
+            uid: icsUid(seriesId, eventId),
+            title: String(eventTitle),
+            start: evt!.start as string,
+            end: evt!.end as string,
+            description: evt?.description,
+            location: evt?.location,
+            rrule: evt?.rrule,
+            until: evt?.until,
+            organizerName: senderName,
+            attendeeEmail: email,
+            attendeeEmails: recipients,
+          }
+        : undefined,
     )
-  await Promise.allSettled(emailPromises)
-
-  return { success: true, notified: emailPromises.length }
+  ))
+  return { success: true, notified: results.length }
 }
 
 // --- Create Share ---
 
 async function createShare(userId: string, body: Record<string, unknown>) {
   const supabase = getSupabaseAdmin()
-  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle, event, senderName: senderNameFromClient } = body
+  const { scope, scopeId, displayName, emails, includeExisting, pushToGoogle, event, seriesId, senderName: senderNameFromClient } = body
 
-  if (!scope || !scopeId || !emails || !Array.isArray(emails)) {
+  if (!scope || !scopeId || !Array.isArray(emails)) {
     throw new Error('Missing required fields: scope, scopeId, emails')
   }
+  await assertOwnsScope(userId, String(scope), String(scopeId))
+  const guestList = cleanEmails(emails)
+  if (guestList.length === 0) throw new Error('No valid email addresses')
+  consumeEmailQuota(userId, guestList.length)
 
-  // For event-scoped invites with timing, we attach a calendar (.ics) invite to the
-  // email so it lands in the recipient's Google/Outlook/Apple calendar with RSVP.
-  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string; attendeeEmails?: string[] } | undefined
+  const eventInfo = event as EventInfo | undefined
   const hasIcs = scope === 'event' && !!eventInfo?.start && !!eventInfo?.end
-  // Full guest list for the .ics (so each participant sees the others). Falls back to
-  // the batch being invited when the client didn't send the complete list.
-  const allGuests = (eventInfo?.attendeeEmails && eventInfo.attendeeEmails.length > 0)
-    ? eventInfo.attendeeEmails
-    : (emails as string[])
+  const allGuests = cleanEmails(eventInfo?.attendeeEmails).length > 0 ? cleanEmails(eventInfo?.attendeeEmails) : guestList
 
-  // Create the share
-  const shareData: Record<string, unknown> = {
-    owner_id: userId,
-    scope,
-    display_name: displayName ?? null,
+  // B-05: reuse the existing share for this (owner, scope, target) instead of inserting a duplicate.
+  const share = await getOrCreateShare(userId, String(scope), String(scopeId), {
+    display_name: (displayName as string) ?? null,
     include_existing: includeExisting ?? true,
     push_to_google: pushToGoogle ?? true,
-  }
-  if (scope === 'calendar') shareData.calendar_container_id = scopeId
-  else if (scope === 'category') shareData.category_id = scopeId
-  else if (scope === 'tag') shareData.tag_id = scopeId
-  else if (scope === 'event') shareData.event_id = scopeId
+  })
+  const { members } = await upsertMembers(share.id, guestList, (pushToGoogle as boolean) ?? true)
 
-  const { data: share, error: shareError } = await supabase
-    .from('calendar_shares')
-    .insert(shareData)
-    .select()
-    .single()
-
-  if (shareError) throw new Error(`Failed to create share: ${shareError.message}`)
-
-  // Add members
-  const members = (emails as string[]).map((email: string) => ({
-    share_id: share.id,
-    email: email.toLowerCase(),
-    push_to_google: pushToGoogle ?? true,
-    token: generateToken(),
-  }))
-
-  const { data: insertedMembers, error: memberError } = await supabase
-    .from('share_members')
-    .insert(members)
-    .select()
-
-  if (memberError) throw new Error(`Failed to add members: ${memberError.message}`)
-
-  // Check if any members are existing Timebox users
-  for (const member of insertedMembers ?? []) {
-    try {
-      const { data: { users } } = await supabase.auth.admin.listUsers()
-      const existingUser = users?.find((u: { email?: string }) => u.email === member.email)
-      if (existingUser) {
-        await supabase
-          .from('share_members')
-          .update({ user_id: existingUser.id })
-          .eq('id', member.id)
-      }
-    } catch {
-      // Skip user linking if admin API unavailable
-    }
-  }
-
-  // Send invite emails. Prefer the display name the client passed (the logged-in
-  // user's name from the app) — the admin getUserById lookup can be unavailable and
-  // fall back to a generic "A Timebox user".
-  const clientName = typeof senderNameFromClient === 'string' ? senderNameFromClient.trim() : ''
+  const clientName = typeof senderNameFromClient === 'string' ? oneLine(senderNameFromClient) : ''
   const senderName = clientName || await getUserName(userId)
-  const inviteLinks = (insertedMembers ?? []).map((m: Record<string, unknown>) => ({
-    email: m.email,
-    link: `${APP_URL}/invite/${m.token}`,
-  }))
+  const inviteLinks = members.map((m) => ({ email: m.email, link: `${APP_URL}/invite/${m.token}` }))
 
-  // Send emails in parallel
-  const emailPromises = (insertedMembers ?? []).map((m: Record<string, unknown>) =>
+  await Promise.allSettled(members.map((m) =>
     sendInviteEmail(
       m.email as string,
       senderName,
@@ -690,104 +834,68 @@ async function createShare(userId: string, body: Record<string, unknown>) {
       m.token as string,
       hasIcs
         ? {
-            uid: `${scopeId}@timeboxing.club`,
+            uid: icsUid(seriesId, scopeId),
             title: (eventInfo?.title as string) || (displayName as string) || 'Event',
             start: eventInfo!.start as string,
             end: eventInfo!.end as string,
             description: eventInfo?.description,
+            location: eventInfo?.location,
+            rrule: eventInfo?.rrule,
+            until: eventInfo?.until,
             organizerName: senderName,
             attendeeEmail: m.email as string,
             attendeeEmails: allGuests,
           }
         : undefined,
     )
-  )
-  await Promise.allSettled(emailPromises)
+  ))
 
-  return {
-    shareId: share.id,
-    memberCount: (insertedMembers ?? []).length,
-    inviteLinks,
-    senderName,
-  }
+  return { shareId: share.id, memberCount: members.length, inviteLinks, senderName }
 }
 
 // --- Resend Invite ---
-// Re-send the invite email (+ .ics + Add-to-Google-Calendar) to people already invited
-// to an event, without creating duplicate shares. Finds the event's existing share and
-// member rows (reusing their tokens), creating any that are missing.
+// Re-send the invite email (+ .ics) to people already invited, without creating duplicate
+// shares. Reuses the event's existing share/member tokens, creating any that are missing.
 async function resendInvite(userId: string, body: Record<string, unknown>) {
-  const supabase = getSupabaseAdmin()
-  const { eventId, emails, event, senderName: senderNameFromClient } = body
+  const { eventId, emails, event, seriesId, senderName: senderNameFromClient } = body
 
-  if (!eventId || !emails || !Array.isArray(emails) || emails.length === 0) {
+  if (!eventId || !Array.isArray(emails) || emails.length === 0) {
     throw new Error('Missing required fields: eventId, emails')
   }
+  await assertOwnsScope(userId, 'event', String(eventId))
+  const guestList = cleanEmails(emails)
+  consumeEmailQuota(userId, guestList.length)
 
-  const eventInfo = event as { start?: string; end?: string; title?: string; description?: string; attendeeEmails?: string[] } | undefined
+  const eventInfo = event as EventInfo | undefined
   const hasIcs = !!eventInfo?.start && !!eventInfo?.end
   const displayName = (eventInfo?.title as string) || 'Event'
-  const allGuests = (eventInfo?.attendeeEmails && eventInfo.attendeeEmails.length > 0)
-    ? eventInfo.attendeeEmails
-    : (emails as string[])
+  const allGuests = cleanEmails(eventInfo?.attendeeEmails).length > 0 ? cleanEmails(eventInfo?.attendeeEmails) : guestList
 
-  // Find the existing event share (owner-scoped); create one if it's somehow missing.
-  let { data: share } = await supabase
-    .from('calendar_shares')
-    .select('*')
-    .eq('owner_id', userId)
-    .eq('scope', 'event')
-    .eq('event_id', eventId)
-    .limit(1)
-    .maybeSingle()
-  if (!share) {
-    const { data: newShare, error } = await supabase
-      .from('calendar_shares')
-      .insert({ owner_id: userId, scope: 'event', event_id: eventId, display_name: displayName })
-      .select()
-      .single()
-    if (error) throw new Error(`Failed to create share: ${error.message}`)
-    share = newShare
-  }
+  const share = await getOrCreateShare(userId, 'event', String(eventId), { display_name: displayName })
+  const { members } = await upsertMembers(share.id, guestList, true)
 
-  const clientName = typeof senderNameFromClient === 'string' ? senderNameFromClient.trim() : ''
+  const clientName = typeof senderNameFromClient === 'string' ? oneLine(senderNameFromClient) : ''
   const senderName = clientName || await getUserName(userId)
 
   let sent = 0
-  for (const rawEmail of emails as string[]) {
-    const email = String(rawEmail).toLowerCase().trim()
-    if (!email) continue
-    // Reuse the existing member token so the invite link stays stable; create if missing.
-    let { data: member } = await supabase
-      .from('share_members')
-      .select('*')
-      .eq('share_id', share.id)
-      .eq('email', email)
-      .limit(1)
-      .maybeSingle()
-    if (!member) {
-      const { data: newMember, error } = await supabase
-        .from('share_members')
-        .insert({ share_id: share.id, email, push_to_google: true, token: generateToken() })
-        .select()
-        .single()
-      if (error) continue
-      member = newMember
-    }
+  for (const member of members) {
     await sendInviteEmail(
-      email,
+      member.email as string,
       senderName,
       displayName,
       member.token as string,
       hasIcs
         ? {
-            uid: `${eventId}@timeboxing.club`,
+            uid: icsUid(seriesId, eventId),
             title: displayName,
             start: eventInfo!.start as string,
             end: eventInfo!.end as string,
             description: eventInfo?.description,
+            location: eventInfo?.location,
+            rrule: eventInfo?.rrule,
+            until: eventInfo?.until,
             organizerName: senderName,
-            attendeeEmail: email,
+            attendeeEmail: member.email as string,
             attendeeEmails: allGuests,
           }
         : undefined,
@@ -798,35 +906,50 @@ async function resendInvite(userId: string, body: Record<string, unknown>) {
   return { success: true, sent }
 }
 
-// --- Add Member ---
+// --- Add Member (B-53: now emails the guest) ---
 
 async function addMember(userId: string, body: Record<string, unknown>) {
   const supabase = getSupabaseAdmin()
-  const { shareId, email, pushToGoogle } = body
+  const { shareId, email, pushToGoogle, event, seriesId, senderName: senderNameFromClient } = body
 
-  // Verify ownership
   const { data: share } = await supabase
     .from('calendar_shares')
-    .select('id')
+    .select('id, scope, event_id, display_name')
     .eq('id', shareId)
     .eq('owner_id', userId)
-    .single()
-
+    .maybeSingle()
   if (!share) throw new Error('Share not found or not owned by user')
 
-  const { data: member, error } = await supabase
-    .from('share_members')
-    .insert({
-      share_id: shareId,
-      email: (email as string).toLowerCase(),
-      push_to_google: pushToGoogle ?? true,
-      token: generateToken(),
-    })
-    .select()
-    .single()
+  const guest = cleanEmails([email])
+  if (guest.length === 0) throw new Error('Invalid email address')
+  consumeEmailQuota(userId, 1)
 
-  if (error) throw new Error(`Failed to add member: ${error.message}`)
-  return { memberId: member.id, token: member.token }
+  const { members, createdCount } = await upsertMembers(share.id, guest, (pushToGoogle as boolean) ?? true)
+  const member = members[0]
+
+  const clientName = typeof senderNameFromClient === 'string' ? oneLine(senderNameFromClient) : ''
+  const senderName = clientName || await getUserName(userId)
+  const eventInfo = event as EventInfo | undefined
+  const hasIcs = share.scope === 'event' && !!eventInfo?.start && !!eventInfo?.end
+  await sendInviteEmail(
+    guest[0], senderName, share.display_name || eventInfo?.title || 'a calendar', member.token as string,
+    hasIcs
+      ? {
+          uid: icsUid(seriesId, share.event_id),
+          title: (eventInfo?.title as string) || share.display_name || 'Event',
+          start: eventInfo!.start as string,
+          end: eventInfo!.end as string,
+          description: eventInfo?.description,
+          location: eventInfo?.location,
+          rrule: eventInfo?.rrule,
+          until: eventInfo?.until,
+          organizerName: senderName,
+          attendeeEmail: guest[0],
+          attendeeEmails: cleanEmails(eventInfo?.attendeeEmails).length > 0 ? cleanEmails(eventInfo?.attendeeEmails) : guest,
+        }
+      : undefined,
+  )
+  return { memberId: member.id, token: member.token, alreadyMember: createdCount === 0, emailed: true }
 }
 
 // --- Remove Member ---
@@ -853,36 +976,32 @@ async function removeMember(userId: string, body: Record<string, unknown>) {
  *  timing is provided) email them a cancellation so it leaves their calendar. */
 async function removeAttendees(userId: string, body: Record<string, unknown>) {
   const supabase = getSupabaseAdmin()
-  const { eventId, emails, event } = body
+  const { eventId, emails, event, seriesId } = body
   if (!eventId || !Array.isArray(emails) || emails.length === 0) {
     throw new Error('Missing required fields: eventId, emails')
   }
-  const lowered = (emails as string[]).map((e) => e.toLowerCase())
+  await assertOwnsScope(userId, 'event', String(eventId))
+  const lowered = cleanEmails(emails)
+  consumeEmailQuota(userId, lowered.length)
 
-  // Find the owner's event-scoped share(s) for this event.
   const { data: shares } = await supabase
     .from('calendar_shares')
     .select('id')
     .eq('owner_id', userId)
     .eq('scope', 'event')
-    .eq('event_id', eventId)
+    .eq('event_id', String(eventId))
 
   const shareIds = (shares ?? []).map((s: { id: string }) => s.id)
   if (shareIds.length > 0) {
-    await supabase
-      .from('share_members')
-      .delete()
-      .in('share_id', shareIds)
-      .in('email', lowered)
+    await supabase.from('share_members').delete().in('share_id', shareIds).in('email', lowered)
   }
 
-  // Send cancellations so the event is pulled from each removed guest's calendar.
   const evt = event as { title?: string; start?: string; end?: string } | undefined
   if (evt?.start && evt?.end) {
     const senderName = await getUserName(userId)
     await Promise.allSettled(lowered.map((email) =>
       sendCancelEmail(email, senderName, {
-        uid: `${eventId}@timeboxing.club`,
+        uid: icsUid(seriesId, eventId),
         title: evt.title || 'Event',
         start: evt.start as string,
         end: evt.end as string,
@@ -893,6 +1012,64 @@ async function removeAttendees(userId: string, body: Record<string, unknown>) {
   }
 
   return { success: true, removed: lowered.length }
+}
+
+/** Cancel an invited event for everyone: send METHOD:CANCEL .ics to all (or the given)
+ *  attendees, then revoke the share (members cascade-delete, invite links stop working).
+ *  Params: eventId (required), event {title,start,end}, emails? (default: all share
+ *  members + events.attendees), seriesId? (UID of a recurring invite), senderName?. */
+async function cancelShare(userId: string, body: Record<string, unknown>) {
+  const supabase = getSupabaseAdmin()
+  const { eventId, event, emails, seriesId, senderName: senderNameFromClient } = body
+  if (!eventId) throw new Error('Missing required field: eventId')
+  await assertOwnsScope(userId, 'event', String(eventId))
+
+  const { data: shares } = await supabase.from('calendar_shares').select('id')
+    .eq('owner_id', userId).eq('scope', 'event').eq('event_id', String(eventId))
+  const shareIds = (shares ?? []).map((x: { id: string }) => x.id)
+
+  // Recipients: only people who were actually invited to this event.
+  const invited = new Set<string>()
+  if (shareIds.length > 0) {
+    const { data: ms } = await supabase.from('share_members').select('email').in('share_id', shareIds)
+    for (const m of ms ?? []) invited.add(String(m.email).toLowerCase())
+  }
+  const { data: ev } = await supabase.from('events').select('attendees').eq('id', String(eventId)).maybeSingle()
+  for (const a of Array.isArray(ev?.attendees) ? ev!.attendees : []) {
+    if (a && typeof a.email === 'string' && !a.self) invited.add(a.email.toLowerCase())
+  }
+  const requested = Array.isArray(emails) ? cleanEmails(emails) : [...invited]
+  const recipients = requested.filter((e) => invited.has(e))
+  consumeEmailQuota(userId, recipients.length)
+
+  const evt = event as { title?: string; start?: string; end?: string } | undefined
+  let cancelled = 0
+  if (evt?.start && evt?.end && recipients.length > 0) {
+    const clientName = typeof senderNameFromClient === 'string' ? oneLine(senderNameFromClient) : ''
+    const senderName = clientName || await getUserName(userId)
+    const results = await Promise.allSettled(recipients.map((email) =>
+      sendCancelEmail(email, senderName, {
+        uid: icsUid(seriesId, eventId),
+        title: evt.title || 'Event',
+        start: evt.start as string,
+        end: evt.end as string,
+        organizerName: senderName,
+        attendeeEmail: email,
+        attendeeEmails: recipients,
+      }, 'cancelled')
+    ))
+    cancelled = results.filter((r) => r.status === 'fulfilled').length
+  }
+
+  // Revoke: only drop the whole share when cancelling everyone; otherwise drop the members.
+  if (shareIds.length > 0) {
+    if (!Array.isArray(emails)) {
+      await supabase.from('calendar_shares').delete().in('id', shareIds).eq('owner_id', userId)
+    } else {
+      await supabase.from('share_members').delete().in('share_id', shareIds).in('email', recipients)
+    }
+  }
+  return { success: true, cancelled, revokedShares: Array.isArray(emails) ? 0 : shareIds.length }
 }
 
 // --- Get Invite Details (no auth required) ---
@@ -1345,21 +1522,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    if (action === 'send_test_invite') {
-      const { email: testEmail, senderName: testSender, shareName: testShare } = body
-      const testToken = generateToken()
-      await sendInviteEmail(
-        testEmail as string,
-        (testSender as string) ?? 'Test User',
-        (testShare as string) ?? 'Test Calendar',
-        testToken,
-      )
-      const result = { success: true, email: testEmail, token: testToken }
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     const userId = await getUserId(req)
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -1397,7 +1559,21 @@ serve(async (req) => {
       case 'notify_event_update':
         result = await notifyEventUpdate(userId, body)
         break
+      case 'cancel_share':
+        result = await cancelShare(userId, body)
+        break
+      case 'send_test_invite': {
+        const { email: testEmail, senderName: testSender, shareName: testShare } = body
+        const to = cleanEmails([testEmail])
+        if (to.length !== 1) throw new Error('Invalid email')
+        consumeEmailQuota(userId, 1)
+        const testToken = generateToken()
+        await sendInviteEmail(to[0], (testSender as string) ?? 'Test User', (testShare as string) ?? 'Test Calendar', testToken)
+        result = { success: true, email: to[0] }
+        break
+      }
       case 'notify_booking':
+        consumeEmailQuota(userId, 2)
         result = await notifyBooking(body)
         break
       default:
