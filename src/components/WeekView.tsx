@@ -1,4 +1,5 @@
 import React from 'react';
+import { GRID } from '../styles/tokens';
 import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal, getStartOfWeek, getSecondaryTimezones, getTimezoneAbbr, convertHourToTimezone, formatHourShort, getLocalTimeZone } from '../utils/dateTime';
@@ -378,7 +379,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
       <div
         className="flex sticky top-0 z-20"
         style={{
-          borderBottom: '1px solid rgba(0,0,0,0.07)',
+          borderBottom: `1px solid ${GRID.line}`,
           backgroundColor: '#FCFBF7',
         }}
       >
@@ -387,7 +388,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
           className="flex-shrink-0 flex items-end justify-center"
           style={{
             width: timeColW,
-            borderRight: '1px solid rgba(0,0,0,0.07)',
+            borderRight: `1px solid ${GRID.line}`,
             paddingBottom: 4,
           }}
         >
@@ -400,7 +401,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                     key={tz}
                     className="flex-1 text-center cursor-pointer transition-all"
                     style={{
-                      fontSize: isActive ? '9px' : '8px',
+                      fontSize: '10px',
                       fontWeight: isActive ? 800 : 500,
                       color: isActive ? '#8DA286' : '#AEAEB2',
                       letterSpacing: '0.02em',
@@ -417,7 +418,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
               <span
                 className="flex-1 text-right cursor-pointer transition-all"
                 style={{
-                  fontSize: !viewTimezone ? '9px' : '8px',
+                  fontSize: '10px',
                   fontWeight: !viewTimezone ? 800 : 500,
                   color: !viewTimezone ? '#8DA286' : '#8E8E93',
                   letterSpacing: '0.02em',
@@ -444,14 +445,14 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                   style={{
                     height: 48,
                     minWidth: 0,
-                    borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none',
-                    backgroundColor: today ? 'rgba(141,162,134,0.07)' : 'transparent',
+                    borderRight: dayIndex < 6 ? `1px solid ${GRID.line}` : 'none',
+                    backgroundColor: today ? GRID.today : 'transparent',
                     position: 'relative',
                   }}
                 >
                   <div className="flex items-center gap-1 pt-2">
                     <div className="flex flex-col gap-0.5">
-                      <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '9px', letterSpacing: '0.07em' }}>
+                      <div className="font-semibold uppercase" style={{ color: today ? THEME.primary : THEME.textPlaceholder, fontSize: '10px', letterSpacing: '0.07em' }}>
                         {day.toLocaleDateString('en-US', { weekday: 'short' })}
                       </div>
                       <div className="font-semibold leading-none" style={{ color: today ? THEME.primary : THEME.textPrimary, fontSize: '14px' }}>
@@ -481,7 +482,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
           className="flex-shrink-0 py-2"
           style={{
             width: timeColW,
-            borderRight: '1px solid rgba(0,0,0,0.07)',
+            borderRight: `1px solid ${GRID.line}`,
             backgroundColor: '#FCFBF7',
           }}
         >
@@ -514,7 +515,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                           <span
                             key={tz}
                             className="flex-1 text-center leading-none"
-                            style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                            style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 400 }}
                           >
                             {formatHourShort(h)}
                           </span>
@@ -551,7 +552,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                 <div
                   key={dayIndex}
                   className="flex-1 min-w-0 relative"
-                  style={{ borderRight: dayIndex < 6 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}
+                  style={{ borderRight: dayIndex < 6 ? `1px solid ${GRID.line}` : 'none' }}
                   data-week-day-col={dateStr}
                   data-week-sel-day={dayOfWeek}
                 >
@@ -629,8 +630,8 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       {/* Grid lines */}
                       {hours.map((_, i) => (
                         <div key={i} className="absolute left-0 right-0 pointer-events-none" style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}>
-                          <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: '1px solid rgba(0,0,0,0.07)' }} />
-                          <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: '1px solid rgba(0,0,0,0.035)' }} />
+                          <div className="absolute left-0 right-0 top-0 h-px" style={{ borderTop: `1px solid ${GRID.line}` }} />
+                          <div className="absolute left-0 right-0 h-px" style={{ top: PX_PER_HOUR / 2, borderTop: `1px solid ${GRID.half}` }} />
                         </div>
                       ))}
 
@@ -795,7 +796,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       {showCurrentTimeLine && currentTimeTop != null && (
                         <>
                           <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: currentTimeTop, height: 0, width: '100%', borderTop: `2px solid ${THEME.primary}` }} aria-hidden />
-                          <div className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none" style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: THEME.primary, fontSize: '9px' }}>
+                          <div className="absolute left-1 z-40 font-medium tabular-nums pointer-events-none" style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: THEME.primary, fontSize: '10px' }}>
                             {currentTimeLabel}
                           </div>
                         </>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { GRID } from '../styles/tokens';
 import { Mode, Event } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
@@ -17,7 +18,7 @@ interface MonthViewProps {
   weekStartsOnMonday?: boolean;
 }
 
-const BG_TODAY = 'rgba(141,162,134,0.08)';
+const BG_TODAY = GRID.today;
 
 export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [], weekStartsOnMonday = false }: MonthViewProps) {
   const year = currentDate.getFullYear();

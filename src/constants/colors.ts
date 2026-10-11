@@ -1,3 +1,4 @@
+import { GRID } from '../styles/tokens';
 /**
  * Single source of truth for category/calendar color selection.
  * Muted, natural palette — rows grouped by hue family.
@@ -76,8 +77,8 @@ export const THEME = {
   accent: '#D9D781',
 
   // Grid lines
-  gridHour: 'rgba(0,0,0,0.07)',
-  gridHalf: 'rgba(0,0,0,0.035)',
+  gridHour: GRID.line,
+  gridHalf: GRID.half,
 
   // States
   successGreen: COLOR.success,

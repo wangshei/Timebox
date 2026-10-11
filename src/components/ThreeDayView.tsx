@@ -1,4 +1,5 @@
 import React from 'react';
+import { GRID } from '../styles/tokens';
 
 import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
@@ -73,10 +74,10 @@ interface ThreeDayViewProps {
 }
 
 const PRIMARY = THEME.primary;
-const GRID_HOUR = 'rgba(0,0,0,0.07)';
-const GRID_HALF = 'rgba(0,0,0,0.035)';
+const GRID_HOUR = GRID.line;
+const GRID_HALF = GRID.half;
 const BG_CANVAS = '#FCFBF7';
-const BG_TODAY = 'rgba(141,162,134,0.05)';
+const BG_TODAY = GRID.today;
 
 export function ThreeDayView({
   mode, timeBlocks, currentDate, selectedBlock, onSelectBlock,
@@ -314,7 +315,7 @@ export function ThreeDayView({
             }}
           >
             {panelLabel && (
-              <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '9px', letterSpacing: '0.1em' }}>
+              <span className="font-semibold uppercase" style={{ color: '#8E8E93', fontSize: '10px', letterSpacing: '0.1em' }}>
                 {panelLabel}
               </span>
             )}
@@ -327,7 +328,7 @@ export function ThreeDayView({
                       key={tz}
                       className="flex-1 text-center cursor-pointer transition-all"
                       style={{
-                        fontSize: isActive ? '9px' : '8px',
+                        fontSize: '10px',
                         fontWeight: isActive ? 800 : 500,
                         color: isActive ? '#8DA286' : '#AEAEB2',
                         letterSpacing: '0.02em',
@@ -344,7 +345,7 @@ export function ThreeDayView({
                 <span
                   className="flex-1 text-right cursor-pointer transition-all"
                   style={{
-                    fontSize: !viewTimezone ? '9px' : '8px',
+                    fontSize: '10px',
                     fontWeight: !viewTimezone ? 800 : 500,
                     color: !viewTimezone ? '#8DA286' : '#8E8E93',
                     letterSpacing: '0.02em',
@@ -450,7 +451,7 @@ export function ThreeDayView({
                           <span
                             key={tz}
                             className="flex-1 text-center leading-none"
-                            style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                            style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 400 }}
                           >
                             {formatHourShort(h)}
                           </span>
@@ -789,7 +790,7 @@ export function ThreeDayView({
                         />
                         <div
                           className="absolute left-2 z-40 font-medium tabular-nums pointer-events-none"
-                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: PRIMARY, fontSize: '9px' }}
+                          style={{ top: currentTimeTop, transform: 'translateY(-50%)', color: PRIMARY, fontSize: '10px' }}
                         >
                           {currentTimeLabel}
                         </div>

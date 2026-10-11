@@ -1,4 +1,5 @@
 import React from 'react';
+import { GRID } from '../styles/tokens';
 
 import { Mode, AvailableSlot } from '../types';
 import { ResolvedTimeBlock, ResolvedEvent } from '../utils/dataResolver';
@@ -512,8 +513,8 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             className="sticky top-0 z-20 flex items-center gap-3 px-3"
             style={{
               height: 48,
-              borderBottom: '1px solid rgba(0,0,0,0.07)',
-              backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FCFBF7',
+              borderBottom: `1px solid ${GRID.line}`,
+              backgroundColor: isViewingToday ? GRID.today : '#FCFBF7',
             }}
           >
             <div className="flex flex-col">
@@ -598,7 +599,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                   key={tz}
                   className="flex-1 text-center cursor-pointer transition-all"
                   style={{
-                    fontSize: isActive ? '9px' : '8px',
+                    fontSize: '10px',
                     fontWeight: isActive ? 800 : 500,
                     color: isActive ? '#8DA286' : '#AEAEB2',
                     letterSpacing: '0.02em',
@@ -615,7 +616,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             <span
               className="flex-1 text-right cursor-pointer transition-all"
               style={{
-                fontSize: !viewTimezone ? '9px' : '8px',
+                fontSize: '10px',
                 fontWeight: !viewTimezone ? 800 : 500,
                 color: !viewTimezone ? '#8DA286' : '#8E8E93',
                 letterSpacing: '0.02em',
@@ -656,7 +657,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                     <span
                       key={tz}
                       className="flex-1 text-center leading-none"
-                      style={{ fontSize: '9px', color: '#AEAEB2', fontWeight: 400 }}
+                      style={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 400 }}
                     >
                       {formatHourShort(h)}
                     </span>
@@ -673,11 +674,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             <div
               className={`absolute ${gridLeftClass} right-0 top-0`}
               style={{ ...(gridLeftPx ? { left: gridLeftPx } : {}) }}
-              style={{ height: PX_PER_HOUR, borderTop: '1px solid rgba(0,0,0,0.07)', ...(gridLeftPx ? { left: gridLeftPx } : {}) }}
+              style={{ height: PX_PER_HOUR, borderTop: `1px solid ${GRID.line}`, ...(gridLeftPx ? { left: gridLeftPx } : {}) }}
             />
             <div
               className={`absolute ${gridLeftClass} right-0`}
-              style={{ top: `${PX_PER_HOUR / 2}px`, borderTop: '1px solid rgba(0,0,0,0.035)', ...gridLeftStyle }}
+              style={{ top: `${PX_PER_HOUR / 2}px`, borderTop: `1px solid ${GRID.half}`, ...gridLeftStyle }}
             />
           </div>
         ))}
