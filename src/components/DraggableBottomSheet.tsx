@@ -148,6 +148,9 @@ export function DraggableBottomSheet({
         borderTop: '1px solid rgba(0,0,0,0.09)',
         height: `${height}px`,
         touchAction: 'none',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
         zIndex: 'var(--tb-z-modal)',
       }}
     >

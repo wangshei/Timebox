@@ -6,6 +6,8 @@ import { getLocalDateString } from '../utils/dateTime';
 import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
+import { COLOR } from '../styles/tokens';
+import { formatTime12, formatDateHeader, parseTaskInput } from '../utils/formatters';
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
 import { dismissGcalEventId } from '../services/googleCalendar';
@@ -36,44 +38,6 @@ function useCurrentMinutes(): number {
 }
 
 // ─── Helpers ───────────────────────────────────────────────
-
-function formatTime12(hhmm: string): string {
-  const [h, m] = hhmm.split(':').map(Number);
-  const hour = h ?? 0;
-  const min = m ?? 0;
-  const ampm = hour >= 12 ? 'pm' : 'am';
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:${String(min).padStart(2, '0')}${ampm}`;
-}
-
-function formatDateHeader(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const today = getLocalDateString();
-  const tomorrow = (() => { const t = new Date(); t.setDate(t.getDate() + 1); return getLocalDateString(t); })();
-  if (dateStr === today) return 'Today';
-  if (dateStr === tomorrow) return 'Tomorrow';
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-/** Parse natural language time from task input.
- *  E.g. "Read book 30min" → { title: "Read book", minutes: 30 }
- */
-function parseTaskInput(input: string): { title: string; minutes: number } {
-  const trimmed = input.trim();
-  const timeRegex = /\s+(\d+(?:\.\d+)?)\s*(?:h(?:(?:ou)?rs?)?|m(?:in(?:ute)?s?)?)\s*$/i;
-  const match = trimmed.match(timeRegex);
-  if (match) {
-    const title = trimmed.slice(0, match.index!).trim();
-    const val = parseFloat(match[1]);
-    const unit = match[0].toLowerCase();
-    const isHours = /h/.test(unit);
-    const minutes = isHours ? Math.round(val * 60) : Math.round(val);
-    if (title && minutes > 0 && minutes <= 480) {
-      return { title, minutes };
-    }
-  }
-  return { title: trimmed, minutes: 30 };
-}
 
 const CARD_STYLE: React.CSSProperties = {
   backgroundColor: '#FFFFFF',
@@ -203,9 +167,9 @@ export function MobileApp() {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#FDFDFB', maxWidth: '100vw', overscrollBehavior: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: COLOR.surface2, maxWidth: '100vw', overscrollBehavior: 'none' }}>
       {/* Top safe area spacer — background color only, no interactive content */}
-      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: '#FDFDFB' }} />
+      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: COLOR.surface2 }} />
       {/* Content — fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {activeTab === 'schedule' && <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
@@ -222,7 +186,7 @@ export function MobileApp() {
           width: '100%',
           padding: '6px 0',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
-          backgroundColor: '#FCFBF7',
+          backgroundColor: COLOR.surface2,
           borderTop: '1px solid rgba(0,0,0,0.08)',
           zIndex: 'var(--tb-z-sticky)',
         }}
@@ -239,15 +203,16 @@ export function MobileApp() {
             alignItems: 'center',
             gap: 2,
             padding: '6px 4px 2px',
+            minHeight: 44,
             border: 'none',
             backgroundColor: 'transparent',
-            color: activeTab === 'schedule' ? THEME.primary : '#8E8E93',
+            color: activeTab === 'schedule' ? THEME.primary : COLOR.muted,
             WebkitTapHighlightColor: 'transparent',
             transition: 'color 0.15s ease',
           }}
         >
           <ScheduleIcon active={activeTab === 'schedule'} />
-          <span style={{ fontSize: 10, fontWeight: activeTab === 'schedule' ? 600 : 400 }}>Schedule</span>
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'schedule' ? 600 : 400 }}>Schedule</span>
         </button>
 
         {/* Center FAB for quick add */}
@@ -289,15 +254,16 @@ export function MobileApp() {
             alignItems: 'center',
             gap: 2,
             padding: '6px 4px 2px',
+            minHeight: 44,
             border: 'none',
             backgroundColor: 'transparent',
-            color: activeTab === 'todo' ? THEME.primary : '#8E8E93',
+            color: activeTab === 'todo' ? THEME.primary : COLOR.muted,
             WebkitTapHighlightColor: 'transparent',
             transition: 'color 0.15s ease',
           }}
         >
           <TasksIcon active={activeTab === 'todo'} />
-          <span style={{ fontSize: 10, fontWeight: activeTab === 'todo' ? 600 : 400 }}>To-Do</span>
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'todo' ? 600 : 400 }}>To-Do</span>
         </button>
       </nav>
 
@@ -359,12 +325,12 @@ export function MobileApp() {
 function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
     <div className="flex items-center gap-2" style={{ margin: '0 0 10px' }}>
-      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#AEAEB2' }}>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
         {children}
       </span>
       {count != null && count > 0 && (
         <span style={{
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: THEME.primary,
           backgroundColor: `${THEME.primary}12`,
@@ -527,7 +493,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           backgroundColor: '#FFFFFF',
           borderRadius: '16px 16px 0 0',
           boxShadow: 'var(--tb-sh-sheet)',
-          maxHeight: '80vh',
+          maxHeight: '80dvh',
           overflowY: 'auto',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
           animation: 'slideUp 0.2s ease-out',
@@ -544,7 +510,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
             <>
               {/* Title input */}
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Title</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Title</label>
                 <input
                   type="text"
                   value={editTitle}
@@ -560,7 +526,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
               {/* Date input */}
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
                 <input
                   type="date"
                   value={editDate}
@@ -577,7 +543,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               {/* Time inputs */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
                   <input
                     type="time"
                     value={toInputTime(editStart)}
@@ -591,7 +557,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
                   <input
                     type="time"
                     value={toInputTime(editEnd)}
@@ -608,7 +574,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
               {/* Category picker */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Category</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Category</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {categories.map((c) => {
                     const isSel = editCategoryId === c.id;
@@ -619,7 +585,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                           padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
                           border: isSel ? 'none' : '1px solid rgba(0,0,0,0.10)',
                           backgroundColor: isSel ? `${c.color}20` : 'transparent',
-                          color: isSel ? c.color : '#636366',
+                          color: isSel ? c.color : COLOR.text2,
                         }}>
                         <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.color }} />
                         {c.name}
@@ -637,7 +603,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   className="touch-manipulation"
                   style={{
                     flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366',
+                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: COLOR.text2,
                   }}
                 >
                   Cancel
@@ -651,7 +617,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                     flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600,
                     border: 'none',
                     backgroundColor: editTitle.trim() ? THEME.primary : 'rgba(0,0,0,0.06)',
-                    color: editTitle.trim() ? '#FFFFFF' : '#AEAEB2',
+                    color: editTitle.trim() ? '#FFFFFF' : COLOR.muted,
                   }}
                 >
                   Save
@@ -665,7 +631,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
             {cat && <span style={{ fontSize: 12, fontWeight: 500, color: item.color }}>{cat.name}</span>}
-            <span style={{ fontSize: 11, color: '#8E8E93', marginLeft: 'auto' }}>
+            <span style={{ fontSize: 11, color: COLOR.muted, marginLeft: 'auto' }}>
               Event
             </span>
           </div>
@@ -685,7 +651,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               <ClockIcon style={{ width: 14, height: 14 }} />
               {formatTime12(item.start)} – {formatTime12(item.end)}
             </span>
-            <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 500 }}>
+            <span style={{ fontSize: 12, color: COLOR.muted, fontWeight: 500 }}>
               {durationMins >= 60
                 ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
                 : `${durationMins}m`
@@ -704,14 +670,14 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
           {/* Description */}
           {linkedTask?.description && (
-            <p style={{ fontSize: 13, color: '#636366', margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            <p style={{ fontSize: 13, color: COLOR.text2, margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
               {linkedTask.description}
             </p>
           )}
 
           {/* Notes */}
           {linkedTask?.notes && (
-            <p style={{ fontSize: 13, fontStyle: 'italic', color: '#636366', margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap', paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+            <p style={{ fontSize: 13, fontStyle: 'italic', color: COLOR.text2, margin: '0 0 8px', lineHeight: 1.5, whiteSpace: 'pre-wrap', paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
               {linkedTask.notes}
             </p>
           )}
@@ -732,7 +698,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           {/* Due date */}
           {linkedTask?.dueDate && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10, fontSize: 12 }}>
-              <CalendarIcon style={{ width: 13, height: 13, color: '#8E8E93' }} />
+              <CalendarIcon style={{ width: 13, height: 13, color: COLOR.muted }} />
               <span style={{ color: THEME.textSecondary }}>Due {formatDateHeader(linkedTask.dueDate)}</span>
             </div>
           )}
@@ -743,7 +709,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px',
               borderRadius: 8, marginBottom: 12, fontSize: 12, fontWeight: 500,
               backgroundColor: isConfirmed ? hexToRgba(item.color, 0.08) : 'rgba(0,0,0,0.04)',
-              color: isConfirmed ? item.color : '#8E8E93',
+              color: isConfirmed ? item.color : COLOR.muted,
             }}>
               {isConfirmed ? <CheckIcon style={{ width: 13, height: 13 }} /> : <XMarkIcon style={{ width: 13, height: 13 }} />}
               {isConfirmed ? 'Confirmed' : 'Skipped'}
@@ -794,7 +760,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
                     border: 'none', backgroundColor: 'transparent',
-                    fontSize: 14, fontWeight: 500, color: '#8E8E93',
+                    fontSize: 14, fontWeight: 500, color: COLOR.muted,
                     borderRadius: 8, width: '100%', textAlign: 'left',
                   }}
                 >
@@ -812,7 +778,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
                     border: 'none', backgroundColor: 'transparent',
-                    fontSize: 14, fontWeight: 500, color: linkedTask.status === 'done' ? '#8E8E93' : '#6A8C5A',
+                    fontSize: 14, fontWeight: 500, color: linkedTask.status === 'done' ? COLOR.muted : '#6A8C5A',
                     borderRadius: 8, width: '100%', textAlign: 'left',
                   }}
                 >
@@ -829,7 +795,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
                   border: 'none', backgroundColor: 'transparent',
-                  fontSize: 14, fontWeight: 500, color: missedSticker ? '#8E8E93' : '#FF3B30',
+                  fontSize: 14, fontWeight: 500, color: missedSticker ? COLOR.muted : COLOR.danger,
                   borderRadius: 8, width: '100%', textAlign: 'left',
                 }}
               >
@@ -970,13 +936,13 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
   const fmtDuration = (m: number) => m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 > 0 ? ` ${m % 60}m` : ''}`;
 
-  const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 };
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', fontSize: 15, color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)', outline: 'none', boxSizing: 'border-box' };
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', fontSize: 16, color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)', outline: 'none', boxSizing: 'border-box', minHeight: 44 };
   const chipStyle = (sel: boolean, color?: string): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
     border: sel ? 'none' : '1px solid rgba(0,0,0,0.10)',
     backgroundColor: sel && color ? `${color}20` : sel ? `${THEME.primary}15` : 'transparent',
-    color: sel && color ? color : sel ? THEME.primary : '#636366',
+    color: sel && color ? color : sel ? THEME.primary : COLOR.text2,
   });
 
   return (
@@ -986,7 +952,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
         backgroundColor: '#FFFFFF', borderRadius: '18px 18px 0 0',
         boxShadow: '0 -4px 24px rgba(0,0,0,0.14)',
-        maxHeight: '90vh', overflowY: 'auto',
+        maxHeight: '90dvh', overflowY: 'auto',
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
         animation: 'slideUp 0.22s ease-out',
       }}>
@@ -1001,7 +967,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
             <p style={{ fontSize: 17, fontWeight: 700, color: THEME.textPrimary, margin: 0 }}>
               {mode === 'task' ? 'New Note' : 'New Event'}
             </p>
-            <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: '#8E8E93', padding: 4 }}>
+            <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: COLOR.muted, padding: 4 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
@@ -1025,7 +991,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
             <>
               <div>
                 <label style={labelStyle}>Date</label>
-                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} style={{ ...inputStyle, fontSize: 14 }} />
+                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} style={{ ...inputStyle, fontSize: 16 }} />
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <div style={{ flex: 1 }}>
@@ -1063,8 +1029,8 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
                 style={{ width: '100%', height: 4, appearance: 'none', WebkitAppearance: 'none', background: `linear-gradient(to right, ${THEME.primary} 0%, ${THEME.primary} ${((estimatedMins - 5) / 235) * 100}%, rgba(0,0,0,0.08) ${((estimatedMins - 5) / 235) * 100}%, rgba(0,0,0,0.08) 100%)`, borderRadius: 2, outline: 'none', cursor: 'pointer', accentColor: THEME.primary }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                <span style={{ fontSize: 9, color: '#AEAEB2' }}>5m</span>
-                <span style={{ fontSize: 9, color: '#AEAEB2' }}>4h</span>
+                <span style={{ fontSize: 11, color: COLOR.muted }}>5m</span>
+                <span style={{ fontSize: 11, color: COLOR.muted }}>4h</span>
               </div>
             </div>
           )}
@@ -1102,7 +1068,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Tags (task only, if category has tags) */}
           {mode === 'task' && selectedCategory && categoryTags.length > 0 && (
             <div>
-              <label style={labelStyle}>Tags <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+              <label style={labelStyle}>Tags <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {categoryTags.map((tag) => (
                   <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)} className="touch-manipulation"
@@ -1117,15 +1083,15 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Task-only: due date */}
           {mode === 'task' && (
             <div>
-              <label style={labelStyle}>Due Date <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+              <label style={labelStyle}>Due Date <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                style={{ ...inputStyle, fontSize: 14 }} />
+                style={{ ...inputStyle, fontSize: 16 }} />
             </div>
           )}
 
           {/* Notes */}
           <div>
-            <label style={labelStyle}>Notes <span style={{ fontWeight: 400, color: '#AEAEB2' }}>(optional)</span></label>
+            <label style={labelStyle}>Notes <span style={{ fontWeight: 400, color: COLOR.muted }}>(optional)</span></label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -1145,7 +1111,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
               width: '100%', padding: '13px', borderRadius: 12, fontSize: 15, fontWeight: 600,
               border: 'none',
               backgroundColor: canSubmit ? THEME.primary : 'rgba(0,0,0,0.06)',
-              color: canSubmit ? '#FFFFFF' : '#AEAEB2',
+              color: canSubmit ? '#FFFFFF' : COLOR.muted,
               cursor: canSubmit ? 'pointer' : 'default',
             }}
           >
@@ -1344,19 +1310,19 @@ function PlanTab() {
       {/* Header: date nav */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
         <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"
-          style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
+          style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
         </button>
         <p style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
           {formatDateHeader(selectedDate)}
         </p>
         <button type="button" onClick={() => navigateDate(1)} className="touch-manipulation flex items-center justify-center"
-          style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
+          style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
         </button>
         {selectedDate !== today && (
           <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-            style={{ width: 28, height: 28, borderRadius: 7, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 10, fontWeight: 600 }}>
+            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 11, fontWeight: 600 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
               <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
@@ -1372,12 +1338,12 @@ function PlanTab() {
             Tap or drag "{selectedTask.title}" to a time slot →
           </p>
         ) : (
-          <p style={{ fontSize: 11, color: '#AEAEB2', margin: 0 }}>
+          <p style={{ fontSize: 11, color: COLOR.muted, margin: 0 }}>
             Tap a task on the right, then tap a time to schedule
           </p>
         )}
         {selectedTask && (
-          <button type="button" onClick={() => setSelectedTaskId(null)} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: '#AEAEB2', fontSize: 12 }}>✕</button>
+          <button type="button" onClick={() => setSelectedTaskId(null)} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: COLOR.muted, fontSize: 12 }}>✕</button>
         )}
       </div>
 
@@ -1401,7 +1367,7 @@ function PlanTab() {
               return (
                 <div key={h} style={{ position: 'absolute', top, left: 0, right: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, width: PLAN_TIME_COL, textAlign: 'right', paddingRight: 6 }}>
-                    <span style={{ fontSize: 9, color: '#C7C7CC', fontWeight: 400 }}>
+                    <span style={{ fontSize: 11, color: '#C7C7CC', fontWeight: 400 }}>
                       {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
                     </span>
                   </div>
@@ -1426,7 +1392,7 @@ function PlanTab() {
                     borderLeft: `3px solid ${item.color}`,
                     backgroundColor: hexToRgba(item.color, isEvent ? 0.10 : 0.14),
                   }}>
-                    <span style={{ fontSize: 9, fontWeight: 600, color: THEME.textPrimary, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {item.title}
                     </span>
                   </div>
@@ -1455,7 +1421,7 @@ function PlanTab() {
                   pointerEvents: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 9, color: '#AEAEB2', fontWeight: 500 }}>tap to place</span>
+                  <span style={{ fontSize: 11, color: COLOR.muted, fontWeight: 500 }}>tap to place</span>
                 </div>
               )}
             </div>
@@ -1464,11 +1430,11 @@ function PlanTab() {
             {showNowLine && (
               <div style={{ position: 'absolute', top: nowLineTop, left: 0, right: 4, zIndex: 10, pointerEvents: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 8, fontWeight: 600, color: '#FF3B30', width: PLAN_TIME_COL, textAlign: 'right', paddingRight: 4 }}>
+                  <span style={{ fontSize: 8, fontWeight: 600, color: COLOR.danger, width: PLAN_TIME_COL, textAlign: 'right', paddingRight: 4 }}>
                     {(() => { const h = Math.floor(nowMins / 60); const m = nowMins % 60; const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return `${h12}:${String(m).padStart(2, '0')}`; })()}
                   </span>
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#FF3B30', flexShrink: 0, marginLeft: -2.5 }} />
-                  <div style={{ flex: 1, height: 1.5, backgroundColor: '#FF3B30' }} />
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: COLOR.danger, flexShrink: 0, marginLeft: -2.5 }} />
+                  <div style={{ flex: 1, height: 1.5, backgroundColor: COLOR.danger }} />
                 </div>
               </div>
             )}
@@ -1479,13 +1445,13 @@ function PlanTab() {
         <div style={{ width: 1, backgroundColor: 'rgba(0,0,0,0.08)', flexShrink: 0 }} />
 
         {/* RIGHT: Task blocks (46%) */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px 40px', overscrollBehavior: 'contain', backgroundColor: '#FDFDFB' } as React.CSSProperties}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px 40px', overscrollBehavior: 'contain', backgroundColor: COLOR.surface2 } as React.CSSProperties}>
           {pendingTasks.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 40 }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" style={{ marginBottom: 8 }}>
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <p style={{ fontSize: 12, color: '#AEAEB2', margin: 0, textAlign: 'center' }}>All tasks scheduled for this day</p>
+              <p style={{ fontSize: 12, color: COLOR.muted, margin: 0, textAlign: 'center' }}>All tasks scheduled for this day</p>
             </div>
           ) : (
             pendingTasks.map((task) => {
@@ -1526,7 +1492,7 @@ function PlanTab() {
                     {task.title}
                   </p>
                   {blockH >= 50 && (
-                    <span style={{ fontSize: 9, color: '#8E8E93', alignSelf: 'flex-end' }}>
+                    <span style={{ fontSize: 11, color: COLOR.muted, alignSelf: 'flex-end' }}>
                       {durationMins >= 60 ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}` : `${durationMins}m`}
                     </span>
                   )}
@@ -1878,7 +1844,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               onClick={() => handleDeleteItem(item)}
               className="touch-manipulation"
               style={{
-                width: 80, border: 'none', backgroundColor: '#FF3B30',
+                width: 80, border: 'none', backgroundColor: COLOR.danger,
                 color: '#FFFFFF', fontSize: 12, fontWeight: 600,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: 4, borderRadius: '0 12px 12px 0',
@@ -1955,19 +1921,19 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               </span>
               {isConfirmed && <CheckBadge color={item.color} />}
               {isSkipped && (
-                <span style={{ fontSize: 10, fontWeight: 500, color: '#8E8E93' }}>skipped</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: COLOR.muted }}>skipped</span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: '#8E8E93' }}>
+              <span style={{ fontSize: 12, color: COLOR.muted }}>
                 {formatTime12(item.start)} – {formatTime12(item.end)}
               </span>
-              <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>
+              <span style={{ fontSize: 11, color: COLOR.muted, fontWeight: 500 }}>
                 {fmtDuration(durationMins)}
               </span>
               {isEvent && (
                 <span style={{
-                  fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+                  fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
                   textTransform: 'uppercase', color: item.color,
                   backgroundColor: `${item.color}12`, padding: '1px 6px',
                   borderRadius: 4,
@@ -1983,7 +1949,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
                 style={{
-                  width: 32, height: 32, borderRadius: 16, border: 'none',
+                  width: 44, height: 44, borderRadius: 22, border: '6px solid transparent', backgroundClip: 'padding-box', boxSizing: 'border-box',
                   backgroundColor: `${item.color}15`, color: item.color,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -1991,8 +1957,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               </button>
               <button type="button" onClick={() => handleSkip(item.id)} className="touch-manipulation"
                 style={{
-                  width: 32, height: 32, borderRadius: 16, border: 'none',
-                  backgroundColor: 'rgba(0,0,0,0.04)', color: '#8E8E93',
+                  width: 44, height: 44, borderRadius: 22, border: '6px solid transparent', backgroundClip: 'padding-box', boxSizing: 'border-box',
+                  backgroundColor: 'rgba(0,0,0,0.04)', color: COLOR.muted,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                 <XMarkIcon style={{ width: 14, height: 14 }} />
@@ -2004,7 +1970,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           {isCurrent && (
             <div style={{
               position: 'absolute', top: 6, right: 10,
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
               textTransform: 'uppercase', color: item.color,
             }}>
               NOW
@@ -2024,7 +1990,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             type="button"
             onClick={() => navigateDate(-1)}
             className="touch-manipulation flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
+            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
@@ -2039,7 +2005,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             type="button"
             onClick={() => navigateDate(1)}
             className="touch-manipulation flex items-center justify-center"
-            style={{ width: 32, height: 32, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
+            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
@@ -2074,14 +2040,14 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: currentItem.color }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: currentItem.color }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: currentItem.color }}>
                     Now
                   </span>
                 </div>
                 <p style={{ fontSize: 17, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 4px' }}>
                   {currentItem.title}
                 </p>
-                <p style={{ fontSize: 13, color: '#8E8E93', margin: 0 }}>
+                <p style={{ fontSize: 13, color: COLOR.muted, margin: 0 }}>
                   {(() => {
                     const remaining = currentItem.endMins - nowMins;
                     if (remaining <= 0) return 'Ending now';
@@ -2089,26 +2055,26 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                   })()}
                 </p>
                 {nextItem && (
-                  <p style={{ fontSize: 12, color: '#AEAEB2', margin: '6px 0 0', borderTop: '1px solid rgba(0,0,0,0.04)', paddingTop: 6 }}>
+                  <p style={{ fontSize: 12, color: COLOR.muted, margin: '6px 0 0', borderTop: '1px solid rgba(0,0,0,0.04)', paddingTop: 6 }}>
                     Up next: {nextItem.title} at {formatTime12(nextItem.start)}
                   </p>
                 )}
               </>
             ) : nextItem ? (
               <>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#AEAEB2' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
                   Free time
                 </span>
                 <p style={{ fontSize: 15, fontWeight: 500, color: THEME.textPrimary, margin: '4px 0 0' }}>
                   Free until {formatTime12(nextItem.start)}
                 </p>
-                <p style={{ fontSize: 12, color: '#8E8E93', margin: '2px 0 0' }}>
+                <p style={{ fontSize: 12, color: COLOR.muted, margin: '2px 0 0' }}>
                   Next: {nextItem.title}
                 </p>
               </>
             ) : scheduleItems.length === 0 ? (
               <>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#AEAEB2' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
                   Today
                 </span>
                 <p style={{ fontSize: 15, fontWeight: 500, color: THEME.textSecondary, margin: '4px 0 0' }}>
@@ -2117,7 +2083,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               </>
             ) : (
               <>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#AEAEB2' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
                   All done
                 </span>
                 <p style={{ fontSize: 15, fontWeight: 500, color: THEME.textSecondary, margin: '4px 0 0' }}>
@@ -2161,12 +2127,12 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                   WebkitBackdropFilter: 'blur(12px)',
                 } as React.CSSProperties}
               >
-                <span style={{ fontSize: 13, fontWeight: 600, color: isActiveSection ? THEME.textPrimary : '#8E8E93' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: isActiveSection ? THEME.textPrimary : COLOR.muted }}>
                   {config.label}
                 </span>
                 {count > 0 && (
                   <span style={{
-                    fontSize: 10, fontWeight: 600, color: THEME.primary,
+                    fontSize: 11, fontWeight: 600, color: THEME.primary,
                     backgroundColor: `${THEME.primary}12`, padding: '1px 7px',
                     borderRadius: 10, minWidth: 18, textAlign: 'center',
                   }}>
@@ -2197,7 +2163,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                       border: '1px dashed rgba(0,0,0,0.08)',
                       textAlign: 'center',
                     }}>
-                      <p style={{ fontSize: 13, color: '#AEAEB2', margin: 0 }}>
+                      <p style={{ fontSize: 13, color: COLOR.muted, margin: 0 }}>
                         No plans for the {section}
                       </p>
                     </div>
@@ -2214,11 +2180,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         {unscheduledTasks.length > 0 && (
           <div style={{ marginTop: 8, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: COLOR.muted }}>
                 Unscheduled
               </span>
               <span style={{
-                fontSize: 10, fontWeight: 600, color: '#FF9500',
+                fontSize: 11, fontWeight: 600, color: COLOR.warning,
                 backgroundColor: '#FF950012', padding: '1px 7px',
                 borderRadius: 10,
               }}>
@@ -2258,13 +2224,13 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                     }}>
                       {task.title}
                     </span>
-                    <span style={{ fontSize: 11, color: '#AEAEB2' }}>
+                    <span style={{ fontSize: 11, color: COLOR.muted }}>
                       {fmtDuration(task.estimatedMinutes || 30)}
                       {task.dueDate === selectedDate && ' \u00b7 Due today'}
                     </span>
                   </div>
                   <div style={{
-                    fontSize: 10, fontWeight: 600, color: THEME.primary,
+                    fontSize: 11, fontWeight: 600, color: THEME.primary,
                     backgroundColor: `${THEME.primary}12`, padding: '4px 10px',
                     borderRadius: 12, flexShrink: 0,
                   }}>
@@ -2368,12 +2334,12 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               />
               <div className="flex gap-2" style={{ marginBottom: 10 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Start</label>
                   <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>End</label>
                   <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
@@ -2384,7 +2350,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                     const isSel = eventCalendarId === cal.id;
                     return (
                       <button key={cal.id} type="button" onClick={() => setEventCalendarId(cal.id)} className="touch-manipulation"
-                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cal.color}20` : 'transparent', color: isSel ? cal.color : '#636366' }}>
+                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cal.color}20` : 'transparent', color: isSel ? cal.color : COLOR.text2 }}>
                         {cal.name}
                       </button>
                     );
@@ -2396,7 +2362,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
                   const isSel = eventCategoryId === cat.id;
                   return (
                     <button key={cat.id} type="button" onClick={() => setEventCategoryId(cat.id)} className="touch-manipulation"
-                      style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cat.color}20` : 'transparent', color: isSel ? cat.color : '#636366' }}>
+                      style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cat.color}20` : 'transparent', color: isSel ? cat.color : COLOR.text2 }}>
                       {cat.name}
                     </button>
                   );
@@ -2404,11 +2370,11 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setShowEventForm(false); setEventTitle(''); }} className="touch-manipulation"
-                  style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366' }}>
+                  style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: COLOR.text2 }}>
                   Cancel
                 </button>
                 <button type="button" onClick={handleCreateEvent} disabled={!eventTitle.trim() || !eventStart || !eventEnd} className="touch-manipulation"
-                  style={{ flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', backgroundColor: eventTitle.trim() && eventStart && eventEnd ? THEME.primary : 'rgba(0,0,0,0.06)', color: eventTitle.trim() && eventStart && eventEnd ? '#FFFFFF' : '#AEAEB2' }}>
+                  style={{ flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', backgroundColor: eventTitle.trim() && eventStart && eventEnd ? THEME.primary : 'rgba(0,0,0,0.06)', color: eventTitle.trim() && eventStart && eventEnd ? '#FFFFFF' : COLOR.muted }}>
                   Create Event
                 </button>
               </div>
@@ -2527,7 +2493,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           {task.tags.map(tag => (
             <span key={tag.id} style={{
-              fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 99,
+              fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 99,
               backgroundColor: hexToRgba(catColor, 0.08), color: catColor,
               border: `1px solid ${hexToRgba(catColor, 0.18)}`,
             }}>{tag.name}</span>
@@ -2535,21 +2501,21 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
         </div>
       )}
       {task.description && (
-        <p style={{ fontSize: 12, color: '#636366', margin: '0 0 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{task.description}</p>
+        <p style={{ fontSize: 12, color: COLOR.text2, margin: '0 0 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{task.description}</p>
       )}
       {task.notes && (
-        <p style={{ fontSize: 12, fontStyle: 'italic', color: '#636366', margin: '0 0 8px', lineHeight: 1.4, paddingTop: 4, borderTop: '1px solid rgba(0,0,0,0.05)', whiteSpace: 'pre-wrap' }}>{task.notes}</p>
+        <p style={{ fontSize: 12, fontStyle: 'italic', color: COLOR.text2, margin: '0 0 8px', lineHeight: 1.4, paddingTop: 4, borderTop: '1px solid rgba(0,0,0,0.05)', whiteSpace: 'pre-wrap' }}>{task.notes}</p>
       )}
       {'link' in task && (task as any).link && (
         <a href={(task as any).link} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 11, color: '#8DA286', display: 'block', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          style={{ fontSize: 11, color: COLOR.accent, display: 'block', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {(task as any).link}
         </a>
       )}
       {/* Duration slider */}
       <div style={{ marginBottom: 10 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Duration</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Duration</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: THEME.textPrimary }}>{fmtDuration(mins)}</span>
         </div>
         <input
@@ -2576,8 +2542,8 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
           }}
         />
         <div className="flex justify-between" style={{ marginTop: 2 }}>
-          <span style={{ fontSize: 9, color: '#AEAEB2' }}>5m</span>
-          <span style={{ fontSize: 9, color: '#AEAEB2' }}>4h</span>
+          <span style={{ fontSize: 11, color: COLOR.muted }}>5m</span>
+          <span style={{ fontSize: 11, color: COLOR.muted }}>4h</span>
         </div>
       </div>
 
@@ -2637,7 +2603,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
               backgroundColor: '#FFFFFF',
               borderRadius: '16px 16px 0 0',
               boxShadow: 'var(--tb-sh-sheet)',
-              maxHeight: '75vh',
+              maxHeight: '75dvh',
               overflowY: 'auto',
               paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
               animation: 'slideUp 0.2s ease-out',
@@ -2655,7 +2621,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
               {/* Date picker — day buttons */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a day</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a day</span>
                 <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                   {dayOptions.map((opt) => {
                     const isSel = pickerDate === opt.date;
@@ -2675,7 +2641,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
                         }}
                       >
                         <span style={{ fontSize: 11, fontWeight: 600 }}>{opt.label}</span>
-                        <span style={{ fontSize: 9, color: isSel ? THEME.primary : '#8E8E93', marginTop: 1 }}>{opt.sublabel}</span>
+                        <span style={{ fontSize: 11, color: isSel ? THEME.primary : COLOR.muted, marginTop: 1 }}>{opt.sublabel}</span>
                       </button>
                     );
                   })}
@@ -2684,7 +2650,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
               {/* Time slot picker */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a time</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Pick a time</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {timeSlots.map((slot) => {
                     const isSel = pickerTime === slot.value;
@@ -2708,7 +2674,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
                 </div>
                 {/* Custom time input */}
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: '#8E8E93' }}>or</span>
+                  <span style={{ fontSize: 11, color: COLOR.muted }}>or</span>
                   <input
                     type="time"
                     value={pickerTime}
@@ -2732,7 +2698,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
                   className="touch-manipulation"
                   style={{
                     flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500,
-                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: '#636366',
+                    border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: COLOR.text2,
                   }}
                 >
                   Cancel
@@ -2746,7 +2712,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
                     flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600,
                     border: 'none',
                     backgroundColor: pickerDate ? THEME.primary : 'rgba(0,0,0,0.06)',
-                    color: pickerDate ? '#FFFFFF' : '#AEAEB2',
+                    color: pickerDate ? '#FFFFFF' : COLOR.muted,
                   }}
                 >
                   Schedule
@@ -3037,7 +3003,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
               borderRadius: 10,
               border: 'none',
               backgroundColor: parsed.title ? THEME.primary : 'rgba(0,0,0,0.06)',
-              color: parsed.title ? '#FFFFFF' : '#AEAEB2',
+              color: parsed.title ? '#FFFFFF' : COLOR.muted,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -3073,11 +3039,11 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                   fontWeight: isActive ? 600 : 400,
                   border: isActive ? 'none' : '1px solid rgba(0,0,0,0.10)',
                   backgroundColor: isActive ? `${THEME.primary}15` : 'transparent',
-                  color: isActive ? THEME.primary : '#AEAEB2',
+                  color: isActive ? THEME.primary : COLOR.muted,
                 }}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
-                <span style={{ fontSize: 10, fontWeight: 600, opacity: isActive ? 0.7 : 0.5 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, opacity: isActive ? 0.7 : 0.5 }}>
                   {count}
                 </span>
               </button>
@@ -3093,7 +3059,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            <p style={{ fontSize: 14, color: '#AEAEB2', margin: 0 }}>
+            <p style={{ fontSize: 14, color: COLOR.muted, margin: 0 }}>
               {filter === 'done' ? 'No completed tasks' : filter === 'today' ? 'Nothing scheduled today' : 'No tasks yet'}
             </p>
           </div>
@@ -3134,6 +3100,19 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                   className="touch-manipulation"
                   style={{
                     flexShrink: 0,
+                    // 44px touch target around the 22px visual box
+                    width: 44,
+                    height: 44,
+                    margin: -11,
+                    padding: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span style={{
                     width: 22,
                     height: 22,
                     borderRadius: 6,
@@ -3142,13 +3121,13 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                  }}
-                >
+                  }}>
                   {isDone && (
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
+                  </span>
                 </button>}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -3161,7 +3140,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                     {task.estimatedMinutes > 0 && (
-                      <span style={{ fontSize: 10, color: '#8E8E93' }}>
+                      <span style={{ fontSize: 11, color: COLOR.muted }}>
                         {task.estimatedMinutes >= 60
                           ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`
                           : `${task.estimatedMinutes}m`
@@ -3169,12 +3148,12 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                       </span>
                     )}
                     {nextBlock && (
-                      <span style={{ fontSize: 10, color: THEME.primary }}>
+                      <span style={{ fontSize: 11, color: THEME.primary }}>
                         {nextBlock.date === todayStr ? formatTime12(nextBlock.start) : formatDateHeader(nextBlock.date)}
                       </span>
                     )}
                     {task.dueDate && (
-                      <span style={{ fontSize: 10, color: THEME.warningOrange }}>
+                      <span style={{ fontSize: 11, color: THEME.warningOrange }}>
                         Due {formatDateHeader(task.dueDate)}
                       </span>
                     )}
@@ -3264,7 +3243,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             width: 96,
             height: 96,
             borderRadius: '50%',
-            backgroundColor: '#FF3B30',
+            backgroundColor: COLOR.danger,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3299,7 +3278,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             bottom: 84,
             left: 16,
             right: 16,
-            backgroundColor: '#1C1C1E',
+            backgroundColor: COLOR.text,
             color: '#FFFFFF',
             fontSize: 13,
             fontWeight: 500,

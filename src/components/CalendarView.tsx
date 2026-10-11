@@ -385,7 +385,7 @@ export function CalendarView({
         /* ── Mobile header: single compact row ── */
         <div
           className="px-2 py-1 flex items-center gap-1 shrink-0"
-          style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, zIndex: 10 }}
+          style={{ paddingTop: 'max(4px, env(safe-area-inset-top, 0px))', paddingLeft: 'max(8px, env(safe-area-inset-left, 0px))', paddingRight: 'max(8px, env(safe-area-inset-right, 0px))', borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, zIndex: 10 }}
         >
           {/* Hamburger — 40px touch target */}
           {onOpenMobileSidebar && (
@@ -393,7 +393,7 @@ export function CalendarView({
               type="button"
               onClick={() => { setSelectedBlock(null); onOpenMobileSidebar(); }}
               className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
-              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
               aria-label="Open calendars"
             >
               <svg width="16" height="12" viewBox="0 0 18 14" fill="none"><path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
@@ -402,10 +402,10 @@ export function CalendarView({
 
           {/* Nav arrows — 36px touch targets */}
           <div className="flex items-center shrink-0">
-            <button onClick={navigatePrevious} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 28, height: 36, color: TEXT_MUTED }}>
+            <button onClick={navigatePrevious} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 44, height: 44, color: TEXT_MUTED }}>
               <ChevronLeftIcon className="h-4 w-4" />
             </button>
-            <button onClick={navigateNext} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 28, height: 36, color: TEXT_MUTED }}>
+            <button onClick={navigateNext} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 44, height: 44, color: TEXT_MUTED }}>
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>
@@ -484,7 +484,7 @@ export function CalendarView({
               type="button"
               onClick={onOpenSettings}
               className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
-              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
               aria-label="Open settings"
             >
               <Cog6ToothIcon className="h-[17px] w-[17px]" />
@@ -497,7 +497,7 @@ export function CalendarView({
               type="button"
               onClick={() => { setSelectedBlock(null); onOpenMobileTasks(); }}
               className="flex items-center justify-center rounded-lg touch-manipulation shrink-0 -mr-1"
-              style={{ width: 36, height: 36, color: TEXT_PRIMARY }}
+              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
               aria-label="Open to-dos"
             >
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -667,7 +667,7 @@ export function CalendarView({
       )}
 
       {/* Floating buttons — pinned to bottom-right */}
-      <div className={`absolute ${isMobile ? 'bottom-5 right-4' : 'bottom-6 right-6'} z-30 flex flex-col items-center gap-3`}>
+      <div className={`absolute ${isMobile ? '' : 'bottom-6 right-6'} z-30 flex flex-col items-center gap-3`} style={isMobile ? { bottom: 'calc(var(--tb-sp-5) + env(safe-area-inset-bottom, 0px))', right: 'calc(var(--tb-sp-4) + env(safe-area-inset-right, 0px))' } : undefined}>
         {/* Stamp button — smaller, above + */}
         <div className="relative">
           <button
@@ -684,7 +684,7 @@ export function CalendarView({
             }}
             className="flex items-center justify-center shadow-md transition-all active:scale-90"
             style={{
-              width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: '50%',
+              width: isMobile ? 44 : 40, height: isMobile ? 44 : 40, borderRadius: '50%',
               backgroundColor: '#FFFFFF',
               border: stampMode ? `2px solid ${PRIMARY}` : '1.5px solid rgba(0,0,0,0.08)',
               boxShadow: stampMode
@@ -705,7 +705,7 @@ export function CalendarView({
               <div
                 className="absolute z-50 flex items-center gap-1 rounded-full py-1.5 px-2"
                 style={{
-                  right: isMobile ? 44 : 46,
+                  right: isMobile ? 52 : 48,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   backgroundColor: '#FFFFFF',
@@ -792,7 +792,7 @@ export function CalendarView({
             <div
               className="absolute whitespace-nowrap rounded-full px-3 py-1"
               style={{
-                right: isMobile ? 44 : 46,
+                right: isMobile ? 52 : 48,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 fontSize: 10, fontWeight: 500, color: PRIMARY,
