@@ -390,10 +390,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               <p style={{ fontSize: 14, lineHeight: 1.6, color: '#636366', margin: 0 }}>
                 Thanks for your interest in The Timeboxing Club. We'll send you an invite code when a spot opens up.
               </p>
-              <button
+              <button className="tb-hv-c"
                 onClick={onVisitMode}
-                style={{
-                  fontSize: 14,
+                style={{ '--hv-c': '#7A9278', fontSize: 14,
                   fontWeight: 600,
                   color: '#8DA286',
                   background: 'none',
@@ -401,10 +400,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   cursor: 'pointer',
                   marginTop: 8,
                   transition: 'color 200ms',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 Try it out →
               </button>
@@ -422,10 +418,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               <p style={{ fontSize: 13, lineHeight: 1.5, color: '#AEAEB2', margin: '8px 0 0' }}>
                 Don't see it? Check your spam or junk folder.
               </p>
-              <button
+              <button className="tb-hv-c"
                 onClick={() => switchMode('login')}
-                style={{
-                  fontSize: 14,
+                style={{ '--hv-c': '#7A9278', fontSize: 14,
                   fontWeight: 600,
                   color: '#8DA286',
                   background: 'none',
@@ -433,10 +428,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   cursor: 'pointer',
                   marginTop: 8,
                   transition: 'color 200ms',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 Back to log in →
               </button>
@@ -517,11 +509,10 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   </div>
                 )}
 
-                <button
+                <button className={!loading && !noBackend && email.trim() ? 'tb-hv-bg' : undefined}
                   type="submit"
                   disabled={noBackend || loading || !email.trim()}
-                  style={{
-                    width: '100%',
+                  style={{ '--hv-bg': '#7A9278', width: '100%',
                     height: 48,
                     borderRadius: 10,
                     fontSize: 15,
@@ -532,33 +523,22 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     backgroundColor: '#8DA286',
                     color: '#FFFFFF',
                     opacity: (noBackend || loading || !email.trim()) ? 0.4 : 1,
-                    fontFamily: 'inherit',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading && !noBackend && email.trim()) e.currentTarget.style.backgroundColor = '#7A9278';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#8DA286';
-                  }}
+                    fontFamily: 'inherit', } as React.CSSProperties}
                 >
                   {loading ? '...' : 'Join Waitlist'}
                 </button>
 
                 <div style={{ textAlign: 'center', marginTop: 14 }}>
-                  <button
+                  <button className="tb-hv-c"
                     type="button"
                     onClick={() => switchMode('signup')}
-                    style={{
-                      fontSize: 13,
+                    style={{ '--hv-c': '#7A9278', fontSize: 13,
                       color: '#8DA286',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
                       transition: 'color 200ms',
-                      fontFamily: 'inherit',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                      fontFamily: 'inherit', } as React.CSSProperties}
                   >
                     Have an invite code? Sign up
                   </button>
@@ -602,12 +582,11 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 </div>
 
                 {/* Desktop app */}
-                <a
+                <a className="tb-hv-bd"
                   href="https://timeboxing.club/desktop"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
+                  style={{ '--hv-bd': 'rgba(141,162,134,0.4)', display: 'flex',
                     alignItems: 'center',
                     gap: 14,
                     padding: '16px',
@@ -616,10 +595,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     border: '1px solid rgba(0,0,0,0.06)',
                     textDecoration: 'none',
                     cursor: 'pointer',
-                    transition: 'border-color 200ms',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(141,162,134,0.4)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)')}
+                    transition: 'border-color 200ms', } as React.CSSProperties}
                 >
                   <div style={{ fontSize: 28, lineHeight: 1 }}>
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -642,20 +618,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 </a>
 
                 <div style={{ textAlign: 'center', marginTop: 4 }}>
-                  <button
+                  <button className="tb-hv-c"
                     type="button"
                     onClick={() => switchMode('signup')}
-                    style={{
-                      fontSize: 13,
+                    style={{ '--hv-c': '#7A9278', fontSize: 13,
                       color: '#8DA286',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
                       transition: 'color 200ms',
-                      fontFamily: 'inherit',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                      fontFamily: 'inherit', } as React.CSSProperties}
                   >
                     Sign up instead
                   </button>
@@ -752,21 +724,17 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               {/* Forgot password link — login only */}
               {mode === 'login' && (
                 <div style={{ marginBottom: 16, textAlign: 'right' }}>
-                  <button
+                  <button className="tb-hv-c"
                     type="button"
                     onClick={() => switchMode('forgot')}
-                    style={{
-                      fontSize: 13,
+                    style={{ '--hv-c': '#7A9278', fontSize: 13,
                       color: '#8DA286',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
                       fontFamily: 'inherit',
                       padding: 0,
-                      transition: 'color 200ms',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                      transition: 'color 200ms', } as React.CSSProperties}
                   >
                     Forgot password?
                   </button>
@@ -865,12 +833,11 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   <p style={{ margin: '0 0 10px', color: '#3A3A3C' }}>
                     Would you like to join the waitlist with <strong>{email.trim()}</strong>?
                   </p>
-                  <button
+                  <button className={!loading ? 'tb-hv-bg' : undefined}
                     type="button"
                     onClick={joinWaitlist}
                     disabled={loading}
-                    style={{
-                      padding: '8px 18px',
+                    style={{ '--hv-bg': '#7A9278', padding: '8px 18px',
                       fontSize: 13,
                       fontWeight: 600,
                       borderRadius: 8,
@@ -880,10 +847,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       cursor: loading ? 'default' : 'pointer',
                       opacity: loading ? 0.5 : 1,
                       transition: 'all 200ms',
-                      fontFamily: 'inherit',
-                    }}
-                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#7A9278'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
+                      fontFamily: 'inherit', } as React.CSSProperties}
                   >
                     {loading ? '...' : 'Join Waitlist'}
                   </button>
@@ -891,11 +855,10 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
               )}
 
               {/* Primary action button */}
-              <button
+              <button className={!loading && !noBackend ? 'tb-hv-bg' : undefined}
                 type="submit"
                 disabled={noBackend || loading}
-                style={{
-                  width: '100%',
+                style={{ '--hv-bg': '#7A9278', width: '100%',
                   height: 48,
                   borderRadius: 10,
                   fontSize: 15,
@@ -906,14 +869,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   backgroundColor: '#8DA286',
                   color: '#FFFFFF',
                   opacity: (noBackend || loading) ? 0.4 : 1,
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && !noBackend) e.currentTarget.style.backgroundColor = '#7A9278';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#8DA286';
-                }}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 {loading
                   ? '...'
@@ -970,11 +926,10 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)' }} />
               </div>
 
-              <button
+              <button className="tb-hv-bg"
                 type="button"
                 onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')}
-                style={{
-                  width: '100%',
+                style={{ '--hv-bg': 'rgba(0,0,0,0.02)', width: '100%',
                   height: 48,
                   borderRadius: 10,
                   fontSize: 15,
@@ -984,10 +939,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   color: '#1C1C1E',
                   cursor: 'pointer',
                   transition: 'all 200ms',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 {mode === 'signup' ? 'Log in' : 'Sign up'}
               </button>
@@ -997,21 +949,17 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
           {/* Back to log in — forgot/reset modes only */}
           {isForgotOrReset && !awaitingConfirmation && (
             <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <button
+              <button className="tb-hv-c"
                 type="button"
                 onClick={() => switchMode('login')}
-                style={{
-                  fontSize: 14,
+                style={{ '--hv-c': '#7A9278', fontSize: 14,
                   fontWeight: 600,
                   color: '#8DA286',
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
                   transition: 'color 200ms',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 ← Back to log in
               </button>
@@ -1022,20 +970,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         {/* Try without signing in — outside card, hide in reset mode */}
         {mode !== 'reset' && !waitlistJoined && (
           <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <button
+            <button className="tb-hv-c"
               onClick={onVisitMode}
-              style={{
-                fontSize: 14,
+              style={{ '--hv-c': '#636366', fontSize: 14,
                 color: '#8E8E93',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
                 textDecoration: 'underline',
                 transition: 'color 200ms',
-                fontFamily: 'inherit',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+                fontFamily: 'inherit', } as React.CSSProperties}
             >
               Try Without Signing In
             </button>
@@ -1044,10 +988,9 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         {/* Download app link — hidden when already in native app or installed PWA */}
         {mode !== 'reset' && mode !== 'download' && !waitlistJoined && !isInApp && (
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button
+            <button className="tb-hv-c"
               onClick={() => switchMode('download')}
-              style={{
-                fontSize: 12,
+              style={{ '--hv-c': '#636366', fontSize: 12,
                 color: '#8E8E93',
                 background: 'none',
                 border: 'none',
@@ -1056,10 +999,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 alignItems: 'center',
                 gap: 5,
                 transition: 'color 200ms',
-                fontFamily: 'inherit',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#636366')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+                fontFamily: 'inherit', } as React.CSSProperties}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M7 2v7m0 0l-2.5-2.5M7 9l2.5-2.5M3 12h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />

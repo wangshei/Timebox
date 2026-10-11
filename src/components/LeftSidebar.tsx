@@ -172,10 +172,8 @@ function SchedulingLinkRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onCopyLink(); }}
-          className="p-0.5 rounded transition-colors flex-shrink-0"
-          style={{ color: '#8E8E93', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#636366')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
+          className="p-0.5 rounded transition-colors flex-shrink-0 tb-hv-c"
+          style={{ '--hv-c': '#636366', color: '#8E8E93', background: 'none', border: 'none', cursor: 'pointer' } as React.CSSProperties}
           title="Copy booking link"
         >
           <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
@@ -183,10 +181,8 @@ function SchedulingLinkRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
-          className="p-0.5 rounded transition-colors flex-shrink-0"
-          style={{ color: link.active ? '#8DA286' : '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => (e.currentTarget.style.color = link.active ? '#6B8A63' : '#8E8E93')}
-          onMouseLeave={e => (e.currentTarget.style.color = link.active ? '#8DA286' : '#AEAEB2')}
+          className="p-0.5 rounded transition-colors flex-shrink-0 tb-hv-c"
+          style={{ '--hv-c': link.active ? '#6B8A63' : '#8E8E93', color: link.active ? '#8DA286' : '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' } as React.CSSProperties}
           title={link.active ? 'Deactivate' : 'Activate'}
         >
           {link.active
@@ -196,10 +192,8 @@ function SchedulingLinkRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-0.5 rounded transition-colors flex-shrink-0"
-          style={{ color: '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#FF3B30')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#AEAEB2')}
+          className="p-0.5 rounded transition-colors flex-shrink-0 tb-hv-c"
+          style={{ '--hv-c': '#FF3B30', color: '#AEAEB2', background: 'none', border: 'none', cursor: 'pointer' } as React.CSSProperties}
           title="Delete"
         >
           <TrashIcon style={{ width: 14, height: 14 }} />
@@ -421,10 +415,8 @@ export function LeftSidebar({
 
   const iconBtn = (onClick: () => void, icon: React.ReactNode, color: string, bg: string) => (
     <button type="button" onClick={onClick}
-      className="p-0.5 rounded transition-colors flex-shrink-0"
-      style={{ color, backgroundColor: 'transparent' }}
-      onMouseEnter={e => (e.currentTarget.style.backgroundColor = bg)}
-      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+      className="p-0.5 rounded transition-colors flex-shrink-0 tb-hv-bg"
+      style={{ '--hv-bg': bg, color, backgroundColor: 'transparent' } as React.CSSProperties}
     >
       {icon}
     </button>
@@ -562,10 +554,8 @@ export function LeftSidebar({
           <button
             type="button"
             onClick={onExitCompare}
-            className="p-1 rounded-md transition-colors"
-            style={{ color: '#8E8E93' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#636366')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#8E8E93')}
+            className="p-1 rounded-md transition-colors tb-hv-c"
+            style={{ '--hv-c': '#636366', color: '#8E8E93' } as React.CSSProperties}
             title="Exit compare mode"
           >
             <ArrowLeftIcon className="h-3.5 w-3.5" />
@@ -589,9 +579,8 @@ export function LeftSidebar({
           <button
             type="button"
             onClick={onConnectGcal}
-            className="w-full rounded-lg mb-2 transition-all relative"
-            style={{
-              display: 'flex',
+            className="w-full rounded-lg mb-2 transition-all relative tb-hv-bg tb-hv-bd"
+            style={{ '--hv-bg': 'rgba(66,133,244,0.10)', '--hv-bd': 'rgba(66,133,244,0.25)', display: 'flex',
               alignItems: 'center',
               gap: 10,
               padding: '10px 12px',
@@ -599,16 +588,7 @@ export function LeftSidebar({
               border: '1px solid rgba(66,133,244,0.15)',
               cursor: 'pointer',
               fontFamily: 'inherit',
-              textAlign: 'left',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.10)';
-              e.currentTarget.style.borderColor = 'rgba(66,133,244,0.25)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.06)';
-              e.currentTarget.style.borderColor = 'rgba(66,133,244,0.15)';
-            }}
+              textAlign: 'left', } as React.CSSProperties}
           >
             <div style={{
               width: 32,
@@ -635,13 +615,12 @@ export function LeftSidebar({
                 Sync your events automatically
               </div>
             </div>
-            <span
+            <span className="tb-hv-bg"
               role="button"
               aria-label="Dismiss"
               title="Dismiss — you can connect later in Settings"
               onClick={(e) => { e.stopPropagation(); dismissGcalPrompt(); }}
-              style={{
-                position: 'absolute',
+              style={{ '--hv-bg': 'rgba(0,0,0,0.08)', position: 'absolute',
                 top: 6,
                 right: 6,
                 display: 'flex',
@@ -651,10 +630,7 @@ export function LeftSidebar({
                 height: 18,
                 borderRadius: 5,
                 color: '#8E8E93',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                cursor: 'pointer', } as React.CSSProperties}
             >
               <XMarkIcon style={{ width: 13, height: 13 }} />
             </span>
@@ -1411,10 +1387,8 @@ export function LeftSidebar({
           <button
             type="button"
             onClick={onEndDay}
-            className="w-full text-left px-2 py-1 text-xs rounded-md transition-colors"
-            style={{ color: '#8E8E93' }}
-            onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'); (e.currentTarget.style.color = '#636366'); }}
-            onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#8E8E93'); }}
+            className="w-full text-left px-2 py-1 text-xs rounded-md transition-colors tb-hv-bg tb-hv-c"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.04)', '--hv-c': '#636366', color: '#8E8E93' } as React.CSSProperties}
           >
             {endDayLabel}
           </button>
@@ -1428,10 +1402,8 @@ export function LeftSidebar({
             <button
               type="button"
               onClick={onToggleShortcuts}
-              className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-medium rounded-md transition-colors"
-              style={{ color: '#8E8E93' }}
-              onMouseEnter={e => { (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'); (e.currentTarget.style.color = '#636366'); }}
-              onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#8E8E93'); }}
+              className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-medium rounded-md transition-colors tb-hv-bg tb-hv-c"
+              style={{ '--hv-bg': 'rgba(0,0,0,0.04)', '--hv-c': '#636366', color: '#8E8E93' } as React.CSSProperties}
             >
               <span>Keyboard shortcuts</span>
               <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] rounded font-semibold" style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#AEAEB2' }}>?</span>

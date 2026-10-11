@@ -505,24 +505,19 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 2 }}>
-          <button
+          <button className="tb-hv-c"
             onClick={onComplete}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
+            style={{ '--hv-c': '#1C1C1E', background: 'none', border: 'none', cursor: 'pointer',
               fontSize: 12, fontWeight: 500, color: '#8E8E93',
-              padding: 0, transition: 'color 0.15s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+              padding: 0, transition: 'color 0.15s', } as React.CSSProperties}
           >
             Skip tour
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 9, color: '#C7C7CC' }}>↵ or →</span>
-            <button
+            <button className="tb-hv-bg tb-hv-tf"
               onClick={handleNext}
-              style={{
-                padding: '6px 16px',
+              style={{ '--hv-bg': '#3D5736', '--hv-tf': 'translateY(-1px)', padding: '6px 16px',
                 borderRadius: 8,
                 fontSize: 12,
                 fontWeight: 600,
@@ -531,16 +526,7 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
                 border: 'none',
                 cursor: 'pointer',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#3D5736';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#4A6741';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+                transition: 'all 0.15s', } as React.CSSProperties}
             >
               {isLast ? 'Finish' : 'Next'}
             </button>

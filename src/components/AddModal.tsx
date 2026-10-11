@@ -686,10 +686,8 @@ export function AddModal({
             <button
               type="button"
               onClick={() => setMode(mode === 'task' ? 'event' : 'task')}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 transition-colors"
-              style={{ color: THEME.primary, backgroundColor: 'rgba(141,162,134,0.10)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.10)')}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(141,162,134,0.18)', color: THEME.primary, backgroundColor: 'rgba(141,162,134,0.10)' } as React.CSSProperties}
               title={mode === 'task' ? 'Switch to Event' : 'Switch to Note'}
             >
               {mode === 'task'
@@ -697,9 +695,7 @@ export function AddModal({
                 : <><CheckCircleIcon className="h-3.5 w-3.5" /> Note</>}
             </button>
           )}
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0 tb-hv-bg" style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#8E8E93' } as React.CSSProperties}
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
@@ -808,10 +804,8 @@ export function AddModal({
                 <button
                   type="button"
                   onClick={() => setTimeExpanded(true)}
-                  className="w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors"
-                  style={{ textAlign: 'left', display: 'block' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  className="w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors tb-hv-bg"
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.03)', textAlign: 'left', display: 'block' } as React.CSSProperties}
                 >
                   <span style={{ fontSize: 13, fontWeight: 500, color: THEME.textPrimary }}>
                     {fmtEventDate(date)}{endDate && endDate !== date ? ` – ${fmtEventDate(endDate)}` : ''}
@@ -881,10 +875,8 @@ export function AddModal({
                     <button
                       type="button"
                       onClick={() => { setTzPickerOpen(!tzPickerOpen); setTzSearch(''); setTimeout(() => tzSearchInputRef.current?.focus(), 50); }}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors"
-                      style={{ fontSize: 11, color: '#8DA286', backgroundColor: tzPickerOpen ? 'rgba(141,162,134,0.10)' : 'transparent' }}
-                      onMouseEnter={(e) => { if (!tzPickerOpen) e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.06)'; }}
-                      onMouseLeave={(e) => { if (!tzPickerOpen) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${!tzPickerOpen ? 'tb-hv-bg' : ''}`}
+                      style={{ '--hv-bg': 'rgba(141,162,134,0.06)', fontSize: 11, color: '#8DA286', backgroundColor: tzPickerOpen ? 'rgba(141,162,134,0.10)' : 'transparent' } as React.CSSProperties}
                     >
                       {getTimezoneAbbr(timezone)} ({timezone.split('/').pop()?.replace(/_/g, ' ')})
                       <ChevronDownIcon className="h-3 w-3" style={{ transform: tzPickerOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
@@ -922,14 +914,10 @@ export function AddModal({
                             <button
                               key={tz}
                               type="button"
-                              className="w-full text-left px-2.5 py-1.5 text-xs transition-colors flex items-center justify-between"
-                              style={{
-                                color: tz === timezone ? '#8DA286' : '#1C1C1E',
+                              className="w-full text-left px-2.5 py-1.5 text-xs transition-colors flex items-center justify-between tb-hv-bg"
+                              style={{ '--hv-bg': 'rgba(141,162,134,0.08)', color: tz === timezone ? '#8DA286' : '#1C1C1E',
                                 backgroundColor: tz === timezone ? 'rgba(141,162,134,0.08)' : 'transparent',
-                                fontWeight: tz === timezone ? 600 : 400,
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = tz === timezone ? 'rgba(141,162,134,0.08)' : 'transparent'; }}
+                                fontWeight: tz === timezone ? 600 : 400, } as React.CSSProperties}
                               onClick={() => { setTimezone(tz); setTzPickerOpen(false); setTzSearch(''); }}
                             >
                               <span>{tz.replace(/_/g, ' ')}</span>
@@ -1121,10 +1109,8 @@ export function AddModal({
             <button
               type="button"
               onClick={() => setShowNotes(true)}
-              className="flex items-center gap-2.5 w-full text-left rounded-lg transition-colors"
-              style={{ padding: '4px 0', color: '#8E8E93' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = THEME.textPrimary)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+              className="flex items-center gap-2.5 w-full text-left rounded-lg transition-colors tb-hv-c"
+              style={{ '--hv-c': THEME.textPrimary, padding: '4px 0', color: '#8E8E93' } as React.CSSProperties}
             >
               <PencilSquareIcon className="h-4 w-4 shrink-0" />
               <span className="text-sm">Add note</span>

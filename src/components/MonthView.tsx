@@ -107,12 +107,10 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           return (
             <div
               key={index}
-              className={`min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer relative overflow-hidden ${
+              className={`${`min-h-20 md:min-h-28 p-1.5 md:p-2 cursor-pointer relative overflow-hidden ${
                 !day.isCurrentMonth ? 'opacity-50' : ''
-              }`}
-              style={{ backgroundColor: dayBg ?? '#ffffff' }}
-              onMouseEnter={(e) => { if (!dayBg) e.currentTarget.style.backgroundColor = '#fafafa'; }}
-              onMouseLeave={(e) => { if (!dayBg) e.currentTarget.style.backgroundColor = '#ffffff'; }}
+              }`} ${!dayBg ? 'tb-hv-bg' : ''}`}
+              style={{ '--hv-bg': '#fafafa', backgroundColor: dayBg ?? '#ffffff' } as React.CSSProperties}
               onClick={() => onSelectDate?.(formatDate(day.date))}
             >
               {/* Current day indicator — red line on left for today */}

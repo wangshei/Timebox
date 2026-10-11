@@ -110,29 +110,21 @@ function RoleDropdown({
             persist failure. Re-add them here if the CHECK is ever widened.
           */}
           {(['viewer'] as ShareRole[]).map((role) => (
-            <button
+            <button className={value !== role ? 'tb-hv-bg' : undefined}
               key={role}
               type="button"
               onClick={() => {
                 onChange(role);
                 setOpen(false);
               }}
-              style={{
-                display: 'flex',
+              style={{ '--hv-bg': 'rgba(0,0,0,0.03)', display: 'flex',
                 flexDirection: 'column',
                 width: '100%',
                 padding: '8px 12px',
                 border: 'none',
                 background: value === role ? `${color}08` : 'transparent',
                 cursor: 'pointer',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => {
-                if (value !== role) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = value === role ? `${color}08` : 'transparent';
-              }}
+                textAlign: 'left', } as React.CSSProperties}
             >
               <span style={{ fontSize: 12, fontWeight: 500, color: value === role ? color : '#1C1C1E' }}>
                 {ROLE_LABELS[role]}
@@ -263,11 +255,10 @@ export function ShareModal({
         {/* Body */}
         <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Copy link section */}
-          <button
+          <button className={!linkCopied ? 'tb-hv-bg' : undefined}
             type="button"
             onClick={handleCopyLink}
-            style={{
-              display: 'flex',
+            style={{ '--hv-bg': 'rgba(0,0,0,0.04)', display: 'flex',
               alignItems: 'center',
               gap: 8,
               width: '100%',
@@ -276,14 +267,7 @@ export function ShareModal({
               border: '1px solid rgba(0,0,0,0.08)',
               backgroundColor: linkCopied ? `${color}08` : '#FAFAFA',
               cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              if (!linkCopied) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              if (!linkCopied) e.currentTarget.style.backgroundColor = '#FAFAFA';
-            }}
+              transition: 'all 0.15s', } as React.CSSProperties}
           >
             {linkCopied ? (
               <CheckIcon style={{ width: 16, height: 16, color, flexShrink: 0 }} />
@@ -465,11 +449,10 @@ function CollaboratorRow({
       <RoleDropdown value={collaborator.role} onChange={onUpdateRole} color={color} />
 
       {/* Remove button */}
-      <button
+      <button className="tb-hv-c"
         type="button"
         onClick={onRemove}
-        style={{
-          padding: 4,
+        style={{ '--hv-c': '#FF3B30', padding: 4,
           borderRadius: 4,
           border: 'none',
           background: 'none',
@@ -477,10 +460,7 @@ function CollaboratorRow({
           color: '#AEAEB2',
           opacity: hovered ? 1 : 0,
           transition: 'opacity 0.1s',
-          flexShrink: 0,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#FF3B30')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#AEAEB2')}
+          flexShrink: 0, } as React.CSSProperties}
         title="Remove"
       >
         <TrashIcon style={{ width: 14, height: 14 }} />

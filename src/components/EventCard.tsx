@@ -408,10 +408,8 @@ export function EventCard({
                     href={event.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-shrink-0 rounded px-1 py-0.5 transition-colors"
-                    style={{ backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 10, fontWeight: 600, textDecoration: 'none', lineHeight: 1 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.25)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
+                    className="flex-shrink-0 rounded px-1 py-0.5 transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(141,162,134,0.25)', backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 10, fontWeight: 600, textDecoration: 'none', lineHeight: 1 } as React.CSSProperties}
                     onClick={(e) => e.stopPropagation()}
                     title="Join meeting"
                   >
@@ -460,24 +458,20 @@ export function EventCard({
           {visibleEventStickers.map((sticker) => (
             <span
               key={sticker.id}
-              className="absolute z-10 select-none pointer-events-auto cursor-pointer"
-              style={{
-                left: `${sticker.offsetXPercent}%`,
+              className="absolute z-10 select-none pointer-events-auto cursor-pointer tb-hv-tf"
+              style={{ '--hv-tf': 'translate(-50%, -50%) scale(1.2)', left: `${sticker.offsetXPercent}%`,
                 top: `${sticker.offsetYPercent}%`,
                 transform: 'translate(-50%, -50%)',
                 fontSize: 16,
                 lineHeight: 1,
                 filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
-                transition: 'transform 0.1s',
-              }}
+                transition: 'transform 0.1s', } as React.CSSProperties}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 deleteSticker(sticker.id);
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
             >
               {sticker.emoji}
             </span>
@@ -613,10 +607,8 @@ export function EventCard({
                           href={event.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 mb-1 px-1.5 py-1 rounded-md transition-colors"
-                          style={{ backgroundColor: 'rgba(141,162,134,0.08)', textDecoration: 'none', display: 'inline-flex' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)')}
+                          className="flex items-center gap-1 mb-1 px-1.5 py-1 rounded-md transition-colors tb-hv-bg"
+                          style={{ '--hv-bg': 'rgba(141,162,134,0.15)', backgroundColor: 'rgba(141,162,134,0.08)', textDecoration: 'none', display: 'inline-flex' } as React.CSSProperties}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {/meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) ? (
@@ -659,14 +651,10 @@ export function EventCard({
               {isPast && onToggleAttendance && (
                 <button
                   type="button"
-                  className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                  style={{
-                    fontSize: 11,
+                  className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+                  style={{ '--hv-bg': event.attendanceStatus === 'not_attended' || event.attendanceStatus === 'attended' ? 'rgba(0,0,0,0.04)' : hexToRgba(categoryColor, 0.1), fontSize: 11,
                     color: event.attendanceStatus === 'not_attended' ? THEME.textSecondary : event.attendanceStatus === 'attended' ? THEME.textSecondary : categoryColor,
-                    backgroundColor: 'transparent',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = event.attendanceStatus === 'not_attended' || event.attendanceStatus === 'attended' ? 'rgba(0,0,0,0.04)' : hexToRgba(categoryColor, 0.1); }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    backgroundColor: 'transparent', } as React.CSSProperties}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (event.attendanceStatus === 'not_attended') {
@@ -698,10 +686,8 @@ export function EventCard({
                   <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                    style={{ fontSize: 11, color: THEME.textSecondary, backgroundColor: 'transparent' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.04)', fontSize: 11, color: THEME.textSecondary, backgroundColor: 'transparent' } as React.CSSProperties}
                     onClick={(e) => { e.stopPropagation(); onSplit(); setShowPopover(false); onDeselect(); }}
                     title="Reshape around overlapping items so time isn't counted twice"
                   >
@@ -743,10 +729,8 @@ export function EventCard({
                       <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 11 }}>Remove which events?</div>
                       <button
                         type="button"
-                        className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                        className="text-left px-2.5 py-1.5 rounded-lg transition-all tb-hv-bg tb-hv-bd"
+                        style={{ '--hv-bg': 'rgba(184,80,80,0.07)', '--hv-bd': '#FF3B30', border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' } as React.CSSProperties}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteEvent(event.id);
@@ -760,10 +744,8 @@ export function EventCard({
                       </button>
                       <button
                         type="button"
-                        className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                        className="text-left px-2.5 py-1.5 rounded-lg transition-all tb-hv-bg tb-hv-bd"
+                        style={{ '--hv-bg': 'rgba(184,80,80,0.07)', '--hv-bd': '#FF3B30', border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' } as React.CSSProperties}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteEventSeries?.(event.id, 'all_after');
@@ -777,10 +759,8 @@ export function EventCard({
                       </button>
                       <button
                         type="button"
-                        className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                        style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                        className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors tb-hv-bg"
+                        style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 } as React.CSSProperties}
                         onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
                       >
                         Cancel
@@ -789,10 +769,8 @@ export function EventCard({
                   ) : (
                     <button
                       type="button"
-                      className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                      style={{ color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+                      style={{ '--hv-bg': 'rgba(184,80,80,0.07)', color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
                         // If this is a recurring Google event, show scope picker
@@ -826,10 +804,8 @@ export function EventCard({
                     <button
                       key={scope}
                       type="button"
-                      className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                      style={{ border: '1px solid rgba(141,162,134,0.18)', color: '#8DA286', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)'; e.currentTarget.style.borderColor = '#8DA286'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(141,162,134,0.18)'; }}
+                      className="text-left px-2.5 py-1.5 rounded-lg transition-all tb-hv-bg tb-hv-bd"
+                      style={{ '--hv-bg': 'rgba(141,162,134,0.08)', '--hv-bd': '#8DA286', border: '1px solid rgba(141,162,134,0.18)', color: '#8DA286', backgroundColor: 'transparent' } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEditEventWithScope?.(event.id, scope);
@@ -844,10 +820,8 @@ export function EventCard({
                   ))}
                   <button
                     type="button"
-                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 } as React.CSSProperties}
                     onClick={(e) => { e.stopPropagation(); setEditConfirmState(null); }}
                   >
                     Cancel
@@ -864,10 +838,8 @@ export function EventCard({
                     <button
                       key={scope}
                       type="button"
-                      className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                      style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
+                      className="text-left px-2.5 py-1.5 rounded-lg transition-all tb-hv-bg tb-hv-bd"
+                      style={{ '--hv-bg': 'rgba(184,80,80,0.07)', '--hv-bd': '#FF3B30', border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteEventSeries?.(event.id, scope);
@@ -882,10 +854,8 @@ export function EventCard({
                   ))}
                   <button
                     type="button"
-                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                    className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 } as React.CSSProperties}
                     onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
                   >
                     Cancel
@@ -896,10 +866,8 @@ export function EventCard({
                   {onEditEvent && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                      style={{ color: THEME.textSecondary, backgroundColor: 'transparent', fontSize: 11 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+                      style={{ '--hv-bg': 'rgba(0,0,0,0.04)', color: THEME.textSecondary, backgroundColor: 'transparent', fontSize: 11 } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.recurring && event.recurrenceSeriesId && onEditEventWithScope) {
@@ -918,10 +886,8 @@ export function EventCard({
                   {(onDeleteEvent || onDeleteEventSeries) && (
                     <button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                      style={{ color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+                      style={{ '--hv-bg': 'rgba(184,80,80,0.07)', color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (event.recurring && event.recurrenceSeriesId && onDeleteEventSeries) {

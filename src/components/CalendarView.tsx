@@ -716,10 +716,8 @@ export function CalendarView({
                   <button
                     key={emoji}
                     type="button"
-                    className="flex items-center justify-center rounded-full transition-all hover:scale-125 active:scale-95"
-                    style={{ width: 32, height: 32, fontSize: 20, lineHeight: 1 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-125 active:scale-95 tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.04)', width: 32, height: 32, fontSize: 20, lineHeight: 1 } as React.CSSProperties}
                     onClick={() => setActiveStampEmoji(emoji)}
                   >
                     {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
@@ -729,14 +727,10 @@ export function CalendarView({
                 <div className="relative">
                   <button
                     type="button"
-                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
-                    style={{
-                      width: 32, height: 32, fontSize: 16, lineHeight: 1,
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
                       color: TEXT_MUTED,
-                      backgroundColor: 'rgba(0,0,0,0.04)',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
+                      backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
                     onClick={() => {
                       const input = emojiInputRef.current;
                       if (input) {

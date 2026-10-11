@@ -70,10 +70,8 @@ export function ScheduleTaskModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: '#8E8E93' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="p-1.5 rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#8E8E93' } as React.CSSProperties}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -120,19 +118,15 @@ export function ScheduleTaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366', border: '1px solid rgba(0,0,0,0.09)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.09)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
+              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(0,0,0,0.09)', backgroundColor: 'rgba(0,0,0,0.05)', color: '#636366', border: '1px solid rgba(0,0,0,0.09)' } as React.CSSProperties}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors"
-              style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
+              className="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors tb-hv-bg"
+              style={{ '--hv-bg': '#7A9278', backgroundColor: '#8DA286', color: '#FFFFFF' } as React.CSSProperties}
             >
               Schedule
             </button>

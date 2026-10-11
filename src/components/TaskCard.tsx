@@ -300,10 +300,8 @@ export function TaskCard({
                 {[30, 60, 90].map((mins) => (
                   <button key={mins} type="button"
                     onClick={() => { onBreakIntoChunks(task.id, mins); setShowPopover(false); }}
-                    className="px-2 py-1 text-xs font-medium rounded-md transition-colors"
-                    style={{ border: '1px solid rgba(0,0,0,0.10)', color: '#636366', backgroundColor: 'transparent' }}
-                    onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.06))}
-                    onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    className="px-2 py-1 text-xs font-medium rounded-md transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': hexRgba(catColor, 0.06), border: '1px solid rgba(0,0,0,0.10)', color: '#636366', backgroundColor: 'transparent' } as React.CSSProperties}>
                     {mins < 60 ? `${mins}m` : `${mins / 60}h`}
                   </button>
                 ))}
@@ -341,10 +339,8 @@ export function TaskCard({
       {/* Actions */}
       <div className="space-y-px" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 6, marginTop: 6 }}>
         <button type="button"
-          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-          style={{ color: '#636366' }}
-          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
-          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
+          style={{ '--hv-bg': hexRgba(catColor, 0.07), color: '#636366' } as React.CSSProperties}
           onClick={() => { onScheduleTask?.(); setShowPopover(false); }}>
           <CalendarIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           {recordedMins > 0 ? 'Schedule again' : 'Schedule todo'}
@@ -352,10 +348,8 @@ export function TaskCard({
 
         {onRescheduleLater && (
           <button type="button"
-            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-            style={{ color: '#636366' }}
-            onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = hexRgba(catColor, 0.07))}
-            onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': hexRgba(catColor, 0.07), color: '#636366' } as React.CSSProperties}
             onClick={() => { onRescheduleLater(); setShowPopover(false); }}>
             <ArrowPathIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             Reschedule later
@@ -364,10 +358,8 @@ export function TaskCard({
 
         {onMarkTaskDone && !isNote && (
           <button type="button"
-            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-            style={{ color: isDone ? THEME.textPrimary : '#6A8C5A' }}
-            onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)')}
-            onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': isDone ? 'rgba(0,0,0,0.04)' : 'rgba(106,140,90,0.08)', color: isDone ? THEME.textPrimary : '#6A8C5A' } as React.CSSProperties}
             onClick={() => { onMarkTaskDone(); setShowPopover(false); }}>
             <CheckIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
             {isDone ? 'Mark as not done' : 'Mark as done'}
@@ -375,20 +367,16 @@ export function TaskCard({
         )}
 
         <button type="button"
-          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-          style={{ color: '#636366' }}
-          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
-          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
+          style={{ '--hv-bg': 'rgba(0,0,0,0.04)', color: '#636366' } as React.CSSProperties}
           onClick={() => { onEditTask?.(); setShowPopover(false); }}>
           <PencilIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Edit details
         </button>
 
         <button type="button"
-          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
-          style={{ color: '#C87868' }}
-          onPointerEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)')}
-          onPointerLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
+          style={{ '--hv-bg': 'rgba(200,120,104,0.08)', color: '#C87868' } as React.CSSProperties}
           onClick={() => { onDeleteTask?.(); setShowPopover(false); }}>
           <XMarkIcon className="flex-shrink-0" style={{ width: 14, height: 14, minWidth: 14, minHeight: 14 }} />
           Delete todo
@@ -649,13 +637,9 @@ export function TaskCard({
                       e.stopPropagation();
                       onTogglePin();
                     }}
-                    className="flex items-center gap-0.5 transition-opacity"
-                    style={{
-                      color: '#F5A623',
-                      opacity: priority > 0 ? 1 : 0,
-                    }}
-                    onPointerEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                    onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = priority > 0 ? '1' : '0'; }}
+                    className="flex items-center gap-0.5 transition-opacity tb-hv-o"
+                    style={{ '--hv-o': '1', color: '#F5A623',
+                      opacity: priority > 0 ? 1 : 0, } as React.CSSProperties}
                     title="Cycle priority"
                     aria-label="Cycle priority"
                   >

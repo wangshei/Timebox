@@ -86,10 +86,8 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
           </div>
           <button
             onClick={handleClose}
-            className="p-1 rounded-lg transition-colors"
-            style={{ color: '#8E8E93' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            className="p-1 rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.06)', color: '#8E8E93' } as React.CSSProperties}
           >
             <XMarkIcon className="w-4 h-4" />
           </button>
@@ -120,10 +118,8 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
               </div>
               <button
                 onClick={handleClose}
-                className="mt-1 px-6 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
+                className="mt-1 px-6 py-2 rounded-xl text-sm font-semibold transition-all tb-hv-bg"
+                style={{ '--hv-bg': '#7A9278', backgroundColor: '#8DA286', color: '#FFFFFF' } as React.CSSProperties}
               >
                 Close
               </button>
@@ -178,11 +174,9 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
               {/* Direct contact */}
               <p className="text-[10px] leading-relaxed" style={{ color: '#C7C7CC' }}>
                 For urgent issues, email{' '}
-                <a
+                <a className="tb-hv-c"
                   href={`mailto:${SUPPORT_EMAIL}`}
-                  style={{ color: '#8E8E93' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+                  style={{ '--hv-c': '#1C1C1E', color: '#8E8E93' } as React.CSSProperties}
                 >
                   {SUPPORT_EMAIL}
                 </a>
@@ -202,10 +196,8 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="text-xs font-medium transition-colors"
-                  style={{ color: '#8E8E93' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+                  className="text-xs font-medium transition-colors tb-hv-c"
+                  style={{ '--hv-c': '#1C1C1E', color: '#8E8E93' } as React.CSSProperties}
                 >
                   Cancel
                 </button>

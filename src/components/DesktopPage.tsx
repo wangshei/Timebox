@@ -112,10 +112,9 @@ export function DesktopPage() {
         >
           {/* Primary download button */}
           {primaryDownload ? (
-            <a
+            <a className="tb-hv-bg"
               href={primaryDownload.browser_download_url}
-              style={{
-                display: 'flex',
+              style={{ '--hv-bg': '#7A9278', display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 10,
@@ -129,10 +128,7 @@ export function DesktopPage() {
                 backgroundColor: '#8DA286',
                 color: '#FFFFFF',
                 textDecoration: 'none',
-                transition: 'background-color 200ms',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
+                transition: 'background-color 200ms', } as React.CSSProperties}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 3v9m0 0l-3.5-3.5M9 12l3.5-3.5M4 15h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -167,19 +163,15 @@ export function DesktopPage() {
 
           {/* Other platforms toggle */}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button
+            <button className="tb-hv-c"
               onClick={() => setShowAll(!showAll)}
-              style={{
-                fontSize: 13,
+              style={{ '--hv-c': '#7A9278', fontSize: 13,
                 color: '#8DA286',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                transition: 'color 200ms',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                transition: 'color 200ms', } as React.CSSProperties}
             >
               {showAll ? 'Hide other platforms' : 'Other platforms'}
             </button>
@@ -218,16 +210,12 @@ export function DesktopPage() {
 
           {/* Back to web */}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <a
+            <a className="tb-hv-c"
               href="/"
-              style={{
-                fontSize: 13,
+              style={{ '--hv-c': '#7A9278', fontSize: 13,
                 color: '#8DA286',
                 textDecoration: 'none',
-                transition: 'color 200ms',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
+                transition: 'color 200ms', } as React.CSSProperties}
             >
               ← Back to web app
             </a>
@@ -254,21 +242,17 @@ function PlatformSection({ title, assets }: { title: string; assets: AssetLink[]
     }}>
       <p style={{ fontSize: 12, fontWeight: 600, color: '#3A3A3C', margin: '0 0 6px' }}>{title}</p>
       {assets.map(({ label, asset }) => (
-        <a
+        <a className="tb-hv-c"
           key={asset.name}
           href={asset.browser_download_url}
-          style={{
-            display: 'flex',
+          style={{ '--hv-c': '#8DA286', display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '6px 0',
             fontSize: 13,
             color: '#1C1C1E',
             textDecoration: 'none',
-            transition: 'color 200ms',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#8DA286')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#1C1C1E')}
+            transition: 'color 200ms', } as React.CSSProperties}
         >
           <span>{label}</span>
           <span style={{ fontSize: 11, color: '#AEAEB2' }}>{formatSize(asset.size)}</span>

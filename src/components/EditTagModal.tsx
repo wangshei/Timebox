@@ -60,10 +60,8 @@ export function EditTagModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: '#8E8E93' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="p-1.5 rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: '#8E8E93' } as React.CSSProperties}
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
@@ -114,10 +112,8 @@ export function EditTagModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-              style={{ color: '#636366' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(0,0,0,0.05)', color: '#636366' } as React.CSSProperties}
             >
               Cancel
             </button>

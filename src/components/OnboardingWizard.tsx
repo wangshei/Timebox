@@ -218,17 +218,9 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
               )}
             </div>
 
-            <button
+            <button className="tb-hv-bg tb-hv-tf"
               onClick={handleNameContinue}
-              style={primaryBtnBase}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7A9278';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#8DA286';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+              style={{ ...(primaryBtnBase), '--hv-bg': '#7A9278', '--hv-tf': 'translateY(-1px)' } as React.CSSProperties}
             >
               Continue
             </button>
@@ -255,11 +247,9 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
     >
       <div style={{ width: 768, maxWidth: '100%' }}>
         {/* Back button */}
-        <button
+        <button className="tb-hv-c"
           onClick={() => setStep(1)}
-          style={backBtnStyle}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#1C1C1E')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#636366')}
+          style={{ ...(backBtnStyle), '--hv-c': '#1C1C1E' } as React.CSSProperties}
         >
           <BackArrow />
           <span>Back</span>

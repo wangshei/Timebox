@@ -66,3 +66,14 @@ button { touch-action: manipulation; }
 .tb-hover:active { background: var(--tb-hover); }
 .tb-swatch { transition: transform 0.1s, border-color 0.1s; }
 @media (hover: hover) { .tb-swatch:hover { transform: scale(1.15); } }
+
+/* Data-driven hover (replaces JS onMouseEnter/Leave). Values come from --hv-* set inline;
+   !important so they win over the inline base value. Hover devices only. */
+@media (hover: hover) {
+  .tb-hv-bg:hover { background-color: var(--hv-bg) !important; }
+  .tb-hv-bd:hover { border-color: var(--hv-bd) !important; }
+  .tb-hv-c:hover { color: var(--hv-c) !important; }
+  .tb-hv-o:hover { opacity: var(--hv-o) !important; }
+  .tb-hv-tf:hover { transform: var(--hv-tf) !important; }
+  .tb-hv-sh:hover { box-shadow: var(--hv-sh) !important; }
+}

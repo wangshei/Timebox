@@ -63,19 +63,15 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
           <button
             type="button"
             onClick={onClose}
-            className="px-2.5 py-1 text-xs rounded-lg transition-colors"
-            style={{ color: '#636366' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="px-2.5 py-1 text-xs rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.05)', color: '#636366' } as React.CSSProperties}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors"
-            style={{ backgroundColor: 'rgba(91,155,173,0.12)', color: '#2C6070', border: '1px solid rgba(91,155,173,0.25)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.2)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(91,155,173,0.12)'; }}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(91,155,173,0.2)', backgroundColor: 'rgba(91,155,173,0.12)', color: '#2C6070', border: '1px solid rgba(91,155,173,0.25)' } as React.CSSProperties}
           >
             Add
           </button>

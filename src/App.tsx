@@ -3252,33 +3252,25 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
                 {/* Profile circle + refresh */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button
+                <button className="tb-hv-o"
                   type="button"
                   onClick={() => setShowProfileMenu((o) => !o)}
-                  style={{
-                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  style={{ '--hv-o': '0.8', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 10, fontWeight: 700, border: 'none', cursor: 'pointer', flexShrink: 0, transition: 'opacity 200ms',
                     backgroundColor: session ? '#DBE4D7' : 'rgba(141,162,134,0.14)',
-                    color: session ? '#5A7454' : '#8DA286',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    color: session ? '#5A7454' : '#8DA286', } as React.CSSProperties}
                   title={session ? session.user.email : visitMode ? 'Visit mode — click for options' : ''}
                 >
                   {profileLetter}
                 </button>
                 {/* Refresh — pull latest events + shared calendars from the server */}
-                <button
+                <button className={!isRefreshing ? 'tb-hv-bg' : undefined}
                   type="button"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                   title="Refresh — pull latest events & shared calendars"
-                  style={{
-                    padding: 4, borderRadius: 8, border: 'none', cursor: isRefreshing ? 'default' : 'pointer',
-                    backgroundColor: 'transparent', color: '#8E8E93', display: 'flex', alignItems: 'center', flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => { if (!isRefreshing) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.06)', padding: 4, borderRadius: 8, border: 'none', cursor: isRefreshing ? 'default' : 'pointer',
+                    backgroundColor: 'transparent', color: '#8E8E93', display: 'flex', alignItems: 'center', flexShrink: 0, } as React.CSSProperties}
                 >
                   <ArrowPathIcon style={{ width: 14, height: 14, animation: isRefreshing ? 'spin 0.7s linear infinite' : 'none' }} />
                 </button>
@@ -3288,19 +3280,15 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   {/* Broadcast message button — only visible when there's an active message */}
                   {broadcastMessage && (
-                    <button
+                    <button className={!showBroadcastPopup ? 'tb-hv-bg' : undefined}
                       type="button"
                       onClick={() => {
                         setShowBroadcastPopup((o) => !o);
                       }}
-                      style={{
-                        padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      style={{ '--hv-bg': 'rgba(0,0,0,0.08)', padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
                         color: showBroadcastPopup ? '#5856D6' : '#5856D6',
                         backgroundColor: showBroadcastPopup ? 'rgba(88,86,214,0.09)' : 'transparent',
-                        position: 'relative',
-                      }}
-                      onMouseEnter={(e) => { if (!showBroadcastPopup) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                      onMouseLeave={(e) => { if (!showBroadcastPopup) e.currentTarget.style.backgroundColor = showBroadcastPopup ? 'rgba(88,86,214,0.09)' : 'transparent'; }}
+                        position: 'relative', } as React.CSSProperties}
                       title="New message"
                     >
                       <ChatBubbleLeftEllipsisIcon style={{ width: 14, height: 14 }} />
@@ -3316,17 +3304,13 @@ export default function App() {
 
                   {/* Desktop app download button */}
                   {!isTauri() && (
-                    <a
+                    <a className="tb-hv-bg"
                       href="https://timeboxing.club/desktop"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{
-                        padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                      style={{ '--hv-bg': 'rgba(0,0,0,0.08)', padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
                         color: THEME.textPrimary, backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        textDecoration: 'none',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        textDecoration: 'none', } as React.CSSProperties}
                       title="Download desktop app"
                     >
                       <ComputerDesktopIcon style={{ width: 14, height: 14 }} />
@@ -3334,32 +3318,24 @@ export default function App() {
                   )}
 
                   {/* Bug report button */}
-                  <button
+                  <button className={!isBugReportOpen ? 'tb-hv-bg' : undefined}
                     type="button"
                     onClick={() => setIsBugReportOpen((o) => !o)}
-                    style={{
-                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
                       color: isBugReportOpen ? '#8DA286' : THEME.textPrimary,
-                      backgroundColor: isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                    onMouseLeave={(e) => { if (!isBugReportOpen) e.currentTarget.style.backgroundColor = isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                      backgroundColor: isBugReportOpen ? 'rgba(141,162,134,0.09)' : 'transparent', } as React.CSSProperties}
                     title="Report a bug"
                   >
                     <BugAntIcon style={{ width: 14, height: 14 }} />
                   </button>
 
                   {/* Keyboard shortcuts button */}
-                  <button
+                  <button className={!isShortcutsOpen ? 'tb-hv-bg' : undefined}
                     type="button"
                     onClick={() => setIsShortcutsOpen((o) => !o)}
-                    style={{
-                      padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'background-color 200ms',
                       color: isShortcutsOpen ? '#8DA286' : THEME.textPrimary,
-                      backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)'; }}
-                    onMouseLeave={(e) => { if (!isShortcutsOpen) e.currentTarget.style.backgroundColor = isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent'; }}
+                      backgroundColor: isShortcutsOpen ? 'rgba(141,162,134,0.09)' : 'transparent', } as React.CSSProperties}
                     title="Keyboard shortcuts"
                   >
                     <svg width="14" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -3406,34 +3382,28 @@ export default function App() {
                     </div>
                     {session ? (
                       <>
-                        <button
+                        <button className="tb-hv-bg tb-hv-c"
                           type="button"
                           onClick={() => { clearUserLocalStorage(); supabase?.auth.signOut(); setShowProfileMenu(false); }}
-                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                          style={{ '--hv-bg': 'rgba(0,0,0,0.04)', '--hv-c': THEME.textPrimary, width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' } as React.CSSProperties}
                         >
                           <ArrowRightOnRectangleIcon style={{ width: 14, height: 14 }} />
                           Sign out
                         </button>
-                        <button
+                        <button className="tb-hv-bg"
                           type="button"
                           onClick={() => { setShowProfileMenu(false); setShowDeleteAccount(true); setDeleteConfirmText(''); setDeleteStatus('idle'); }}
-                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#FF3B30', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit', borderTop: '1px solid rgba(0,0,0,0.07)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.05)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          style={{ '--hv-bg': 'rgba(255,59,48,0.05)', width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#FF3B30', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit', borderTop: '1px solid rgba(0,0,0,0.07)' } as React.CSSProperties}
                         >
                           <TrashIcon style={{ width: 14, height: 14 }} />
                           Delete account
                         </button>
                       </>
                     ) : (
-                      <button
+                      <button className="tb-hv-bg tb-hv-c"
                         type="button"
                         onClick={() => { setShowProfileMenu(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
-                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = THEME.textPrimary; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#636366'; }}
+                        style={{ '--hv-bg': 'rgba(0,0,0,0.04)', '--hv-c': THEME.textPrimary, width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#636366', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit' } as React.CSSProperties}
                       >
                         <ArrowLeftOnRectangleIcon style={{ width: 14, height: 14 }} />
                         Sign in to save data
@@ -3490,17 +3460,13 @@ export default function App() {
                         </p>
                       )}
                       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                        <button
+                        <button className="tb-hv-bg"
                           type="button"
                           onClick={() => setShowDeleteAccount(false)}
                           disabled={deleteStatus === 'loading'}
-                          style={{
-                            padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8,
+                          style={{ '--hv-bg': 'rgba(0,0,0,0.03)', padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8,
                             border: '1px solid rgba(0,0,0,0.12)', backgroundColor: 'transparent', color: '#636366',
-                            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 200ms',
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 200ms', } as React.CSSProperties}
                         >
                           Cancel
                         </button>
@@ -3559,15 +3525,14 @@ export default function App() {
                       <p style={{ fontSize: 13, color: '#1C1C1E', margin: 0, lineHeight: 1.5 }}>
                         {broadcastMessage}
                       </p>
-                      <button
+                      <button className="tb-hv-bg"
                         type="button"
                         onClick={() => {
                           setShowBroadcastPopup(false);
                           localStorage.setItem('broadcast_read_at', new Date().toISOString());
                           setBroadcastMessage(null);
                         }}
-                        style={{
-                          alignSelf: 'flex-end',
+                        style={{ '--hv-bg': 'rgba(88,86,214,0.15)', alignSelf: 'flex-end',
                           padding: '4px 12px',
                           fontSize: 11,
                           fontWeight: 600,
@@ -3578,10 +3543,7 @@ export default function App() {
                           color: '#5856D6',
                           fontFamily: 'inherit',
                           transition: 'background-color 200ms',
-                          marginTop: 2,
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(88,86,214,0.15)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(88,86,214,0.08)')}
+                          marginTop: 2, } as React.CSSProperties}
                       >
                         Got it
                       </button>
@@ -3698,13 +3660,9 @@ export default function App() {
           }}
         >
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="flex-1 min-w-0 transition-colors tb-hv-bg" style={{ '--hv-bg': 'rgba(141,162,134,0.18)', backgroundColor: 'rgba(0,0,0,0.03)' } as React.CSSProperties} />
           <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="flex-1 min-w-0 transition-colors tb-hv-bg" style={{ '--hv-bg': 'rgba(141,162,134,0.18)', backgroundColor: 'rgba(0,0,0,0.03)' } as React.CSSProperties} />
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
 
@@ -3791,13 +3749,9 @@ export default function App() {
           }}
         >
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="flex-1 min-w-0 transition-colors tb-hv-bg" style={{ '--hv-bg': 'rgba(141,162,134,0.18)', backgroundColor: 'rgba(0,0,0,0.03)' } as React.CSSProperties} />
           <div className="w-0.5" style={{ backgroundColor: 'rgba(0,0,0,0.10)' }} />
-          <div className="flex-1 min-w-0 transition-colors" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)')} />
+          <div className="flex-1 min-w-0 transition-colors tb-hv-bg" style={{ '--hv-bg': 'rgba(141,162,134,0.18)', backgroundColor: 'rgba(0,0,0,0.03)' } as React.CSSProperties} />
           <div className="w-px" style={{ backgroundColor: 'rgba(0,0,0,0.09)' }} />
         </div>
         {/* Right panel */}
@@ -4021,10 +3975,8 @@ export default function App() {
                     key={o.scope}
                     type="button"
                     onClick={() => choose(o.scope)}
-                    className="w-full text-left px-3 py-2.5 rounded-lg transition-colors"
-                    style={{ fontSize: 13, color: '#1C1C1E' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.10)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="w-full text-left px-3 py-2.5 rounded-lg transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(141,162,134,0.10)', fontSize: 13, color: '#1C1C1E' } as React.CSSProperties}
                   >
                     {o.label}
                   </button>
@@ -4328,31 +4280,23 @@ export default function App() {
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {/* Existing block option */}
-                <button
+                <button className="tb-hv-bg tb-hv-bd"
                   type="button"
                   onClick={() => setOverlapPopup(null)}
-                  style={{
-                    textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.04)', '--hv-bd': 'rgba(0,0,0,0.15)', textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
                     backgroundColor: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: THEME.textPrimary,
-                    transition: 'all 140ms',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
+                    transition: 'all 140ms', } as React.CSSProperties}
                 >
                   <span style={{ fontSize: 10, color: THEME.textMuted, display: 'block', marginBottom: 1 }}>Keep existing</span>
                   {overlapPopup.existingBlock.title || 'Existing block'}
                 </button>
                 {/* New block option */}
-                <button
+                <button className="tb-hv-bg tb-hv-bd"
                   type="button"
                   onClick={() => { overlapPopup.onKeepNew(); setOverlapPopup(null); }}
-                  style={{
-                    textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
+                  style={{ '--hv-bg': 'rgba(141,162,134,0.07)', '--hv-bd': '#8DA286', textAlign: 'left', padding: '8px 10px', borderRadius: 8, border: '1.5px solid rgba(0,0,0,0.09)',
                     backgroundColor: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: THEME.textPrimary,
-                    transition: 'all 140ms',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.07)'; e.currentTarget.style.borderColor = '#8DA286'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.09)'; }}
+                    transition: 'all 140ms', } as React.CSSProperties}
                 >
                   <span style={{ fontSize: 10, color: THEME.textMuted, display: 'block', marginBottom: 1 }}>Replace with new</span>
                   {overlapPopup.newTitle}
@@ -4478,10 +4422,9 @@ export default function App() {
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
+              <button className="tb-hv-bg tb-hv-tf"
                 onClick={() => { mergeTemplate(); setHasCompletedSetup(true); void persistOnboardingToSupabase(true); }}
-                style={{
-                  width: '100%',
+                style={{ '--hv-bg': '#3D5736', '--hv-tf': 'translateY(-1px)', width: '100%',
                   padding: '10px 0',
                   borderRadius: 10,
                   fontSize: 14,
@@ -4492,23 +4435,13 @@ export default function App() {
                   backgroundColor: '#4A6741',
                   color: '#FFFFFF',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 4px 12px rgba(74,103,65,0.25)',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3D5736';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4A6741';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 Add template to my setup
               </button>
-              <button
+              <button className="tb-hv-bg tb-hv-c"
                 onClick={() => { setHasCompletedSetup(true); void persistOnboardingToSupabase(true); }}
-                style={{
-                  width: '100%',
+                style={{ '--hv-bg': 'rgba(0,0,0,0.03)', '--hv-c': THEME.textPrimary, width: '100%',
                   padding: '8px 0',
                   borderRadius: 10,
                   fontSize: 14,
@@ -4518,16 +4451,7 @@ export default function App() {
                   color: '#636366',
                   cursor: 'pointer',
                   transition: 'all 200ms',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)';
-                  e.currentTarget.style.color = THEME.textPrimary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#636366';
-                }}
+                  fontFamily: 'inherit', } as React.CSSProperties}
               >
                 No thanks, keep my current setup
               </button>

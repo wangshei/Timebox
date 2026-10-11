@@ -35,11 +35,10 @@ export const DueBadge: React.FC<DueBadgeProps> = ({ tasks, compact }) => {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button
+      <button className={!open ? 'tb-hv-bg' : undefined}
         ref={badgeRef}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        style={{
-          display: 'inline-flex',
+        style={{ '--hv-bg': 'rgba(0,0,0,0.06)', display: 'inline-flex',
           alignItems: 'center',
           gap: 3,
           padding: compact ? '1px 5px' : '2px 7px',
@@ -52,10 +51,7 @@ export const DueBadge: React.FC<DueBadgeProps> = ({ tasks, compact }) => {
           cursor: 'pointer',
           lineHeight: 1.3,
           whiteSpace: 'nowrap',
-          transition: 'background-color 150ms',
-        }}
-        onMouseEnter={(e) => { if (!open) (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'); }}
-        onMouseLeave={(e) => { if (!open) (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'); }}
+          transition: 'background-color 150ms', } as React.CSSProperties}
         title={tasks.map((t) => t.title).join(', ')}
       >
         <span style={{ fontSize: compact ? 7 : 9 }}>📋</span>

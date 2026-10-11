@@ -620,24 +620,20 @@ export function ThreeDayView({
                               return (
                                 <span
                                   key={sticker.id}
-                                  className="absolute z-20 select-none pointer-events-auto cursor-pointer"
-                                  style={{
-                                    left: `${sticker.offsetXPercent ?? 50}%`,
+                                  className="absolute z-20 select-none pointer-events-auto cursor-pointer tb-hv-tf"
+                                  style={{ '--hv-tf': 'translate(-50%, -50%) scale(1.2)', left: `${sticker.offsetXPercent ?? 50}%`,
                                     top: `${top}px`,
                                     transform: 'translate(-50%, -50%)',
                                     fontSize: 16,
                                     lineHeight: 1,
                                     filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
-                                    transition: 'transform 0.1s',
-                                  }}
+                                    transition: 'transform 0.1s', } as React.CSSProperties}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
                                     deleteStickerAction(sticker.id);
                                   }}
                                   onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
-                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
                                 >
                                   {sticker.emoji}
                                 </span>

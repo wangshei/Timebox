@@ -488,20 +488,16 @@ export function SettingsPanel({
         <button
           type="button"
           onClick={onCancel}
-          className="px-2.5 py-1.5 rounded-md text-xs transition-colors"
-          style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+          className="px-2.5 py-1.5 rounded-md text-xs transition-colors tb-hv-bg"
+          style={{ '--hv-bg': 'rgba(0,0,0,0.10)', backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY } as React.CSSProperties}
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={onSave}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
-          style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors tb-hv-bg"
+          style={{ '--hv-bg': '#7A9278', backgroundColor: PRIMARY, color: '#FFFFFF' } as React.CSSProperties}
         >
           <CheckIcon className="h-3 w-3" /> Save
         </button>
@@ -535,10 +531,8 @@ export function SettingsPanel({
         <button
           type="button"
           onClick={onShare}
-          className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 relative"
-          style={{ color: PRIMARY }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${PRIMARY}14`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 relative tb-hv-bg"
+          style={{ '--hv-bg': `${PRIMARY}14`, color: PRIMARY } as React.CSSProperties}
           title="Share / Invite"
         >
           {(memberCount ?? 0) > 0 ? (
@@ -559,20 +553,16 @@ export function SettingsPanel({
       <button
         type="button"
         onClick={onEdit}
-        className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-        style={{ color: TEXT_MUTED }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+        className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 tb-hv-bg"
+        style={{ '--hv-bg': 'rgba(0,0,0,0.07)', color: TEXT_MUTED } as React.CSSProperties}
       >
         <PencilIcon className="h-3 w-3" />
       </button>
       <button
         type="button"
         onClick={onDelete}
-        className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-        style={{ color: '#C87868' }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+        className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 tb-hv-bg"
+        style={{ '--hv-bg': 'rgba(200,120,104,0.10)', color: '#C87868' } as React.CSSProperties}
       >
         <TrashIcon className="h-3 w-3" />
       </button>
@@ -608,11 +598,10 @@ export function SettingsPanel({
             style={{ ...inputStyle, flex: 1 }}
             onKeyDown={(e) => e.key === 'Enter' && handleAddShareMember()}
           />
-          <button
+          <button className="tb-hv-bg"
             type="button"
             onClick={handleAddShareMember}
-            style={{
-              display: 'flex',
+            style={{ '--hv-bg': '#7A9278', display: 'flex',
               alignItems: 'center',
               gap: 4,
               padding: '4px 8px',
@@ -624,10 +613,7 @@ export function SettingsPanel({
               border: 'none',
               cursor: 'pointer',
               flexShrink: 0,
-              whiteSpace: 'nowrap' as const,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+              whiteSpace: 'nowrap' as const, } as React.CSSProperties}
           >
             <PlusIcon style={{ width: 12, height: 12 }} /> Invite
           </button>
@@ -681,10 +667,8 @@ export function SettingsPanel({
                 <button
                   type="button"
                   onClick={() => handleRemoveShareMember(`share-${itemId}`, member.id)}
-                  className="p-0.5 rounded transition-colors flex-shrink-0"
-                  style={{ color: '#C87868' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.10)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  className="p-0.5 rounded transition-colors flex-shrink-0 tb-hv-bg"
+                  style={{ '--hv-bg': 'rgba(200,120,104,0.10)', color: '#C87868' } as React.CSSProperties}
                 >
                   <XMarkIcon className="h-3 w-3" />
                 </button>
@@ -698,10 +682,8 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={() => setSharingId(null)}
-            className="px-2.5 py-1.5 rounded-md text-xs transition-colors"
-            style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+            className="px-2.5 py-1.5 rounded-md text-xs transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.10)', backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY } as React.CSSProperties}
           >
             Done
           </button>
@@ -1086,7 +1068,7 @@ export function SettingsPanel({
                         </div>
                         {/* Resync button */}
                         {onGcalResync && (
-                          <button
+                          <button className={!gcalResyncing ? 'tb-hv-bg' : undefined}
                             type="button"
                             disabled={gcalResyncing}
                             onClick={async () => {
@@ -1102,8 +1084,7 @@ export function SettingsPanel({
                                 setTimeout(() => setGcalResyncResult(null), 3000);
                               }
                             }}
-                            style={{
-                              fontSize: 10,
+                            style={{ '--hv-bg': 'rgba(66,133,244,0.08)', fontSize: 10,
                               fontWeight: 500,
                               color: gcalResyncResult === 'success' ? '#34C759' : gcalResyncResult === 'error' ? '#FF3B30' : '#4285F4',
                               background: 'none',
@@ -1112,15 +1093,12 @@ export function SettingsPanel({
                               padding: '4px 8px',
                               cursor: gcalResyncing ? 'wait' : 'pointer',
                               flexShrink: 0,
-                              opacity: gcalResyncing ? 0.6 : 1,
-                            }}
-                            onMouseEnter={(e) => { if (!gcalResyncing) e.currentTarget.style.backgroundColor = 'rgba(66,133,244,0.08)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                              opacity: gcalResyncing ? 0.6 : 1, } as React.CSSProperties}
                           >
                             {gcalResyncing ? 'Syncing...' : gcalResyncResult === 'success' ? 'Synced!' : gcalResyncResult === 'error' ? 'Failed' : 'Resync'}
                           </button>
                         )}
-                        <button
+                        <button className="tb-hv-bg"
                           type="button"
                           onClick={() => {
                             disconnectGoogle();
@@ -1133,8 +1111,7 @@ export function SettingsPanel({
                             });
                             setGcalStep('idle');
                           }}
-                          style={{
-                            fontSize: 10,
+                          style={{ '--hv-bg': 'rgba(200,120,104,0.08)', fontSize: 10,
                             fontWeight: 500,
                             color: '#C87868',
                             background: 'none',
@@ -1142,10 +1119,7 @@ export function SettingsPanel({
                             borderRadius: 6,
                             padding: '4px 8px',
                             cursor: 'pointer',
-                            flexShrink: 0,
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(200,120,104,0.08)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                            flexShrink: 0, } as React.CSSProperties}
                         >
                           Disconnect
                         </button>
@@ -1154,11 +1128,10 @@ export function SettingsPanel({
 
                     {/* Manage which calendars are imported */}
                     {isGoogleConnected() && !gcalPickerOpen && (
-                      <button
+                      <button className="tb-hv-bg"
                         type="button"
                         onClick={openGcalPicker}
-                        style={{
-                          width: '100%',
+                        style={{ '--hv-bg': '#4285F408', width: '100%',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1171,10 +1144,7 @@ export function SettingsPanel({
                           backgroundColor: 'transparent',
                           border: '1px solid #4285F430',
                           cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4285F408'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          transition: 'all 0.15s', } as React.CSSProperties}
                       >
                         <CalendarIcon style={{ width: 12, height: 12 }} />
                         Manage imported calendars
@@ -1313,16 +1283,12 @@ export function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => setGcalStep('choose_mode')}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all"
-                        style={{
-                          fontSize: 12,
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all tb-hv-bg tb-hv-bd"
+                        style={{ '--hv-bg': '#4285F40F', '--hv-bd': '#4285F4', fontSize: 12,
                           fontWeight: 600,
                           color: '#4285F4',
                           border: '1.5px dashed #4285F450',
-                          backgroundColor: '#4285F406',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4285F40F'; e.currentTarget.style.borderColor = '#4285F4'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#4285F406'; e.currentTarget.style.borderColor = '#4285F450'; }}
+                          backgroundColor: '#4285F406', } as React.CSSProperties}
                       >
                         <CloudIcon className="h-4 w-4" />
                         Connect Google Calendar
@@ -1410,19 +1376,15 @@ export function SettingsPanel({
                   <button
                     type="button"
                     onClick={onExploreFeaturesClick}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-colors"
-                    style={{
-                      gridColumn: '1 / -1',
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg cursor-pointer transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(141,162,134,0.15)', gridColumn: '1 / -1',
                       marginTop: 8,
                       backgroundColor: 'rgba(141,162,134,0.08)',
                       border: `1px solid rgba(141,162,134,0.25)`,
                       color: '#4A6741',
                       fontSize: 12,
                       fontWeight: 600,
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.08)')}
+                      width: '100%', } as React.CSSProperties}
                   >
                     Explore features
                   </button>
@@ -1481,18 +1443,14 @@ export function SettingsPanel({
                       href="https://timeboxing.club/desktop"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 mt-3 py-2 px-3 rounded-lg cursor-pointer transition-colors"
-                      style={{
-                        backgroundColor: '#1C1C1E',
+                      className="flex items-center justify-center gap-2 mt-3 py-2 px-3 rounded-lg cursor-pointer transition-colors tb-hv-bg"
+                      style={{ '--hv-bg': '#3A3A3C', backgroundColor: '#1C1C1E',
                         color: '#FFFFFF',
                         fontSize: 12,
                         fontWeight: 600,
                         textDecoration: 'none',
                         width: '100%',
-                        display: 'flex',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A3A3C')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1C1C1E')}
+                        display: 'flex', } as React.CSSProperties}
                     >
                       <ArrowDownTrayIcon style={{ width: 14, height: 14 }} />
                       Download for macOS
@@ -1607,20 +1565,16 @@ export function SettingsPanel({
                   <button
                     type="button"
                     onClick={handleCancelEdit}
-                    className="px-2.5 py-1 rounded-md text-xs transition-colors"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+                    className="px-2.5 py-1 rounded-md text-xs transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.10)', backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY } as React.CSSProperties}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveAdd}
-                    className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors"
-                    style={{ backgroundColor: PRIMARY, color: '#FFFFFF' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#7A9278'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = PRIMARY; }}
+                    className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors tb-hv-bg"
+                    style={{ '--hv-bg': '#7A9278', backgroundColor: PRIMARY, color: '#FFFFFF' } as React.CSSProperties}
                   >
                     <PlusIcon className="h-3 w-3" /> Add
                   </button>
@@ -1630,25 +1584,13 @@ export function SettingsPanel({
               <button
                 type="button"
                 onClick={handleStartAdd}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all"
-                style={{
-                  gridColumn: '1 / -1',
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all tb-hv-c tb-hv-bd tb-hv-bg"
+                style={{ '--hv-c': PRIMARY, '--hv-bd': `${PRIMARY}60`, '--hv-bg': `${PRIMARY}06`, gridColumn: '1 / -1',
                   fontSize: 12,
                   fontWeight: 500,
                   color: TEXT_MUTED,
                   border: `1.5px dashed rgba(0,0,0,0.15)`,
-                  backgroundColor: 'transparent',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = PRIMARY;
-                  e.currentTarget.style.borderColor = `${PRIMARY}60`;
-                  e.currentTarget.style.backgroundColor = `${PRIMARY}06`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = TEXT_MUTED;
-                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
+                  backgroundColor: 'transparent', } as React.CSSProperties}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add {activeTab.slice(0, -1)}
@@ -1718,10 +1660,8 @@ export function SettingsPanel({
                 <button
                   type="button"
                   onClick={() => { setConfirmDeleteId(null); setConfirmDeleteName(''); setConfirmDeleteInput(''); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.10)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.06)'; }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors tb-hv-bg"
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.10)', backgroundColor: 'rgba(0,0,0,0.06)', color: TEXT_SECONDARY } as React.CSSProperties}
                 >
                   Cancel
                 </button>
@@ -1729,14 +1669,10 @@ export function SettingsPanel({
                   type="button"
                   onClick={handleDeleteConfirm}
                   disabled={activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever`}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'rgba(255,59,48,0.35)' : '#FF3B30',
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!e.currentTarget.disabled ? 'tb-hv-bg' : ''}`}
+                  style={{ '--hv-bg': '#D93025', backgroundColor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'rgba(255,59,48,0.35)' : '#FF3B30',
                     color: '#FFFFFF',
-                    cursor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'not-allowed' : 'pointer',
-                  }}
-                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#D93025'; }}
-                  onMouseLeave={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = '#FF3B30'; }}
+                    cursor: activeTab === 'calendars' && confirmDeleteInput !== `I understand the ${confirmDeleteName} and events in it will be deleted forever` ? 'not-allowed' : 'pointer', } as React.CSSProperties}
                 >
                   Delete
                 </button>

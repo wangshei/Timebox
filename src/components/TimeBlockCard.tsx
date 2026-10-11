@@ -701,10 +701,8 @@ function TimeBlockCardInner({
         {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
           <button
             type="button"
-            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
-            style={{ color: confirmed ? THEME.textSecondary : blockColor, fontSize: 11 }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = confirmed ? 'rgba(0,0,0,0.03)' : hexToRgba(blockColor, 0.07); }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+            style={{ '--hv-bg': confirmed ? 'rgba(0,0,0,0.03)' : hexToRgba(blockColor, 0.07), color: confirmed ? THEME.textSecondary : blockColor, fontSize: 11 } as React.CSSProperties}
             onClick={() => {
               if (confirmed) {
                 if (isEvent) onSkip?.(block.id);
@@ -723,10 +721,8 @@ function TimeBlockCardInner({
         {!locked && onSplit && (
           <button
             type="button"
-            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
-            style={{ color: THEME.textSecondary, fontSize: 11 }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.03)', color: THEME.textSecondary, fontSize: 11 } as React.CSSProperties}
             onClick={() => { onSplit(); setShowPopover(false); doDeselect(); }}
             title="Reshape around overlapping items so time isn't counted twice"
           >
@@ -737,10 +733,8 @@ function TimeBlockCardInner({
         {!locked && isTask && onRescheduleLater && (
           <button
             type="button"
-            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
-            style={{ color: THEME.textSecondary, fontSize: 11 }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+            style={{ '--hv-bg': 'rgba(0,0,0,0.03)', color: THEME.textSecondary, fontSize: 11 } as React.CSSProperties}
             onClick={() => {
               onRescheduleLater(block.id);
               setShowPopover(false);
@@ -755,10 +749,8 @@ function TimeBlockCardInner({
           <>
             <button
               type="button"
-              className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors"
-              style={{ color: THEME.textSecondary, fontSize: 11 }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(0,0,0,0.03)', color: THEME.textSecondary, fontSize: 11 } as React.CSSProperties}
               onClick={() => setShowTimePicker((v) => !v)}
             >
               <ClockIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
@@ -771,10 +763,8 @@ function TimeBlockCardInner({
                   <button
                     key={opt.mins}
                     type="button"
-                    className="px-2 py-0.5 font-medium rounded-full transition-colors"
-                    style={{ color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)`, fontSize: 10 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hexToRgba(blockColor, 0.12); e.currentTarget.style.borderColor = hexToRgba(blockColor, 0.25); e.currentTarget.style.color = blockColor; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = THEME.textSecondary; }}
+                    className="px-2 py-0.5 font-medium rounded-full transition-colors tb-hv-bg tb-hv-bd tb-hv-c"
+                    style={{ '--hv-bg': hexToRgba(blockColor, 0.12), '--hv-bd': hexToRgba(blockColor, 0.25), '--hv-c': blockColor, color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)`, fontSize: 10 } as React.CSSProperties}
                     onClick={() => {
                       onAddTimeToComplete(block.id, opt.mins);
                       setShowPopover(false);
@@ -797,10 +787,8 @@ function TimeBlockCardInner({
           {onEditBlock && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-              style={{ color: THEME.textSecondary, fontSize: 11 }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(0,0,0,0.03)', color: THEME.textSecondary, fontSize: 11 } as React.CSSProperties}
               onClick={(e) => { e.stopPropagation(); onEditBlock(block.id); setShowPopover(false); doDeselect(); }}
             >
               <PencilIcon style={{ width: 11, height: 11 }} />
@@ -810,10 +798,8 @@ function TimeBlockCardInner({
           {(onDeleteBlock || (onDeleteTask && block.taskId)) && (
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-              style={{ color: '#C45050', fontSize: 11 }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(196,80,80,0.06)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
+              style={{ '--hv-bg': 'rgba(196,80,80,0.06)', color: '#C45050', fontSize: 11 } as React.CSSProperties}
               onClick={(e) => {
                 e.stopPropagation();
                 if (block.taskId && onDeleteTask) {
@@ -1158,24 +1144,20 @@ function TimeBlockCardInner({
             {visibleStickers.map((sticker) => (
               <span
                 key={sticker.id}
-                className="absolute z-10 select-none pointer-events-auto cursor-pointer"
-                style={{
-                  left: `${sticker.offsetXPercent}%`,
+                className="absolute z-10 select-none pointer-events-auto cursor-pointer tb-hv-tf"
+                style={{ '--hv-tf': 'translate(-50%, -50%) scale(1.2)', left: `${sticker.offsetXPercent}%`,
                   top: `${sticker.offsetYPercent}%`,
                   transform: 'translate(-50%, -50%)',
                   fontSize: 16,
                   lineHeight: 1,
                   filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
-                  transition: 'transform 0.1s',
-                }}
+                  transition: 'transform 0.1s', } as React.CSSProperties}
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   deleteSticker(sticker.id);
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.2)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%)'; }}
               >
                 {sticker.emoji}
               </span>
