@@ -2703,6 +2703,8 @@ export default function App() {
       }
 
       if (isInput) return;
+      // Other single-key shortcuts must not fire with modifiers held (Cmd+T, Ctrl+W, ...)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
       if (key === 'd') { setView('day'); e.preventDefault(); }
       else if (key === '3') { setView('3day'); e.preventDefault(); }
@@ -2710,10 +2712,17 @@ export default function App() {
       else if (key === 'm') { setView('month'); e.preventDefault(); }
       else if (key === 'c' && FEATURES.compareMode) { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
       else if (key === 'a') { setAllCalendarsVisible(); e.preventDefault(); }
+      else if ((key === 't' || key === 'e') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        // Smart keys: t = new note/todo, e = new event. Skip while any modal is open.
+        if (isAddModalOpen || isSettingsOpen || isBugReportOpen || showTour || schedulingTaskId || showSchedulingModal) return;
+        handleOpenAddModal(key === 't' ? 'task' : 'event');
+        e.preventDefault();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, setView, setViewMode, setAllCalendarsVisible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, setView, setViewMode, setAllCalendarsVisible, isAddModalOpen, isSettingsOpen, isBugReportOpen, showTour, schedulingTaskId, showSchedulingModal]);
 
   // Auth gate: require sign-in only in production. In dev you get visit mode by default; sign in once to test backend (session persists).
   const requireAuth = !!supabase && import.meta.env.PROD;
