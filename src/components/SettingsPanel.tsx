@@ -4,6 +4,7 @@ import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, ComputerDesktopIcon,
 import type { CalendarContainer, Category, Tag } from '../types';
 import type { CalendarShare, ShareMember, ShareScope } from '../types/sharing';
 import { ColorPicker } from './ColorPicker';
+import { Toggle, Input, Select, Popover } from './ds';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle, fetchGoogleCalendars, getGcalSelectedCalendarIds, setGcalSelectedCalendarIds } from '../services/googleCalendar';
 import { useStore } from '../store/useStore';
@@ -434,7 +435,7 @@ export function SettingsPanel({
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '6px 10px',
+    padding: '8px 12px',
     fontSize: 12,
     color: TEXT,
     backgroundColor: '#FFFFFF',
@@ -520,7 +521,7 @@ export function SettingsPanel({
   }) => (
     <div
       className="flex items-center gap-2 rounded-lg group"
-      style={{ backgroundColor: `${color}10`, border: `1px solid ${color}28`, padding: '8px 10px 8px 12px' }}
+      style={{ backgroundColor: `${color}10`, border: `1px solid ${color}28`, padding: '8px 12px' }}
     >
       {Icon
         ? <Icon className="h-3 w-3 flex-shrink-0" style={{ color }} />
@@ -614,7 +615,7 @@ export function SettingsPanel({
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              padding: '4px 10px',
+              padding: '4px 8px',
               borderRadius: 6,
               fontSize: 12,
               fontWeight: 500,
@@ -793,31 +794,7 @@ export function SettingsPanel({
                       <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Week starts on Monday</p>
                       <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Show Mon–Sun in week and month views</p>
                     </div>
-                    <button
-                      id="week-starts-monday-toggle"
-                      type="button"
-                      role="switch"
-                      aria-checked={weekStartsOnMonday}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onWeekStartsOnMondayChange?.(!weekStartsOnMonday);
-                      }}
-                      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                      style={{
-                        backgroundColor: weekStartsOnMonday ? PRIMARY : 'rgba(0,0,0,0.2)',
-                        minWidth: 44,
-                        minHeight: 24,
-                      }}
-                    >
-                      <span
-                        className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
-                        style={{
-                          marginLeft: 2,
-                          marginTop: 2,
-                          transform: weekStartsOnMonday ? 'translateX(20px)' : 'translateX(0)',
-                        }}
-                      />
-                    </button>
+                    <Toggle checked={weekStartsOnMonday} onChange={(v) => onWeekStartsOnMondayChange?.(v)} />
                   </label>
                 </div>
 
@@ -830,13 +807,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Wake time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Earliest scheduling boundary</p>
                   </div>
-                  <input
-                    type="time"
-                    value={wakeTime}
-                    onChange={(e) => onWakeTimeChange?.(e.target.value)}
-                    className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
-                    style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
-                  />
+                  <Input type="time" size="sm" value={wakeTime} onChange={(e) => onWakeTimeChange?.(e.target.value)} style={{ width: 100 }} />
                 </div>
                 <div
                   className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
@@ -846,13 +817,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Sleep time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Latest scheduling boundary</p>
                   </div>
-                  <input
-                    type="time"
-                    value={sleepTime}
-                    onChange={(e) => onSleepTimeChange?.(e.target.value)}
-                    className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
-                    style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 100 }}
-                  />
+                  <Input type="time" size="sm" value={sleepTime} onChange={(e) => onSleepTimeChange?.(e.target.value)} style={{ width: 100 }} />
                 </div>
 
                 {/* ── Timezone ── */}
@@ -884,15 +849,8 @@ export function SettingsPanel({
                         {tzDropdownOpen ? <ChevronUpIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} /> : <ChevronDownIcon className="ml-1 flex-shrink-0" style={{ width: 12, height: 12 }} />}
                       </button>
                       {tzDropdownOpen && (
-                        <div
-                          style={{
-                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)',
-                            backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
-                            boxShadow: 'var(--tb-sh-2)', maxHeight: 220, overflow: 'hidden',
-                            display: 'flex', flexDirection: 'column', marginTop: 2,
-                          }}
-                        >
-                          <div style={{ padding: '6px 8px', borderBottom: `1px solid ${BORDER}` }}>
+                        <Popover style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)' as unknown as number, borderRadius: 8, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 2, padding: 0 }}>
+                          <div style={{ padding: '8px', borderBottom: `1px solid ${BORDER}` }}>
                             <input
                               type="text"
                               placeholder="Search timezones..."
@@ -933,7 +891,7 @@ export function SettingsPanel({
                               )
                             )}
                           </div>
-                        </div>
+                        </Popover>
                       )}
                     </div>
                   </div>
@@ -990,15 +948,8 @@ export function SettingsPanel({
                           Add timezone
                         </button>
                         {secTzDropdownOpen && (
-                          <div
-                            style={{
-                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)',
-                              backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
-                              boxShadow: 'var(--tb-sh-2)', maxHeight: 220, overflow: 'hidden',
-                              display: 'flex', flexDirection: 'column', marginTop: 2,
-                            }}
-                          >
-                            <div style={{ padding: '6px 8px', borderBottom: `1px solid ${BORDER}` }}>
+                          <Popover style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)' as unknown as number, borderRadius: 8, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 2, padding: 0 }}>
+                            <div style={{ padding: '8px', borderBottom: `1px solid ${BORDER}` }}>
                               <input
                                 type="text"
                                 placeholder="Search timezones..."
@@ -1026,7 +977,7 @@ export function SettingsPanel({
                                 )
                               )}
                             </div>
-                          </div>
+                          </Popover>
                         )}
                       </div>
                     )}
@@ -1080,21 +1031,17 @@ export function SettingsPanel({
                           <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Remind before</p>
                           <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Minutes before event starts</p>
                         </div>
-                        <select
-                          value={notificationLeadMinutes}
-                          onChange={(e) => onNotificationLeadMinutesChange?.(Number(e.target.value))}
-                          className="rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-300"
-                          style={{ border: `1px solid ${BORDER}`, color: TEXT, backgroundColor: '#FFFFFF', width: 90 }}
-                        >
-                          <option value={0}>At start</option>
-                          <option value={1}>1 min</option>
-                          <option value={2}>2 min</option>
-                          <option value={5}>5 min</option>
-                          <option value={10}>10 min</option>
-                          <option value={15}>15 min</option>
-                          <option value={30}>30 min</option>
-                          <option value={60}>1 hour</option>
-                        </select>
+                        <Select
+                          size="sm"
+                          value={String(notificationLeadMinutes)}
+                          onChange={(v) => onNotificationLeadMinutesChange?.(Number(v))}
+                          style={{ width: 96 }}
+                          options={[
+                            { value: '0', label: 'At start' }, { value: '1', label: '1 min' }, { value: '2', label: '2 min' },
+                            { value: '5', label: '5 min' }, { value: '10', label: '10 min' }, { value: '15', label: '15 min' },
+                            { value: '30', label: '30 min' }, { value: '60', label: '1 hour' },
+                          ]}
+                        />
                       </div>
                     )}
 
@@ -1108,31 +1055,7 @@ export function SettingsPanel({
                         <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Email notifications</p>
                         <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Notify attendees by email when you change an event</p>
                       </div>
-                      <button
-                        id="email-notif-toggle"
-                        type="button"
-                        role="switch"
-                        aria-checked={emailNotificationsEnabled}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onEmailNotificationsEnabledChange?.(!emailNotificationsEnabled);
-                        }}
-                        className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                        style={{
-                          backgroundColor: emailNotificationsEnabled ? PRIMARY : 'rgba(0,0,0,0.2)',
-                          minWidth: 44,
-                          minHeight: 24,
-                        }}
-                      >
-                        <span
-                          className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
-                          style={{
-                            marginLeft: 2,
-                            marginTop: 2,
-                            transform: emailNotificationsEnabled ? 'translateX(20px)' : 'translateX(0)',
-                          }}
-                        />
-                      </button>
+                      <Toggle checked={emailNotificationsEnabled} onChange={(v) => onEmailNotificationsEnabledChange?.(v)} />
                     </label>
                   </div>
                 </div>
@@ -1150,7 +1073,7 @@ export function SettingsPanel({
                           gap: 8,
                           backgroundColor: '#4285F410',
                           border: '1px solid #4285F428',
-                          padding: '8px 10px 8px 12px',
+                          padding: '8px 12px',
                           borderRadius: 8,
                         }}
                       >
@@ -1186,7 +1109,7 @@ export function SettingsPanel({
                               background: 'none',
                               border: `1px solid ${gcalResyncResult === 'success' ? 'rgba(52,199,89,0.3)' : gcalResyncResult === 'error' ? 'rgba(255,59,48,0.3)' : 'rgba(66,133,244,0.3)'}`,
                               borderRadius: 6,
-                              padding: '3px 8px',
+                              padding: '4px 8px',
                               cursor: gcalResyncing ? 'wait' : 'pointer',
                               flexShrink: 0,
                               opacity: gcalResyncing ? 0.6 : 1,
@@ -1217,7 +1140,7 @@ export function SettingsPanel({
                             background: 'none',
                             border: '1px solid rgba(200,120,104,0.25)',
                             borderRadius: 6,
-                            padding: '3px 8px',
+                            padding: '4px 8px',
                             cursor: 'pointer',
                             flexShrink: 0,
                           }}
@@ -1240,7 +1163,7 @@ export function SettingsPanel({
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: 6,
-                          padding: '7px 0',
+                          padding: '8px 0',
                           borderRadius: 8,
                           fontSize: 11,
                           fontWeight: 500,
@@ -1295,7 +1218,7 @@ export function SettingsPanel({
                                       alignItems: 'center',
                                       gap: 8,
                                       width: '100%',
-                                      padding: '6px 8px',
+                                      padding: '8px',
                                       borderRadius: 7,
                                       border: checked ? `1.5px solid ${cal.backgroundColor}50` : '1px solid rgba(0,0,0,0.05)',
                                       backgroundColor: checked ? `${cal.backgroundColor}08` : '#FFFFFF',
@@ -1351,7 +1274,7 @@ export function SettingsPanel({
                                 style={{
                                   fontSize: 10,
                                   fontWeight: 500,
-                                  padding: '4px 10px',
+                                  padding: '4px 8px',
                                   borderRadius: 6,
                                   backgroundColor: 'rgba(0,0,0,0.06)',
                                   color: TEXT_SECONDARY,
@@ -1762,7 +1685,7 @@ export function SettingsPanel({
                   <p style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 12, lineHeight: 1.5 }}>
                     Type the following to confirm:
                   </p>
-                  <p style={{ fontSize: 11, color: TEXT, marginBottom: 12, lineHeight: 1.5, fontWeight: 500, backgroundColor: 'rgba(0,0,0,0.04)', padding: '8px 10px', borderRadius: 8, userSelect: 'all' }}>
+                  <p style={{ fontSize: 11, color: TEXT, marginBottom: 12, lineHeight: 1.5, fontWeight: 500, backgroundColor: 'rgba(0,0,0,0.04)', padding: '8px 12px', borderRadius: 8, userSelect: 'all' }}>
                     I understand the {confirmDeleteName} and events in it will be deleted forever
                   </p>
                   <input
@@ -1774,7 +1697,7 @@ export function SettingsPanel({
                     style={{
                       width: '100%',
                       fontSize: 11,
-                      padding: '8px 10px',
+                      padding: '8px 12px',
                       borderRadius: 8,
                       border: '1px solid rgba(0,0,0,0.12)',
                       outline: 'none',
