@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { IconButton } from './ds';
 import { createPortal } from 'react-dom';
 import { XMarkIcon, LinkIcon, CheckIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Popover } from './ds';
 import type { ShareScope } from '../types/sharing';
 
 export type ShareRole = 'viewer' | 'editor' | 'admin';
@@ -100,20 +101,8 @@ function RoleDropdown({
         <ChevronDownIcon style={{ width: 10, height: 10, color: '#8E8E93' }} />
       </button>
       {open && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '100%',
-            right: 0,
-            marginBottom: 4,
-            backgroundColor: '#FFFFFF',
-            border: '1px solid rgba(0,0,0,0.10)',
-            borderRadius: 8,
-            boxShadow: 'var(--tb-sh-2)',
-            zIndex: 'var(--tb-z-popover)',
-            minWidth: 160,
-            overflow: 'hidden',
-          }}
+        <Popover
+          style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, borderRadius: 8, minWidth: 160, overflow: 'hidden', padding: 0 }}
         >
           {/*
             Only 'viewer' is offered: the share_members.role DB CHECK currently
@@ -153,7 +142,7 @@ function RoleDropdown({
               </span>
             </button>
           ))}
-        </div>
+        </Popover>
       )}
     </div>
   );

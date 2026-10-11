@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { CalendarContainer } from '../types';
+import { Popover } from './ds';
 import { ColorPicker } from './ColorPicker';
 import { DEFAULT_PALETTE_COLOR } from '../constants/colors';
 
@@ -41,16 +42,11 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
   };
 
   return (
-    <div
+    <Popover
       ref={popoverRef}
-      className="absolute left-0 top-full z-[200] mt-1 w-64 rounded-xl p-3"
-      style={{
-        backgroundColor: '#FFFFFF',
-        border: '1px solid rgba(0,0,0,0.09)',
-        boxShadow: 'var(--tb-sh-2)',
-        marginLeft: 0,
-      }}
-    >
+      className="absolute left-0 top-full mt-1 w-64"
+      style={{ padding: 12 }}
+>
       <p className="text-sm font-semibold mb-2.5" style={{ color: '#3A3A3C' }}>Add calendar</p>
       <form onSubmit={handleSubmit} className="space-y-2.5">
         <input
@@ -85,6 +81,6 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
           </button>
         </div>
       </form>
-    </div>
+    </Popover>
   );
 }
