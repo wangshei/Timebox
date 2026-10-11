@@ -4501,7 +4501,7 @@ export default function App() {
             >
               {[
                 { name: 'Personal', color: '#5B718C' },
-                { name: 'Growth', color: '#8DA286' },
+                { name: 'Growth', color: '#8DA387' },
                 { name: 'School', color: '#B3B46D' },
                 { name: 'Relationships', color: '#DE8D91' },
               ].map((cal) => (
