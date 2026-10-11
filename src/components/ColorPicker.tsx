@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
+import { ColorSwatch } from './ds/ColorSwatch';
 import { PALETTE_COLORS } from '../constants/colors';
 
 const SWATCH_PX = { sm: 20, md: 24 } as const;
@@ -67,27 +68,7 @@ export function ColorPicker({
             >
               <div className="flex gap-1 justify-center">
                 {group.colors.map(({ name, value: hex }) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => onChange(hex)}
-                    style={{
-                      width: px, height: px, minWidth: px, minHeight: px,
-                      backgroundColor: hex,
-                      borderRadius: 5,
-                      border: value.toLowerCase() === hex.toLowerCase()
-                        ? '2px solid rgba(0,0,0,0.35)'
-                        : '1.5px solid rgba(0,0,0,0.10)',
-                      boxShadow: value.toLowerCase() === hex.toLowerCase()
-                        ? '0 0 0 1.5px rgba(255,255,255,0.9) inset'
-                        : 'none',
-                      transition: 'transform 0.1s, border-color 0.1s',
-                    }}
-                    title={name}
-                    aria-label={name}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.15)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
-                  />
+                  <ColorSwatch key={name} color={hex} size={px} title={name} selected={value.toLowerCase() === hex.toLowerCase()} onClick={() => onChange(hex)} />
                 ))}
               </div>
             </div>
@@ -105,7 +86,7 @@ export function ColorPicker({
             }}
             style={{
               width: px, height: px, minWidth: px,
-              borderRadius: 5,
+              borderRadius: 6,
               border: showPicker
                 ? '2px solid rgba(141,162,134,0.5)'
                 : '1.5px dashed rgba(0,0,0,0.22)',
@@ -126,7 +107,7 @@ export function ColorPicker({
           <div
             style={{
               width: px, height: px, minWidth: px,
-              borderRadius: 4,
+              borderRadius: 6,
               backgroundColor: normalizedValue,
               border: '1.5px solid rgba(0,0,0,0.12)',
               flexShrink: 0,

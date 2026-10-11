@@ -51,7 +51,7 @@ import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
 import { saveSchedulingLinkToDb, deleteSchedulingLinkFromDb, loadSchedulingLinksAndBookings } from './services/booking';
 import { SegmentedControl } from './components/ui/SegmentedControl';
-import { IconButton } from './components/ds';
+import { IconButton, Popover } from './components/ds';
 import { useBreakpoint } from './utils/useBreakpoint';
 import { THEME } from './constants/colors';
 
@@ -4315,14 +4315,10 @@ export default function App() {
           <>
             {/* Invisible dismiss backdrop */}
             <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => setOverlapPopup(null)} />
-            <div
+            <Popover
               style={{
-                position: 'fixed', left: px, top: py, zIndex: 'var(--tb-z-modal)',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid rgba(0,0,0,0.10)',
-                borderRadius: 12,
-                boxShadow: '0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.06)',
-                padding: '12px 14px',
+                position: 'fixed', left: px, top: py, zIndex: 'var(--tb-z-modal)' as unknown as number,
+                padding: '12px 16px',
                 minWidth: 230,
                 maxWidth: 280,
               }}
@@ -4362,7 +4358,7 @@ export default function App() {
                   {overlapPopup.newTitle}
                 </button>
               </div>
-            </div>
+            </Popover>
           </>,
           document.body
         );

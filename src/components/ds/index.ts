@@ -8,3 +8,4 @@ export * from './Popover';
 export * from './Chip';
 export * from './Toggle';
 export * from './SegmentedControl';
+export * from './ColorSwatch';

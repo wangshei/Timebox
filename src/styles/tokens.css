@@ -64,3 +64,5 @@ button { touch-action: manipulation; }
   .tb-hover:hover { background: var(--tb-hover); }
 }
 .tb-hover:active { background: var(--tb-hover); }
+.tb-swatch { transition: transform 0.1s, border-color 0.1s; }
+@media (hover: hover) { .tb-swatch:hover { transform: scale(1.15); } }

@@ -27,6 +27,7 @@ function getAllTimezones(): string[] {
 const ALL_TIMEZONES = getAllTimezones();
 import type { CalendarContainer, Task, TimeBlock, Event, Mode, RecurrencePattern } from '../types';
 import { Chip } from './ui/chip';
+import { Popover } from './ds';
 
 type AddMode = 'task' | 'event';
 
@@ -893,9 +894,9 @@ export function AddModal({
                   )}
                 </div>
                 {tzPickerOpen && timezoneEnabled && (
-                  <div
-                    className="absolute left-0 mt-1 rounded-lg shadow-lg overflow-hidden"
-                    style={{ zIndex: 'var(--tb-z-dropdown)', width: 260, backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)' }}
+                  <Popover
+                    className="absolute left-0 mt-1 overflow-hidden"
+                    style={{ zIndex: 'var(--tb-z-dropdown)' as unknown as number, width: 260, padding: 0 }}
                   >
                     <div className="p-1.5">
                       <input
@@ -938,7 +939,7 @@ export function AddModal({
                         );
                       })()}
                     </div>
-                  </div>
+                  </Popover>
                 )}
               </div>
               </div>
