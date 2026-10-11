@@ -547,7 +547,7 @@ export function SettingsPanel({
           {(memberCount ?? 0) > 0 && (
             <span
               className="absolute -top-1 -right-1 flex items-center justify-center rounded-full"
-              style={{ width: 12, height: 12, fontSize: 8, fontWeight: 700, backgroundColor: PRIMARY, color: '#fff' }}
+              style={{ width: 12, height: 12, fontSize: 8, fontWeight: 600, backgroundColor: PRIMARY, color: '#fff' }}
             >
               {memberCount}
             </span>

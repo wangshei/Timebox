@@ -162,7 +162,7 @@ function DemoPlanVsActualSection({ dates }: { dates: { day1: string; day2: strin
           const pctP = (row.plannedHours / maxH) * 100;
           const pctR = (row.recordedHours / maxH) * 100;
           const delta = row.deltaHours;
-          const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF453A' : THEME.textPrimary;
+          const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF3B30' : THEME.textPrimary;
           const deltaLabel = delta > 0.05 ? `+${delta.toFixed(1)}h` : delta < -0.05 ? `${delta.toFixed(1)}h` : '–';
           return (
             <div key={row.id}>
@@ -208,7 +208,7 @@ function DemoPlanVsActualSection({ dates }: { dates: { day1: string; day2: strin
           {Math.abs(totalDelta) > 0.05 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
               <span style={{ fontSize: 10, color: '#AEAEB2' }}>Difference</span>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', color: totalDelta > 0 ? '#34C759' : '#FF453A' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', color: totalDelta > 0 ? '#34C759' : '#FF3B30' }}>
                 {totalDelta > 0 ? '+' : ''}{totalDelta.toFixed(1)}h
               </span>
             </div>
@@ -343,7 +343,7 @@ export function WalkthroughOverlay({ onComplete }: WalkthroughOverlayProps) {
           position: 'fixed',
           inset: 0,
           zIndex: 9995,
-          backgroundColor: '#FDFDFB',
+          backgroundColor: '#FCFBF7',
           display: 'flex',
           flexDirection: 'column',
         }}

@@ -198,7 +198,7 @@ export function BugReportModal({ isOpen, onClose, userEmail, supabase }: BugRepo
               {status === 'error' && (
                 <p className="text-xs px-3 py-2 rounded-lg" style={{
                   backgroundColor: 'rgba(255,59,48,0.06)',
-                  color: '#B85050',
+                  color: '#FF3B30',
                   border: '1px solid rgba(255,59,48,0.12)',
                 }}>
                   {errorMsg}

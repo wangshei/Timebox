@@ -255,7 +255,7 @@ export function BookingPage({ slug }: BookingPageProps) {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#F8F7F4',
+        backgroundColor: '#FCFBF7',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

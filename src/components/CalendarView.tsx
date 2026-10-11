@@ -723,7 +723,7 @@ export function CalendarView({
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     onClick={() => setActiveStampEmoji(emoji)}
                   >
-                    {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 700, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
+                    {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
                   </button>
                 ))}
                 {/* Plus for custom emoji — opens native OS emoji picker */}

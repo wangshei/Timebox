@@ -394,7 +394,7 @@ function TimeBlockCardInner({
         };
       }
       return {
-        background: `linear-gradient(${hexToRgba(blockColor, 0.18)}, ${hexToRgba(blockColor, 0.18)}), #FDFDFB`,
+        background: `linear-gradient(${hexToRgba(blockColor, 0.18)}, ${hexToRgba(blockColor, 0.18)}), #FCFBF7`,
         border: `1px solid ${hexToRgba(blockColor, 0.2)}`,
         opacity,
         ...vars,

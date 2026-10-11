@@ -104,8 +104,8 @@ export function GcalCallbackPage({ code }: { code: string }) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDFDFB',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    backgroundColor: '#FCFBF7',
+    fontFamily: 'inherit',
   };
 
   const cardStyle: React.CSSProperties = {

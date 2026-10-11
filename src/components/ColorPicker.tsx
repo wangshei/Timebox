@@ -38,7 +38,7 @@ export function ColorPicker({
   const [hexInput, setHexInput] = useState('');
 
   const px = SWATCH_PX[swatchSize];
-  const normalizedValue = value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : '#8DA387';
+  const normalizedValue = value && /^#[0-9A-Fa-f]{6}$/.test(value) ? value : '#8DA286';
 
   /** Resolve hex input to a valid #RRGGBB */
   const resolveHex = (raw: string): string | null => {

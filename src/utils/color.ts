@@ -37,7 +37,7 @@ export function getTextClassForBackground(hex: string): 'text-white' | 'text-neu
   return getLuminance(hex) < 0.5 ? 'text-white' : 'text-neutral-900';
 }
 
-const DEFAULT_CANVAS = '#FDFDFB';
+const DEFAULT_CANVAS = '#FCFBF7';
 
 /**
  * Blend a color with alpha over a background. Returns the resulting hex.

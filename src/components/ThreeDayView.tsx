@@ -75,7 +75,7 @@ interface ThreeDayViewProps {
 const PRIMARY = THEME.primary;
 const GRID_HOUR = 'rgba(0,0,0,0.07)';
 const GRID_HALF = 'rgba(0,0,0,0.035)';
-const BG_CANVAS = '#FDFDFB';
+const BG_CANVAS = '#FCFBF7';
 const BG_TODAY = 'rgba(141,162,134,0.05)';
 
 export function ThreeDayView({
@@ -391,7 +391,7 @@ export function ThreeDayView({
                       {day.toLocaleDateString('en-US', { weekday: 'short' })}
                     </div>
                     <div
-                      className="font-bold leading-none"
+                      className="font-semibold leading-none"
                       style={{
                         color: today ? PRIMARY : isWeekend ? '#8E8E93' : '#3A3A3C',
                         fontSize: today ? 20 : 17,

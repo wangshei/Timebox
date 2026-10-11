@@ -136,7 +136,7 @@ export default function UpdateChecker() {
           boxShadow: '0 4px 24px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
           maxWidth: 360,
           minWidth: 280,
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontFamily: 'inherit',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

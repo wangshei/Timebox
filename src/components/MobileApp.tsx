@@ -964,7 +964,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: 17, fontWeight: 700, color: THEME.textPrimary, margin: 0 }}>
+            <p style={{ fontSize: 17, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
               {mode === 'task' ? 'New Note' : 'New Event'}
             </p>
             <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: COLOR.muted, padding: 4 }}>
@@ -1970,7 +1970,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           {isCurrent && (
             <div style={{
               position: 'absolute', top: 6, right: 10,
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+              fontSize: 11, fontWeight: 600, letterSpacing: '0.05em',
               textTransform: 'uppercase', color: item.color,
             }}>
               NOW

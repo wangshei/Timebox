@@ -30,12 +30,12 @@ export interface Template {
 export const GENERAL_CATEGORY_COLOR = '#DBE4D7'; // Mist — the --muted/--secondary surface color
 
 /** Color used for the Personal calendar in Blank setup. */
-export const BLANK_PERSONAL_COLOR = '#8DA387'; // Forest — sage green
+export const BLANK_PERSONAL_COLOR = '#8DA286'; // Forest — sage green
 
 export const DEFAULT_TEMPLATE: Template = {
   calendars: [
     { templateId: 'personal',      name: 'Personal',      color: '#5B718C' }, // Navy      — dark blue
-    { templateId: 'growth',        name: 'Growth',        color: '#8DA387' }, // Forest    — dark green
+    { templateId: 'growth',        name: 'Growth',        color: '#8DA286' }, // Forest    — dark green
     { templateId: 'school',        name: 'School',        color: '#B3B46D' }, // Olive     — dark yellow
     { templateId: 'relationships', name: 'Relationships', color: '#DE8D91' }, // Mauve     — dark red
   ],
@@ -47,7 +47,7 @@ export const DEFAULT_TEMPLATE: Template = {
     { name: 'Hobbies',        color: '#8E9DCA', calendarTemplateId: 'personal' }, // Cornflower
 
     // ── Growth: 2 distinct green shades ──
-    { name: 'Learning',       color: '#8DA387', calendarTemplateId: 'growth'   }, // Forest
+    { name: 'Learning',       color: '#8DA286', calendarTemplateId: 'growth'   }, // Forest
     { name: 'Reading',        color: '#6593A6', calendarTemplateId: 'growth'   }, // Teal
 
     // ── School: 2 distinct yellow shades ──

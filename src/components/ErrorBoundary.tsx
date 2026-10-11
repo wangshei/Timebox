@@ -28,8 +28,8 @@ export class ErrorBoundary extends React.Component<
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#FDFDFB',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            backgroundColor: '#FCFBF7',
+            fontFamily: 'inherit',
           }}
         >
           <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>

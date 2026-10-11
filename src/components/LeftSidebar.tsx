@@ -1445,7 +1445,7 @@ export function LeftSidebar({
               onMouseLeave={e => { (e.currentTarget.style.backgroundColor = 'transparent'); (e.currentTarget.style.color = '#8E8E93'); }}
             >
               <span>Keyboard shortcuts</span>
-              <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] rounded font-bold" style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#AEAEB2' }}>?</span>
+              <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] rounded font-semibold" style={{ border: '1px solid rgba(0,0,0,0.12)', color: '#AEAEB2' }}>?</span>
             </button>
           </div>
           {isShortcutsOpen && (

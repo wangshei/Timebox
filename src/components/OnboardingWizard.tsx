@@ -118,7 +118,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
     border: 'none',
     cursor: 'pointer',
     transition: 'all 200ms',
-    backgroundColor: '#8DA387',
+    backgroundColor: '#8DA286',
     color: '#FFFFFF',
     fontFamily: 'inherit',
   };
@@ -135,8 +135,8 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
           alignItems: 'center',
           justifyContent: 'center',
           padding: '48px 24px',
-          backgroundColor: '#F8F7F4',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
+          backgroundColor: '#FCFBF7',
+          fontFamily: 'inherit',
         }}
       >
         <div style={{ width: 576, maxWidth: '100%' }}>
@@ -222,11 +222,11 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
               onClick={handleNameContinue}
               style={primaryBtnBase}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7A9076';
+                e.currentTarget.style.backgroundColor = '#7A9278';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#8DA387';
+                e.currentTarget.style.backgroundColor = '#8DA286';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
@@ -249,8 +249,8 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
         alignItems: 'center',
         justifyContent: 'center',
         padding: '48px 24px',
-        backgroundColor: '#F8F7F4',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: '#FCFBF7',
+        fontFamily: 'inherit',
       }}
     >
       <div style={{ width: 768, maxWidth: '100%' }}>
@@ -293,7 +293,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
               padding: 32,
               borderRadius: 16,
               border: choice === 'template'
-                ? '2px solid #8DA387'
+                ? '2px solid #8DA286'
                 : '2px solid rgba(0,0,0,0.08)',
               backgroundColor: choice === 'template'
                 ? 'rgba(141,163,135,0.05)'
@@ -318,7 +318,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
             }}
           >
             {/* Selected indicator */}
-            {choice === 'template' && <CheckCircle color="#8DA387" />}
+            {choice === 'template' && <CheckCircle color="#8DA286" />}
 
             {/* Recommended badge */}
             <div style={{ position: 'absolute', top: 16, right: 16 }}>
@@ -409,7 +409,7 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
                 justifyContent: 'center',
                 width: 48,
                 height: 48,
-                backgroundColor: '#F8F7F4',
+                backgroundColor: '#FCFBF7',
                 border: '2px dashed #D1D5DB',
                 borderRadius: 12,
                 marginBottom: 16,
@@ -504,12 +504,12 @@ export function OnboardingWizard({ onComplete, initialName = '' }: OnboardingWiz
             }}
             onMouseEnter={(e) => {
               if (choice) {
-                e.currentTarget.style.backgroundColor = '#7A9076';
+                e.currentTarget.style.backgroundColor = '#7A9278';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#8DA387';
+              e.currentTarget.style.backgroundColor = '#8DA286';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >

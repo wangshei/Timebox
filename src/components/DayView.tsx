@@ -513,7 +513,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             style={{
               height: 48,
               borderBottom: '1px solid rgba(0,0,0,0.07)',
-              backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FDFDFB',
+              backgroundColor: isViewingToday ? 'rgba(141,162,134,0.05)' : '#FCFBF7',
             }}
           >
             <div className="flex flex-col">
@@ -528,7 +528,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 {dayAbbrev}
               </div>
               <div
-                className="font-bold leading-none"
+                className="font-semibold leading-none"
                 style={{
                   color: isViewingToday ? '#8DA286' : isWeekend ? '#8E8E93' : '#3A3A3C',
                   fontSize: isViewingToday ? 20 : 17,

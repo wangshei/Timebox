@@ -138,7 +138,7 @@ function BugReportPopoverBody({ onClose, supabase, userEmail }: {
         style={{ width: '100%', fontSize: 12, resize: 'none', borderRadius: 8, padding: 8, outline: 'none', backgroundColor: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.09)', color: '#1C1C1E', fontFamily: 'inherit', boxSizing: 'border-box' }}
       />
       {status === 'error' && (
-        <p style={{ fontSize: 10, color: '#FF453A', margin: 0 }}>Failed to send. Try again.</p>
+        <p style={{ fontSize: 10, color: '#FF3B30', margin: 0 }}>Failed to send. Try again.</p>
       )}
       <button
         type="button"
@@ -2785,7 +2785,7 @@ export default function App() {
   // ── Pre-app screens ───────────────────────────────────────────────────────
   if (appScreen === 'loading') {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center gap-4" style={{ backgroundColor: '#FDFDFB' }}>
+      <div className="h-screen w-full flex flex-col items-center justify-center gap-4" style={{ backgroundColor: '#FCFBF7' }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: '#8E8E93', letterSpacing: '0.01em', marginBottom: 8 }}>Loading your data</span>
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
@@ -2841,7 +2841,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#FDFDFB' }}>
+    <div className="h-screen w-full flex flex-col overflow-hidden" style={{ backgroundColor: '#FCFBF7' }}>
       {/* Visit-mode warning banner */}
       {visitMode && !session && (
         <div className="w-full border-b border-amber-300 bg-amber-50 px-4 py-1.5 flex items-center justify-between text-xs">
@@ -2861,14 +2861,14 @@ export default function App() {
       {/* Session expired banner */}
       {sessionExpired && session === null && !visitMode && (
         <div className="w-full border-b px-4 py-1.5 flex items-center justify-between text-xs" style={{ borderColor: 'rgba(255,59,48,0.25)', backgroundColor: 'rgba(255,59,48,0.05)' }}>
-          <span style={{ color: '#B85050' }} className="font-medium">
+          <span style={{ color: '#FF3B30' }} className="font-medium">
             Session expired — sign in again to save your changes.
           </span>
           <button
             type="button"
             onClick={() => { setSessionExpired(false); setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('login'); }}
             className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
-            style={{ border: '1px solid rgba(255,59,48,0.25)', color: '#B85050' }}
+            style={{ border: '1px solid rgba(255,59,48,0.25)', color: '#FF3B30' }}
           >
             Sign in
           </button>
@@ -3098,7 +3098,7 @@ export default function App() {
                             const pctP = (row.plannedHours / maxH) * 100;
                             const pctR = (row.recordedHours / maxH) * 100;
                             const delta = row.deltaHours;
-                            const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF453A' : THEME.textPrimary;
+                            const deltaColor = delta > 0.05 ? '#34C759' : delta < -0.05 ? '#FF3B30' : THEME.textPrimary;
                             const deltaLabel = delta > 0.05 ? `+${delta.toFixed(1)}h` : delta < -0.05 ? `${delta.toFixed(1)}h` : '–';
                             return (
                               <div key={row.id}>
@@ -3148,7 +3148,7 @@ export default function App() {
                             {Math.abs(totalDelta) > 0.05 && (
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 }}>
                                 <span style={{ fontSize: 10, color: '#AEAEB2' }}>Difference</span>
-                                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', color: totalDelta > 0 ? '#34C759' : '#FF453A' }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em', color: totalDelta > 0 ? '#34C759' : '#FF3B30' }}>
                                   {totalDelta > 0 ? '+' : ''}{totalDelta.toFixed(1)}h
                                 </span>
                               </div>
@@ -3439,7 +3439,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => { setShowProfileMenu(false); setShowDeleteAccount(true); setDeleteConfirmText(''); setDeleteStatus('idle'); }}
-                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#B85050', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit', borderTop: '1px solid rgba(0,0,0,0.07)' }}
+                          style={{ width: '100%', textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 500, color: '#FF3B30', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 200ms', fontFamily: 'inherit', borderTop: '1px solid rgba(0,0,0,0.07)' }}
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,59,48,0.05)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
@@ -3482,7 +3482,7 @@ export default function App() {
                       }}
                     >
                       <div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#B85050', margin: '0 0 6px' }}>Delete your account?</h3>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#FF3B30', margin: '0 0 6px' }}>Delete your account?</h3>
                         <p style={{ fontSize: 13, color: '#636366', margin: 0, lineHeight: 1.6 }}>
                           This will permanently delete your account and all your data. This action cannot be undone.
                         </p>
@@ -3509,7 +3509,7 @@ export default function App() {
                         />
                       </div>
                       {deleteStatus === 'error' && (
-                        <p style={{ fontSize: 12, color: '#B85050', margin: 0, padding: '6px 10px', borderRadius: 8, backgroundColor: 'rgba(255,59,48,0.06)' }}>
+                        <p style={{ fontSize: 12, color: '#FF3B30', margin: 0, padding: '6px 10px', borderRadius: 8, backgroundColor: 'rgba(255,59,48,0.06)' }}>
                           Failed to delete account. Please try again or contact support.
                         </p>
                       )}
@@ -3659,7 +3659,7 @@ export default function App() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
                       {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                         <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                          <kbd style={{ fontFamily: 'monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary }}>{key}</kbd>
+                          <kbd style={{ fontFamily: 'var(--tb-font-mono)', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary }}>{key}</kbd>
                           <span>{label}</span>
                         </div>
                       ))}
@@ -4473,7 +4473,7 @@ export default function App() {
               backgroundColor: '#FFFFFF',
               boxShadow: 'var(--tb-sh-3)',
               border: '1px solid rgba(0,0,0,0.08)',
-              fontFamily: 'system-ui, -apple-system, sans-serif',
+              fontFamily: 'inherit',
             }}
           >
             {/* Header */}
@@ -4501,7 +4501,7 @@ export default function App() {
             >
               {[
                 { name: 'Personal', color: '#5B718C' },
-                { name: 'Growth', color: '#8DA387' },
+                { name: 'Growth', color: '#8DA286' },
                 { name: 'School', color: '#B3B46D' },
                 { name: 'Relationships', color: '#DE8D91' },
               ].map((cal) => (

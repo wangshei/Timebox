@@ -753,8 +753,8 @@ export function EventCard({
                       <button
                         type="button"
                         className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -770,8 +770,8 @@ export function EventCard({
                       <button
                         type="button"
                         className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                        style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -799,7 +799,7 @@ export function EventCard({
                     <button
                       type="button"
                       className="w-full flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                      style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
+                      style={{ color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {
@@ -874,8 +874,8 @@ export function EventCard({
                       key={scope}
                       type="button"
                       className="text-left px-2.5 py-1.5 rounded-lg transition-all"
-                      style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#B85050', backgroundColor: 'transparent' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#B85050'; }}
+                      style={{ border: '1px solid rgba(184,80,80,0.18)', color: '#FF3B30', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; e.currentTarget.style.borderColor = '#FF3B30'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(184,80,80,0.18)'; }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -928,7 +928,7 @@ export function EventCard({
                     <button
                       type="button"
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 font-medium rounded-md transition-colors"
-                      style={{ color: '#B85050', backgroundColor: 'transparent', fontSize: 11 }}
+                      style={{ color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(184,80,80,0.07)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       onClick={(e) => {

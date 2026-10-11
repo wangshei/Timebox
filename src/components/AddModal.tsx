@@ -647,7 +647,7 @@ export function AddModal({
 
       {/* Draggable panel — Monet warm canvas theme; centered on mobile */}
       <div
-        className={`pointer-events-auto flex flex-col overflow-hidden ${isMobileModal ? 'fixed inset-x-4 top-[8vh]' : 'absolute'}`}
+        className={`pointer-events-auto flex flex-col overflow-hidden ${isMobileModal ? 'fixed inset-x-4 top-[max(8dvh,env(safe-area-inset-top))]' : 'absolute'}`}
         style={{
           ...(isMobileModal ? {} : { left: panelPos.x, top: panelPos.y, width: `${PANEL_WIDTH}px` }),
           maxWidth: isMobileModal ? undefined : 'calc(100vw - 32px)',
@@ -754,7 +754,7 @@ export function AddModal({
                     className="flex-1 h-1.5 appearance-none cursor-pointer rounded-full"
                     style={{ background: `linear-gradient(to right, ${THEME.primary} 0%, ${THEME.primary} ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) ${((estimatedHours - 0.25) / 7.75) * 100}%, rgba(0,0,0,0.09) 100%)` }}
                   />
-                  <span className="text-sm font-bold w-14 text-right" style={{ color: THEME.primary }}>
+                  <span className="text-sm font-semibold w-14 text-right" style={{ color: THEME.primary }}>
                     {estimatedHours >= 1 ? `${estimatedHours}h` : `${Math.round(estimatedHours * 60)}m`}
                   </span>
                 </div>
@@ -765,7 +765,7 @@ export function AddModal({
                 <input
                   type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                   className="flex-1 px-2.5 text-sm rounded-lg focus:outline-none"
-                  style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
+                  style={{ height: isMobileModal ? 44 : 32, fontSize: isMobileModal ? 16 : undefined, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
                 />
               </div>
               {moreOpen && (
@@ -832,7 +832,7 @@ export function AddModal({
                       if (endDate < newDate) setEndDate(newDate);
                     }}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
+                    style={{ height: isMobileModal ? 44 : 32, fontSize: isMobileModal ? 16 : undefined, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
@@ -840,7 +840,7 @@ export function AddModal({
                   <input
                     type="date" value={endDate} min={date} onChange={(e) => setEndDate(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
+                    style={{ height: isMobileModal ? 44 : 32, fontSize: isMobileModal ? 16 : undefined, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -850,7 +850,7 @@ export function AddModal({
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
+                    style={{ height: isMobileModal ? 44 : 32, fontSize: isMobileModal ? 16 : undefined, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
@@ -858,7 +858,7 @@ export function AddModal({
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
+                    style={{ height: isMobileModal ? 44 : 32, fontSize: isMobileModal ? 16 : undefined, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -962,7 +962,7 @@ export function AddModal({
               {(() => {
                 // Soft, borderless dropdowns: light gray shadow instead of a border.
                 const selectStyle: React.CSSProperties = {
-                  width: '100%', minWidth: 0, fontSize: 12, height: 30, borderRadius: 8,
+                  width: '100%', minWidth: 0, fontSize: isMobileModal ? 16 : 12, height: isMobileModal ? 44 : 32, borderRadius: 8,
                   border: 'none', backgroundColor: '#FFFFFF', color: THEME.textPrimary, outline: 'none',
                   boxShadow: 'var(--tb-sh-1)',
                   appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',

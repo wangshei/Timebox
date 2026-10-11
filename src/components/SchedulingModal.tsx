@@ -328,7 +328,7 @@ export function SchedulingModal({ isOpen, onClose, selectedSlots, onRemoveSlot, 
             >
               <span
                 className="flex-1 truncate"
-                style={{ fontSize: 11, fontWeight: 500, color: '#1C1C1E', fontFamily: 'monospace' }}
+                style={{ fontSize: 11, fontWeight: 500, color: '#1C1C1E', fontFamily: 'var(--tb-font-mono)' }}
               >
                 {linkUrl}
               </span>

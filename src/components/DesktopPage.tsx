@@ -84,8 +84,8 @@ export function DesktopPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '48px 24px',
-        backgroundColor: '#F8F7F4',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: '#FCFBF7',
+        fontFamily: 'inherit',
       }}
     >
       <div style={{ width: 520, maxWidth: '100%' }}>
@@ -126,13 +126,13 @@ export function DesktopPage() {
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: '#8DA387',
+                backgroundColor: '#8DA286',
                 color: '#FFFFFF',
                 textDecoration: 'none',
                 transition: 'background-color 200ms',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9076')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA387')}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#7A9278')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#8DA286')}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 3v9m0 0l-3.5-3.5M9 12l3.5-3.5M4 15h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

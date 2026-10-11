@@ -36,7 +36,7 @@ export function getDemoNow(): Date {
 
 export const DEMO_CALENDARS: CalendarContainer[] = [
   { id: 'demo-personal',      name: 'Personal',      color: '#5B718C' },
-  { id: 'demo-growth',        name: 'Growth',        color: '#8DA387' },
+  { id: 'demo-growth',        name: 'Growth',        color: '#8DA286' },
   { id: 'demo-school',        name: 'School',        color: '#B3B46D' },
   { id: 'demo-relationships', name: 'Relationships', color: '#DE8D91' },
 ];
@@ -51,7 +51,7 @@ export const DEMO_CATEGORIES: Category[] = [
   { id: 'demo-cat-hobbies',  name: 'Hobbies',        color: '#8E9DCA', calendarContainerId: 'demo-personal', calendarContainerIds: ['demo-personal'] },
   { id: 'demo-cat-general',  name: 'General',        color: '#DBE4D7', calendarContainerId: 'demo-personal', calendarContainerIds: ['demo-personal'] },
   // Growth
-  { id: 'demo-cat-learning',  name: 'Learning',  color: '#8DA387', calendarContainerId: 'demo-growth', calendarContainerIds: ['demo-growth'] },
+  { id: 'demo-cat-learning',  name: 'Learning',  color: '#8DA286', calendarContainerId: 'demo-growth', calendarContainerIds: ['demo-growth'] },
   { id: 'demo-cat-reading',   name: 'Reading',   color: '#6593A6', calendarContainerId: 'demo-growth', calendarContainerIds: ['demo-growth'] },
   { id: 'demo-cat-building',  name: 'Building',  color: '#4A6741', calendarContainerId: 'demo-growth', calendarContainerIds: ['demo-growth'] },
   // School

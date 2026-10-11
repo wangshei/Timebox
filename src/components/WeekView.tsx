@@ -320,7 +320,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   const currentTimeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
-    <div style={{ backgroundColor: '#FDFDFB' }}>
+    <div style={{ backgroundColor: '#FCFBF7' }}>
       {/* Selection mode banner */}
       {selectionMode && (
         <div
@@ -379,7 +379,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
         className="flex sticky top-0 z-20"
         style={{
           borderBottom: '1px solid rgba(0,0,0,0.07)',
-          backgroundColor: '#FDFDFB',
+          backgroundColor: '#FCFBF7',
         }}
       >
         {/* Time gutter spacer (matches time column width) */}
@@ -482,7 +482,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
           style={{
             width: timeColW,
             borderRight: '1px solid rgba(0,0,0,0.07)',
-            backgroundColor: '#FDFDFB',
+            backgroundColor: '#FCFBF7',
           }}
         >
             {hours.map((hour) => {

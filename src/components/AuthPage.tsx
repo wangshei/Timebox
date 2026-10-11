@@ -336,8 +336,8 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
         alignItems: 'center',
         justifyContent: 'center',
         padding: '48px 24px',
-        backgroundColor: '#F8F7F4',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: '#FCFBF7',
+        fontFamily: 'inherit',
       }}
     >
       <div style={{ width: 576, maxWidth: '100%' }}>
@@ -369,7 +369,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                 padding: '10px 14px',
                 borderRadius: 10,
                 backgroundColor: 'rgba(255,59,48,0.06)',
-                color: '#B85050',
+                color: '#FF3B30',
                 border: '1px solid rgba(255,59,48,0.12)',
                 marginBottom: 24,
                 lineHeight: 1.5,
@@ -509,7 +509,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       lineHeight: 1.6,
                       marginBottom: 16,
                       backgroundColor: message.isError ? 'rgba(255,59,48,0.06)' : 'rgba(141,162,134,0.10)',
-                      color: message.isError ? '#B85050' : '#4A7A44',
+                      color: message.isError ? '#FF3B30' : '#4A7A44',
                       border: `1px solid ${message.isError ? 'rgba(255,59,48,0.12)' : 'rgba(141,162,134,0.22)'}`,
                     }}
                   >
@@ -529,16 +529,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     border: 'none',
                     cursor: (noBackend || loading || !email.trim()) ? 'default' : 'pointer',
                     transition: 'all 200ms',
-                    backgroundColor: '#8DA387',
+                    backgroundColor: '#8DA286',
                     color: '#FFFFFF',
                     opacity: (noBackend || loading || !email.trim()) ? 0.4 : 1,
                     fontFamily: 'inherit',
                   }}
                   onMouseEnter={(e) => {
-                    if (!loading && !noBackend && email.trim()) e.currentTarget.style.backgroundColor = '#7A9076';
+                    if (!loading && !noBackend && email.trim()) e.currentTarget.style.backgroundColor = '#7A9278';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#8DA387';
+                    e.currentTarget.style.backgroundColor = '#8DA286';
                   }}
                 >
                   {loading ? '...' : 'Join Waitlist'}
@@ -765,7 +765,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       padding: 0,
                       transition: 'color 200ms',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9076')}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#7A9278')}
                     onMouseLeave={(e) => (e.currentTarget.style.color = '#8DA286')}
                   >
                     Forgot password?
@@ -822,7 +822,7 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                     lineHeight: 1.6,
                     marginBottom: 16,
                     backgroundColor: message.isError ? 'rgba(255,59,48,0.06)' : 'rgba(141,162,134,0.10)',
-                    color: message.isError ? '#B85050' : '#4A7A44',
+                    color: message.isError ? '#FF3B30' : '#4A7A44',
                     border: `1px solid ${message.isError ? 'rgba(255,59,48,0.12)' : 'rgba(141,162,134,0.22)'}`,
                   }}
                 >
@@ -875,15 +875,15 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                       fontWeight: 600,
                       borderRadius: 8,
                       border: 'none',
-                      backgroundColor: '#8DA387',
+                      backgroundColor: '#8DA286',
                       color: '#FFFFFF',
                       cursor: loading ? 'default' : 'pointer',
                       opacity: loading ? 0.5 : 1,
                       transition: 'all 200ms',
                       fontFamily: 'inherit',
                     }}
-                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#7A9076'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA387'; }}
+                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#7A9278'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#8DA286'; }}
                   >
                     {loading ? '...' : 'Join Waitlist'}
                   </button>
@@ -903,16 +903,16 @@ export function AuthPage({ supabase, mode: initialMode = 'signup', onVisitMode, 
                   border: 'none',
                   cursor: (noBackend || loading) ? 'default' : 'pointer',
                   transition: 'all 200ms',
-                  backgroundColor: '#8DA387',
+                  backgroundColor: '#8DA286',
                   color: '#FFFFFF',
                   opacity: (noBackend || loading) ? 0.4 : 1,
                   fontFamily: 'inherit',
                 }}
                 onMouseEnter={(e) => {
-                  if (!loading && !noBackend) e.currentTarget.style.backgroundColor = '#7A9076';
+                  if (!loading && !noBackend) e.currentTarget.style.backgroundColor = '#7A9278';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#8DA387';
+                  e.currentTarget.style.backgroundColor = '#8DA286';
                 }}
               >
                 {loading

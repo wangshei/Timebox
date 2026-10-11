@@ -81,7 +81,7 @@ const cardStyle: React.CSSProperties = {
 };
 
 const btnPrimary: React.CSSProperties = {
-  backgroundColor: '#8DA387',
+  backgroundColor: '#8DA286',
   color: '#fff',
   border: 'none',
   borderRadius: 8,
@@ -93,8 +93,8 @@ const btnPrimary: React.CSSProperties = {
 
 const btnSecondary: React.CSSProperties = {
   backgroundColor: 'transparent',
-  color: '#8DA387',
-  border: '1px solid #8DA387',
+  color: '#8DA286',
+  border: '1px solid #8DA286',
   borderRadius: 8,
   padding: '8px 16px',
   fontSize: 13,
@@ -360,8 +360,8 @@ export function AdminDashboard() {
   const wrapInEmailTemplate = (bodyHtml: string) => `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
-<body style="margin:0;padding:0;background-color:#F8F7F4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F7F4;">
+<body style="margin:0;padding:0;background-color:#FCFBF7;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FCFBF7;">
     <tr><td align="center" style="padding:48px 24px;">
       <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
         <tr><td align="center" style="padding-bottom:32px;">
@@ -445,11 +445,11 @@ export function AdminDashboard() {
     return (
       <div style={{
         minHeight: '100vh',
-        backgroundColor: '#F8F7F4',
+        backgroundColor: '#FCFBF7',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'inherit',
       }}>
         <div style={{ ...cardStyle, width: 380, maxWidth: '90vw' }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1C1C1E', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
@@ -509,8 +509,8 @@ export function AdminDashboard() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#F8F7F4',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      backgroundColor: '#FCFBF7',
+      fontFamily: 'inherit',
     }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
         {/* Header */}
@@ -551,7 +551,7 @@ export function AdminDashboard() {
             ...cardStyle,
             marginBottom: 20,
             backgroundColor: actionMessage.startsWith('Error') ? '#FFF5F5' : '#F0FFF4',
-            borderColor: actionMessage.startsWith('Error') ? '#FF3B30' : '#8DA387',
+            borderColor: actionMessage.startsWith('Error') ? '#FF3B30' : '#8DA286',
           }}>
             <p style={{ margin: 0, fontSize: 13, color: actionMessage.startsWith('Error') ? '#FF3B30' : '#2D6A4F' }}>
               {actionMessage}
@@ -565,7 +565,7 @@ export function AdminDashboard() {
             { label: 'Total Users', value: users.length, color: '#1C1C1E' },
             { label: 'Unconfirmed', value: unconfirmedUsers.length, color: unconfirmedUsers.length > 0 ? '#FF3B30' : '#8E8E93' },
             { label: 'Waitlist Pending', value: pendingWaitlist.length, color: '#FF9500' },
-            { label: 'Waitlist Approved', value: approvedWaitlist.length, color: '#8DA387' },
+            { label: 'Waitlist Approved', value: approvedWaitlist.length, color: '#8DA286' },
             { label: 'Codes Used / Total', value: `${usedCodes.length} / ${totalCodes}`, color: '#5856D6' },
             { label: 'Bug Reports', value: bugReports.length, color: bugReports.length > 0 ? '#FF9500' : '#8E8E93' },
           ].map(stat => (
@@ -1000,7 +1000,7 @@ export function AdminDashboard() {
                           type="checkbox"
                           checked={selectedEmails.has(entry.email)}
                           onChange={() => toggleEmail(entry.email)}
-                          style={{ accentColor: '#8DA387' }}
+                          style={{ accentColor: '#8DA286' }}
                         />
                       )}
                     </td>
