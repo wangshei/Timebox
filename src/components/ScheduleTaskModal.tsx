@@ -54,7 +54,7 @@ export function ScheduleTaskModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-full md:max-w-md md:rounded-2xl rounded-t-2xl"

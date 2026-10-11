@@ -567,7 +567,7 @@ export function LeftSidebar({
   // Compare mode: replace entire sidebar with analytics
   if (isCompareMode) {
     return (
-      <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+      <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--tb-surface-2)' }}>
         {/* Compare header — just back arrow, no title (outer header already shows "Compare") */}
         <div className="flex items-center px-2 py-2 shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
           <button
@@ -591,9 +591,9 @@ export function LeftSidebar({
   }
 
   return (
-    <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: '#FCFBF7', paddingLeft: 4 }}>
+    <div data-tour="left-sidebar" className="flex flex-col flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--tb-surface-2)' }}>
       {/* Scrollable list — calendars, categories, tags */}
-      <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 pt-1 pb-2">
+      <div data-tour="calendar-list" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ padding: 'var(--tb-sp-2) var(--tb-sp-3)' }}>
         {/* Google Calendar connect card — shown once when not connected; dismissible.
             After dismissing, the user can still connect from Settings. */}
         {!gcalConnected && onConnectGcal && !gcalPromptDismissed && (
@@ -1451,7 +1451,7 @@ export function LeftSidebar({
           {isShortcutsOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={onToggleShortcuts} aria-hidden />
-              <div className="fixed bottom-16 left-4 z-50 w-52 rounded-xl py-2 px-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
+              <div className="fixed bottom-16 left-4 z-[200] w-52 rounded-xl py-2 px-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: 'var(--tb-sh-2)' }}>
               <p className="text-xs font-semibold mb-2" style={{ color: '#3A3A3C' }}>Shortcuts</p>
                 <div className="space-y-1.5 text-xs" style={{ color: '#636366' }}>
                   {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['t', 'New note / todo'], ['e', 'New event'], ...(FEATURES.compareMode ? [['c', 'Compare plan vs actual']] : []), ['a', 'Show all calendars']].map(([key, label]) => (

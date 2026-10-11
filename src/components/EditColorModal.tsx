@@ -49,8 +49,8 @@ export function EditColorModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/20" onClick={onClose} aria-hidden />
-      <div className="fixed left-1/2 top-1/2 z-[70] -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white shadow-xl rounded-xl border border-neutral-200 overflow-hidden">
+      <div className="fixed inset-0 z-[300] bg-black/20" onClick={onClose} aria-hidden />
+      <div className="fixed left-1/2 top-1/2 z-[310] -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white shadow-xl rounded-xl border border-neutral-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-500 transition-colors">

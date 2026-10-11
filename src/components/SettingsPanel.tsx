@@ -8,6 +8,7 @@ import { getGoogleAuthUrl, isGoogleConnected, disconnectGoogle, fetchGoogleCalen
 import { useStore } from '../store/useStore';
 import { getLocalTimeZone, getBrowserTimeZone } from '../utils/dateTime';
 import { COLOR } from '../styles/tokens';
+import { IconButton } from './ds';
 
 // Common IANA timezones shown at the top of the picker
 const COMMON_TIMEZONES = [
@@ -708,7 +709,7 @@ export function SettingsPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0"
@@ -722,30 +723,22 @@ export function SettingsPanel({
         className="relative flex flex-col"
         style={{
           backgroundColor: BG,
-          borderRadius: 14,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.14)',
+          borderRadius: 'var(--tb-r-xl)',
+          boxShadow: 'var(--tb-sh-3)',
           border: `1px solid ${BORDER}`,
           width: 440,
-          maxWidth: '92vw',
+          maxWidth: 'calc(100vw - 32px)',
           height: 500,
-          maxHeight: '85vh',
+          maxHeight: '85dvh',
         }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between flex-shrink-0"
-          style={{ borderBottom: `1px solid ${BORDER}`, padding: '12px 16px 12px 20px' }}
+          style={{ borderBottom: `1px solid ${BORDER}`, height: 'var(--tb-header-h)', padding: '0 var(--tb-sp-2) 0 var(--tb-sp-5)' }}
         >
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: TEXT, paddingLeft: 2 }}>Settings</h2>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center rounded-lg transition-colors"
-            style={{ width: 26, height: 26, color: TEXT_MUTED }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          >
-            <XMarkIcon className="h-4 w-4" />
-          </button>
+          <h2 style={{ fontSize: 'var(--tb-fs-md)', fontWeight: 600, color: TEXT }}>Settings</h2>
+          <IconButton icon={XMarkIcon} aria-label="Close settings" onClick={onClose} style={{ color: TEXT_MUTED }} />
         </div>
 
         {/* Tabs */}
@@ -894,9 +887,9 @@ export function SettingsPanel({
                       {tzDropdownOpen && (
                         <div
                           style={{
-                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)',
                             backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflow: 'hidden',
+                            boxShadow: 'var(--tb-sh-2)', maxHeight: 220, overflow: 'hidden',
                             display: 'flex', flexDirection: 'column', marginTop: 2,
                           }}
                         >
@@ -1000,9 +993,9 @@ export function SettingsPanel({
                         {secTzDropdownOpen && (
                           <div
                             style={{
-                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--tb-z-dropdown)',
                               backgroundColor: '#FFFFFF', border: `1px solid ${BORDER}`, borderRadius: 8,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflow: 'hidden',
+                              boxShadow: 'var(--tb-sh-2)', maxHeight: 220, overflow: 'hidden',
                               display: 'flex', flexDirection: 'column', marginTop: 2,
                             }}
                           >
@@ -1768,7 +1761,7 @@ export function SettingsPanel({
               style={{
                 backgroundColor: '#FFFFFF',
                 border: '1px solid rgba(0,0,0,0.09)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+                boxShadow: 'var(--tb-sh-3)',
                 maxWidth: 300,
                 width: '100%',
                 padding: 24,

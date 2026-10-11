@@ -130,7 +130,7 @@ export function ColorPicker({
               backgroundColor: normalizedValue,
               border: '1.5px solid rgba(0,0,0,0.12)',
               flexShrink: 0,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+              boxShadow: 'var(--tb-sh-1)',
             }}
             title={normalizedValue}
           />
@@ -156,7 +156,7 @@ export function ColorPicker({
                   backgroundColor: normalizedValue,
                   border: '1.5px solid rgba(0,0,0,0.12)',
                   flexShrink: 0,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.10)',
+                  boxShadow: 'var(--tb-sh-1)',
                 }}
               />
               <input

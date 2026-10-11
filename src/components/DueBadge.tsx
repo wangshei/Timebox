@@ -70,7 +70,7 @@ export const DueBadge: React.FC<DueBadgeProps> = ({ tasks, compact }) => {
             top: '100%',
             right: 0,
             marginTop: 4,
-            zIndex: 300,
+            zIndex: 'var(--tb-z-popover)',
             minWidth: 180,
             maxWidth: 260,
             backgroundColor: '#fff',

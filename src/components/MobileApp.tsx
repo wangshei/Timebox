@@ -224,7 +224,7 @@ export function MobileApp() {
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
           backgroundColor: '#FCFBF7',
           borderTop: '1px solid rgba(0,0,0,0.08)',
-          zIndex: 50,
+          zIndex: 'var(--tb-z-sticky)',
         }}
       >
         {/* Schedule tab */}
@@ -307,17 +307,17 @@ export function MobileApp() {
           <div
             onClick={() => setShowAddPopup(false)}
             style={{
-              position: 'fixed', inset: 0, zIndex: 90,
+              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
               backgroundColor: 'rgba(0,0,0,0.3)',
               WebkitTapHighlightColor: 'transparent',
             }}
           />
           <div
             style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
               backgroundColor: '#FFFFFF',
               borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              boxShadow: 'var(--tb-sh-sheet)',
               paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
               animation: 'slideUp 0.2s ease-out',
             }}
@@ -515,7 +515,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, zIndex: 90,
+          position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
           backgroundColor: 'rgba(0,0,0,0.3)',
           WebkitTapHighlightColor: 'transparent',
         }}
@@ -523,10 +523,10 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
       {/* Sheet */}
       <div
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
           backgroundColor: '#FFFFFF',
           borderRadius: '16px 16px 0 0',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+          boxShadow: 'var(--tb-sh-sheet)',
           maxHeight: '80vh',
           overflowY: 'auto',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
@@ -981,9 +981,9 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 95, backgroundColor: 'rgba(0,0,0,0.35)', WebkitTapHighlightColor: 'transparent' }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)', backgroundColor: 'rgba(0,0,0,0.35)', WebkitTapHighlightColor: 'transparent' }} />
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 96,
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
         backgroundColor: '#FFFFFF', borderRadius: '18px 18px 0 0',
         boxShadow: '0 -4px 24px rgba(0,0,0,0.14)',
         maxHeight: '90vh', overflowY: 'auto',
@@ -1540,7 +1540,7 @@ function PlanTab() {
       {/* Confirmation toast */}
       {confirmedMsg && (
         <div style={{
-          position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 50,
+          position: 'absolute', bottom: 16, left: 16, right: 16, zIndex: 'var(--tb-z-sticky)',
           backgroundColor: THEME.primary, color: '#FFFFFF',
           fontSize: 13, fontWeight: 500, padding: '10px 16px', borderRadius: 10,
           textAlign: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
@@ -2330,16 +2330,16 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           <div
             onClick={() => { setShowEventForm(false); setEventTitle(''); }}
             style={{
-              position: 'fixed', inset: 0, zIndex: 90,
+              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
               backgroundColor: 'rgba(0,0,0,0.3)',
               WebkitTapHighlightColor: 'transparent',
             }}
           />
           <div
             style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
               backgroundColor: '#FFFFFF', borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              boxShadow: 'var(--tb-sh-sheet)',
               paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
               animation: 'slideUp 0.2s ease-out',
             }}
@@ -2624,7 +2624,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
           <div
             onClick={(e) => { e.stopPropagation(); setShowReschedulePicker(false); }}
             style={{
-              position: 'fixed', inset: 0, zIndex: 90,
+              position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)',
               backgroundColor: 'rgba(0,0,0,0.3)',
               WebkitTapHighlightColor: 'transparent',
             }}
@@ -2633,10 +2633,10 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 91,
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--tb-z-modal)',
               backgroundColor: '#FFFFFF',
               borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+              boxShadow: 'var(--tb-sh-sheet)',
               maxHeight: '75vh',
               overflowY: 'auto',
               paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',

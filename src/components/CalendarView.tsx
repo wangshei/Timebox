@@ -710,7 +710,7 @@ export function CalendarView({
                   transform: 'translateY(-50%)',
                   backgroundColor: '#FFFFFF',
                   border: '1.5px solid rgba(0,0,0,0.06)',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.04)',
+                  boxShadow: 'var(--tb-sh-2)',
                 }}
               >
                 {STAMP_DEFAULTS.map((emoji) => (

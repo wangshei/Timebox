@@ -148,7 +148,7 @@ export function DraggableBottomSheet({
         borderTop: '1px solid rgba(0,0,0,0.09)',
         height: `${height}px`,
         touchAction: 'none',
-        zIndex: 50,
+        zIndex: 'var(--tb-z-modal)',
       }}
     >
       {/* Drag Handle */}

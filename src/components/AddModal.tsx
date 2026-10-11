@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useBreakpoint } from '../utils/useBreakpoint';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, StarIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, CheckCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import type { Category, Tag } from '../types';
 import { DEFAULT_PALETTE_COLOR, THEME } from '../constants/colors';
@@ -153,6 +154,7 @@ export function AddModal({
   onResendInvite,
   onResendInvites,
 }: AddModalProps) {
+  const isMobileModal = useBreakpoint().isCompact;
   const [mode, setMode] = useState<AddMode>(initialMode);
   const [title, setTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
@@ -638,10 +640,8 @@ export function AddModal({
 
   const maxH = typeof window !== 'undefined' ? (window.innerHeight * PANEL_MAX_HEIGHT) / 100 : 560;
 
-  const isMobileModal = typeof window !== 'undefined' && window.innerWidth < 1024;
-
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
+    <div className="fixed inset-0 z-[300] pointer-events-none">
       {/* Light backdrop — click to close, calendar stays visible */}
       <div className="absolute inset-0 bg-black/15 pointer-events-auto" onClick={onClose} aria-hidden />
 
@@ -655,7 +655,7 @@ export function AddModal({
           backgroundColor: '#FFFFFF',
           borderRadius: '16px',
           border: '1px solid rgba(160, 140, 120, 0.2)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05)',
+          boxShadow: 'var(--tb-sh-3)',
         }}
       >
         {/* Drag header (drag disabled on mobile) */}
@@ -765,7 +765,7 @@ export function AddModal({
                 <input
                   type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
                   className="flex-1 px-2.5 text-sm rounded-lg focus:outline-none"
-                  style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
+                  style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: dueDate ? THEME.textPrimary : '#8E8E93' }}
                 />
               </div>
               {moreOpen && (
@@ -832,7 +832,7 @@ export function AddModal({
                       if (endDate < newDate) setEndDate(newDate);
                     }}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
@@ -840,7 +840,7 @@ export function AddModal({
                   <input
                     type="date" value={endDate} min={date} onChange={(e) => setEndDate(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -850,7 +850,7 @@ export function AddModal({
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
                 <div>
@@ -858,7 +858,7 @@ export function AddModal({
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-2.5 text-sm rounded-lg focus:outline-none"
-                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)', color: '#1C1C1E' }}
+                    style={{ height: 30, backgroundColor: '#FFFFFF', border: 'none', boxShadow: 'var(--tb-sh-1)', color: '#1C1C1E' }}
                   />
                 </div>
               </div>
@@ -894,7 +894,7 @@ export function AddModal({
                 {tzPickerOpen && timezoneEnabled && (
                   <div
                     className="absolute left-0 mt-1 rounded-lg shadow-lg overflow-hidden"
-                    style={{ zIndex: 50, width: 260, backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)' }}
+                    style={{ zIndex: 'var(--tb-z-dropdown)', width: 260, backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.10)' }}
                   >
                     <div className="p-1.5">
                       <input
@@ -964,7 +964,7 @@ export function AddModal({
                 const selectStyle: React.CSSProperties = {
                   width: '100%', minWidth: 0, fontSize: 12, height: 30, borderRadius: 8,
                   border: 'none', backgroundColor: '#FFFFFF', color: THEME.textPrimary, outline: 'none',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                  boxShadow: 'var(--tb-sh-1)',
                   appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
                 };
                 const chevronBg = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 20 20\' fill=\'%238E8E93\'><path d=\'M5.5 7.5l4.5 4.5 4.5-4.5\' stroke=\'%238E8E93\' stroke-width=\'2\' fill=\'none\' stroke-linecap=\'round\'/></svg>")';

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { BREAKPOINTS } from '../utils/useBreakpoint';
 import { createPortal } from 'react-dom';
 import { Task } from '../App';
 import {
@@ -156,7 +157,7 @@ export function TaskCard({
     const gap = 8;
     const update = () => {
       const rect = el.getBoundingClientRect();
-      const isMobileWidth = window.innerWidth < 768;
+      const isMobileWidth = window.innerWidth < BREAKPOINTS.desktop;
       let left: number;
       let top: number;
       if (isMobileWidth) {
@@ -414,7 +415,7 @@ export function TaskCard({
         <div
           ref={cardRef}
           className="cursor-grab active:cursor-grabbing group relative"
-          style={{ height: `${resizeHeight ?? cardHeight}px`, ...(showPopover ? { zIndex: 101 } : {}) }}
+          style={{ height: `${resizeHeight ?? cardHeight}px`, ...(showPopover ? { zIndex: 'var(--tb-z-dropdown)' } : {}) }}
           onClick={() => {
             if (resizingRef.current) return;
             if (dragEndedRef.current) { dragEndedRef.current = false; return; }
@@ -554,7 +555,7 @@ export function TaskCard({
             ref={popoverRef}
             className="fixed rounded-xl p-3 min-w-[268px] max-w-xs overflow-hidden"
             style={{
-              zIndex: 200,
+              zIndex: 'var(--tb-z-popover)',
               top: popoverRect.top,
               left: popoverRect.left,
               backgroundColor: '#FFFFFF',
@@ -577,7 +578,7 @@ export function TaskCard({
         className="group relative cursor-pointer"
         style={{
           borderBottom: '1px solid rgba(0,0,0,0.05)',
-          ...(showPopover ? { zIndex: 101 } : {}),
+          ...(showPopover ? { zIndex: 'var(--tb-z-dropdown)' } : {}),
         }}
         onClick={(e) => {
           if (e.detail !== 1) return;
@@ -700,12 +701,12 @@ export function TaskCard({
           ref={popoverRef}
           className="fixed rounded-xl p-3 min-w-[272px] max-w-xs overflow-hidden"
           style={{
-            zIndex: 200,
+            zIndex: 'var(--tb-z-popover)',
             top: popoverRect.top,
             left: popoverRect.left,
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.09)',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
+            boxShadow: 'var(--tb-sh-3)',
           }}>
           {renderPopoverContent()}
         </div>,

@@ -50,9 +50,9 @@ export function EditTagModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/20" onClick={onClose} aria-hidden />
+      <div className="fixed inset-0 z-[300] bg-black/20" onClick={onClose} aria-hidden />
       <div
-        className="fixed left-1/2 top-1/2 z-[70] -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-xl overflow-hidden"
+        className="fixed left-1/2 top-1/2 z-[310] -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-xl overflow-hidden"
         style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 16px 48px rgba(0,0,0,0.10)' }}
       >
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>

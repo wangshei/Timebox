@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { IconButton } from './ds';
 import { createPortal } from 'react-dom';
 import {
   XMarkIcon,
@@ -114,8 +115,8 @@ function RoleDropdown({
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.10)',
             borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-            zIndex: 300,
+            boxShadow: 'var(--tb-sh-2)',
+            zIndex: 'var(--tb-z-popover)',
             minWidth: 160,
             overflow: 'hidden',
           }}
@@ -208,7 +209,7 @@ export function ShareModal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 250,
+        zIndex: 'var(--tb-z-modal-backdrop)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -222,10 +223,11 @@ export function ShareModal({
         ref={modalRef}
         style={{
           width: 400,
-          maxHeight: '85vh',
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: '85dvh',
           backgroundColor: '#FFFFFF',
-          borderRadius: 14,
-          boxShadow: '0 8px 40px rgba(0,0,0,0.16)',
+          borderRadius: 'var(--tb-r-xl)',
+          boxShadow: 'var(--tb-sh-3)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -237,8 +239,10 @@ export function ShareModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 20px 12px',
-            borderBottom: '1px solid rgba(0,0,0,0.07)',
+            height: 'var(--tb-header-h)',
+            padding: '0 var(--tb-sp-2) 0 var(--tb-sp-5)',
+            flexShrink: 0,
+            borderBottom: '1px solid var(--tb-border)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -270,23 +274,7 @@ export function ShareModal({
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: 4,
-              borderRadius: 6,
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              color: '#8E8E93',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            <XMarkIcon style={{ width: 18, height: 18 }} />
-          </button>
+          <IconButton icon={XMarkIcon} aria-label="Close" onClick={onClose} style={{ color: '#8E8E93' }} />
         </div>
 
         {/* Body */}

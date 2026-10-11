@@ -56,6 +56,7 @@ import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabas
 import { saveSchedulingLinkToDb, deleteSchedulingLinkFromDb, loadSchedulingLinksAndBookings } from './services/booking';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { IconButton } from './components/ds';
+import { useBreakpoint } from './utils/useBreakpoint';
 import { THEME } from './constants/colors';
 
 // Re-export for components that still import from App
@@ -192,6 +193,7 @@ function clearUserLocalStorage() {
 }
 
 export default function App() {
+  const { isDesktop } = useBreakpoint();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalMode, setAddModalMode] = useState<'task' | 'event'>('task');
   const [addModalInitialDate, setAddModalInitialDate] = useState<string | null>(null);
@@ -2953,7 +2955,8 @@ export default function App() {
         </div>
       )}
 
-      <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
+      {isDesktop && (
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left panel + unified bar (bar always visible; click or drag to open/close) */}
         {leftPanelOpen && (
           <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: 'var(--tb-w-left)', backgroundColor: 'var(--tb-surface-2)' }}>
@@ -3393,10 +3396,10 @@ export default function App() {
               {/* Profile dropdown */}
               {showProfileMenu && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setShowProfileMenu(false)} />
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => setShowProfileMenu(false)} />
                   <div
                     style={{
-                      position: 'absolute', bottom: '100%', left: 12, marginBottom: 8, zIndex: 401,
+                      position: 'absolute', bottom: '100%', left: 12, marginBottom: 8, zIndex: 'var(--tb-z-modal)',
                       minWidth: 196, borderRadius: 12, overflow: 'hidden',
                       backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
                       boxShadow: '0 8px 28px rgba(0,0,0,0.14)', display: 'flex', flexDirection: 'column',
@@ -3467,14 +3470,14 @@ export default function App() {
               {/* Delete account confirmation dialog */}
               {showDeleteAccount && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 500, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-top)', backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     onClick={() => { if (deleteStatus !== 'loading') { setShowDeleteAccount(false); } }}
                   >
                     <div
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         width: 400, maxWidth: 'calc(100vw - 48px)', borderRadius: 16, backgroundColor: '#FFFFFF',
-                        border: '1px solid rgba(0,0,0,0.09)', boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
+                        border: '1px solid rgba(0,0,0,0.09)', boxShadow: 'var(--tb-sh-3)',
                         padding: 28, display: 'flex', flexDirection: 'column', gap: 16,
                       }}
                     >
@@ -3558,7 +3561,7 @@ export default function App() {
               {/* Broadcast message popup */}
               {showBroadcastPopup && broadcastMessage && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => {
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => {
                     setShowBroadcastPopup(false);
                     localStorage.setItem('broadcast_read_at', new Date().toISOString());
                   }} />
@@ -3566,10 +3569,10 @@ export default function App() {
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     style={{
-                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 'var(--tb-z-modal)',
                       borderRadius: 12, overflow: 'hidden',
                       backgroundColor: '#FFFFFF', border: '1px solid rgba(88,86,214,0.2)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      boxShadow: 'var(--tb-sh-2)',
                     }}
                   >
                     <div style={{ padding: '14px 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -3614,15 +3617,15 @@ export default function App() {
               {/* Bug report popover */}
               {isBugReportOpen && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsBugReportOpen(false)} />
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => setIsBugReportOpen(false)} />
                   <div
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     style={{
-                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 'var(--tb-z-modal)',
                       borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      boxShadow: 'var(--tb-sh-2)',
                     }}
                   >
                     <div style={{ padding: '12px 12px 10px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
@@ -3643,13 +3646,13 @@ export default function App() {
               {/* Keyboard shortcuts popover */}
               {isShortcutsOpen && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 400 }} onClick={() => setIsShortcutsOpen(false)} />
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => setIsShortcutsOpen(false)} />
                   <div
                     style={{
-                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 401,
+                      position: 'absolute', bottom: '100%', left: 12, right: 12, marginBottom: 8, zIndex: 'var(--tb-z-modal)',
                       borderRadius: 12, padding: '8px 12px',
                       backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.09)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+                      boxShadow: 'var(--tb-sh-2)',
                     }}
                   >
                     <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: THEME.textPrimary, margin: '0 0 8px' }}>Shortcuts</p>
@@ -3928,10 +3931,13 @@ export default function App() {
           </div>
         )}
       </div>
+      )}
 
-      <div className="flex lg:hidden flex-col flex-1 min-h-0 w-full overflow-hidden relative">
+      {!isDesktop && (
+      <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden relative">
         <MobileApp />
       </div>
+      )}
 
       <ScheduleTaskModal
         isOpen={!!schedulingTaskId}
@@ -3957,7 +3963,7 @@ export default function App() {
 
       {/* Invite / Update notification confirmation popup */}
       {inviteConfirm && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 'var(--tb-z-top)' }}>
           <div
             className="absolute inset-0"
             style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
@@ -4029,7 +4035,7 @@ export default function App() {
           { scope: 'all', label: 'All events' },
         ];
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.18)' }} onClick={() => choose('this')} aria-hidden />
             <div
               className="relative flex flex-col overflow-hidden"
@@ -4340,10 +4346,10 @@ export default function App() {
         return createPortal(
           <>
             {/* Invisible dismiss backdrop */}
-            <div style={{ position: 'fixed', inset: 0, zIndex: 599 }} onClick={() => setOverlapPopup(null)} />
+            <div style={{ position: 'fixed', inset: 0, zIndex: 'var(--tb-z-modal-backdrop)' }} onClick={() => setOverlapPopup(null)} />
             <div
               style={{
-                position: 'fixed', left: px, top: py, zIndex: 600,
+                position: 'fixed', left: px, top: py, zIndex: 'var(--tb-z-modal)',
                 backgroundColor: '#FFFFFF',
                 border: '1px solid rgba(0,0,0,0.10)',
                 borderRadius: 12,
@@ -4447,7 +4453,7 @@ export default function App() {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9990,
+            zIndex: 'var(--tb-z-top)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -4465,7 +4471,7 @@ export default function App() {
               gap: 16,
               padding: 24,
               backgroundColor: '#FFFFFF',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
+              boxShadow: 'var(--tb-sh-3)',
               border: '1px solid rgba(0,0,0,0.08)',
               fontFamily: 'system-ui, -apple-system, sans-serif',
             }}

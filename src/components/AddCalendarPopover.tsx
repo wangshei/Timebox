@@ -43,11 +43,11 @@ export function AddCalendarPopover({ isOpen, onClose, anchorRef, onAdd }: AddCal
   return (
     <div
       ref={popoverRef}
-      className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl p-3"
+      className="absolute left-0 top-full z-[200] mt-1 w-64 rounded-xl p-3"
       style={{
         backgroundColor: '#FFFFFF',
         border: '1px solid rgba(0,0,0,0.09)',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+        boxShadow: 'var(--tb-sh-2)',
         marginLeft: 0,
       }}
     >

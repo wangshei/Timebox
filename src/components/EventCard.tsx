@@ -500,7 +500,7 @@ export function EventCard({
             ref={popoverRef}
             className="fixed rounded-xl p-3 overflow-hidden"
             style={{
-              zIndex: 200,
+              zIndex: 'var(--tb-z-popover)',
               width: 220,
               maxWidth: 220,
               top: popoverRect?.top ?? -9999,
@@ -508,7 +508,7 @@ export function EventCard({
               transform: `translate(${popoverDragOffset.x}px, ${popoverDragOffset.y}px)`,
               backgroundColor: '#FFFFFF',
               border: '1px solid rgba(0,0,0,0.08)',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+              boxShadow: 'var(--tb-sh-2)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
