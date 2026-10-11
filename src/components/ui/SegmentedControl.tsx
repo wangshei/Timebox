@@ -1,5 +1,5 @@
 import React from 'react';
-import { THEME } from '../../constants/colors';
+import { COLOR, RADIUS, FONT_SIZE, FONT_WEIGHT, SHADOW } from '../../styles/tokens';
 
 export interface SegmentedControlOption<T extends string> {
   value: T;
@@ -13,28 +13,40 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   compact?: boolean;
+  /** sm 28px, md 32px (default), touch 44px */
+  size?: 'sm' | 'md' | 'touch';
+  fullWidth?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
+
+const H = { sm: 28, md: 32, touch: 44 } as const;
 
 export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
   compact = false,
+  size = 'md',
+  fullWidth,
   className = '',
   style: outerStyle,
 }: SegmentedControlProps<T>) {
+  const stretch = fullWidth || !!outerStyle?.flex;
   return (
     <div
+      role="tablist"
       className={className}
       style={{
         display: 'inline-flex',
-        alignItems: 'center',
+        alignItems: 'stretch',
         backgroundColor: 'rgba(0,0,0,0.06)',
-        borderRadius: 8,
+        borderRadius: RADIUS.md,
         padding: 2,
         gap: 1,
+        height: H[size],
+        boxSizing: 'border-box',
+        width: fullWidth ? '100%' : undefined,
         ...outerStyle,
       }}
     >
@@ -44,21 +56,25 @@ export function SegmentedControl<T extends string>({
           <button
             key={option.value}
             type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-pressed={isActive}
             onClick={() => onChange(option.value)}
             className="touch-manipulation"
             style={{
-              flex: outerStyle?.flex ? 1 : undefined,
-              padding: compact ? '4px 10px' : '5px 12px',
-              fontSize: 12,
-              fontWeight: isActive ? 500 : 400,
-              borderRadius: 6,
+              flex: stretch ? 1 : undefined,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: compact ? '0 8px' : '0 12px',
+              fontSize: size === 'touch' ? FONT_SIZE.md : FONT_SIZE.sm,
+              fontWeight: isActive ? FONT_WEIGHT.medium : FONT_WEIGHT.regular,
+              borderRadius: RADIUS.sm,
               border: 'none',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               transition: 'all 0.15s ease',
-              backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-              color: isActive ? THEME.textPrimary : THEME.textSecondary,
-              boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.04)' : 'none',
+              backgroundColor: isActive ? COLOR.surface : 'transparent',
+              color: isActive ? COLOR.text : COLOR.text2,
+              boxShadow: isActive ? SHADOW.sh1 : 'none',
             }}
           >
             {compact && option.shortLabel ? option.shortLabel : option.label}
