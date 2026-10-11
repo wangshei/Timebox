@@ -1,3 +1,4 @@
+import { RADIUS, SHADOW } from '../styles/tokens';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { BREAKPOINTS } from '../utils/useBreakpoint';
 import { createPortal } from 'react-dom';
@@ -433,15 +434,15 @@ export function TaskCard({
               borderLeft: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
               borderRight: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
               borderBottom: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
-              borderRadius: 5,
+              borderRadius: RADIUS.sm,
               boxShadow: showPopover
                 ? `0 0 0 2px ${catColor}, 0 4px 12px ${hexRgba(catColor, 0.25)}`
                 : isDone
                   ? 'none'
-                  : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
+                  : SHADOW.sh1,
             }}
           >
-            <div className="flex flex-col h-full overflow-hidden" style={{ padding: '4px 7px' }}>
+            <div className="flex flex-col h-full overflow-hidden" style={{ padding: '4px 8px' }}>
               {/* Title + total time */}
               <div className="flex items-start justify-between gap-1">
                 <span
@@ -459,7 +460,7 @@ export function TaskCard({
                 </span>
                 <span
                   className="shrink-0 tabular-nums"
-                  style={{ fontSize: 10, color: THEME.textPrimary, opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
+                  style={{ fontSize: 11, color: THEME.textPrimary, opacity: 0.55, marginLeft: 2, whiteSpace: 'nowrap' }}
                 >
                   {fmtMins(estimatedMins)}
                 </span>
@@ -471,9 +472,9 @@ export function TaskCard({
               {cardHeight >= 65 && task.dueDate && (
                 <div
                   className="mt-auto flex items-center gap-0.5"
-                  style={{ fontSize: 10, color: THEME.textPrimary, opacity: 0.5 }}
+                  style={{ fontSize: 11, color: THEME.textPrimary, opacity: 0.5 }}
                 >
-                  <CalendarIcon className="flex-shrink-0" style={{ width: 10, height: 10, minWidth: 10, minHeight: 10 }} />
+                  <CalendarIcon className="flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
                   <span className="truncate">{task.dueDate}</span>
                 </div>
               )}
@@ -590,14 +591,12 @@ export function TaskCard({
         onPointerDown={handlePointerDragStart}
       >
         <div
-          className="flex items-start gap-2 px-2 py-2 rounded-lg transition-colors"
+          className={`flex items-start gap-2 px-2 py-2 rounded-lg transition-colors ${!showPopover && !isUrgent && !isNote ? 'tb-hover' : ''}`}
           style={{
-            backgroundColor: isNote ? NOTE_BG : isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : 'transparent',
+            backgroundColor: isNote ? NOTE_BG : isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : undefined,
             ...(isNote ? { border: `1px solid ${NOTE_BORDER}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', margin: '2px 0' } : {}),
             ...(isUrgent && !isNote ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
           }}
-          onPointerEnter={(e) => { if (!showPopover && !isUrgent && !isNote) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
-          onPointerLeave={(e) => { if (!showPopover && !isUrgent && !isNote) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           {/* Done circle — left side, with larger touch target */}
           {isNote ? (
@@ -626,7 +625,7 @@ export function TaskCard({
                 border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.22)'}`,
                 backgroundColor: isDone ? catColor : 'transparent',
               }}>
-                {isDone && <CheckIcon className="h-2.5 w-2.5" style={{ color: '#FFFFFF' }} />}
+                {isDone && <CheckIcon className="h-3 w-3" style={{ color: '#FFFFFF' }} />}
               </div>
             </button>
           ) : (

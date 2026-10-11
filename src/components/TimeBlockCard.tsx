@@ -1,4 +1,5 @@
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
+import { RADIUS } from '../styles/tokens';
 import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Mode } from '../types';
@@ -426,7 +427,7 @@ function TimeBlockCardInner({
           borderLeft: `1px solid ${URGENT_BORDER}`,
           borderRight: `1px solid ${URGENT_BORDER}`,
           borderBottom: `1px solid ${URGENT_BORDER}`,
-          borderRadius: 5,
+          borderRadius: RADIUS.sm,
           boxShadow: '0 2px 6px rgba(255,59,48,0.12), 0 1px 2px rgba(0,0,0,0.06)',
           opacity,
           ...vars,
@@ -438,7 +439,7 @@ function TimeBlockCardInner({
         borderLeft: `1px solid ${hexToRgba(blockColor, 0.22)}`,
         borderRight: `1px solid ${hexToRgba(blockColor, 0.22)}`,
         borderBottom: `1px solid ${hexToRgba(blockColor, 0.22)}`,
-        borderRadius: 5,
+        borderRadius: RADIUS.sm,
         boxShadow: '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
         opacity,
         ...vars,
@@ -453,7 +454,7 @@ function TimeBlockCardInner({
           borderLeft: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
           borderRight: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
           borderBottom: `1px dashed ${hexToRgba(blockColor, 0.25)}`,
-          borderRadius: 5,
+          borderRadius: RADIUS.sm,
           boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
           opacity,
           ...vars,
@@ -467,7 +468,7 @@ function TimeBlockCardInner({
           borderLeft: `1px dashed rgba(255, 59, 48, 0.15)`,
           borderRight: `1px dashed rgba(255, 59, 48, 0.15)`,
           borderBottom: `1px dashed rgba(255, 59, 48, 0.15)`,
-          borderRadius: 5,
+          borderRadius: RADIUS.sm,
           opacity,
           ...vars,
         };
@@ -478,7 +479,7 @@ function TimeBlockCardInner({
         borderLeft: `1px dashed ${hexToRgba(blockColor, 0.15)}`,
         borderRight: `1px dashed ${hexToRgba(blockColor, 0.15)}`,
         borderBottom: `1px dashed ${hexToRgba(blockColor, 0.15)}`,
-        borderRadius: 5,
+        borderRadius: RADIUS.sm,
         opacity,
         ...vars,
       };
@@ -492,7 +493,7 @@ function TimeBlockCardInner({
         borderLeft: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
         borderRight: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
         borderBottom: `1px solid ${hexToRgba(mutedColor, 0.08)}`,
-        borderRadius: 5,
+        borderRadius: RADIUS.sm,
         opacity,
         ...vars,
       };
@@ -504,7 +505,7 @@ function TimeBlockCardInner({
       borderLeft: `1px solid ${hexToRgba(blockColor, 0.18)}`,
       borderRight: `1px solid ${hexToRgba(blockColor, 0.18)}`,
       borderBottom: `1px solid ${hexToRgba(blockColor, 0.18)}`,
-      borderRadius: 5,
+      borderRadius: RADIUS.sm,
       opacity,
       ...vars,
     };
@@ -610,7 +611,7 @@ function TimeBlockCardInner({
         onMouseDown={handlePopoverDragStart}
       >
         <div className="font-semibold leading-snug" style={{ color: THEME.textPrimary, fontSize: 12 }}>{block.title || 'Untitled'}</div>
-        <div className="flex items-center gap-1.5 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
+        <div className="flex items-center gap-1.5 mt-0.5" style={{ color: THEME.textMuted, fontSize: 11 }}>
           <span>{getTimeRange()}</span>
           <span style={{ color: 'rgba(0,0,0,0.2)' }}>·</span>
           <span>{getDuration()}</span>
@@ -620,16 +621,16 @@ function TimeBlockCardInner({
         {/* Metadata row */}
         <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
           {block.calendarContainer && (
-            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
               <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: block.calendarContainer.color }} />
               <span>{block.calendarContainer.name}</span>
             </div>
           )}
           {block.calendarContainer && block.category && (
-            <span style={{ color: 'rgba(0,0,0,0.15)', fontSize: 10 }}>·</span>
+            <span style={{ color: 'rgba(0,0,0,0.15)', fontSize: 11 }}>·</span>
           )}
           {block.category && (
-            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+            <div className="flex items-center gap-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: block.category.color }} />
               <span>{block.category.name}</span>
             </div>
@@ -642,7 +643,7 @@ function TimeBlockCardInner({
             <button
               type="button"
               className="flex items-center gap-1 font-medium py-0.5"
-              style={{ color: THEME.textMuted, fontSize: 10 }}
+              style={{ color: THEME.textMuted, fontSize: 11 }}
               onClick={() => setShowDetails(d => !d)}
             >
               <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
@@ -653,15 +654,15 @@ function TimeBlockCardInner({
             {showDetails && (
               <div className="mt-1 pl-0.5">
                 {block.notes && (
-                  <div className="italic mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                  <div className="italic mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                     {block.notes}
                   </div>
                 )}
                 {block.description && (
-                  <div className="whitespace-pre-wrap mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 10 }}>{block.description}</div>
+                  <div className="whitespace-pre-wrap mb-1 break-words leading-relaxed" style={{ color: THEME.textSecondary, fontSize: 11 }}>{block.description}</div>
                 )}
                 {block.link && (
-                  <a href={block.link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all" style={{ color: '#8DA286', fontSize: 10 }}>
+                  <a href={block.link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all" style={{ color: '#8DA286', fontSize: 11 }}>
                     {block.link}
                   </a>
                 )}
@@ -774,7 +775,7 @@ function TimeBlockCardInner({
                     key={opt.mins}
                     type="button"
                     className="px-2 py-0.5 font-medium rounded-full transition-colors"
-                    style={{ color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)`, fontSize: 9 }}
+                    style={{ color: THEME.textSecondary, backgroundColor: 'rgba(0,0,0,0.04)', border: `1px solid rgba(0,0,0,0.07)`, fontSize: 10 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hexToRgba(blockColor, 0.12); e.currentTarget.style.borderColor = hexToRgba(blockColor, 0.25); e.currentTarget.style.color = blockColor; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.07)'; e.currentTarget.style.color = THEME.textSecondary; }}
                     onClick={() => {
@@ -855,7 +856,7 @@ function TimeBlockCardInner({
     const blockStyle = getBlockInlineStyle();
     // Events: rounded right side. Tasks: borderRadius from inline style.
     const containerClass = isEvent
-      ? 'h-full overflow-hidden min-w-0 rounded-r-sm'
+      ? 'h-full overflow-hidden min-w-0 rounded-r-[6px]'
       : 'h-full overflow-hidden min-w-0';
 
     const diffColor = diffStatus === 'unplanned' ? 'rgba(52,199,89,0.75)'
@@ -942,7 +943,7 @@ function TimeBlockCardInner({
                 <span
                   key={sticker.id}
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     lineHeight: 1,
                     transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (4 + i * 3)}deg)`,
                   }}
@@ -1008,7 +1009,7 @@ function TimeBlockCardInner({
   const blockStyle = getBlockInlineStyle();
   // Events: rounded right side. Tasks: borderRadius from inline style.
   const containerClass = isEvent
-    ? 'h-full overflow-hidden min-w-0 rounded-r-md'
+    ? 'h-full overflow-hidden min-w-0 rounded-r-[6px]'
     : 'h-full overflow-hidden min-w-0';
 
   // Padding scales with size
@@ -1071,7 +1072,7 @@ function TimeBlockCardInner({
             )}
             <span
               className={cn('font-medium truncate leading-none min-w-0', titleTextClass)}
-              style={{ fontSize: 10 }}
+              style={{ fontSize: 11 }}
             >
               {block.title || 'Untitled'}
             </span>
@@ -1104,7 +1105,7 @@ function TimeBlockCardInner({
               <div className="flex items-end justify-between gap-1 mt-1 min-w-0">
                 {block.category && showCategory ? (
                   <span
-                    className="text-[9px] font-medium px-1.5 py-[1px] rounded-full truncate max-w-[50%]"
+                    className="text-[10px] font-medium px-1.5 py-[1px] rounded-full truncate max-w-[50%]"
                     style={{ backgroundColor: hexToRgba(blockColor, 0.15), color: blockColor }}
                   >
                     {block.category.name}
@@ -1132,7 +1133,7 @@ function TimeBlockCardInner({
                     variant="subtle"
                     color={blockColor}
                     contrastBackgroundHex={undefined}
-                    className="text-[9px] py-0.5 px-1.5"
+                    className="text-[10px] py-0.5 px-1.5"
                     style={{ borderColor: hexToRgba(blockColor, 1) }}
                   >
                     {tag.name}
@@ -1217,7 +1218,7 @@ function TimeBlockCardInner({
       {showPopover && isSelected && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="fixed rounded-2xl p-4"
+          className="fixed rounded-xl p-3"
           style={{
             zIndex: 'var(--tb-z-popover)',
             width: 240,

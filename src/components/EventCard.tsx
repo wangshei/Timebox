@@ -351,7 +351,7 @@ export function EventCard({
       <div
         className={cn(
           `h-full w-full transition-all flex flex-col min-h-0 overflow-hidden ${useCompact ? 'px-1.5 py-0.5' : 'px-3 py-2'}`,
-          plannedStyle ? '' : 'border-l-4',
+          plannedStyle ? '' : 'border-l-4 rounded-r-[6px]',
           isSelected && 'ring-2 ring-offset-1'
         )}
         style={{
@@ -408,7 +408,7 @@ export function EventCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-shrink-0 rounded px-1 py-0.5 transition-colors"
-                    style={{ backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 9, fontWeight: 600, textDecoration: 'none', lineHeight: 1 }}
+                    style={{ backgroundColor: 'rgba(141,162,134,0.15)', color: '#8DA286', fontSize: 10, fontWeight: 600, textDecoration: 'none', lineHeight: 1 }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.25)')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.15)')}
                     onClick={(e) => e.stopPropagation()}
@@ -418,10 +418,10 @@ export function EventCard({
                   </a>
                 )}
                 {event.googleEventId && (
-                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
+                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 10, lineHeight: 1 }} title="Synced from Google Calendar">G</span>
                 )}
                 {event.sharedFromShareId && !event.googleEventId && (
-                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 9, lineHeight: 1 }} title="Shared event">S</span>
+                  <span className="opacity-50 flex-shrink-0" style={{ fontSize: 10, lineHeight: 1 }} title="Shared event">S</span>
                 )}
                 {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
                   <ArrowPathIcon className="opacity-60 flex-shrink-0" style={{ width: 12, height: 12, minWidth: 12, minHeight: 12 }} />
@@ -523,16 +523,16 @@ export function EventCard({
             </div>
             <div className="pt-2">
               {/* Info section */}
-              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                 <ClockIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                 <span>{event.start} – {event.end} ({getDuration()})</span>
               </div>
-              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                 <CalendarIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                 <span>{event.date}</span>
               </div>
               {event.category && (
-                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: event.category.color }}
@@ -541,7 +541,7 @@ export function EventCard({
                 </div>
               )}
               {event.calendarContainer && (
-                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                   <div
                     className="w-2 h-2 rounded flex-shrink-0"
                     style={{ backgroundColor: hexToRgba(event.calendarContainer.color, 0.25), border: `1.5px solid ${event.calendarContainer.color}` }}
@@ -550,7 +550,7 @@ export function EventCard({
                 </div>
               )}
               {event.recurring && event.recurrencePattern && event.recurrencePattern !== 'none' && (
-                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                   <ArrowPathIcon className="flex-shrink-0" style={{ width: 11, height: 11, minWidth: 11, minHeight: 11, color: THEME.textMuted }} />
                   <span>Repeats {patternLabel(event.recurrencePattern).toLowerCase()}</span>
                 </div>
@@ -559,15 +559,15 @@ export function EventCard({
               {/* Attendees */}
               {event.attendees && event.attendees.length > 0 && (
                 <div className="mt-1 mb-1">
-                  <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textMuted, fontSize: 10 }}>
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                  <div className="flex items-center gap-1.5 mb-1" style={{ color: THEME.textMuted, fontSize: 11 }}>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
                       <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4H4zm9-7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm1 7c0-.7-.1-1.4-.4-2h2.4c.6 0 1 .4 1 1v1h-3z" />
                     </svg>
                     <span style={{ fontWeight: 500 }}>{event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="pl-4 flex flex-col gap-0.5">
                     {event.attendees.slice(0, 5).map((a, i) => (
-                      <div key={i} className="flex items-center gap-1.5" style={{ fontSize: 10, color: THEME.textSecondary }}>
+                      <div key={i} className="flex items-center gap-1.5" style={{ fontSize: 11, color: THEME.textSecondary }}>
                         <div
                           className="flex-shrink-0 rounded-full flex items-center justify-center"
                           style={{
@@ -589,7 +589,7 @@ export function EventCard({
                       </div>
                     ))}
                     {event.attendees.length > 5 && (
-                      <div style={{ fontSize: 9, color: THEME.textMuted }}>+{event.attendees.length - 5} more</div>
+                      <div style={{ fontSize: 10, color: THEME.textMuted }}>+{event.attendees.length - 5} more</div>
                     )}
                   </div>
                 </div>
@@ -601,7 +601,7 @@ export function EventCard({
                   <button
                     type="button"
                     className="flex items-center gap-1 font-medium py-0.5"
-                    style={{ color: THEME.textMuted, fontSize: 10 }}
+                    style={{ color: THEME.textMuted, fontSize: 11 }}
                     onClick={() => setShowDetails(d => !d)}
                   >
                     <svg width="7" height="7" viewBox="0 0 8 8" style={{ transform: showDetails ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>
@@ -623,11 +623,11 @@ export function EventCard({
                           onClick={(e) => e.stopPropagation()}
                         >
                           {/meet\.google|zoom\.us|teams\.microsoft/i.test(event.link) ? (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 3.5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z" stroke="#8DA286" strokeWidth="1"/><path d="M7 4l2-1v4l-2-1" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M1 3.5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z" stroke="#8DA286" strokeWidth="1"/><path d="M7 4l2-1v4l-2-1" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           ) : (
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8 5.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a1 1 0 011-1h2" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/><path d="M6 1.5h2.5V4" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5L8.5 1.5" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M8 5.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a1 1 0 011-1h2" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/><path d="M6 1.5h2.5V4" stroke="#8DA286" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 5L8.5 1.5" stroke="#8DA286" strokeWidth="1" strokeLinecap="round"/></svg>
                           )}
-                          <span style={{ color: '#8DA286', fontSize: 10, fontWeight: 500 }}>
+                          <span style={{ color: '#8DA286', fontSize: 11, fontWeight: 500 }}>
                             {/meet\.google/i.test(event.link) ? 'Join Google Meet'
                               : /zoom\.us/i.test(event.link) ? 'Join Zoom'
                               : /teams\.microsoft/i.test(event.link) ? 'Join Teams'
@@ -637,18 +637,18 @@ export function EventCard({
                         </a>
                       )}
                       {event.location && (
-                        <div className="flex items-center gap-1 mb-1" style={{ fontSize: 10, color: THEME.textMuted }}>
-                          <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 8C4.5 8 7.5 5.5 7.5 3.5a3 3 0 10-6 0C1.5 5.5 4.5 8 4.5 8z" stroke="currentColor" strokeWidth="0.9"/><circle cx="4.5" cy="3.5" r="1" stroke="currentColor" strokeWidth="0.9"/></svg>
+                        <div className="flex items-center gap-1 mb-1" style={{ fontSize: 11, color: THEME.textMuted }}>
+                          <svg width="12" height="12" viewBox="0 0 9 9" fill="none"><path d="M4.5 8C4.5 8 7.5 5.5 7.5 3.5a3 3 0 10-6 0C1.5 5.5 4.5 8 4.5 8z" stroke="currentColor" strokeWidth="0.9"/><circle cx="4.5" cy="3.5" r="1" stroke="currentColor" strokeWidth="0.9"/></svg>
                           <span>{event.location}</span>
                         </div>
                       )}
                       {event.notes && (
-                        <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}>
+                        <div className="italic mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 11 }}>
                           {event.notes}
                         </div>
                       )}
                       {event.description && (
-                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 10 }}
+                        <div className="whitespace-pre-wrap mb-1 break-words" style={{ color: THEME.textSecondary, fontSize: 11 }}
                           dangerouslySetInnerHTML={{ __html: linkifyText(event.description) }}
                         />
                       )}
@@ -716,17 +716,17 @@ export function EventCard({
 
               {/* Source badge for synced/shared events */}
               {event.googleEventId && (
-                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
+                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 11 }}>
                   {event.readOnly ? (
                     <>
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
                         <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
                       </svg>
                       <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Synced from Google Calendar'}</span>
                     </>
                   ) : (
                     <>
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.5 }}>
                         <path d="M8 16A8 8 0 108 0a8 8 0 000 16zm1-11v2h2a1 1 0 110 2H9v2a1 1 0 11-2 0V9H5a1 1 0 010-2h2V5a1 1 0 012 0z" />
                       </svg>
                       <span>Your event · Google Calendar</span>
@@ -735,8 +735,8 @@ export function EventCard({
                 </div>
               )}
               {!event.googleEventId && event.readOnly && (
-                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 10 }}>
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
+                <div className="flex items-center gap-1.5 mb-1 mt-0.5" style={{ color: THEME.textMuted, fontSize: 11 }}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0, opacity: 0.6 }}>
                     <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v2H6V5z" />
                   </svg>
                   <span>{event.sharedFromShareId ? 'Shared event (read-only)' : 'Read-only'}</span>
@@ -749,7 +749,7 @@ export function EventCard({
                   <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
                   {deleteConfirmState === 'confirm_gcal' ? (
                     <div className="flex flex-col gap-1">
-                      <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Remove which events?</div>
+                      <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 11 }}>Remove which events?</div>
                       <button
                         type="button"
                         className="text-left px-2.5 py-1.5 rounded-lg transition-all"
@@ -764,8 +764,8 @@ export function EventCard({
                           onDeselect();
                         }}
                       >
-                        <div className="font-medium" style={{ fontSize: 10 }}>This event only</div>
-                        <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>Remove this single occurrence</div>
+                        <div className="font-medium" style={{ fontSize: 11 }}>This event only</div>
+                        <div className="mt-0.5 opacity-70" style={{ fontSize: 10 }}>Remove this single occurrence</div>
                       </button>
                       <button
                         type="button"
@@ -781,13 +781,13 @@ export function EventCard({
                           onDeselect();
                         }}
                       >
-                        <div className="font-medium" style={{ fontSize: 10 }}>This & all following</div>
-                        <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>Remove from this date forward</div>
+                        <div className="font-medium" style={{ fontSize: 11 }}>This & all following</div>
+                        <div className="mt-0.5 opacity-70" style={{ fontSize: 10 }}>Remove from this date forward</div>
                       </button>
                       <button
                         type="button"
                         className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                        style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
+                        style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                         onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}
@@ -826,7 +826,7 @@ export function EventCard({
               <div className="my-0.5" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
               {editConfirmState === 'confirm' ? (
                 <div className="flex flex-col gap-1">
-                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Which events to edit?</div>
+                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 11 }}>Which events to edit?</div>
                   {([
                     { scope: 'this' as const, label: 'This event', desc: 'Only edit this occurrence' },
                     { scope: 'all_after' as const, label: 'This and all after', desc: 'Edit from this date forward' },
@@ -847,14 +847,14 @@ export function EventCard({
                         onDeselect();
                       }}
                     >
-                      <div className="font-medium" style={{ fontSize: 10 }}>{label}</div>
-                      <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>{desc}</div>
+                      <div className="font-medium" style={{ fontSize: 11 }}>{label}</div>
+                      <div className="mt-0.5 opacity-70" style={{ fontSize: 10 }}>{desc}</div>
                     </button>
                   ))}
                   <button
                     type="button"
                     className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
+                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                     onClick={(e) => { e.stopPropagation(); setEditConfirmState(null); }}
@@ -864,7 +864,7 @@ export function EventCard({
                 </div>
               ) : deleteConfirmState === 'confirm' ? (
                 <div className="flex flex-col gap-1">
-                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 10 }}>Which events to delete?</div>
+                  <div className="font-medium mb-0.5" style={{ color: THEME.textSecondary, fontSize: 11 }}>Which events to delete?</div>
                   {([
                     { scope: 'this' as const, label: 'This event', desc: 'Only this occurrence' },
                     { scope: 'all_after' as const, label: 'This and all after', desc: 'From this date forward' },
@@ -885,14 +885,14 @@ export function EventCard({
                         onDeselect();
                       }}
                     >
-                      <div className="font-medium" style={{ fontSize: 10 }}>{label}</div>
-                      <div className="mt-0.5 opacity-70" style={{ fontSize: 9 }}>{desc}</div>
+                      <div className="font-medium" style={{ fontSize: 11 }}>{label}</div>
+                      <div className="mt-0.5 opacity-70" style={{ fontSize: 10 }}>{desc}</div>
                     </button>
                   ))}
                   <button
                     type="button"
                     className="mt-0.5 w-full py-1 font-medium rounded-lg transition-colors"
-                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 10 }}
+                    style={{ color: '#636366', backgroundColor: 'rgba(0,0,0,0.04)', fontSize: 11 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.07)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; }}
                     onClick={(e) => { e.stopPropagation(); setDeleteConfirmState(null); }}

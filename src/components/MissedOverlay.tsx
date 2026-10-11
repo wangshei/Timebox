@@ -19,7 +19,7 @@ export function MissedOverlay({ onRemove }: { onRemove?: () => void }) {
             left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
             width: 18, height: 18, borderRadius: '50%',
             backgroundColor: '#FFFFFF', color: MISSED_RED,
-            fontSize: 12, fontWeight: 700, lineHeight: 1,
+            fontSize: 12, fontWeight: 600, lineHeight: 1,
             boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
           }}
           title="Remove 'didn't happen' mark"
