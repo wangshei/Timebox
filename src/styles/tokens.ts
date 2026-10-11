@@ -45,7 +45,7 @@ export const SAFE = {
 export const GRID = {
   line: 'rgba(0,0,0,0.07)',
   half: 'rgba(0,0,0,0.035)',
-  today: 'rgba(141,162,134,0.08)',
+  today: 'rgba(141,162,134,0.12)',
   headerH: 48,
   hourLabel: FONT_SIZE['2xs'],
 } as const;

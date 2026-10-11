@@ -789,7 +789,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Wake time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Earliest scheduling boundary</p>
                   </div>
-                  <Input type="time" size="sm" value={wakeTime} onChange={(e) => onWakeTimeChange?.(e.target.value)} style={{ width: 100 }} />
+                  <Input type="time" size="sm" value={wakeTime} onChange={(e) => onWakeTimeChange?.(e.target.value)} style={{ width: 120, padding: "0 8px", flexShrink: 0 }} />
                 </div>
                 <div
                   className="flex items-center justify-between gap-3 py-3 px-3 rounded-lg"
@@ -799,7 +799,7 @@ export function SettingsPanel({
                     <p style={{ fontSize: 12, fontWeight: 500, color: TEXT }}>Sleep time</p>
                     <p style={{ fontSize: 10, color: TEXT_MUTED, marginTop: 2 }}>Latest scheduling boundary</p>
                   </div>
-                  <Input type="time" size="sm" value={sleepTime} onChange={(e) => onSleepTimeChange?.(e.target.value)} style={{ width: 100 }} />
+                  <Input type="time" size="sm" value={sleepTime} onChange={(e) => onSleepTimeChange?.(e.target.value)} style={{ width: 120, padding: "0 8px", flexShrink: 0 }} />
                 </div>
 
                 {/* ── Timezone ── */}
