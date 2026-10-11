@@ -1,3 +1,4 @@
+import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Mode } from '../types';
@@ -103,6 +104,8 @@ function TimeBlockCardInner({
   const deleteSticker = useStore((s) => s.deleteSticker);
   const revealPast = useStore((s) => s.revealPast);
   const blockStickers = React.useMemo(() => stickers.filter((s) => s.blockId === block.id), [stickers, block.id]);
+  const blockMissed = blockStickers.find((st) => st.emoji === MISSED_STAMP);
+  const visibleStickers = blockStickers.filter((st) => st.emoji !== MISSED_STAMP);
   const [stampBounce, setStampBounce] = useState(false);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
 
@@ -110,6 +113,13 @@ function TimeBlockCardInner({
     if (!activeStampEmoji || !blockRef.current) return;
     e.preventDefault();
     e.stopPropagation();
+    if (activeStampEmoji === MISSED_STAMP) {
+      // Toggle the single "didn't happen" cross on this block
+      const existing = blockStickers.find((st) => st.emoji === MISSED_STAMP);
+      if (existing) deleteSticker(existing.id);
+      else addSticker({ emoji: MISSED_STAMP, date: block.date, blockId: block.id, offsetXPercent: 50, offsetYPercent: 50 });
+      return;
+    }
     const rect = blockRef.current.getBoundingClientRect();
     const offsetXPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
     const offsetYPercent = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
@@ -921,13 +931,14 @@ function TimeBlockCardInner({
             </div>
           )}
 
+          {blockMissed && <MissedOverlay onRemove={() => deleteSticker(blockMissed.id)} />}
           {/* Stickers — compact, bottom-left */}
-          {blockStickers.length > 0 && compactTier !== 'micro' && compactTier !== 'tiny' && (
+          {visibleStickers.length > 0 && compactTier !== 'micro' && compactTier !== 'tiny' && (
             <div
               className="absolute flex items-center pointer-events-none"
               style={{ bottom: 1, left: 3, gap: 0 }}
             >
-              {blockStickers.slice(0, 3).map((sticker, i) => (
+              {visibleStickers.slice(0, 3).map((sticker, i) => (
                 <span
                   key={sticker.id}
                   style={{
@@ -1142,10 +1153,11 @@ function TimeBlockCardInner({
           </div>
         )}
 
+        {blockMissed && <MissedOverlay onRemove={() => deleteSticker(blockMissed.id)} />}
         {/* Positioned stickers — placed at exact click position */}
-        {blockStickers.length > 0 && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
+        {visibleStickers.length > 0 && sizeTier !== 'micro' && sizeTier !== 'tiny' && (
           <>
-            {blockStickers.map((sticker) => (
+            {visibleStickers.map((sticker) => (
               <span
                 key={sticker.id}
                 className="absolute z-10 select-none pointer-events-auto cursor-pointer"

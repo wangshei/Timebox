@@ -1,3 +1,4 @@
+import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
@@ -406,6 +407,9 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const updateTask = useStore((s) => s.updateTask);
   const updateTimeBlock = useStore((s) => s.updateTimeBlock);
   const updateEvent = useStore((s) => s.updateEvent);
+  const stickers = useStore((s) => s.stickers);
+  const addSticker = useStore((s) => s.addSticker);
+  const deleteSticker = useStore((s) => s.deleteSticker);
   const { saveSnapshot } = useHistoryStore();
 
   const today = getLocalDateString();
@@ -442,6 +446,19 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
       deleteEvent(item.id);
     }
     onClose();
+  };
+
+  const missedSticker = stickers.find((st) => st.emoji === MISSED_STAMP && (isBlock ? st.blockId === item.id : st.eventId === item.id));
+  const handleToggleMissed = () => {
+    saveSnapshot();
+    if (missedSticker) { deleteSticker(missedSticker.id); return; }
+    addSticker({
+      emoji: MISSED_STAMP,
+      date: fullBlock?.date ?? fullEvent?.date ?? today,
+      ...(isBlock ? { blockId: item.id } : { eventId: item.id }),
+      offsetXPercent: 50,
+      offsetYPercent: 50,
+    });
   };
 
   const handleToggleTaskDone = () => {
@@ -803,6 +820,22 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   {linkedTask.status === 'done' ? 'Mark task not done' : 'Mark task done'}
                 </button>
               )}
+
+              {/* Didn't happen — red cross on the card */}
+              <button
+                type="button"
+                onClick={() => { handleToggleMissed(); onClose(); }}
+                className="touch-manipulation"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 4px',
+                  border: 'none', backgroundColor: 'transparent',
+                  fontSize: 14, fontWeight: 500, color: missedSticker ? '#8E8E93' : '#FF3B30',
+                  borderRadius: 8, width: '100%', textAlign: 'left',
+                }}
+              >
+                <XMarkIcon style={{ width: 18, height: 18 }} />
+                {missedSticker ? "Undo didn't happen" : "Didn't happen"}
+              </button>
 
               {/* Delete */}
               <button
@@ -1547,6 +1580,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const addEvent = useStore((s) => s.addEvent);
   const confirmBlock = useStore((s) => s.confirmBlock);
   const skipBlock = useStore((s) => s.skipBlock);
+  const stickers = useStore((s) => s.stickers);
   const tasks = useStore((s) => s.tasks);
   const updateTask = useStore((s) => s.updateTask);
   const wakeTime = useStore((s) => s.wakeTime);
@@ -1892,6 +1926,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             zIndex: 2,
           }}
         >
+          {stickers.some((st) => st.emoji === MISSED_STAMP && (item.type === 'block' ? st.blockId === item.id : st.eventId === item.id)) && <MissedOverlay />}
+
           {/* Color indicator */}
           <div style={{
             width: 4,

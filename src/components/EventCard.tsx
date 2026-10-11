@@ -1,3 +1,4 @@
+import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { TrashIcon, CalendarIcon, ClockIcon, PencilIcon, ArrowPathIcon, CheckIcon, XMarkIcon, ScissorsIcon } from '@heroicons/react/24/solid';
@@ -116,10 +117,19 @@ export function EventCard({
   const revealPast = useStore((s) => s.revealPast);
   const eventStickers = React.useMemo(() => stickers.filter((s) => s.eventId === event.id), [stickers, event.id]);
 
+  const eventMissed = eventStickers.find((st) => st.emoji === MISSED_STAMP);
+  const visibleEventStickers = eventStickers.filter((st) => st.emoji !== MISSED_STAMP);
+
   const handleStamp = (e: React.MouseEvent) => {
     if (!activeStampEmoji || !cardRef.current) return;
     e.preventDefault();
     e.stopPropagation();
+    if (activeStampEmoji === MISSED_STAMP) {
+      const existing = eventStickers.find((st) => st.emoji === MISSED_STAMP);
+      if (existing) deleteSticker(existing.id);
+      else addSticker({ emoji: MISSED_STAMP, date: event.date, eventId: event.id, offsetXPercent: 50, offsetYPercent: 50 });
+      return;
+    }
     const rect = cardRef.current.getBoundingClientRect();
     const offsetXPercent = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
     const offsetYPercent = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
@@ -442,10 +452,11 @@ export function EventCard({
         )}
       </div>
 
+      {eventMissed && <MissedOverlay onRemove={() => deleteSticker(eventMissed.id)} />}
       {/* Positioned stickers */}
-      {eventStickers.length > 0 && (
+      {visibleEventStickers.length > 0 && (
         <>
-          {eventStickers.map((sticker) => (
+          {visibleEventStickers.map((sticker) => (
             <span
               key={sticker.id}
               className="absolute z-10 select-none pointer-events-auto cursor-pointer"

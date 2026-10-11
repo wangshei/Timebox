@@ -1,3 +1,4 @@
+import { MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event, AvailableSlot } from '../types';
@@ -20,7 +21,7 @@ const TEXT_MUTED = '#8E8E93';
 const TEXT_SECONDARY = '#636366';
 
 /** Default stamp emojis */
-const STAMP_DEFAULTS = ['🔋', '🪫', '❤️', '🤍'];
+const STAMP_DEFAULTS = ['🔋', '🪫', '❤️', '🤍', MISSED_STAMP];
 
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
@@ -761,7 +762,7 @@ export function CalendarView({
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     onClick={() => setActiveStampEmoji(emoji)}
                   >
-                    {emoji}
+                    {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 700, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
                   </button>
                 ))}
                 {/* Plus for custom emoji — opens native OS emoji picker */}
