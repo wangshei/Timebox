@@ -851,6 +851,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
   // Task-specific
   const [estimatedMins, setEstimatedMins] = useState(30);
   const [dueDate, setDueDate] = useState('');
+  const [isTodo, setIsTodo] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // Event-specific
@@ -915,6 +916,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         status: 'inbox',
         notes: notes.trim() || undefined,
         dueDate: dueDate || undefined,
+        isTodo,
       });
     } else {
       const normalizeTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h}:${String(m).padStart(2, '0')}`; };
@@ -964,7 +966,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ fontSize: 17, fontWeight: 700, color: THEME.textPrimary, margin: 0 }}>
-              {mode === 'task' ? 'New Task' : 'New Event'}
+              {mode === 'task' ? 'New Note' : 'New Event'}
             </p>
             <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: '#8E8E93', padding: 4 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -980,7 +982,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-              placeholder={mode === 'task' ? 'Task name...' : 'Event title...'}
+              placeholder={mode === 'task' ? 'Note...' : 'Event title...'}
               style={inputStyle}
             />
           </div>
@@ -1005,6 +1007,14 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
                 </div>
               </div>
             </>
+          )}
+
+          {/* Note-only: Todo checkbox (unticked = sticky note) */}
+          {mode === 'task' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.textPrimary }}>
+              <input type="checkbox" checked={isTodo} onChange={(e) => setIsTodo(e.target.checked)} style={{ width: 18, height: 18, accentColor: THEME.primary }} />
+              Todo
+            </label>
           )}
 
           {/* Task-only: estimated time */}
@@ -1106,7 +1116,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
               cursor: canSubmit ? 'pointer' : 'default',
             }}
           >
-            {mode === 'task' ? 'Add Task' : 'Create Event'}
+            {mode === 'task' ? 'Add Note' : 'Create Event'}
           </button>
         </div>
       </div>
@@ -3056,6 +3066,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
           const cat = categories.find((c) => c.id === task.categoryId);
           const color = cat?.color ?? THEME.primary;
           const isDone = task.status === 'done';
+          const isNote = task.isTodo === false;
           const isExpanded = expandedTaskId === task.id;
           // Find if this task has blocks scheduled
           const taskBlocks = timeBlocks.filter((b) => b.taskId === task.id && b.mode === 'planned');
@@ -3074,14 +3085,14 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                   borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
                   borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
                   borderBottom: isExpanded ? 'none' : `1px solid ${hexToRgba(color, 0.22)}`,
-                  backgroundColor: isDone ? hexToRgba(color, 0.12) : '#FFF9EC',
+                  backgroundColor: isDone ? hexToRgba(color, 0.12) : isNote ? '#FFF6C8' : '#FFF9EC',
                   boxShadow: isDone ? 'none' : isExpanded ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
                   opacity: isDone ? 0.6 : 1,
                   cursor: 'pointer',
                 }}
               >
-                {/* Checkbox */}
-                <button
+                {/* Checkbox — todos only; notes are sticky cards */}
+                {!isNote && <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
                   className="touch-manipulation"
@@ -3102,7 +3113,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
-                </button>
+                </button>}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{

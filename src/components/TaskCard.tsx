@@ -121,6 +121,10 @@ export function TaskCard({
   const progress = estimatedMins > 0 ? Math.min(100, (recordedMins / estimatedMins) * 100) : 0;
   const catColor = task.category?.color ?? '#8DA286';
   const isDone = task.status === 'done';
+  // Sticky note: isTodo === false. No checkbox, soft yellow card.
+  const isNote = task.isTodo === false;
+  const NOTE_BG = '#FFF6C8';
+  const NOTE_BORDER = 'rgba(214,180,60,0.35)';
   const priority = typeof task.priority === 'number' && task.priority >= 1 && task.priority <= 5
     ? task.priority
     : 0;
@@ -364,7 +368,7 @@ export function TaskCard({
           </button>
         )}
 
-        {onMarkTaskDone && (
+        {onMarkTaskDone && !isNote && (
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors"
             style={{ color: isDone ? THEME.textPrimary : '#6A8C5A' }}
@@ -423,7 +427,7 @@ export function TaskCard({
           <div
             className="h-full overflow-hidden"
             style={{
-              backgroundColor: isDone ? hexRgba(catColor, 0.12) : isUrgent ? 'rgba(255, 59, 48, 0.07)' : '#FFF9EC',
+              backgroundColor: isDone ? hexRgba(catColor, 0.12) : isUrgent ? 'rgba(255, 59, 48, 0.07)' : isNote ? NOTE_BG : '#FFF9EC',
               borderTop: `3px solid ${isDone ? hexRgba(catColor, 0.35) : isUrgent ? URGENT_TEXT : catColor}`,
               borderLeft: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
               borderRight: `1px solid ${isUrgent && !isDone ? URGENT_BORDER : hexRgba(catColor, isDone ? 0.18 : 0.22)}`,
@@ -475,7 +479,7 @@ export function TaskCard({
             </div>
 
             {/* Done circle — top-right corner, direct action without popup */}
-            {onMarkTaskDone && (
+            {onMarkTaskDone && !isNote && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
@@ -587,14 +591,17 @@ export function TaskCard({
         <div
           className="flex items-start gap-2 px-2 py-2 rounded-lg transition-colors"
           style={{
-            backgroundColor: isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : 'transparent',
-            ...(isUrgent ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
+            backgroundColor: isNote ? NOTE_BG : isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : 'transparent',
+            ...(isNote ? { border: `1px solid ${NOTE_BORDER}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', margin: '2px 0' } : {}),
+            ...(isUrgent && !isNote ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
           }}
-          onPointerEnter={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
-          onPointerLeave={(e) => { if (!showPopover && !isUrgent) e.currentTarget.style.backgroundColor = 'transparent'; }}
+          onPointerEnter={(e) => { if (!showPopover && !isUrgent && !isNote) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.025)'; }}
+          onPointerLeave={(e) => { if (!showPopover && !isUrgent && !isNote) e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           {/* Done circle — left side, with larger touch target */}
-          {onMarkTaskDone ? (
+          {isNote ? (
+            <div className="flex-shrink-0" style={{ width: 4 }} />
+          ) : onMarkTaskDone ? (
             <button
               type="button"
               onClick={(e) => {

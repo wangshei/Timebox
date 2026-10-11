@@ -52,6 +52,8 @@ export interface Task {
   description?: string | null;
   /** Quick inline notes — shown in the task detail popup. */
   notes?: string | null;
+  /** false = sticky note (no checkbox). undefined/true = todo, so existing data stays todos. */
+  isTodo?: boolean;
   /** Legacy fields kept for backward compatibility. */
   pinned?: boolean;
   emoji?: string | null;

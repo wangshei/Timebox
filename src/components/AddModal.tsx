@@ -63,6 +63,7 @@ interface AddModalProps {
     link?: string | null;
     description?: string | null;
     notes?: string | null;
+    isTodo?: boolean;
     recurring?: boolean;
     recurrencePattern?: RecurrencePattern;
     recurrenceDays?: number[];
@@ -186,6 +187,8 @@ export function AddModal({
   const [description, setDescription] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [pinned, setPinned] = useState<boolean>(false);
+  /** Notes are sticky notes unless this is ticked. */
+  const [isTodo, setIsTodo] = useState<boolean>(false);
   const [priority, setPriority] = useState<number | undefined>(undefined);
   const [moreOpen, setMoreOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -326,6 +329,7 @@ export function AddModal({
       setDescription(editingTask.description ?? '');
       setNotes(editingTask.notes ?? '');
       setPinned(!!editingTask.pinned);
+      setIsTodo(editingTask.isTodo !== false);
       setPriority(typeof editingTask.priority === 'number' ? editingTask.priority : undefined);
       setRecurrencePattern(editingTask.recurrencePattern ?? 'none');
       setRecurrenceDays(editingTask.recurrenceDays ?? []);
@@ -408,6 +412,7 @@ export function AddModal({
   useEffect(() => {
     if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(initialMode);
+      setIsTodo(false);
       setTitle('');
       setEstimatedHours(1);
       setDate(initialDate ?? getLocalDateString());
@@ -508,6 +513,7 @@ export function AddModal({
         notes: notes.trim() || null,
         pinned,
         priority,
+        isTodo,
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
@@ -564,6 +570,7 @@ export function AddModal({
         description: description.trim() || null,
         notes: notes.trim() || null,
         priority,
+        isTodo,
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
@@ -665,11 +672,11 @@ export function AddModal({
           <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#8E8E93' }} />
           <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#1C1C1E' }}>
             {editingTask
-              ? 'Edit To-Do'
+              ? 'Edit Note'
               : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : mode === 'task'
-                  ? 'New To-Do'
+                  ? 'New Note'
                   : 'New Event'}
           </h2>
           {/* Compact mode switch — small icon to flip between To-Do and Event (new only) */}
@@ -681,11 +688,11 @@ export function AddModal({
               style={{ color: THEME.primary, backgroundColor: 'rgba(141,162,134,0.10)' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.18)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(141,162,134,0.10)')}
-              title={mode === 'task' ? 'Switch to Event' : 'Switch to To-Do'}
+              title={mode === 'task' ? 'Switch to Event' : 'Switch to Note'}
             >
               {mode === 'task'
                 ? <><CalendarDaysIcon className="h-3.5 w-3.5" /> Event</>
-                : <><CheckCircleIcon className="h-3.5 w-3.5" /> To-Do</>}
+                : <><CheckCircleIcon className="h-3.5 w-3.5" /> Note</>}
             </button>
           )}
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg transition-colors shrink-0" style={{ color: '#8E8E93' }}
@@ -708,7 +715,7 @@ export function AddModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={mode === 'task' ? 'Add to-do title' : 'Add event title'}
+              placeholder={mode === 'task' ? 'Add note title' : 'Add event title'}
               className="w-full bg-transparent focus:outline-none"
               style={{
                 fontSize: 15,
@@ -726,6 +733,17 @@ export function AddModal({
 
           {mode === 'task' && (
             <>
+              {/* Todo checkbox — unticked = sticky note */}
+              <label className="flex items-center gap-2.5 cursor-pointer select-none" style={{ fontSize: 13, color: THEME.textPrimary }}>
+                <input
+                  type="checkbox"
+                  checked={isTodo}
+                  onChange={(e) => setIsTodo(e.target.checked)}
+                  className="h-4 w-4 shrink-0"
+                  style={{ accentColor: THEME.primary }}
+                />
+                Todo
+              </label>
               {/* Estimated time — icon-led row */}
               <div className="flex items-center gap-2.5">
                 <ClockIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
@@ -1396,7 +1414,7 @@ export function AddModal({
               style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save Todo' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Todo' : 'Event'}`}
+              {mode === 'task' && editingTask ? 'Save Note' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Note' : 'Event'}`}
             </button>
           </div>
         </form>

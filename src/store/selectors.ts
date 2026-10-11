@@ -409,6 +409,7 @@ export function selectDisplayTasksForBacklog(
       link: task.link ?? null,
       description: task.description ?? null,
       status: task.status,
+      isTodo: task.isTodo,
       nextBlockDate: earliest?.date ?? null,
       nextBlockStart: earliest?.start ?? null,
       nextBlockEnd: earliest?.end ?? null,

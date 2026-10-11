@@ -78,6 +78,8 @@ export interface Task {
   description?: string | null;
   /** Stored task status, mirrors core Task.status. */
   status?: import('./types').Task['status'];
+  /** false = sticky note without checkbox; undefined/true = todo. */
+  isTodo?: boolean;
   /** Earliest planned block date (YYYY-MM-DD). */
   nextBlockDate?: string | null;
   /** Earliest planned block start time (HH:mm). */
@@ -1277,6 +1279,7 @@ export default function App() {
     description?: string | null;
     notes?: string | null;
     priority?: number;
+    isTodo?: boolean;
     recurring?: boolean;
     recurrencePattern?: import('./types').RecurrencePattern;
     recurrenceDays?: number[];
@@ -1300,6 +1303,7 @@ export default function App() {
       description: taskData.description ?? undefined,
       notes: taskData.notes ?? undefined,
       priority: typeof taskData.priority === 'number' ? taskData.priority : undefined,
+      isTodo: taskData.isTodo,
       ...(isRecurringTask
         ? {
             recurring: true,

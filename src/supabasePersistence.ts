@@ -230,6 +230,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
         link: t.link ?? null,
         description: t.description ?? null,
         notes: (t as any).notes ?? null,
+        isTodo: typeof (t as any).is_todo === 'boolean' ? (t as any).is_todo : undefined,
         priority: typeof t.priority === 'number' ? t.priority : undefined,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
@@ -396,14 +397,16 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       priority: typeof t.priority === 'number' ? t.priority : null,
       pinned: t.pinned ?? false,
       emoji: t.emoji ?? null,
+      // Needs supabase/migrations/20261011_task_is_todo.sql; dropped by the retry below if the column is missing.
+      is_todo: t.isTodo ?? true,
     });
     let taskResult = await supabase.from('tasks').upsert(state.tasks.map(taskRow), { onConflict: 'id' });
-    if (taskResult.error && /column|notes|priority|pinned|emoji|link|description/.test(taskResult.error.message)) {
+    if (taskResult.error && /column|notes|priority|pinned|emoji|link|description|is_todo/.test(taskResult.error.message)) {
       // eslint-disable-next-line no-console
       console.warn('[supabasePersistence] tasks upsert failed on an optional column — retrying with core columns only:', taskResult.error.message);
       taskResult = await supabase.from('tasks').upsert(
         state.tasks.map((t) => {
-          const { notes, priority, pinned, emoji, link, description, ...core } = taskRow(t);
+          const { notes, priority, pinned, emoji, link, description, is_todo, ...core } = taskRow(t);
           return core;
         }),
         { onConflict: 'id' }
