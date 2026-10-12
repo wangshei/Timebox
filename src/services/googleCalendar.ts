@@ -211,10 +211,9 @@ async function refreshAccessToken(tokens: GcalTokens): Promise<string> {
     const errMsg = data.error || 'Token refresh failed';
     // If the refresh token is invalid/revoked, clear stored tokens so the user
     // can re-authenticate instead of silently failing on every poll.
-    if (
-      res.status === 400 || res.status === 401 || res.status === 403 ||
-      /invalid_grant|token.*revoked|token.*expired/i.test(errMsg)
-    ) {
+    // B-49: only a genuinely dead grant disconnects. The edge function answers every failure
+    // (rate limit, outage, bad request) with HTTP 400, so the status alone proves nothing.
+    if (/invalid_grant|token.*revoked|token.*expired|unauthorized_client|invalid_client/i.test(errMsg)) {
       console.warn('[gcal] Refresh token invalid/revoked — clearing stored tokens');
       disconnectGoogle();
       throw new GcalAuthError('Google Calendar access expired. Please reconnect.');

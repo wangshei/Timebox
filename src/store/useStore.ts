@@ -817,6 +817,9 @@ export const useStore = create<AppState & AppActions>()(
   deleteTag: (id) =>
     set((s) => ({
       tags: s.tags.filter((t) => t.id !== id),
+      // Don't leave dangling references on tasks / blocks (B-61).
+      tasks: s.tasks.map((t) => (t.tagIds?.includes(id) ? { ...t, tagIds: t.tagIds.filter((x) => x !== id) } : t)),
+      timeBlocks: s.timeBlocks.map((b) => (b.tagIds?.includes(id) ? { ...b, tagIds: b.tagIds.filter((x) => x !== id) } : b)),
     })),
 
   addEvent: (e) => {

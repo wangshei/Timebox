@@ -206,6 +206,7 @@ export function AddModal({
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]); // 0=Sun .. 6=Sat for custom
   const [recurrenceEditScope, setRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   const [repeatUntil, setRepeatUntil] = useState('');
+  const [timeError, setTimeError] = useState(false);
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
 
@@ -479,6 +480,8 @@ export function AddModal({
     }
   }, [mode, startTime, endTime, date, endDate]);
 
+  useEffect(() => { setTimeError(false); }, [startTime, endTime, date, endDate]);
+
   // Esc closes the panel (N-14). Ignored while a native <select>/date picker has focus handling it.
   useEffect(() => {
     if (!isOpen) return;
@@ -493,6 +496,12 @@ export function AddModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    // E-07: an event can't end where it starts (same day).
+    if (mode === 'event' && endDate === date && endTime === startTime) {
+      setTimeError(true);
+      return;
+    }
+    setTimeError(false);
 
     const fallbackCalendar =
       selectedCalendar || calendars[0]?.id || (editingTimeBlock?.calendarContainerId ?? editingEvent?.calendarContainerId ?? '');
@@ -1415,6 +1424,11 @@ export function AddModal({
             </div>
           )}
 
+          {timeError && (
+            <p role="alert" className="px-6 pt-2 text-xs" style={{ color: '#FF3B30' }}>
+              The end time must be after the start time.
+            </p>
+          )}
           {/* Submit row */}
           <div className="px-6 py-4 flex gap-2 shrink-0" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', backgroundColor: '#FFFFFF' }}>
             <button

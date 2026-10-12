@@ -337,8 +337,8 @@ export function RightSidebar({
                 size={isMobile ? 'touch' : 'md'}
                 variant="outline"
                 onClick={() => onOpenAddModal('task')}
-                title="Add to-do"
-                aria-label="Add to-do"
+                title="Add note or to-do"
+                aria-label="Add note or to-do"
               />
             )}
           </div>

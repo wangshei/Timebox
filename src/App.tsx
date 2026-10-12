@@ -1550,6 +1550,8 @@ export default function App() {
   };
 
   const handleOpenAddModal = (modalMode: 'task' | 'event' = 'task') => {
+    // New events open on the day being viewed, not always today (N-16).
+    if (modalMode === 'event') setAddModalInitialDate(selectedDate);
     setEditingTaskId(null);
     setEditingTimeBlockId(null);
     setEditingEventId(null);
@@ -1994,7 +1996,7 @@ export default function App() {
       const d = new Date(targetDate + 'T00:00:00');
       const label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const s = slot;
-      setTimeout(() => alert(`Rescheduled to ${label} at ${s!.start}`), 50);
+      toast.success(`Rescheduled to ${label} at ${s!.start}`);
     }
   }, [tasks, timeBlocks, events, wakeTime, sleepTime, defaultBlockMinutes, skipBlock, createPlannedBlocksFromTask, saveSnapshot, selectedDate]);
 
@@ -2056,7 +2058,7 @@ export default function App() {
     if (targetDate !== blockDate) {
       const d = new Date(targetDate + 'T00:00:00');
       const label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      setTimeout(() => alert(`Moved to ${label} at ${slot!.start}`), 50);
+      toast.success(`Moved to ${label} at ${slot!.start}`);
     }
   }, [timeBlocks, events, wakeTime, sleepTime, updateTimeBlock, saveSnapshot]);
 
@@ -2114,7 +2116,7 @@ export default function App() {
           const d = new Date(targetDate + 'T00:00:00');
           const label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
           const s = slot;
-          setTimeout(() => alert(`Scheduled on ${label} at ${s.start}`), 50);
+          toast.success(`Scheduled on ${label} at ${s.start}`);
         }
       }
     }
@@ -2138,7 +2140,6 @@ export default function App() {
     // being dimmed to the focus-muted opacity (the "dropped todo looks transparent" bug).
     if (focusedCalendarId != null) setFocusedCalendarId(null);
     if (focusedCategoryId != null) setFocusedCategoryId(null);
-    saveSnapshot();
     const parseTimeToMinsLocal = (t: string) => {
       const [h, m] = t.split(':').map(Number);
       return (h ?? 0) * 60 + (m ?? 0);
@@ -2155,7 +2156,11 @@ export default function App() {
       .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
     const remaining = Math.max(0, task.estimatedMinutes - planned - recorded);
     // Only block the drop if the task has an estimate AND all time is already scheduled
-    if (task.estimatedMinutes > 0 && remaining <= 0) return;
+    if (task.estimatedMinutes > 0 && remaining <= 0) {
+      toast(`"${task.title}" already has all its time scheduled. Raise the estimate to add more.`);
+      return;
+    }
+    saveSnapshot();
 
     const requested =
       params.blockMinutes > 0 && Number.isFinite(params.blockMinutes)
@@ -2870,6 +2875,12 @@ export default function App() {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && !isInput && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        useHistoryStore.getState().redo();
+        return;
+      }
+
       if (isInput) return;
       // Other single-key shortcuts must not fire with modifiers held (Cmd+T, Ctrl+W, ...)
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2880,6 +2891,19 @@ export default function App() {
       else if (key === 'm') { setView('month'); e.preventDefault(); }
       else if (key === 'c' && FEATURES.compareMode) { setViewMode(mode === 'compare' ? 'overall' : 'compare'); e.preventDefault(); }
       else if (key === 'a') { setAllCalendarsVisible(); e.preventDefault(); }
+      else if (key === '[' || key === ']' || key === '.') {
+        // [ / ] step back / forward by the current view's span; . jumps to today (N-14).
+        const st = useStore.getState();
+        const base = new Date(st.selectedDate + 'T12:00:00');
+        if (key === '.') { st.setSelectedDate(getLocalDateString()); }
+        else {
+          const dir = key === '[' ? -1 : 1;
+          if (st.view === 'month') base.setMonth(base.getMonth() + dir);
+          else base.setDate(base.getDate() + dir * (st.view === 'week' ? 7 : st.view === '3day' ? 3 : 1));
+          st.setSelectedDate(getLocalDateString(base));
+        }
+        e.preventDefault();
+      }
       else if ((key === 't' || key === 'e') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         // Smart keys: t = new note/todo, e = new event. Skip while any modal is open.
         if (isAddModalOpen || isSettingsOpen || isBugReportOpen || showTour || schedulingTaskId || showSchedulingModal) return;
@@ -3159,10 +3183,10 @@ export default function App() {
                 onDeleteCalendar={handleDeleteCalendarContainer}
                 onUpdateCategory={updateCategory}
                 onAddCategory={addCategory}
-                onDeleteCategory={deleteCategory}
+                onDeleteCategory={(id) => { saveSnapshot(); deleteCategory(id); }}
                 onUpdateTag={updateTag}
                 onAddTag={addTag}
-                onDeleteTag={deleteTag}
+                onDeleteTag={(id) => { saveSnapshot(); deleteTag(id); }}
                 onFocusCalendar={(id) => setFocusedCalendarId((prev) => (prev === id ? null : id))}
                 focusedCalendarId={focusedCalendarId}
                 onFocusCategory={(id) => setFocusedCategoryId((prev) => (prev === id ? null : id))}
@@ -4595,10 +4619,10 @@ export default function App() {
         onDeleteCalendar={handleDeleteCalendarContainer}
         onAddCategory={addCategory}
         onUpdateCategory={updateCategory}
-        onDeleteCategory={deleteCategory}
+        onDeleteCategory={(id) => { saveSnapshot(); deleteCategory(id); }}
         onAddTag={addTag}
         onUpdateTag={updateTag}
-        onDeleteTag={deleteTag}
+        onDeleteTag={(id) => { saveSnapshot(); deleteTag(id); }}
         weekStartsOnMonday={weekStartsOnMonday}
         onWeekStartsOnMondayChange={(val) => { setWeekStartsOnMonday(val); persistUserPreferencesToSupabase({ week_starts_on_monday: val }); }}
         wakeTime={wakeTime}
