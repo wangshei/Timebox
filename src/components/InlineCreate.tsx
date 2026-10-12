@@ -1,4 +1,6 @@
 import React from 'react';
+import { ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
+import { IconButton } from './ds/IconButton';
 import { COLOR, RADIUS, SHADOW, Z, FONT_SIZE } from '../styles/tokens';
 import type { CreateMode } from '../utils/createMode';
 
@@ -11,13 +13,15 @@ interface InlineCreateProps {
   /** Called with a non-empty trimmed title. */
   onSave: (title: string) => void;
   onCancel: () => void;
+  /** Expand into the full add form, carrying the typed title (may be empty). */
+  onExpand?: (title: string) => void;
 }
 
 /**
  * Compact title input shown right after a drag-to-create on the calendar grid.
  * Enter / blur saves (empty title cancels); Esc cancels.
  */
-export function InlineCreate({ mode, anchor, label, onSave, onCancel }: InlineCreateProps) {
+export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }: InlineCreateProps) {
   const [title, setTitle] = React.useState('');
   const doneRef = React.useRef(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -36,6 +40,12 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel }: InlineCr
     if (save && t) onSave(t); else onCancel();
   };
 
+  const expand = () => {
+    if (doneRef.current || !onExpand) return;
+    doneRef.current = true;
+    onExpand(title.trim());
+  };
+
   const W = 220;
   const left = Math.max(8, Math.min(anchor.x + 8, window.innerWidth - W - 8));
   const top = Math.max(8, Math.min(anchor.y - 20, window.innerHeight - 80));
@@ -49,7 +59,12 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel }: InlineCr
         borderLeft: `4px solid ${COLOR.accent}`, borderRadius: RADIUS.md,
         boxShadow: SHADOW.sh2, padding: '6px 8px',
       }}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        // Keep the input from blurring (and saving) when the popup itself is pressed.
+        if (e.target !== inputRef.current) e.preventDefault();
+      }}
+      onClick={(e) => { if (e.target !== inputRef.current) expand(); }}
     >
       <input
         ref={inputRef}
@@ -61,13 +76,20 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel }: InlineCr
           if (e.key === 'Enter') { e.preventDefault(); finish(true); }
           else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
         }}
-        onBlur={() => finish(true)}
+        onBlur={(e) => {
+          const next = e.relatedTarget as Node | null;
+          if (next && e.currentTarget.parentElement?.contains(next)) return;
+          finish(true);
+        }}
         style={{
           width: '100%', border: 'none', outline: 'none', background: 'transparent',
           fontSize: FONT_SIZE.base, color: COLOR.text, padding: 0,
         }}
       />
-      <div style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted, marginTop: 2 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>
+        <span style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted }}>{label}</span>
+        {onExpand && <IconButton icon={ArrowsPointingOutIcon} size="sm" aria-label="More options" title="More options" onClick={(e) => { e.stopPropagation(); expand(); }} />}
+      </div>
     </div>
   );
 }

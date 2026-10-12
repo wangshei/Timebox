@@ -199,6 +199,9 @@ export default function App() {
   const [addModalInitialDate, setAddModalInitialDate] = useState<string | null>(null);
   const [addModalInitialStart, setAddModalInitialStart] = useState<string | null>(null);
   const [addModalInitialEnd, setAddModalInitialEnd] = useState<string | null>(null);
+  const [addModalInitialTitle, setAddModalInitialTitle] = useState<string | null>(null);
+  const [addModalInitialEndDate, setAddModalInitialEndDate] = useState<string | null>(null);
+  const [addModalInitialTodo, setAddModalInitialTodo] = useState(false);
   const [addModalAnchor, setAddModalAnchor] = useState<{ x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
@@ -2308,6 +2311,26 @@ export default function App() {
     return undefined;
   };
 
+  /** Popup clicked: hand the drag range + typed title to the full AddModal (nothing saved yet). */
+  const expandInlineCreate = (title: string) => {
+    const ic = inlineCreate;
+    setInlineCreate(null);
+    if (!ic) { setPendingBlockPreview(null); return; }
+    const isTodo = ic.mode === 'todo';
+    setEditingTaskId(null);
+    setEditingTimeBlockId(null);
+    setEditingEventId(null);
+    setIsDraftTimeBlock(false);
+    setAddModalMode(isTodo ? 'task' : 'event');
+    setAddModalInitialDate(ic.date);
+    setAddModalInitialStart(ic.startTime);
+    setAddModalInitialEnd(isTodo && ic.endDate ? '23:59' : ic.endTime);
+    setAddModalInitialEndDate(isTodo ? null : ic.endDate ?? null);
+    setAddModalInitialTitle(title);
+    setAddModalInitialTodo(isTodo);
+    setIsAddModalOpen(true);
+  };
+
   const finishInlineCreate = (title: string | null) => {
     const ic = inlineCreate;
     setInlineCreate(null);
@@ -4273,6 +4296,7 @@ export default function App() {
           label={`${inlineCreate.date.slice(5)} ${inlineCreate.startTime}${inlineCreate.endDate ? ` → ${inlineCreate.endDate.slice(5)} ${inlineCreate.endTime}` : `–${inlineCreate.endTime}`}`}
           onSave={(t) => finishInlineCreate(t)}
           onCancel={() => finishInlineCreate(null)}
+          onExpand={expandInlineCreate}
         />
       )}
       <AddModal
@@ -4310,6 +4334,9 @@ export default function App() {
           setAddModalInitialDate(null);
           setAddModalInitialStart(null);
           setAddModalInitialEnd(null);
+          setAddModalInitialTitle(null);
+          setAddModalInitialEndDate(null);
+          setAddModalInitialTodo(false);
           setAddModalAnchor(null);
           setPendingBlockPreview(null);
         }}
@@ -4327,6 +4354,9 @@ export default function App() {
         initialDate={addModalInitialDate}
         initialStartTime={addModalInitialStart}
         initialEndTime={addModalInitialEnd}
+        initialTitle={addModalInitialTitle}
+        initialEndDate={addModalInitialEndDate}
+        initialIsTodo={addModalInitialTodo}
         anchorPoint={addModalAnchor}
         onAddTask={handleAddTask}
         onUpdateTask={(id, updates) => {

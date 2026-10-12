@@ -863,18 +863,21 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
 // ─── Full-Detail Add Sheet ─────────────────────────────────
 
-function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => void }) {
+interface AddSheetPrefill { title: string; date: string; startTime: string; endTime: string; isTodo: boolean }
+
+function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose: () => void; prefill?: AddSheetPrefill }) {
   const calendarContainers = useStore((s) => s.calendarContainers);
   const categories = useStore((s) => s.categories);
   const tags = useStore((s) => s.tags);
   const addTask = useStore((s) => s.addTask);
   const addEvent = useStore((s) => s.addEvent);
+  const addTimeBlock = useStore((s) => s.addTimeBlock);
   const { saveSnapshot } = useHistoryStore();
 
   const today = getLocalDateString();
 
   // Shared
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(prefill?.title ?? '');
   const [calendarId, setCalendarId] = useState(calendarContainers[0]?.id ?? '');
   const [categoryId, setCategoryId] = useState('');
   const [notes, setNotes] = useState('');
@@ -883,12 +886,13 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
   // Task-specific
   const [estimatedMins, setEstimatedMins] = useState(30);
   const [dueDate, setDueDate] = useState('');
-  const [isTodo, setIsTodo] = useState(false);
+  const [isTodo, setIsTodo] = useState(prefill?.isTodo ?? false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // Event-specific
-  const [eventDate, setEventDate] = useState(today);
+  const [eventDate, setEventDate] = useState(prefill?.date ?? today);
   const [eventStart, setEventStart] = useState(() => {
+    if (prefill) return prefill.startTime;
     const now = new Date();
     const h = now.getHours();
     const m = Math.ceil(now.getMinutes() / 15) * 15;
@@ -897,6 +901,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
     return `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
   });
   const [eventEnd, setEventEnd] = useState(() => {
+    if (prefill) return prefill.endTime;
     const now = new Date();
     const h = now.getHours();
     const m = Math.ceil(now.getMinutes() / 15) * 15;
@@ -943,9 +948,9 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
     const cat = categories.find((c) => c.id === categoryId);
     const calId = calendarId || (cat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
     if (mode === 'task') {
-      addTask({
+      const newTaskId = addTask({
         title: title.trim(),
-        estimatedMinutes: estimatedMins,
+        estimatedMinutes: prefill ? Math.max(15, parseTimeToMinutes(prefill.endTime) - parseTimeToMinutes(prefill.startTime)) : estimatedMins,
         calendarContainerId: calId,
         categoryId,
         tagIds: selectedTagIds,
@@ -955,6 +960,12 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         dueDate: dueDate || undefined,
         isTodo,
       });
+      if (prefill && newTaskId) {
+        addTimeBlock({
+          taskId: newTaskId, title: title.trim(), calendarContainerId: calId, categoryId, tagIds: selectedTagIds,
+          start: prefill.startTime, end: prefill.endTime, date: prefill.date, mode: 'planned', source: 'manual',
+        } as any);
+      }
     } else {
       const normalizeTime = (t: string) => padTime(t);
       addEvent({
@@ -1221,6 +1232,7 @@ function PlanTab() {
   const addEventAction = useStore((s) => s.addEvent);
   const addTaskAction = useStore((s) => s.addTask);
   const [mobCreate, setMobCreate] = useState<{ anchorMins: number; startMins: number; endMins: number } | null>(null);
+  const [mobSheet, setMobSheet] = useState<AddSheetPrefill | null>(null);
   const [mobInline, setMobInline] = useState<{ startTime: string; endTime: string; anchor: { x: number; y: number }; mode: CreateMode } | null>(null);
   const startTimelineCreate = (e: React.PointerEvent<HTMLDivElement>) => {
     if (selectedTaskId || e.button !== 0) return;
@@ -1439,8 +1451,10 @@ function PlanTab() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
       {mobInline && (
         <InlineCreate mode={mobInline.mode} anchor={mobInline.anchor} label={`${mobInline.startTime}–${mobInline.endTime}`}
-          onSave={(t) => finishTimelineCreate(t)} onCancel={() => finishTimelineCreate(null)} />
+          onSave={(t) => finishTimelineCreate(t)} onCancel={() => finishTimelineCreate(null)}
+          onExpand={(t) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' }); }} />
       )}
+      {mobSheet && <AddSheet mode={mobSheet.isTodo ? 'task' : 'event'} prefill={mobSheet} onClose={() => setMobSheet(null)} />}
       {/* Header: date nav */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
         <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"

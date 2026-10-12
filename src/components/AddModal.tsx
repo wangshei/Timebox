@@ -54,6 +54,10 @@ interface AddModalProps {
   initialDate?: string | null;
   initialStartTime?: string | null;
   initialEndTime?: string | null;
+  /** Prefill from the inline-create popup expand. */
+  initialTitle?: string | null;
+  initialEndDate?: string | null;
+  initialIsTodo?: boolean;
   /** Viewport pixel point to open the panel beside (e.g. the selected calendar slot). */
   anchorPoint?: { x: number; y: number } | null;
   onAddTask: (task: {
@@ -156,6 +160,9 @@ export function AddModal({
   anchorPoint = null,
   initialStartTime = null,
   initialEndTime = null,
+  initialTitle = null,
+  initialEndDate = null,
+  initialIsTodo = false,
   existingSubscribers = [],
   onResendInvite,
   onResendInvites,
@@ -422,11 +429,11 @@ export function AddModal({
   useEffect(() => {
     if (isOpen && !editingTask && !editingTimeBlock && !editingEvent) {
       setMode(initialMode);
-      setIsTodo(false);
-      setTitle('');
+      setIsTodo(initialIsTodo);
+      setTitle(initialTitle ?? '');
       setEstimatedHours(1);
       setDate(initialDate ?? getLocalDateString());
-      setEndDate(initialDate ?? getLocalDateString());
+      setEndDate(initialEndDate ?? initialDate ?? getLocalDateString());
       setStartTime(initialStartTime ?? '09:00');
       setEndTime(initialEndTime ?? '10:00');
       setSelectedCalendar(calendars[0]?.id ?? 'personal');
@@ -452,7 +459,7 @@ export function AddModal({
       setTimezone(getLocalTimeZone());
       setTimezoneEnabled(true);
     }
-  }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent, initialDate, initialStartTime, initialEndTime]);
+  }, [isOpen, initialMode, editingTask, editingTimeBlock, editingEvent, initialDate, initialStartTime, initialEndTime, initialTitle, initialEndDate, initialIsTodo]);
 
   // Keep category in sync with selected calendar: when opening for new event/task, or when user
   // changes calendar, prefer the last-used category (if it belongs to this calendar), else the first.
