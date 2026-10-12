@@ -25,7 +25,7 @@ const TEXT_MUTED = COLOR.muted;
 const TEXT_SECONDARY = COLOR.text2;
 
 /** Default stamp emojis */
-const STAMP_DEFAULTS = ['😁', '☺️', '🤯', '😵', MISSED_STAMP];
+const STAMP_DEFAULTS = ['🔋', '🪫', '😁', '☺️', '🤯', '😵', MISSED_STAMP];
 
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
