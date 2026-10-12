@@ -519,8 +519,9 @@ export function CalendarView({
         </div>
       ) : (
         /* ── Desktop header ── */
-        <div className="shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, height: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-5)', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
-          <div className="flex items-center justify-between w-full" style={{ minWidth: 0, gap: 'var(--tb-sp-2)' }}>
+        <div className="shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, minHeight: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-5)', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
+          {/* flex-wrap: when the calendar column is narrow (both sidebars open) the view controls drop to a second row instead of overlapping the nav arrows */}
+          <div className="flex items-center justify-between w-full flex-wrap" style={{ minWidth: 0, gap: 'var(--tb-sp-2)', paddingBlock: 'var(--tb-sp-1)' }}>
             {/* Left: nav + title */}
             <div className="flex items-center" style={{ minWidth: 0, gap: 'var(--tb-sp-2)' }}>
               <div className="flex items-center shrink-0" style={{ gap: 'var(--tb-sp-0_5)' }}>
