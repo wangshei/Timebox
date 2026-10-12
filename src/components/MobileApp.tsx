@@ -52,7 +52,10 @@ const CARD_STYLE: React.CSSProperties = {
 
 // ─── Types ─────────────────────────────────────────────────
 
-type MobileTab = 'schedule' | 'plan' | 'todo';
+type MobileTab = 'schedule' | 'todo';
+type ScheduleMode = 'list' | 'plan';
+/** Selected date shared between the Schedule list and Plan modes. */
+const SharedDateContext = React.createContext<[string, (d: string) => void] | null>(null);
 
 interface AgendaItem {
   type: 'block' | 'event';
@@ -155,6 +158,8 @@ const MobileActionsContext = React.createContext<MobileActions>({});
 
 export function MobileApp(actions: MobileActions) {
   const [activeTab, setActiveTab] = useState<MobileTab>('schedule');
+  const [schedMode, setSchedMode] = useState<ScheduleMode>('list');
+  const sharedDate = useState(getLocalDateString());
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [addSheetMode, setAddSheetMode] = useState<'task' | 'event'>('task');
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -203,10 +208,37 @@ export function MobileApp(actions: MobileActions) {
       <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: COLOR.surface2 }} />
       {/* Content — fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {activeTab === 'schedule' && <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
-        {activeTab === 'plan' && <PlanTab />}
+        <SharedDateContext.Provider value={sharedDate}>
+          {activeTab === 'schedule' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ flexShrink: 0, padding: '6px 12px 0' }}>
+                <SegmentedControl data-testid="schedule-mode" options={[{ value: 'list' as ScheduleMode, label: 'List' }, { value: 'plan' as ScheduleMode, label: 'Plan' }]} value={schedMode} onChange={setSchedMode} size="touch" fullWidth />
+              </div>
+              <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                {schedMode === 'plan' ? <PlanTab /> : <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
+              </div>
+            </div>
+          )}
+        </SharedDateContext.Provider>
         {activeTab === 'todo' && <TodoTab addTriggerRef={todoAddTriggerRef} />}
       </div>
+
+      {/* Single floating add button, bottom-right above the nav */}
+      <button
+        type="button"
+        data-testid="fab-add"
+        aria-label="Create new"
+        onClick={() => setShowAddPopup(true)}
+        className="touch-manipulation"
+        style={{
+          position: 'absolute', right: 16, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
+          width: 52, height: 52, borderRadius: 26, border: 'none', backgroundColor: THEME.primary, color: '#FFFFFF',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 3px 12px rgba(0,0,0,0.18)', zIndex: 'var(--tb-z-sticky)' as unknown as number, WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      </button>
 
       {/* Bottom navigation bar */}
       <nav
@@ -245,58 +277,6 @@ export function MobileApp(actions: MobileActions) {
         >
           <ScheduleIcon active={activeTab === 'schedule'} />
           <span style={{ fontSize: 11, fontWeight: activeTab === 'schedule' ? 600 : 400 }}>Schedule</span>
-        </button>
-
-        {/* Plan tab: drag todos/notes onto the day's timeline */}
-        <button
-          type="button"
-          data-testid="tab-plan"
-          onClick={() => setActiveTab('plan')}
-          className="touch-manipulation"
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 2,
-            padding: '6px 4px 2px',
-            minHeight: 44,
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: activeTab === 'plan' ? THEME.primary : COLOR.muted,
-            WebkitTapHighlightColor: 'transparent',
-            transition: 'color 0.15s ease',
-          }}
-        >
-          <PlanIcon active={activeTab === 'plan'} />
-          <span style={{ fontSize: 11, fontWeight: activeTab === 'plan' ? 600 : 400 }}>Plan</span>
-        </button>
-
-        {/* Center FAB for quick add */}
-        <button
-          type="button"
-          onClick={() => setShowAddPopup(true)}
-          className="touch-manipulation"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            border: 'none',
-            backgroundColor: THEME.primary,
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 10px rgba(141,162,134,0.35)',
-            marginTop: -12,
-            flexShrink: 0,
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
         </button>
 
         {/* To-Do tab */}
@@ -1346,7 +1326,7 @@ function PlanTab() {
 
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = React.useContext(SharedDateContext)!;
   const [miniOpen, setMiniOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [dropPreviewMins, setDropPreviewMins] = useState<number | null>(null);
@@ -1867,7 +1847,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const { saveSnapshot } = useHistoryStore();
   const actions = React.useContext(MobileActionsContext);
 
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+  const [selectedDate, setSelectedDate] = React.useContext(SharedDateContext)!;
   const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
   const [showEventForm, setShowEventForm] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
@@ -2615,43 +2595,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           </div>
         )}
       </div>
-
-      {/* FABs — bottom right */}
-        <div style={{ position: 'absolute', bottom: 20, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, zIndex: 30 }}>
-          {/* Add event button */}
-          <button
-            type="button"
-            onClick={() => {
-              const now = new Date();
-              const h = now.getHours();
-              const m = now.getMinutes();
-              const roundedM = Math.ceil(m / 15) * 15;
-              const startH = roundedM >= 60 ? h + 1 : h;
-              const startMin = roundedM >= 60 ? 0 : roundedM;
-              setEventStart(`${String(startH).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
-              setEventEnd(`${String(startH + 1).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
-              if (calendarContainers.length > 0 && !eventCalendarId) setEventCalendarId(calendarContainers[0].id);
-              setShowEventForm(true);
-              setTimeout(() => eventInputRef.current?.focus(), 100);
-            }}
-            className="touch-manipulation"
-            style={{
-              width: 40, height: 40, borderRadius: 20, border: 'none',
-              backgroundColor: '#FFFFFF', color: THEME.textSecondary,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-              <line x1="12" y1="14" x2="12" y2="18" />
-              <line x1="10" y1="16" x2="14" y2="16" />
-            </svg>
-          </button>
-        </div>
 
       {/* Detail sheet for tapped block/event */}
       {detailItem && (
