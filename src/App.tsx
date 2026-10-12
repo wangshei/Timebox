@@ -4423,7 +4423,8 @@ export default function App() {
               if (dropIds.length) deleteEvents(dropIds);
               updateEvent(id, {
                 ...rest, date: newDate ?? event.date, endDate: newEndDate,
-                ...(recurrenceEditScope === 'all' ? { recurring: false, recurrencePattern: undefined, recurrenceDays: undefined, recurrenceSeriesId: null } : {}),
+                // Nothing earlier remains in the series -> the edited row becomes a plain single event.
+                ...((recurrenceEditScope === 'all' || event.date <= seriesRows[0].date) ? { recurring: false, recurrencePattern: undefined, recurrenceDays: undefined, recurrenceSeriesId: null } : {}),
               });
             } else if (patternChanged) {
               // Changed pattern (B-20): rebuild the occurrences in scope on the new pattern.

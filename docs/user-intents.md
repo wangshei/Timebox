@@ -14,6 +14,24 @@ Companion doc: `docs/flows.md` (code flows + bugs B-01..B-61). This file does no
 them (B-xx). Problems found here that are NOT in flows.md get ids N-01..N-26 and are collected in the prioritized list
 at the end.
 
+
+## STATUS UPDATE 2026-10-11 (fix pass)
+
+Rows flipped to fixed in the tables below: E-06/07/09/10/12/22/23/24/25/29/31-34/36, T-03/04/05/06/09/12-15/19, S-01/02/08/11,
+K-03/05, U-01/02/04/06/07, G-01/03/05-08/15, Z-02/03/05. Still open (unchanged): E-05, E-08, E-14, E-19, E-20, E-27/28 (the cross is
+the only "didn't happen" for now, by decision), E-37/38, KB-06 partly (now `[`/`]`/`.` = prev/next/today; arrow keys not bound), KB-07, S-12, G-09/10/12/14,
+GC-03/05/07, Z-06, O-02/03, C-01..C-12 mobile gaps, MG-07/09/10/11. Rows E-09, T-09, K-05, Z-03 need the SQL in
+`supabase/migrations/20261013_recurring_tasks_stickers_timezone.sql` to be applied to persist across devices.
+
+### N-xx list status
+FIXED: N-01 (needs migration), N-02, N-03, N-04, N-05, N-06, N-07, N-08, N-10 (floating no longer shifts; zone persists with migration;
+epoch-in-event-zone arithmetic still device-zone), N-14 (Esc, `[`/`]`/`.`, Ctrl+Y; card focusability still open), N-15, N-16 (events; notes unchanged),
+N-17, N-18 (alerts -> toasts, drop feedback), N-19, N-20 (undo for tree deletes), N-21 (labels), N-22 (guests told when a series end date shortens it),
+N-26 partial (todo repeat end date, series delete for todos).
+PARTIAL: N-13 (Plan tab with long-press drag, Undo toast; Settings/sign-out/Google/share on mobile still absent), N-09 (cross sticker is now
+persisted + undoable; attendance model left separate by decision), N-25 (title/labels fixed; notes/guests/repeat info in sheet still missing).
+OPEN: N-11, N-12, N-23, N-24.
+
 ## How to read this file
 
 - Status: ✅ works as a user would expect. ⚠️ works but is illogical, inconsistent, or lossy (reason given).
@@ -46,13 +64,13 @@ flows.md is stale: `PlanTab` is dead code (see N-13).
 | E-03 | Create a plain same-day event | Title, calendar, category (required), optional tags/notes/link; appears immediately; remembers last category | ✅ | ✅ | `handleAddEvent` App.tsx:1344. Tags are dropped for events (B-14). With zero calendars the panel offers "Add a calendar first" (AddModal.tsx ~985) |
 | E-04 | Create an event in the past ("I was in a meeting 9-10") | Saved as an unplanned/actual event | ✅ | ✅ | `isPastEvent` App.tsx:1370 (ignores `endDate`, B-15) |
 | E-05 | Create an all-day event | A banner at the top of the day, not a 00:00-23:59 block | ❌ | ❌ | No control anywhere; imported all-day events render as 00:00-23:59 blocks (B-22) |
-| E-06 | Create an event that crosses midnight (22:00 to 02:00) | End earlier than start auto-advances the end date; card splits across both day columns | ✅ | ❌ | D: `AddModal.tsx:462-472`, `crossDateEvents.ts`. M: no end date, end<start accepted, negative duration (B-36). Display problems in N-06 |
-| E-07 | Prevent an impossible range | End must be after start (or an end date later) | ⚠️ | ❌ | D: end == start on the same day is accepted (zero-length card; `AddModal.tsx:464` only handles end < start). M: any range accepted (B-36). N-19 |
+| E-06 | Create an event that crosses midnight (22:00 to 02:00) | End earlier than start auto-advances the end date; card splits across both day columns | ✅ | ✅ | D: `AddModal.tsx:462-472`, `crossDateEvents.ts`. M: no end date, end<start accepted, negative duration (B-36). Display problems in N-06 |
+| E-07 | Prevent an impossible range | End must be after start (or an end date later) | ✅ | ✅ | D: end == start on the same day is accepted (zero-length card; `AddModal.tsx:464` only handles end < start). M: any range accepted (B-36). N-19 |
 | E-08 | Add a location | A location field, shown on the card/popover | ❌ | ❌ | `Event.location` exists in `types.ts` but no form field sets it; only Google imports. Link/meeting URL works (Join pill) |
-| E-09 | Create a repeating event | Pick none/daily/every other day/weekly/monthly/custom weekdays and an end ("until" or count) | ⚠️ | ❌ | D: no end choice at creation; fixed 52 occurrences (daily = ~7 weeks) B-17; monthly skips short months B-18. M: cannot create repeats (B-37) |
-| E-10 | Create a custom-weekday series starting on a day that is not selected | Either include the chosen date or tell me why not | ⚠️ | — | `generateRecurrenceDates` custom branch only emits selected weekdays, so clicking Tue with Mon/Wed/Fri selected silently starts Wed and nothing is created on Tue. N-17 |
+| E-09 | Create a repeating event | Pick none/daily/every other day/weekly/monthly/custom weekdays and an end ("until" or count) | ✅ | ❌ | D: no end choice at creation; fixed 52 occurrences (daily = ~7 weeks) B-17; monthly skips short months B-18. M: cannot create repeats (B-37) |
+| E-10 | Create a custom-weekday series starting on a day that is not selected | Either include the chosen date or tell me why not | ✅ | — | `generateRecurrenceDates` custom branch only emits selected weekdays, so clicking Tue with Mon/Wed/Fri selected silently starts Wed and nothing is created on Tue. N-17 |
 | E-11 | Create with guests | Invite chips, confirm popup, emails sent | ✅/⚠️ | ❌ | See section 7 (B-01, B-03, B-04). M has no guest UI |
-| E-12 | Create a repeating event with guests | Guests get the whole series | ❌ | ❌ | B-01 (first occurrence only) |
+| E-12 | Create a repeating event with guests | Guests get the whole series | ✅ | ❌ | B-01 (first occurrence only) |
 | E-13 | Choose time zone for the event | Floating or a named zone; shown in the summary | ✅ | ❌ | Toggle + picker, `AddModal.tsx:836-905`. Semantics problems: N-10 |
 
 ### 1.2 View, edit, move, resize, duplicate
@@ -72,10 +90,10 @@ flows.md is stale: `PlanTab` is dead code (see N-13).
 
 | # | Intent | Expected behavior | D | M | Code / notes |
 |---|--------|-------------------|---|---|--------------|
-| E-22 | Delete a single event | Click -> Delete; gone; Undo restores | ✅ | ⚠️ | D: no confirm, snapshot saved, Cmd+Z restores (stickers do not come back, B-31). M: sheet "Delete event" and swipe-left Delete, no confirm and no undo UI (N-13) |
-| E-23 | Delete a recurring event | Prompt: This event / This and following / All events | ✅ | ❌ | D: `EventCard.tsx:865-891`, `handleDeleteEventSeries` App.tsx:2462. M deletes the one row with no prompt (B-37). Series delete leaves stickers (B-30) |
-| E-24 | Delete with the Delete/Backspace key | Same as the button, including the series prompt | ⚠️ | — | `CalendarView.tsx:186-203`: key on a selected event removes only that occurrence immediately, no prompt, no guest cancel. N-14 |
-| E-25 | Delete an event that has guests | Warn that guests will be cancelled; send cancel; revoke share | ❌ | ❌ | B-02b |
+| E-22 | Delete a single event | Click -> Delete; gone; Undo restores | ✅ | ✅ | D: no confirm, snapshot saved, Cmd+Z restores (stickers do not come back, B-31). M: sheet "Delete event" and swipe-left Delete, no confirm and no undo UI (N-13) |
+| E-23 | Delete a recurring event | Prompt: This event / This and following / All events | ✅ | ✅ | D: `EventCard.tsx:865-891`, `handleDeleteEventSeries` App.tsx:2462. M deletes the one row with no prompt (B-37). Series delete leaves stickers (B-30) |
+| E-24 | Delete with the Delete/Backspace key | Same as the button, including the series prompt | ✅ | — | `CalendarView.tsx:186-203`: key on a selected event removes only that occurrence immediately, no prompt, no guest cancel. N-14 |
+| E-25 | Delete an event that has guests | Warn that guests will be cancelled; send cancel; revoke share | ✅ | ✅ | B-02b |
 | E-26 | Skip one occurrence only | Delete "This event" and the rest stay | ✅ | ❌ | Rows are independent. A later "repeat until" extend never refills deleted gaps (App.tsx ~4247 comment) |
 | E-27 | Mark a past event as "didn't happen" | Red cross on the card, excluded from stats, reversible | ⚠️ | ⚠️ | Two unconnected mechanisms: (a) popover "Mark as not attended" sets `attendanceStatus` (past events only, `EventCard.tsx:662`, persisted, drives stats and diff view); (b) the red cross stamp from the sticker tray (`EventCard.tsx:123-131`) or mobile "Didn't happen" (`MobileApp.tsx ~418`), which is a sticker: not persisted to the cloud (B-44), not in undo, no effect on stats, allowed on future events. Mobile never shows attendance. N-09 |
 | E-28 | Mark an event as attended | Explicit "attended" state | ❌ | ❌ | `'attended'` exists in the type but no UI sets it; past events count as attended by default (`selectors.ts:232`) |
@@ -84,14 +102,14 @@ flows.md is stale: `PlanTab` is dead code (see N-13).
 
 | # | Intent | Expected behavior | D | M | Code / notes |
 |---|--------|-------------------|---|---|--------------|
-| E-29 | Edit one occurrence only | Choose "This event", change, others untouched | ✅ | ⚠️ | D ✅. M edits the row with no scope and no indication it belongs to a series |
+| E-29 | Edit one occurrence only | Choose "This event", change, others untouched | ✅ | ✅ | D ✅. M edits the row with no scope and no indication it belongs to a series |
 | E-30 | Edit this and following | Changes apply from here on | ⚠️ | ❌ | D works; "repeat until" with this scope extends from the series end not the edit point (B-21) |
-| E-31 | Edit all events | Every occurrence updated | ⚠️ | ❌ | D: the modal sends every field, so "All" also overwrites per-occurrence customizations: an occurrence you moved to a different time snaps back, per-occurrence notes/links are replaced (`App.tsx:4231 sharedUpdates`). No warning, no marker for "modified" occurrences. N-08 |
-| E-32 | Edit one occurrence, then later edit the series | The customized occurrence keeps its customization or I am asked | ⚠️ | — | Same root cause as E-31. N-08 |
-| E-33 | Change the pattern (weekly -> daily) | Series regenerated | ❌ | ❌ | B-20 |
-| E-34 | Stop repeating (make it a single event) | Remaining rows removed, or this row detached | ❌ | ❌ | B-20. With scope "this" + repeat none only that row gets `recurring:false`, it keeps its `recurrenceSeriesId`, so the move prompt still treats it as a series member while Edit/Delete skip the scope picker (`EventCard.tsx:914,936` need `recurring`, `App.tsx:2302` needs only the series id). N-15 |
+| E-31 | Edit all events | Every occurrence updated | ✅ | ❌ | D: the modal sends every field, so "All" also overwrites per-occurrence customizations: an occurrence you moved to a different time snaps back, per-occurrence notes/links are replaced (`App.tsx:4231 sharedUpdates`). No warning, no marker for "modified" occurrences. N-08 |
+| E-32 | Edit one occurrence, then later edit the series | The customized occurrence keeps its customization or I am asked | ✅ | — | Same root cause as E-31. N-08 |
+| E-33 | Change the pattern (weekly -> daily) | Series regenerated | ✅ | ❌ | B-20 |
+| E-34 | Stop repeating (make it a single event) | Remaining rows removed, or this row detached | ✅ | ❌ | B-20. With scope "this" + repeat none only that row gets `recurring:false`, it keeps its `recurrenceSeriesId`, so the move prompt still treats it as a series member while Edit/Delete skip the scope picker (`EventCard.tsx:914,936` need `recurring`, `App.tsx:2302` needs only the series id). N-15 |
 | E-35 | Change the end date of the series | Later date extends, earlier date trims | ⚠️ | ❌ | D works only when editing with scope all / this-and-following (`AddModal.tsx:536`, App.tsx ~4247). Trimming deletes occurrences with no confirmation, no guest cancel, orphans stickers. N-22. Not available at creation (B-17) |
-| E-36 | Turn a single event into a repeating one | Pick a pattern in the editor | ⚠️ | ❌ | Works, but may silently re-anchor the date (B-26) and copies attendees without shares (B-01) |
+| E-36 | Turn a single event into a repeating one | Pick a pattern in the editor | ✅ | ❌ | Works, but may silently re-anchor the date (B-26) and copies attendees without shares (B-01) |
 
 ### 1.5 Conversions
 
@@ -111,23 +129,23 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 |---|--------|-------------------|---|---|--------------|
 | T-01 | Jot a note | Type a title, Enter; yellow sticky card, no checkbox, sits in Unscheduled | ✅ | ⚠️ | D ✅. Terminology is inconsistent: the sidebar button says "Add to-do" but creates a note (`RightSidebar.tsx:341` vs `AddModal.tsx:192,416`); mobile FAB says "New Task" and the sheet says "New Note" (`MobileApp.tsx ~301, 1002`). N-21 |
 | T-02 | Create a todo | Tick "Todo"; estimate (15 min - 8 h), due date, priority, link | ✅ | ⚠️ | D ✅ (`AddModal.tsx:736-800`). M: `AddSheet` ✅ (estimate 5-240 min, due, tags, Todo checkbox); the To-Do tab quick-capture bar ("Read book 30min") creates `isTodo` undefined = todo, while the sheet defaults to note. N-04 |
-| T-03 | See my todos | Sidebar lists scheduled todos by day (this week) or by due date; Plan toggle sizes cards by duration; Unscheduled section; Done folds | ⚠️ | ✅ | D `RightSidebar.tsx:201-232`. A todo that is done and has no block is shown nowhere (line 211). N-02. M: To-Do tab All/Today/Done filters with counts. "Today" means "has a block today", not "due today" |
-| T-04 | Edit title/estimate/due/priority/category/notes | Edit details, Save | ✅ | ❌ | D: `onUpdateTask` App.tsx:4150, not undoable (B-31); priority cannot be cleared inside the editor (card star cycles back to none). M: only the duration slider in the expanded row; no title/due/priority/notes edit. N-04 |
-| T-05 | Complete a todo | One click on the circle/checkbox; its blocks turn done | ✅ | ⚠️ | D `handleMarkTaskDone` App.tsx:1197 marks task and all blocks atomically. M sets status only, block stays "missed" (B-39) |
-| T-06 | Un-complete a todo | Click again; returns to its list | ⚠️ | ✅ | D works but if it has no block it is invisible after completion so you cannot click it again (N-02; only Cmd+Z). M: Done filter + tap checkbox ✅ |
+| T-03 | See my todos | Sidebar lists scheduled todos by day (this week) or by due date; Plan toggle sizes cards by duration; Unscheduled section; Done folds | ✅ | ✅ | D `RightSidebar.tsx:201-232`. A todo that is done and has no block is shown nowhere (line 211). N-02. M: To-Do tab All/Today/Done filters with counts. "Today" means "has a block today", not "due today" |
+| T-04 | Edit title/estimate/due/priority/category/notes | Edit details, Save | ✅ | ✅ | D: `onUpdateTask` App.tsx:4150, not undoable (B-31); priority cannot be cleared inside the editor (card star cycles back to none). M: only the duration slider in the expanded row; no title/due/priority/notes edit. N-04 |
+| T-05 | Complete a todo | One click on the circle/checkbox; its blocks turn done | ✅ | ✅ | D `handleMarkTaskDone` App.tsx:1197 marks task and all blocks atomically. M sets status only, block stays "missed" (B-39) |
+| T-06 | Un-complete a todo | Click again; returns to its list | ✅ | ✅ | D works but if it has no block it is invisible after completion so you cannot click it again (N-02; only Cmd+Z). M: Done filter + tap checkbox ✅ |
 | T-07 | Complete a note | Notes have no checkbox by design; delete when finished | ✅ | ✅ | `TaskCard.tsx:371,482` hide the done controls for notes. But a note that has been scheduled shows a done circle on its calendar block (`TimeBlockCard` has no `isTodo` handling) and "Mark as done" in its block popover. N-21 |
 | T-08 | Turn a note into a todo, or back | Toggle the Todo checkbox in the editor, id and blocks kept | ✅ | ❌ | D `AddModal.tsx:333,517`. Persistence needs migration `20261011_task_is_todo.sql`; if the column is missing the retry strips `is_todo` (`supabasePersistence.ts:401-410`) and every note reloads as a todo. M has no edit |
-| T-09 | Create a repeating todo | Same repeat picker as events; next copy appears when that week comes | ⚠️ | ❌ | D lazy materialization works in-memory (`expandRecurringTasks` useStore.ts:321). The recurrence fields are NOT in the cloud schema (`supabasePersistence.ts:221-237 load`, `:385-402 save`): after any cloud reload the head becomes a plain todo and generation stops. N-01 (confirms B-43). No end date/"until" for todos. M cannot create repeats (B-39) |
+| T-09 | Create a repeating todo | Same repeat picker as events; next copy appears when that week comes | ✅ | ❌ | D lazy materialization works in-memory (`expandRecurringTasks` useStore.ts:321). The recurrence fields are NOT in the cloud schema (`supabasePersistence.ts:221-237 load`, `:385-402 save`): after any cloud reload the head becomes a plain todo and generation stops. N-01 (confirms B-43). No end date/"until" for todos. M cannot create repeats (B-39) |
 | T-10 | Complete one instance of a repeating todo | Only that day's copy done; the series continues | ✅ | ✅ | Dedup by (seriesId, dueDate) |
 | T-11 | Skip one instance | Delete that day's copy; never comes back | ✅ | ❌ | `deleteTask` records an exception (useStore.ts:305-319). But moving an instance's due date regenerates the old date (B-42) |
-| T-12 | Stop a repeating todo / delete the series | "Delete series" or "Stop repeating" | ❌ | ❌ | No series delete (B-41). Turning repeat off on the head only clears the pattern (App.tsx:4152); already-materialized instances stay as ordinary todos |
-| T-13 | Change the pattern of a repeating todo | Future copies follow the new pattern | ❌ | ❌ | B-43 |
-| T-14 | Convert single todo <-> repeating | Pick/clear a repeat in the editor | ⚠️ | ❌ | Single->repeating works (head created, instances expand). Repeating->single leaves the other instances. B-43 |
-| T-15 | Delete a todo or note | Delete, its blocks go too, Undo restores | ✅ | ❌ | D: "Delete todo" (label also shown on notes, `TaskCard.tsx:400`), no confirm, snapshot saved. M has no delete for todos at all. N-04 |
+| T-12 | Stop a repeating todo / delete the series | "Delete series" or "Stop repeating" | ✅ | ❌ | No series delete (B-41). Turning repeat off on the head only clears the pattern (App.tsx:4152); already-materialized instances stay as ordinary todos |
+| T-13 | Change the pattern of a repeating todo | Future copies follow the new pattern | ✅ | ❌ | B-43 |
+| T-14 | Convert single todo <-> repeating | Pick/clear a repeat in the editor | ✅ | ❌ | Single->repeating works (head created, instances expand). Repeating->single leaves the other instances. B-43 |
+| T-15 | Delete a todo or note | Delete, its blocks go too, Undo restores | ✅ | ✅ | D: "Delete todo" (label also shown on notes, `TaskCard.tsx:400`), no confirm, snapshot saved. M has no delete for todos at all. N-04 |
 | T-16 | Set priority | Click stars to cycle 1-5 then none | ✅ | ❌ | `onTogglePin` App.tsx:3911. M shows stars read-only |
 | T-17 | See what is overdue/due soon | Red styling, "Overdue"/"Due Mar 3", sorted by urgency; Day view shows what is due that day | ✅ | ⚠️ | D ✅ (`RightSidebar.tsx:116-142`, `DayView.tsx:121`). M: Schedule tab lists tasks due on the viewed day only; overdue tasks from earlier days are visible only in the To-Do tab |
 | T-18 | Change the estimate | Drag the card bottom (Plan view) or edit | ✅ | ⚠️ | D `onResizeTask`. M slider only in the expanded row. Resizing a block on the grid does not change the estimate |
-| T-19 | Break a todo into smaller pieces / split off a block | Same todo metadata preserved on each piece | ⚠️ | — | `handleBreakIntoChunks` (App.tsx:1471) deletes the original and creates N new tasks copying only title/estimate/calendar/category/tags/due: priority, notes, link, description, and the note-vs-todo flag are lost (a note becomes a todo), recurrence lost. `handleSplitTask` same. N-05 |
+| T-19 | Break a todo into smaller pieces / split off a block | Same todo metadata preserved on each piece | ✅ | — | `handleBreakIntoChunks` (App.tsx:1471) deletes the original and creates N new tasks copying only title/estimate/calendar/category/tags/due: priority, notes, link, description, and the note-vs-todo flag are lost (a note becomes a todo), recurrence lost. `handleSplitTask` same. N-05 |
 
 ---------------------------------------------------------------------------------------------------------------
 
@@ -135,17 +153,17 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 
 | # | Intent | Expected behavior | D | M | Code / notes |
 |---|--------|-------------------|---|---|--------------|
-| S-01 | Drag a todo/note onto the day grid | Ghost follows cursor, drop creates a block at the slot with duration snapped to 15 min | ✅ | ❌ | D `handleDropTask` App.tsx:2015. M: `PlanTab` (the only drag UI, `MobileApp.tsx ~1131`) is not reachable: `MobileTab` is `'schedule' | 'todo'` (line 88). N-13 |
-| S-02 | Drop when the estimate is already fully scheduled | Tell me or allow extra time | ❌ | — | Silent `return` (App.tsx:2041-2043); the drag just snaps back. N-18 |
+| S-01 | Drag a todo/note onto the day grid | Ghost follows cursor, drop creates a block at the slot with duration snapped to 15 min | ✅ | ✅ | D `handleDropTask` App.tsx:2015. M: `PlanTab` (the only drag UI, `MobileApp.tsx ~1131`) is not reachable: `MobileTab` is `'schedule' | 'todo'` (line 88). N-13 |
+| S-02 | Drop when the estimate is already fully scheduled | Tell me or allow extra time | ✅ | — | Silent `return` (App.tsx:2041-2043); the drag just snaps back. N-18 |
 | S-03 | Drop into the past ("I did this at 3pm") | Becomes an actual (recorded) block; overlap picker if clashing | ✅ | — | Uses legacy `mode:'recorded'` (B-38) |
 | S-04 | Schedule via a dialog | "Schedule todo": pick date/time/length | ✅ | ✅ | D `ScheduleTaskModal`; M: To-Do tab "Schedule today" / "Reschedule" picker. Writes unpadded "9:00" times on D via `createPlannedBlocksFromTask` (`useStore.ts:428,458,484`) and on M (B-35). N-07 |
 | S-05 | One-tap "put it in the next free slot" | Finds the next gap today/this week | ✅ | ✅ | D "Reschedule later" (`handleRescheduleLater` App.tsx:1801): does nothing when the todo is already fully planned (returns inside the store with no feedback). M: tap an Unscheduled card in the Schedule tab or "Schedule today". Both use blocking `alert()` for results. N-18 |
 | S-06 | Move a block | Drag within/between days; past planned blocks are frozen, moving one into the future unfreezes it | ✅ | ❌ | `handleMoveBlock` App.tsx:2213 |
 | S-07 | Resize a block | Drag bottom edge | ✅ | ❌ | `handleResizeBlock` |
-| S-08 | Unschedule a block (todo returns to Unscheduled) | An explicit "Unschedule" action; the todo itself is kept | ⚠️ | ⚠️ | D: possible only by dragging the block onto the right sidebar (`onDropBlock`, App.tsx:3906, undiscoverable) or the Delete key (`CalendarView.tsx:196`). The block popover's "Delete" calls `onDeleteTask` and deletes the whole todo with all its blocks (`TimeBlockCard.tsx:819-825`). Same word, opposite results. M: "Delete event"/swipe Delete removes only the block (labelled "event"). N-03 |
+| S-08 | Unschedule a block (todo returns to Unscheduled) | An explicit "Unschedule" action; the todo itself is kept | ✅ | ✅ | D: possible only by dragging the block onto the right sidebar (`onDropBlock`, App.tsx:3906, undiscoverable) or the Delete key (`CalendarView.tsx:196`). The block popover's "Delete" calls `onDeleteTask` and deletes the whole todo with all its blocks (`TimeBlockCard.tsx:819-825`). Same word, opposite results. M: "Delete event"/swipe Delete removes only the block (labelled "event"). N-03 |
 | S-09 | Mark a block done / not done | Circle in the corner or popover; task becomes done when all blocks are done | ✅ | ⚠️ | D `handleConfirmBlock` App.tsx:1239 (a skipped sibling blocks completion, B-40). M: quick check/X only on past pending blocks; a confirmed block cannot be un-confirmed from the sheet (it only offers "Mark task not done", which leaves the block confirmed). N-04 |
 | S-10 | Skip a missed block | X marks it skipped, task returns to Unscheduled | ✅ | ✅ | `skipBlock`; M X button on past pending blocks |
-| S-11 | Need more time | "Add time to complete" creates a continuation todo and books it in the next gap | ⚠️ | — | `handleAddTimeToComplete` App.tsx:1937: copies notes/priority/link but not the note-vs-todo flag or recurrence; uses `alert()`. N-05 |
+| S-11 | Need more time | "Add time to complete" creates a continuation todo and books it in the next gap | ✅ | — | `handleAddTimeToComplete` App.tsx:1937: copies notes/priority/link but not the note-vs-todo flag or recurrence; uses `alert()`. N-05 |
 | S-12 | Todo -> event or block -> event | Convert | ❌ | ❌ | See E-37/E-38 |
 | S-13 | Edit a past planned block | Edit is blocked ("the plan is history"); only done/skip/reschedule | ✅ | ⚠️ | D hides Edit/Delete (`TimeBlockCard.tsx:797`). M's detail sheet still lets you edit and delete past blocks |
 
@@ -157,9 +175,9 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 |---|--------|-------------------|---|---|--------------|
 | K-01 | Enter stamp mode, pick an emoji, click to place | Tray offers 4 emoji + red cross + "+" for any emoji; Esc leaves, arrows cycle | ✅ | ❌ | `CalendarView.tsx:26, 163-183, 700-760`. No stickers on M except the cross |
 | K-02 | Put a sticker on a card or a free time slot | Card stickers follow the card; slot stickers stay on the date | ✅ | ❌ | Stickers follow date changes on move (useStore.ts:377-385, 827-834) |
-| K-03 | Remove a sticker | Click it | ⚠️ | ❌ | Deletes immediately with no undo (stickers are not in the history snapshot, `useHistoryStore.ts:8-15`) |
+| K-03 | Remove a sticker | Click it | ✅ | ❌ | Deletes immediately with no undo (stickers are not in the history snapshot, `useHistoryStore.ts:8-15`) |
 | K-04 | Mark something "didn't happen" with the red cross | Cross over the whole card; click the center badge to remove | ⚠️ | ⚠️ | Visual only, see E-27 / N-09. Works on events and blocks on D, in the mobile detail sheet and mobile list |
-| K-05 | Stickers survive reload/other device | Persist | ❌ | ❌ | B-44 (local only) |
+| K-05 | Stickers survive reload/other device | Persist | ✅ | ✅ | B-44 (local only) |
 | K-06 | Stickers go with their card when it is deleted | Removed | ✅ | ✅ | Single delete only; series delete leaves them (B-30) |
 
 ---------------------------------------------------------------------------------------------------------------
@@ -203,13 +221,13 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 
 | # | Intent | Expected | D | M | Code / notes |
 |---|--------|----------|---|---|--------------|
-| U-01 | Undo my last delete/move/resize/complete | Cmd+Z restores | ✅ | ❌ | `saveSnapshot` before most direct actions. M saves snapshots but nothing ever calls `undo` and there is no button/shake gesture (`MobileApp.tsx` has no `.undo(`). N-13 |
-| U-02 | Undo an edit made in the editor | Cmd+Z reverts it | ❌ | ❌ | `onUpdateEvent`/`onUpdateTask` take no snapshot (App.tsx:4150,4177; B-31). Cmd+Z then undoes an earlier, unrelated action |
+| U-01 | Undo my last delete/move/resize/complete | Cmd+Z restores | ✅ | ✅ | `saveSnapshot` before most direct actions. M saves snapshots but nothing ever calls `undo` and there is no button/shake gesture (`MobileApp.tsx` has no `.undo(`). N-13 |
+| U-02 | Undo an edit made in the editor | Cmd+Z reverts it | ✅ | ❌ | `onUpdateEvent`/`onUpdateTask` take no snapshot (App.tsx:4150,4177; B-31). Cmd+Z then undoes an earlier, unrelated action |
 | U-03 | Undo deleting a calendar/category/tag | Restores items it cascaded | ❌ | — | `deleteCategory`/`deleteTag` are wired straight to the store (App.tsx ~2997) with no snapshot; cascade is B-60. N-20 |
 | U-04 | Undo restores stickers | | ❌ | — | Snapshot has no stickers |
 | U-05 | Redo | Cmd+Shift+Z | ✅ | — | |
-| U-06 | History is per user | New sign-in starts clean | ❌ | — | B-46 |
-| U-07 | See what will be undone | A toast/label | ❌ | ❌ | Only console logs |
+| U-06 | History is per user | New sign-in starts clean | ✅ | — | B-46 |
+| U-07 | See what will be undone | A toast/label | ✅ | ✅ | Only console logs |
 
 ---------------------------------------------------------------------------------------------------------------
 
@@ -223,10 +241,10 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 | G-02 | Add a guest to an existing event | Edit -> add email -> save | ✅ | ❌ | App.tsx:4177-4230 |
 | G-03 | Remove a guest | Toggle chip off -> save; they get a cancellation | ✅ | ❌ | `removeAttendees`; but the removed guest may also get an update mail (B-09) |
 | G-04 | Resend an invitation | Per-chip or bulk "Resend invitation" | ✅ | ❌ | `resendInvite` |
-| G-05 | See who accepted | Chips/popover show accepted/declined/tentative | ⚠️ | ❌ | Only email-reply RSVPs update `events.attendees`; invite-page responses do not show (B-34); needs reload/refresh |
-| G-06 | Changing time/title tells guests | Popup "Send update" with change summary; revised .ics | ⚠️ | ❌ | B-02 (one row only for series), B-07 (spurious "Description updated"), B-09, B-11 |
-| G-07 | Cancel a shared event | Delete asks "Notify N guests?" and sends cancel | ❌ | ❌ | B-02b |
-| G-08 | Invite to a repeating event | Whole series | ❌ | ❌ | B-01 |
+| G-05 | See who accepted | Chips/popover show accepted/declined/tentative | ✅ | ❌ | Only email-reply RSVPs update `events.attendees`; invite-page responses do not show (B-34); needs reload/refresh |
+| G-06 | Changing time/title tells guests | Popup "Send update" with change summary; revised .ics | ✅ | ❌ | B-02 (one row only for series), B-07 (spurious "Description updated"), B-09, B-11 |
+| G-07 | Cancel a shared event | Delete asks "Notify N guests?" and sends cancel | ✅ | ❌ | B-02b |
+| G-08 | Invite to a repeating event | Whole series | ✅ | ❌ | B-01 |
 | G-09 | Stop sharing an event | One "Stop sharing" action | ⚠️ | ❌ | Only by removing each guest chip; no single action. Same limit for owner after Skip (B-03) |
 | G-10 | Event times right for guests in other zones | Uses the event's zone | ❌ | ❌ | B-06 |
 
@@ -238,7 +256,7 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 | G-12 | Accept/decline from inside the app | Buttons on the shared event | ❌ | ❌ | `EventCard` shows no RSVP controls; shared events are read-only copies. N-11 |
 | G-13 | See shared events in my calendar | Read-only, mapped to one of my calendars/categories | ✅ | ⚠️ | Loaded once per session; manual refresh button (`handleRefresh` App.tsx ~448); degraded fields (B-08). M injects them into the same store so they appear in the list but cannot be told apart from my own |
 | G-14 | Remove a shared event I do not want | Gone for good | ⚠️ | ⚠️ | Event-level "Remove from Timebox" only deletes the local copy (`handleDeleteEvent` App.tsx:2454); the next server load re-injects it. Only whole-share removal is remembered (`timebox_dismissed_shares`). N-11 |
-| G-15 | Move/resize a shared (read-only) event | Not allowed | ⚠️ | — | UI hides Edit but drag is not blocked (B-28) |
+| G-15 | Move/resize a shared (read-only) event | Not allowed | ✅ | — | UI hides Edit but drag is not blocked (B-28) |
 
 ### 8.3 Sharing calendars / categories
 
@@ -274,10 +292,10 @@ checkbox). Right-sidebar "+" (tooltip "Add to-do") and key `t` open this same pa
 | # | Intent | Expected | D | M | Code / notes |
 |---|--------|----------|---|---|--------------|
 | Z-01 | Event with a zone shows at the right local time when I view in another zone | Converted on display | ✅ | ⚠️ | `crossDateEvents.ts:31-48`; M ignores zone entirely |
-| Z-02 | Floating event ("None") stays at the same wall-clock after I travel | No shift | ⚠️ | ⚠️ | The timezone-change effect (App.tsx:784-845) re-derives every future event with a `startEpoch`, without checking `evt.timezone`, so floating events shift. And epochs are computed with the device zone, not the event's zone (`useStore.ts:798-803`). N-10 |
-| Z-03 | Zone is remembered on another device | Same zone | ❌ | ❌ | `timezone`, `startEpoch` are not columns; loaded rows get `timezone: existing?.timezone ?? null` (`supabasePersistence.ts ~284`). N-10 |
+| Z-02 | Floating event ("None") stays at the same wall-clock after I travel | No shift | ✅ | ⚠️ | The timezone-change effect (App.tsx:784-845) re-derives every future event with a `startEpoch`, without checking `evt.timezone`, so floating events shift. And epochs are computed with the device zone, not the event's zone (`useStore.ts:798-803`). N-10 |
+| Z-03 | Zone is remembered on another device | Same zone | ✅ | ✅ | `timezone`, `startEpoch` are not columns; loaded rows get `timezone: existing?.timezone ?? null` (`supabasePersistence.ts ~284`). N-10 |
 | Z-04 | Repeats survive DST | Same wall-clock time | ✅ | — | `generateRecurrenceDates` builds dates at local noon |
-| Z-05 | See a cross-midnight event on both days | Month, Week, Day, mobile | ⚠️ | ❌ | Day/3-day/Week split correctly. Month and mobile list show the start day only. And `EventCard.isPast` (EventCard.tsx:155-159) compares the END clock time with now on the START date, so a 22:00-02:00 event is dimmed as "past" and offers "Mark as not attended" all day before it starts. N-06 |
+| Z-05 | See a cross-midnight event on both days | Month, Week, Day, mobile | ✅ | ✅ | Day/3-day/Week split correctly. Month and mobile list show the start day only. And `EventCard.isPast` (EventCard.tsx:155-159) compares the END clock time with now on the START date, so a 22:00-02:00 event is dimmed as "past" and offers "Mark as not attended" all day before it starts. N-06 |
 | Z-06 | Invites use the event zone | | ❌ | ❌ | B-06 |
 | Z-07 | Weekday/week boundaries in my zone | | ✅ | ✅ | local date strings |
 

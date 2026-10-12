@@ -17,6 +17,17 @@ Conventions
   3. Google events are ephemeral (`gcal-evt-` ids), never persisted; dismissals only in localStorage.
   4. Event-scoped invites are one-shot: UID = event row id, no RRULE.
 
+## STATUS UPDATE 2026-10-11 (fix pass)
+
+Fixed in code this pass (tagged `[FIXED 2026-10-11]` below): B-01, B-02b, B-03, B-07, B-09, B-15, B-16, B-17, B-20, B-26,
+B-28, B-30, B-31, B-34, B-35, B-36, B-39, B-44, B-46, B-49, B-52, B-54, B-61. Fixed server side earlier: B-05, B-24,
+B-32, B-33, B-45, B-53, B-56. Partial: B-02, B-37, B-43. Still open: B-04, B-06, B-08, B-10, B-11, B-12, B-13, B-14, B-18, B-19,
+B-21, B-22, B-23, B-25, B-27, B-29, B-38, B-40, B-41, B-42, B-47, B-48 (deferred), B-50, B-51, B-55, B-57, B-58, B-59, B-60.
+Where the original text below says "App.tsx:NNNN" it describes the pre-fix code.
+
+Known limits of the series-invite design (server has no EXDATE/RECURRENCE-ID): deleting or editing only "this" occurrence of a
+shared repeating event cannot be expressed in the guests' recurring invite, so guests get a text note instead of a calendar update.
+
 ----------------------------------------------------------------------------------------------------
 
 ## 1. EVENTS (desktop)
@@ -306,38 +317,38 @@ Flags: B-34, B-58, B-59.
 
 ### Sharing an event / shared repeating events
 
-B-01 CRITICAL - Shared repeating event invites only the first occurrence.
+B-01 [FIXED 2026-10-11] CRITICAL - Shared repeating event invites only the first occurrence.
  App.tsx:1420 `newEventId = ids[0]` then App.tsx:1449 `sendNewInvites({eventId:newEventId})`; ICS UID is the single row id (share-invite/index.ts:673, 761) with no RRULE.
  Every one of the 52 rows still carries the same `attendees` (App.tsx:1380) so the UI shows "Invited" on all rows. Editing/moving occurrence N later emails
  attendees an update for UID `<rowN>@...` which the guest never received, so calendar clients either create a brand-new orphan event or ignore it.
  Same for resend (App.tsx:4081), edit-time invites (App.tsx:4186, only that row gets `attendees`, others do not) and series extension (App.tsx:4250 copies `attendees`, no shares).
  Fix direction: one invite with RRULE + EXDATE/RECURRENCE-ID overrides using the series id as UID, or one invite per occurrence; and propagate attendees across the series.
 
-B-02 HIGH - Series edits/moves/resizes notify per row, not per series.
+B-02 [PARTIAL 2026-10-11: series edits notify once per series (ics only for scope All; This/Following send a text note)] HIGH - Series edits/moves/resizes notify per row, not per series.
  App.tsx:4228 and 2336 call `notifyAttendeesIfNeeded` once with the edited row, regardless of scope 'all'/'all_after'. Guests of other rows (if any) are never told; the one notified is told about a single date.
-B-02b HIGH - Deleting an event never cancels or revokes anything.
+B-02b [FIXED 2026-10-11] HIGH - Deleting an event never cancels or revokes anything.
  `handleDeleteEvent`/`handleDeleteEventSeries` (App.tsx:2446-2491) do not call `removeAttendees`/CANCEL. The `calendar_shares`/`share_members` rows remain, guests keep the event in their calendar and the recipient's in-app copy remains until the owner row is gone (shared_with_me_events then returns zero rows). Deleting a calendar/category (useStore.ts:726, 759) cascades the same way.
 
-B-03 HIGH - "Skip" in the invite popup leaves phantom attendees.
+B-03 [FIXED 2026-10-11] HIGH - "Skip" in the invite popup leaves phantom attendees.
  Attendees are written at creation (App.tsx:1378, edit: 4200) before the confirmation popup. `onSkip` (App.tsx:1604-ish `setInviteConfirm(null)`) sends nothing but the chips say "Invited" and later edits email people who were never invited (`notifyAttendeesIfNeeded` App.tsx:1612 uses `event.attendees`).
 
 B-04 MEDIUM - Invite races persistence.
  `setTimeout(sendShare, 2000)` (App.tsx:1580) assumes the 500 ms debounced flush has put the event in Supabase; it is not awaited. `getInviteDetails` queries `events` for `share.event_id` (index.ts:921) and returns an empty preview if the flush is late/failed. Edit-time invites use the same pattern. Three retries on error but a successful create with a missing event is not retried.
 
-B-05 HIGH - Share rows are not unique per event.
+B-05 [FIXED 2026-10-11] HIGH - Share rows are not unique per event.
  `createShare` always INSERTs a new `calendar_shares` row (index.ts:604-640). Every "add a guest" or re-invite after Skip creates another event share. `resendInvite` takes `.limit(1)` (index.ts:735) and `loadCollaborators` `.find` first match (App.tsx:472), `recordRsvp` updates only the first share (rsvp-inbound:148). Result: members split across shares, duplicate member rows/tokens on resend, RSVP status written to the wrong share, remove works only via `.in(shareIds)` so it is the one that is consistent.
  Also ShareModal `handleShareInvite` (App.tsx:535-546) double-click race: two quick invites before `shareIdByItem` is set create two shares.
 
 B-06 MEDIUM - Wrong time in invites for events with a timezone or when organizer's browser tz differs.
  `toIso` (App.tsx:1544, 1650, 4067) uses the browser's local zone, ignoring `event.timezone` (saved at App.tsx:1369, AddModal.tsx:533). ICS is UTC-only (no TZID). The Google "template" link on InvitePage is floating local time (InvitePage.tsx:20-24).
 
-B-07 MEDIUM - Editing an event with no description/notes always emits "Description updated"/"Notes updated".
+B-07 [FIXED 2026-10-11] MEDIUM - Editing an event with no description/notes always emits "Description updated"/"Notes updated".
  AddModal sends `description: description.trim() || null` (AddModal.tsx:530-531). New events store `undefined` (App.tsx:1371). `null !== undefined` is true (App.tsx:1623-1624), so every edit of such an event shows the update-confirm popup and mails guests a bogus change list.
 
 B-08 MEDIUM - Recipients see a degraded copy of shared events.
  `eventSelect` has only id,title,date,start,end,recurring (index.ts:1105): no `end_date` (cross-midnight shows truncated), no series id (recurrence for calendar-scope shares is flat rows), no timezone/notes. Event-scope share = one occurrence (B-01). Loaded once per session (`sharedCalLoadedRef`, App.tsx:424), so owner edits do not appear until manual refresh.
 
-B-09 MEDIUM - Removed guests also get the update email.
+B-09 [FIXED 2026-10-11] MEDIUM - Removed guests also get the update email.
  `notifyAttendeesIfNeeded(event, ...)` (App.tsx:4228) uses the pre-edit `event.attendees`, which still contains guests removed in the same save (4195-4222), so they get a cancel AND an update ("event changed") .ics, which can resurrect the event in their calendar depending on ordering.
 
 B-10 LOW/MED - Organizer-only gating by `!a.self` (App.tsx:1613). Native events never set `self`, so if the organizer lists their own email it receives its own updates. Gcal-imported events with attendees are also "notified" via Timebox when moved (B-28).
@@ -350,48 +361,48 @@ B-13 LOW - Invites are not created for the mobile edit path or the legacy draft-
 
 ### Recurrence edit scopes
 
-B-16 HIGH - Switching an event between "this" and series scope can fork the guest list/state: `updateEvent(id,{attendees})` (App.tsx:4200) writes only the edited row while scope 'all' propagates other fields (4231), so rows diverge.
+B-16 [FIXED 2026-10-11] HIGH - Switching an event between "this" and series scope can fork the guest list/state: `updateEvent(id,{attendees})` (App.tsx:4200) writes only the edited row while scope 'all' propagates other fields (4231), so rows diverge.
 
-B-20 MEDIUM - Cannot change a series' pattern or stop repeating.
+B-20 [FIXED 2026-10-11] MEDIUM - Cannot change a series' pattern or stop repeating.
  In scope all/all_after, `recurring/recurrencePattern/recurrenceDays` are destructured away (App.tsx:4232). Setting "no repeat" or changing weekly->daily has no effect on the series (only `repeatUntil` works). With scope 'this' it writes the new pattern onto just one row (App.tsx:4300), leaving inconsistent rows.
 
-B-21 LOW - `repeatUntil` with all_after extends from the series' LAST date (App.tsx:4243), not relative to the edited occurrence; with 'this'-style gaps the generation can reintroduce skipped slots only after the end, fine, but pattern comes from `event.recurrencePattern` of the clicked row, which may differ (B-20).
+B-21 [PARTIAL 2026-10-11: extension now uses the edited series' pattern/last row; still extends from last date] LOW - `repeatUntil` with all_after extends from the series' LAST date (App.tsx:4243), not relative to the edited occurrence; with 'this'-style gaps the generation can reintroduce skipped slots only after the end, fine, but pattern comes from `event.recurrencePattern` of the clicked row, which may differ (B-20).
 
-B-17 MEDIUM - No "until date" at creation; fixed cap of 52 occurrences, which means daily ends after ~7 weeks and custom weekdays after 52 hits. Users will see a series "run out" with no warning.
+B-17 [FIXED 2026-10-11] MEDIUM - No "until date" at creation; fixed cap of 52 occurrences, which means daily ends after ~7 weeks and custom weekdays after 52 hits. Users will see a series "run out" with no warning.
 
 B-18 LOW - Monthly series skip months lacking the date rather than clamping (recurrenceExpander.ts:48-52); and `generateRecurrenceDatesAfter` (recurrenceExpander.ts:~108) anchors on the last occurrence, which after a skip can be a different day-of-month.
 
 B-19 LOW - `sharedUpdates` includes `calendarContainerId/categoryId/timezone` and `attendees` is separate; `originalStart/End` (drag diff markers) are NOT updated for scoped rows in `applyEventMove`, so "Show differences" in the other rows is inconsistent (App.tsx:2326-2332).
 
-B-26 MEDIUM - Making a single event repeat silently moves it to the first pattern day if its own weekday is not selected (App.tsx:4287).
+B-26 [FIXED 2026-10-11] MEDIUM - Making a single event repeat silently moves it to the first pattern day if its own weekday is not selected (App.tsx:4287).
 
 B-29 LOW - Resize never asks for scope; a resize on a recurring row changes only that row (App.tsx:2339), while move asks.
 
-B-30 MEDIUM - `deleteEvents` (useStore.ts:907) does not remove stickers (the single `deleteEvent` does at :838). Series delete leaves orphaned event-anchored stickers; they are no longer rendered but count toward the 500 sticker cap and persist locally.
+B-30 [FIXED 2026-10-11] MEDIUM - `deleteEvents` (useStore.ts:907) does not remove stickers (the single `deleteEvent` does at :838). Series delete leaves orphaned event-anchored stickers; they are no longer rendered but count toward the 500 sticker cap and persist locally.
 
 ### Data / persistence / undo
 
 B-14 MEDIUM - Event tags are silently discarded: AddModal collects `tags` for events but `eventPayload` has no tag field (App.tsx:1362-1384) and the events table has no tag column.
 
-B-15 LOW - `isPastEvent` (App.tsx:1356-1359) compares only the start `date` and end time-of-day; a cross-midnight event starting today ending tomorrow morning can be wrongly marked 'unplanned' if the end time-of-day has passed.
+B-15 [FIXED 2026-10-11] LOW - `isPastEvent` (App.tsx:1356-1359) compares only the start `date` and end time-of-day; a cross-midnight event starting today ending tomorrow morning can be wrongly marked 'unplanned' if the end time-of-day has passed.
 
-B-31 MEDIUM - Undo coverage gaps: popup saves (`onUpdateEvent`, `onUpdateTask`, `onUpdateTimeBlock`, App.tsx:4150-4280) call no `saveSnapshot`, so editing is not undoable while the very next Cmd+Z will undo an earlier unrelated action. Snapshots include gcal and shared events: undo can restore ephemeral rows that persistence filters (`gcal-evt-`, `sharedFromShareId`), and dismissed gcal events reappear until reload. Stickers are excluded, so undoing a delete loses the event's stickers.
+B-31 [FIXED 2026-10-11] MEDIUM - Undo coverage gaps: popup saves (`onUpdateEvent`, `onUpdateTask`, `onUpdateTimeBlock`, App.tsx:4150-4280) call no `saveSnapshot`, so editing is not undoable while the very next Cmd+Z will undo an earlier unrelated action. Snapshots include gcal and shared events: undo can restore ephemeral rows that persistence filters (`gcal-evt-`, `sharedFromShareId`), and dismissed gcal events reappear until reload. Stickers are excluded, so undoing a delete loses the event's stickers.
 
-B-46 HIGH - History is never cleared on sign-out or user switch (no `past: []` reset besides initial state). Cmd+Z after signing into another account would write the previous user's snapshot into the store, which the persistence layer then uploads to the new account.
+B-46 [FIXED 2026-10-11] HIGH - History is never cleared on sign-out or user switch (no `past: []` reset besides initial state). Cmd+Z after signing into another account would write the previous user's snapshot into the store, which the persistence layer then uploads to the new account.
 
-B-44 MEDIUM - Stickers are not in `supabasePersistence.ts` (no table or row mapping) and absent from the beforeunload local slice (supabasePersistence.ts:760-775). They survive only through the zustand local persist in the same browser, and vanish on other devices or after cache clear.
+B-44 [FIXED 2026-10-11] MEDIUM - Stickers are not in `supabasePersistence.ts` (no table or row mapping) and absent from the beforeunload local slice (supabasePersistence.ts:760-775). They survive only through the zustand local persist in the same browser, and vanish on other devices or after cache clear.
 
-B-45 MEDIUM - Shortcuts have no modifier guard (App.tsx:2709-2714): Cmd/Ctrl+A, +D, +W, +M, +3 are intercepted with `preventDefault()` while not in an input (select-all, bookmark, close window/minimize in the desktop shell). Also fires while a modal is open if focus is on a button. Redo via Ctrl+Y not supported.
+B-45 [FIXED 2026-10-11] MEDIUM - Shortcuts have no modifier guard (App.tsx:2709-2714): Cmd/Ctrl+A, +D, +W, +M, +3 are intercepted with `preventDefault()` while not in an input (select-all, bookmark, close window/minimize in the desktop shell). Also fires while a modal is open if focus is on a button. Redo via Ctrl+Y not supported.
 
 B-60 MEDIUM - Deleting a calendar or category hard-cascades events/tasks/blocks (useStore.ts:726-768) with `calendarContainerId === id` only, ignoring multi-calendar categories (`calendarContainerIds`) and without stickers/guest cleanup.
-B-61 LOW - `deleteTag` (useStore.ts:781) leaves `tagIds` references on tasks/blocks.
+B-61 [FIXED 2026-10-11] LOW - `deleteTag` (useStore.ts:781) leaves `tagIds` references on tasks/blocks.
 
 ### Mobile
 
-B-35 HIGH - Mobile writes unpadded times: `normalizeTime` returns `${h}:${mm}` (MobileApp.tsx:456, 922), so 09:00 becomes "9:00". String comparisons (sort, `e.date >= ...`, `<` on times) misorder it, AddModal time inputs show blank, and `new Date('2026-07-01T9:00:00')` is Invalid Date. Editing such an event on desktop and adding a guest makes `toISOString()` throw a RangeError inside `sendNewInvites` (App.tsx:1544), aborting the save.
-B-36 MEDIUM - No end-after-start validation (MobileApp.tsx:900-945, 1698).
-B-37 MEDIUM - Mobile edit/delete of a series row has no scope prompt and no guest notification/cancel; mobile also cannot create repeats or invites.
-B-39 MEDIUM - Mobile "done" only sets task status (MobileApp.tsx:450, 2903); desktop `handleMarkTaskDone` also confirms blocks. Result: task shows done but its block still shows as missed. Mobile never calls `expandRecurringTasks`, so repeating to-dos made on desktop do not materialize new instances if you only use mobile.
+B-35 [FIXED 2026-10-11] HIGH - Mobile writes unpadded times: `normalizeTime` returns `${h}:${mm}` (MobileApp.tsx:456, 922), so 09:00 becomes "9:00". String comparisons (sort, `e.date >= ...`, `<` on times) misorder it, AddModal time inputs show blank, and `new Date('2026-07-01T9:00:00')` is Invalid Date. Editing such an event on desktop and adding a guest makes `toISOString()` throw a RangeError inside `sendNewInvites` (App.tsx:1544), aborting the save.
+B-36 [FIXED 2026-10-11] MEDIUM - No end-after-start validation (MobileApp.tsx:900-945, 1698).
+B-37 [PARTIAL 2026-10-11: mobile delete/edit now share desktop prompts; mobile edit applies to one occurrence only (noted in the sheet)] MEDIUM - Mobile edit/delete of a series row has no scope prompt and no guest notification/cancel; mobile also cannot create repeats or invites.
+B-39 [FIXED 2026-10-11] MEDIUM - Mobile "done" only sets task status (MobileApp.tsx:450, 2903); desktop `handleMarkTaskDone` also confirms blocks. Result: task shows done but its block still shows as missed. Mobile never calls `expandRecurringTasks`, so repeating to-dos made on desktop do not materialize new instances if you only use mobile.
 
 ### Tasks
 
@@ -399,35 +410,35 @@ B-38 LOW - Past-slot creation still writes legacy `mode:'recorded'` (App.tsx:132
 B-40 LOW - `handleConfirmBlock` marks the task done only if every sibling is 'confirmed'; a skipped sibling blocks completion (App.tsx:1240-1244).
 B-41 MEDIUM - Deleting the head of a repeating to-do orphans instances and halts generation silently (useStore.ts:304). No series-level delete.
 B-42 MEDIUM - Editing an instance's `dueDate` and then expanding recreates the original date (dedup is by dueDate, useStore.ts:331-335). Deleting after moving records the wrong exception date (useStore.ts:309).
-B-43 MEDIUM - Turning recurrence on for an existing instance makes a second head in the same series (App.tsx:4156-4160); editing the head's pattern or anchor does not rebuild existing instances (no scope concept for to-dos). Recurrence fields are not yet persisted in Supabase per memory, so after reload from the cloud heads may lose pattern.
+B-43 [PARTIAL 2026-10-11: instance->head and pattern change handled; todo scope editing still minimal] MEDIUM - Turning recurrence on for an existing instance makes a second head in the same series (App.tsx:4156-4160); editing the head's pattern or anchor does not rebuild existing instances (no scope concept for to-dos). Recurrence fields are not yet persisted in Supabase per memory, so after reload from the cloud heads may lose pattern.
 
 ### Google / ICS
 
 B-22 LOW/MED - No all-day creation; imported all-day events become 00:00-23:59 timed blocks (googleCalendar.ts:~612) and multi-day all-day events render as long cross-midnight cards.
 B-47 LOW - Onboarding Google path navigates away 300 ms after `setHasCompletedSetup`, racing `persistOnboardingToSupabase` (App.tsx:2755-2763).
-B-48 MEDIUM (security) - Google refresh token stored in plain localStorage (googleCalendar.ts:41-50); XSS exposure.
-B-49 MEDIUM - `refreshAccessToken` treats ANY 400/401/403 as revoked and calls `disconnectGoogle()` (googleCalendar.ts:213-221), so a transient edge-function error or rate limit disconnects the user.
-B-50 MEDIUM - Edits/moves of Google-origin events are local only and are overwritten on next import (future events always take the fresh copy, App.tsx:~660); moves also trigger Timebox attendee emails (B-28 below).
-B-28 LOW - `handleMoveEvent`/`handleResizeEvent` have no `readOnly` guard (only UI-level hiding in EventCard.tsx:814); a readOnly shared event could be dragged locally.
+B-48 [PARTIAL 2026-10-11: deferred by decision] MEDIUM (security) - Google refresh token stored in plain localStorage (googleCalendar.ts:41-50); XSS exposure.
+B-49 [FIXED 2026-10-11] MEDIUM - `refreshAccessToken` treats ANY 400/401/403 as revoked and calls `disconnectGoogle()` (googleCalendar.ts:213-221), so a transient edge-function error or rate limit disconnects the user.
+B-50 [PARTIAL 2026-10-11: unchanged: edits of organizer-owned Google events are local and overwritten on import] MEDIUM - Edits/moves of Google-origin events are local only and are overwritten on next import (future events always take the fresh copy, App.tsx:~660); moves also trigger Timebox attendee emails (B-28 below).
+B-28 [FIXED 2026-10-11] LOW - `handleMoveEvent`/`handleResizeEvent` have no `readOnly` guard (only UI-level hiding in EventCard.tsx:814); a readOnly shared event could be dragged locally.
 B-51 LOW - Dismissed Google events/calendars/series are localStorage-only: other devices re-import them.
 
 ### Sharing (calendar/category/tag) and invite page
 
-B-52 HIGH - Copy-link generates `/share/cal_<8 chars>` URLs (App.tsx:508-515) that nothing routes; a recipient hits the app root.
-B-53 MEDIUM - `addShareMember` sends no email (index.ts:803-826). Second and later invites to a calendar produce a token but the guest is never told, while the UI toasts "Invite sent".
-B-54 LOW - `handleShareInvite` catch path shows a SUCCESS toast "Invite saved (email may not have sent)" (App.tsx:562) even when the server call failed; the optimistic row is only corrected by `loadCollaborators`.
+B-52 [FIXED 2026-10-11] HIGH - Copy-link generates `/share/cal_<8 chars>` URLs (App.tsx:508-515) that nothing routes; a recipient hits the app root.
+B-53 [FIXED 2026-10-11] MEDIUM - `addShareMember` sends no email (index.ts:803-826). Second and later invites to a calendar produce a token but the guest is never told, while the UI toasts "Invite sent".
+B-54 [FIXED 2026-10-11] LOW - `handleShareInvite` catch path shows a SUCCESS toast "Invite saved (email may not have sent)" (App.tsx:562) even when the server call failed; the optimistic row is only corrected by `loadCollaborators`.
 B-55 LOW - Role selector is cosmetic (App.tsx:591); `includeExisting`/`pushToGoogle` flags stored but unused. Tag-scoped shares return zero events by design (index.ts:1139-1146).
-B-56 MEDIUM - Linking invitees to accounts uses `auth.admin.listUsers()` inside a per-member loop (index.ts:660-672): first page only (default 50 users) and case-sensitive compare, so users beyond page 1 never get `user_id`. `shared_with_me_events` falls back to an email match against the logged-in account's auth email, so an invitee who accepts while signed in under a different address never sees the share.
+B-56 [FIXED 2026-10-11] MEDIUM - Linking invitees to accounts uses `auth.admin.listUsers()` inside a per-member loop (index.ts:660-672): first page only (default 50 users) and case-sensitive compare, so users beyond page 1 never get `user_id`. `shared_with_me_events` falls back to an email match against the logged-in account's auth email, so an invitee who accepts while signed in under a different address never sees the share.
 B-57 LOW - `loadSharedCalendars` returns early when `shared.length === 0` (App.tsx:365): revoked/removed shares leave stale `shared-*` events in the store until reload clears them. N+1 `getUserName` calls per share in `shared_with_me_events`.
 B-58 MEDIUM - `respond` is unauthenticated and token-only, and `?action=decline` auto-fires on page load (InvitePage.tsx:32-37) with no confirmation: link-preview bots that execute JS, or a double mount, can decline for the user.
 B-59 LOW - InvitePage accept does not prompt sign-in or claim the membership (`user_id` stays null), see B-56.
-B-34 MEDIUM - Accepting/declining on the invite page updates only `share_members.status`; the organizer's event "Invited" chips read `events.attendees[].responseStatus`, so web RSVPs never show on the event (only email-reply RSVPs do via rsvp-inbound).
+B-34 [FIXED 2026-10-11] MEDIUM - Accepting/declining on the invite page updates only `share_members.status`; the organizer's event "Invited" chips read `events.attendees[].responseStatus`, so web RSVPs never show on the event (only email-reply RSVPs do via rsvp-inbound).
 
 ### Security (edge functions)
 
-B-24 HIGH - HTML injection in emails: `inviteEmailHtml` (index.ts:79-95) and `eventUpdateEmailHtml` (index.ts:483-500) interpolate sender name, event title and the change text unescaped (no escape helper exists). Event titles are user-controlled and mailed to arbitrary addresses, so a title like `<a href=...>` becomes a phishing vector from the service domain. Escape all interpolated values.
-B-32 HIGH - No ownership/authorization checks on event actions: `create_share`, `resend_invite`, `notify_event_update`, `remove_attendees` accept any `eventId`/emails/`changes`/`event` payload from any authenticated user. They can be used as a mail relay with the service's From address, or to send forged CANCEL .ics for another user's event UID (UID is the row id, `index.ts:754, 873`). No rate limiting.
-B-33 HIGH - `rsvp-inbound` auth is `if (expected && provided !== expected)` (rsvp-inbound/index.ts:~185). If `RSVP_WEBHOOK_SECRET` is unset (and `verify_jwt=false` in config.toml) the endpoint is public. Even with the secret, the reply's UID selects any event id: a forged reply can overwrite `attendees` of any event and appends unknown emails (`recordRsvp`, `if (!matched) updated.push(...)`). Verify the sender is an existing attendee and use a signed per-event token.
+B-24 [FIXED 2026-10-11] HIGH - HTML injection in emails: `inviteEmailHtml` (index.ts:79-95) and `eventUpdateEmailHtml` (index.ts:483-500) interpolate sender name, event title and the change text unescaped (no escape helper exists). Event titles are user-controlled and mailed to arbitrary addresses, so a title like `<a href=...>` becomes a phishing vector from the service domain. Escape all interpolated values.
+B-32 [FIXED 2026-10-11] HIGH - No ownership/authorization checks on event actions: `create_share`, `resend_invite`, `notify_event_update`, `remove_attendees` accept any `eventId`/emails/`changes`/`event` payload from any authenticated user. They can be used as a mail relay with the service's From address, or to send forged CANCEL .ics for another user's event UID (UID is the row id, `index.ts:754, 873`). No rate limiting.
+B-33 [FIXED 2026-10-11] HIGH - `rsvp-inbound` auth is `if (expected && provided !== expected)` (rsvp-inbound/index.ts:~185). If `RSVP_WEBHOOK_SECRET` is unset (and `verify_jwt=false` in config.toml) the endpoint is public. Even with the secret, the reply's UID selects any event id: a forged reply can overwrite `attendees` of any event and appends unknown emails (`recordRsvp`, `if (!matched) updated.push(...)`). Verify the sender is an existing attendee and use a signed per-event token.
 B-25 LOW - `createShare` does not dedupe or validate email addresses; duplicate emails in one call will create duplicate members (or fail the batch if a unique index exists).
 
 ----------------------------------------------------------------------------------------------------
