@@ -3092,7 +3092,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => { setVisitMode(false); setPreAuthScreen('auth'); setAuthMode('signup'); }}
-            className="px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors"
+            className="px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors whitespace-nowrap shrink-0 ml-2"
           >
             Sign in
           </button>

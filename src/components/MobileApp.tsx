@@ -183,7 +183,7 @@ export function MobileApp(actions: MobileActions) {
 
   return (
     <MobileActionsContext.Provider value={actions}>
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: COLOR.surface2, maxWidth: '100vw', overscrollBehavior: 'none' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: COLOR.surface2, maxWidth: '100vw', overscrollBehavior: 'none' }}>
       {/* Top safe area spacer — background color only, no interactive content */}
       <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: COLOR.surface2 }} />
       {/* Content — fills remaining height */}
@@ -925,7 +925,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
 
   useEffect(() => {
     const first = filteredCategories[0];
-    if (first) setCategoryId(first.id);
+    setCategoryId(first ? first.id : '');
     setSelectedTagIds([]);
   }, [calendarId]);
 
@@ -936,7 +936,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
-  const canSubmit = title.trim() && categoryId && (mode === 'task' || (eventStart && eventEnd));
+  const canSubmit = title.trim() && (categoryId || filteredCategories.length === 0) && (mode === 'task' || (eventStart && eventEnd));
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -1093,6 +1093,9 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
           <div>
             <SectionLabel as="label" mb={5}>Category</SectionLabel>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {filteredCategories.length === 0 && (
+                <span style={{ fontSize: 12, color: COLOR.muted }}>No categories in this calendar yet. You can add one later.</span>
+              )}
               {filteredCategories.map((c) => (
                 <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} className="touch-manipulation"
                   style={chipStyle(categoryId === c.id, c.color)}>
