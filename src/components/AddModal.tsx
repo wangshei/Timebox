@@ -689,7 +689,7 @@ export function AddModal({
           ...(isMobileModal ? {} : { left: panelPos.x, top: panelPos.y, width: `${PANEL_WIDTH}px` }),
           maxWidth: isMobileModal ? undefined : 'calc(100vw - 32px)',
           maxHeight: maxH,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: mode === 'task' ? 'var(--tb-note-bg-soft)' : '#FFFFFF',
           borderRadius: '16px',
           border: '1px solid rgba(160, 140, 120, 0.2)',
           boxShadow: 'var(--tb-sh-3)',
@@ -698,7 +698,7 @@ export function AddModal({
         {/* Drag header (drag disabled on mobile) */}
         <div
           className="flex items-center gap-2 px-6 pt-6 pb-3.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: mode === 'task' ? 'var(--tb-note-bg)' : undefined }}
           onMouseDown={(e) => {
             if (isMobileModal) return;
             if ((e.target as HTMLElement).closest('button')) return;

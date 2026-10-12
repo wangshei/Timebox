@@ -4019,12 +4019,9 @@ export default function App() {
         )}
         {rightPanelOpen && (
             <div className="flex-shrink-0 flex flex-col min-h-0 overflow-hidden" style={{ width: 'var(--tb-w-right)', backgroundColor: 'var(--tb-surface-2)' }}>
-            <div className="flex items-center justify-between flex-shrink-0" style={{ height: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-4)', boxSizing: 'border-box', borderBottom: '1px solid var(--tb-border)' }}>
-              <span style={{ fontSize: 'var(--tb-fs-md)', fontWeight: 600, color: THEME.textPrimary }}>
-                To-Dos
-              </span>
-              <div className="flex items-center gap-1.5">
-                {FEATURES.activityPanel && isTauri() && (
+            <div className="flex-1 min-h-0 overflow-hidden relative">
+              <RightSidebar
+                headerExtra={<>{FEATURES.activityPanel && isTauri() && (
                   <button
                     type="button"
                     onClick={() => setActivityPanelOpen(!activityPanelOpen)}
@@ -4053,10 +4050,7 @@ export default function App() {
                     )}
                   </button>
                 )}
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden relative">
-              <RightSidebar
+</>}
                 tasks={displayTasks}
                 unscheduledTasks={unscheduledDisplay}
                 partiallyCompletedTasks={partiallyCompletedDisplay}

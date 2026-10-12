@@ -560,121 +560,88 @@ export function TaskCard({
     );
   }
 
-  // ─── OVERVIEW MODE — todo-list style ──────────────────────────────────────
+  // ─── OVERVIEW MODE — calm todo-list row ───────────────────────────────────
+  const isRecurring = !!(task as any).recurring || !!(task as any).seriesId || (!!(task as any).recurrencePattern && (task as any).recurrencePattern !== 'none');
+  const dueText = task.dueDate && !isDone ? (isOverdue ? 'Overdue' : `Due ${fmtDate(task.dueDate)}`) : null;
+  const durText = estimatedMins > 0 ? (estimatedMins >= 60 ? `${Math.floor(estimatedMins / 60)}h${estimatedMins % 60 ? ` ${estimatedMins % 60}m` : ''}` : `${estimatedMins}m`) : null;
+  const metaParts = [dueText, !isNote ? durText : null].filter(Boolean) as string[];
+  const hasMeta = metaParts.length > 0 || isRecurring;
   return (
     <>
       <div
         ref={cardRef}
         className="group relative cursor-pointer"
-        style={{
-          borderBottom: '1px solid rgba(0,0,0,0.05)',
-          ...(showPopover ? { zIndex: 'var(--tb-z-dropdown)' } : {}),
-        }}
+        style={{ margin: isNote ? '4px 0' : 0, ...(showPopover ? { zIndex: 'var(--tb-z-dropdown)' } : {}) }}
         onClick={(e) => {
           if (e.detail !== 1) return;
           if (dragEndedRef.current) { dragEndedRef.current = false; return; }
-          // Don't open popover if clicking interactive children
           popoverOpenedAtRef.current = Date.now();
           setShowPopover((v) => !v);
         }}
         onPointerDown={handlePointerDragStart}
       >
         <div
-          className={`flex items-start gap-2 px-2 py-2 rounded-lg transition-colors ${!showPopover && !isUrgent && !isNote ? 'tb-hover' : ''}`}
+          className={`flex items-start transition-colors ${!showPopover && !isNote ? 'tb-hover' : ''}`}
           style={{
-            backgroundColor: isNote ? NOTE_BG : isUrgent ? URGENT_BG : showPopover ? hexRgba(catColor, 0.04) : undefined,
-            ...(isNote ? { border: `1px solid ${NOTE_BORDER}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', margin: '2px 0' } : {}),
-            ...(isUrgent && !isNote ? { borderLeft: `2px solid ${URGENT_TEXT}`, paddingLeft: 6 } : {}),
+            gap: 8,
+            padding: isNote ? '8px 12px' : '8px 8px',
+            minHeight: 36,
+            borderRadius: RADIUS.md,
+            boxSizing: 'border-box',
+            backgroundColor: isNote ? 'var(--tb-note-bg)' : showPopover ? 'var(--tb-hover)' : undefined,
+            ...(isNote ? { border: '1px solid var(--tb-note-border)' } : {}),
           }}
         >
-          {/* Done circle — left side, with larger touch target */}
-          {isNote ? (
-            <div className="flex-shrink-0" style={{ width: 4 }} />
-          ) : onMarkTaskDone ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkTaskDone();
-              }}
-              className="flex-shrink-0 flex items-center justify-center transition-all mt-0.5 touch-manipulation"
-              style={{
-                width: 28,
-                height: 28,
-                padding: 0,
-                border: 'none',
-                backgroundColor: 'transparent',
-              }}
-              title={isDone ? 'Mark as not done' : 'Mark as done'}
-              aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
-            >
-              <div className="flex items-center justify-center rounded-full" style={{
-                width: 16,
-                height: 16,
-                border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.22)'}`,
-                backgroundColor: isDone ? catColor : 'transparent',
-              }}>
-                {isDone && <CheckIcon className="h-3 w-3" style={{ color: '#FFFFFF' }} />}
-              </div>
-            </button>
-          ) : (
-            <div className="flex-shrink-0 mt-0.5" style={{ width: 28, height: 28 }} />
+          {!isNote && (
+            onMarkTaskDone ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onMarkTaskDone(); }}
+                className="flex-shrink-0 flex items-center justify-center touch-manipulation"
+                style={{ width: 20, height: 20, padding: 0, border: 'none', backgroundColor: 'transparent' }}
+                title={isDone ? 'Mark as not done' : 'Mark as done'}
+                aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
+              >
+                <div className="flex items-center justify-center rounded-full" style={{
+                  width: 16, height: 16, boxSizing: 'border-box',
+                  border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.25)'}`,
+                  backgroundColor: isDone ? catColor : 'transparent',
+                }}>
+                  {isDone && <CheckIcon style={{ width: 12, height: 12, color: '#FFFFFF' }} />}
+                </div>
+              </button>
+            ) : <div className="flex-shrink-0" style={{ width: 20, height: 20 }} />
           )}
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Title row */}
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center" style={{ gap: 8, minHeight: 20 }}>
               <span
-                className="text-sm font-medium leading-snug flex-1 min-w-0"
+                className={isNote ? 'flex-1 min-w-0' : 'flex-1 min-w-0 truncate'}
+                title={task.title}
                 style={{
-                  color: isDone ? '#AEAEB2' : THEME.textPrimary,
+                  fontSize: 13, lineHeight: '20px', fontWeight: 500,
+                  color: isDone ? 'var(--tb-faint)' : isNote ? 'var(--tb-note-text)' : 'var(--tb-text)',
                   textDecorationLine: isDone ? 'line-through' : 'none',
                   textDecorationColor: 'rgba(0,0,0,0.3)',
-                  wordBreak: 'break-word',
+                  ...(isNote ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', wordBreak: 'break-word' as const } : {}),
                 }}
               >
                 {task.title}
               </span>
-
-              {/* Right: priority stars */}
-              <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                {onTogglePin && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTogglePin();
-                    }}
-                    className="flex items-center gap-0.5 transition-opacity tb-hv-o"
-                    style={{ '--hv-o': '1', color: '#F5A623',
-                      opacity: priority > 0 ? 1 : 0, } as React.CSSProperties}
-                    title="Cycle priority"
-                    aria-label="Cycle priority"
-                  >
-                    {priority > 0
-                      ? [1, 2, 3, 4, 5].filter((l) => l <= priority).map((l) => (
-                          <StarIcon key={l} className="h-2.5 w-2.5" />
-                        ))
-                      : <StarOutlineIcon className="h-2.5 w-2.5" />
-                    }
-                  </button>
-                )}
-              </div>
+              {priority > 0 && (
+                <span className="flex items-center flex-shrink-0" style={{ color: '#F5A623', gap: 2 }} title={`Priority ${priority}`}>
+                  <StarIcon style={{ width: 12, height: 12 }} />
+                  <span style={{ fontSize: 11, fontWeight: 500 }}>{priority}</span>
+                </span>
+              )}
+              <Bars3Icon className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ width: 14, height: 14, color: 'var(--tb-muted)' }} />
             </div>
-
-            {/* Due date */}
-            {'dueDate' in task && task.dueDate && !isDone && (
-              <div className="mt-0.5 flex items-center gap-1" style={{ fontSize: 11, color: isUrgent ? URGENT_TEXT : THEME.textPrimary, lineHeight: 1.4, fontWeight: isUrgent ? 500 : 400 }}>
-                {isOverdue ? 'Overdue' : `Due ${fmtDate(task.dueDate)}`}
+            {hasMeta && (
+              <div className="flex items-center" style={{ gap: 4, fontSize: 11, lineHeight: '16px', color: isOverdue ? URGENT_TEXT : isNote ? 'var(--tb-note-text)' : 'var(--tb-muted)', opacity: isNote ? 0.7 : 1 }}>
+                {isRecurring && <ArrowPathIcon style={{ width: 12, height: 12 }} aria-label="Repeats" />}
+                <span className="truncate">{metaParts.join(' · ')}</span>
               </div>
             )}
-
-          </div>
-
-          {/* Drag handle — subtle on hover */}
-          <div className="flex-shrink-0 opacity-0 group-hover:opacity-30 transition-opacity mt-0.5">
-            <Bars3Icon className="h-3 w-3" style={{ color: catColor }} />
           </div>
         </div>
       </div>

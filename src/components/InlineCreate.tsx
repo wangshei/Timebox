@@ -55,8 +55,9 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
       data-inline-create
       style={{
         position: 'fixed', left, top, width: W, zIndex: Z.popover,
-        background: COLOR.surface, border: `1px solid ${COLOR.borderStrong}`,
-        borderLeft: `4px solid ${COLOR.accent}`, borderRadius: RADIUS.md,
+        background: mode === 'todo' ? COLOR.noteBg : COLOR.surface,
+        border: `1px solid ${mode === 'todo' ? COLOR.noteBorder : COLOR.borderStrong}`,
+        borderLeft: `4px solid ${mode === 'todo' ? '#D6B43C' : COLOR.accent}`, borderRadius: RADIUS.md,
         boxShadow: SHADOW.sh2, padding: '6px 8px',
       }}
       onMouseDown={(e) => {
@@ -83,7 +84,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         }}
         style={{
           width: '100%', border: 'none', outline: 'none', background: 'transparent',
-          fontSize: FONT_SIZE.base, color: COLOR.text, padding: 0,
+          fontSize: FONT_SIZE.base, color: mode === 'todo' ? COLOR.noteText : COLOR.text, padding: 0,
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>

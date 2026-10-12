@@ -56,6 +56,8 @@ interface RightSidebarProps {
   view?: 'day' | '3day' | 'week' | 'month';
   onSelectedDateChange?: (date: string) => void;
   onResizeTask?: (taskId: string, newEstimatedMinutes: number) => void;
+  /** Extra controls rendered at the end of the To-Dos header row. */
+  headerExtra?: React.ReactNode;
 }
 
 export function RightSidebar({
@@ -89,6 +91,7 @@ export function RightSidebar({
   view,
   onSelectedDateChange,
   onResizeTask,
+  headerExtra,
 }: RightSidebarProps) {
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   // Plan toggle: OFF = compact list rows, ON = duration-sized cards.
@@ -276,22 +279,30 @@ export function RightSidebar({
     />
   );
 
-  const renderGroups = (groupList: Array<{ key: string; label: string; tasks: Task[] }>) => (
-    <div className="space-y-4">
-      {groupList.map((group) => (
-        <div key={group.key}>
-          <div className="flex items-center justify-between mb-1.5 px-1">
-            <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
-              {group.label}
-              <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 500 }}>{group.tasks.length}</span>
-            </h2>
-          </div>
-          <div className={planMode ? 'space-y-2' : ''}>
-            {group.tasks.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
-          </div>
-        </div>
-      ))}
+  const SectionLabel = ({ label, count, action }: { label: string; count: number; action?: React.ReactNode }) => (
+    <div className="flex items-center justify-between" style={{ height: 24, padding: '0 4px', marginBottom: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--tb-muted)' }}>
+        {label}<span style={{ marginLeft: 6, fontWeight: 500, color: 'var(--tb-faint)' }}>{count}</span>
+      </span>
+      {action}
     </div>
+  );
+
+  const renderList = (list: Task[]) => (
+    <div className="flex flex-col" style={{ gap: 2 }}>
+      {list.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
+    </div>
+  );
+
+  const renderGroups = (groupList: Array<{ key: string; label: string; tasks: Task[] }>) => (
+    <>
+      {groupList.map((group) => (
+        <section key={group.key} style={{ marginTop: 16 }}>
+          <SectionLabel label={group.label} count={group.tasks.length} />
+          {renderList(group.tasks)}
+        </section>
+      ))}
+    </>
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -316,25 +327,21 @@ export function RightSidebar({
       ref={sidebarDropRef}
     >
       {!isMobile && view && onSelectedDateChange && (
-        <div className="flex-shrink-0" style={{ paddingTop: 'var(--tb-sp-2)' }}>
+        <div className="flex-shrink-0" style={{ padding: 'var(--tb-sp-2) 0 var(--tb-sp-1)' }}>
           <MiniMonth selectedDate={selectedDate} view={view} onSelect={onSelectedDateChange} weekStartsOnMonday={weekStartsOnMonday} />
         </div>
       )}
 
-      {/* Controls: grouping switch · Plan toggle · add */}
-      <div className="flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-2)' }}>
-        <div className="flex items-center justify-between gap-2">
-          <SegmentedControl
-            options={groupOptions}
-            value={groupBy}
-            onChange={(v) => setGroupBy(v as 'day' | 'due')}
-            compact
-          />
-          <div className="flex items-center gap-1.5">
+      {/* Header: title + controls, below the mini month */}
+      <div className="flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-4) var(--tb-sp-2)', borderTop: !isMobile && view ? `1px solid ${BORDER}` : 'none' }}>
+        <div className="flex items-center justify-between" style={{ height: 28 }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tb-text)' }}>To-Dos</span>
+          <div className="flex items-center" style={{ gap: 4 }}>
+            {headerExtra}
             <IconButton
               icon={RectangleStackIcon}
               size={isMobile ? 'touch' : 'md'}
-              variant="outline"
+              variant="ghost"
               active={planMode}
               onClick={() => setPlanMode((v) => !v)}
               title="Plan view — sizes each to-do by how long it takes"
@@ -347,7 +354,7 @@ export function RightSidebar({
                 data-tour="add-task-btn"
                 icon={PlusIcon}
                 size={isMobile ? 'touch' : 'md'}
-                variant="outline"
+                variant="ghost"
                 onClick={() => onOpenAddModal('task')}
                 title="Add note or to-do"
                 aria-label="Add note or to-do"
@@ -355,77 +362,69 @@ export function RightSidebar({
             )}
           </div>
         </div>
+        <div style={{ marginTop: 8 }}>
+          <SegmentedControl
+            options={groupOptions}
+            value={groupBy}
+            onChange={(v) => setGroupBy(v as 'day' | 'due')}
+            compact
+          />
+        </div>
       </div>
 
-      {/* Main scroll area: this-week scheduled to-dos + a folded Done section */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3">
+      {/* One calm scroll area: sections, then Unscheduled, then the Done fold */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ padding: '0 var(--tb-sp-3) var(--tb-sp-4)' }}>
         {groupBy === 'day' && (
-          <div className="px-1 mb-2" style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>
-            Week of {weekRangeLabel}
-          </div>
+          <div style={{ fontSize: 11, color: 'var(--tb-faint)', padding: '0 4px' }}>Week of {weekRangeLabel}</div>
         )}
         {mainGroups.length === 0 ? (
-          <div className="text-xs text-center py-6 px-2" style={{ color: '#AEAEB2' }}>
+          <div className="text-center" style={{ fontSize: 12, color: 'var(--tb-faint)', padding: '16px 8px 0' }}>
             {groupBy === 'day' ? 'Nothing scheduled this week' : 'No scheduled to-dos'}
           </div>
         ) : (
           renderGroups(mainGroups)
         )}
 
-      </div>
-
-      {/* Unscheduled — its own section pinned at the bottom, scrolls independently */}
-      <div
-        className="flex-shrink-0 flex flex-col min-h-0"
-        style={{ borderTop: `1px solid ${BORDER}`, maxHeight: '40%' }}
-      >
-        <div className="flex items-center justify-between flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-2)', gap: 'var(--tb-sp-2)', minHeight: 40, boxSizing: 'border-box' }}>
-          <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: 13, color: THEME.textPrimary }}>
-            Unscheduled
-            <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{unscheduledList.length}</span>
-          </h2>
-          {FEATURES.autoSchedule && onAutoSchedule && unscheduledList.length > 0 && (
-            <Button
-              size="sm"
-              icon={BoltIcon}
-              onClick={() => onAutoSchedule(unscheduledList.map((t) => t.id))}
-              style={{ color: 'var(--tb-accent-hover)', background: 'var(--tb-accent-soft)', borderColor: 'var(--tb-accent-ring)' }}
-            >
-              Auto Schedule
-            </Button>
-          )}
-        </div>
-        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-1 pb-3 ${planMode ? 'space-y-2' : ''}`}>
-          {unscheduledList.length === 0 ? (
-            <div className="text-xs text-center py-3" style={{ color: '#8E8E93' }}>Nothing unscheduled</div>
-          ) : (
-            unscheduledList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))
-          )}
-
-          {/* Done - folded away by default; completed to-dos can be un-ticked from here. */}
-          {doneList.length > 0 && (
-            <div className="mt-3">
-              <button
-                type="button"
-                data-testid="done-section-toggle"
-                onClick={() => setDoneOpen((v) => !v)}
-                aria-expanded={doneOpen}
-                className="flex items-center gap-1 w-full text-left px-1 mb-1.5"
+        <section style={{ marginTop: 16 }}>
+          <SectionLabel
+            label="Unscheduled"
+            count={unscheduledList.length}
+            action={FEATURES.autoSchedule && onAutoSchedule && unscheduledList.length > 0 ? (
+              <Button
+                size="sm"
+                icon={BoltIcon}
+                onClick={() => onAutoSchedule(unscheduledList.map((t) => t.id))}
+                style={{ color: 'var(--tb-accent-hover)', background: 'var(--tb-accent-soft)', borderColor: 'var(--tb-accent-ring)' }}
               >
-                {doneOpen
-                  ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
-                  : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />}
-                <span className="font-semibold" style={{ fontSize: 13, color: THEME.textPrimary }}>Done</span>
-                <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{doneList.length}</span>
-              </button>
-              {doneOpen && (
-                <div className={planMode ? 'space-y-2' : ''}>
-                  {doneList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                Auto Schedule
+              </Button>
+            ) : undefined}
+          />
+          {unscheduledList.length === 0
+            ? <div style={{ fontSize: 12, color: 'var(--tb-faint)', padding: '4px' }}>Nothing unscheduled</div>
+            : renderList(unscheduledList)}
+        </section>
+
+        {doneList.length > 0 && (
+          <section style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              data-testid="done-section-toggle"
+              onClick={() => setDoneOpen((v) => !v)}
+              aria-expanded={doneOpen}
+              className="flex items-center w-full text-left"
+              style={{ height: 24, padding: '0 4px', gap: 4, marginBottom: 4 }}
+            >
+              {doneOpen
+                ? <ChevronDownIcon className="flex-shrink-0" style={{ width: 12, height: 12, color: 'var(--tb-muted)' }} />
+                : <ChevronRightIcon className="flex-shrink-0" style={{ width: 12, height: 12, color: 'var(--tb-muted)' }} />}
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--tb-muted)' }}>
+                Done<span style={{ marginLeft: 6, fontWeight: 500, color: 'var(--tb-faint)' }}>{doneList.length}</span>
+              </span>
+            </button>
+            {doneOpen && renderList(doneList)}
+          </section>
+        )}
       </div>
     </div>
   );
