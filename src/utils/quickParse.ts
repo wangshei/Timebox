@@ -79,7 +79,7 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickParse
     date = base;
   } else if (take(/\s(?:tomorrow|tmrw|tmr)(?=\s|,|$)/i)) {
     date = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
-  } else if ((m = take(/\s(?:(next|this)\s+)?(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)[a-z]*(?=\s|,|$)/i))) {
+  } else if ((m = take(/\s(?:(next|this)\s+)?(sunday|sun|monday|mon|tuesday|tues|tue|wednesday|wed|thursday|thurs|thur|thu|friday|fri|saturday|sat)(?=\s|,|$)/i))) {
     const target = DAYS.indexOf(m[2].toLowerCase().slice(0, 3));
     let diff = (target - base.getDay() + 7) % 7;
     if (diff === 0) diff = 7;

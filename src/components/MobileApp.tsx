@@ -4,13 +4,14 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { MiniMonth } from './MiniMonth';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
-import { getLocalDateString, padTime, minutesToHHMM } from '../utils/dateTime';
+import { getLocalDateString, padTime, minutesToHHMM, getStartOfWeek } from '../utils/dateTime';
 import { activeDrag, registerDropZone, unregisterDropZone, initPointerDrag, type PointerDragOptions } from '../utils/dragState';
 import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
 import { COLOR } from '../styles/tokens';
-import { formatTime12, formatDateHeader, parseTaskInput } from '../utils/formatters';
+import { formatTime12, formatDateHeader } from '../utils/formatters';
+import { parseQuickAdd, describeQuickParse } from '../utils/quickParse';
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
 import { dismissGcalEventId } from '../services/googleCalendar';
@@ -125,6 +126,11 @@ function PlanIcon({ active }: { active: boolean }) {
 
 // ─── Main Component ────────────────────────────────────────
 
+/** Toast with a visible Undo (uses the shared history store; callers saveSnapshot() before mutating). */
+function undoToast(message: string) {
+  toast(message, { action: { label: 'Undo', onClick: () => useHistoryStore.getState().undo() }, duration: 6000 });
+}
+
 /** Actions the desktop shell owns so mobile behaves identically (scope prompts, guest notices, undo toasts). */
 export interface MobileActions {
   /** Delete an event: asks This/Following/All for repeating events and whether to notify guests. */
@@ -184,6 +190,8 @@ export function MobileApp(actions: MobileActions) {
   return (
     <MobileActionsContext.Provider value={actions}>
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: COLOR.surface2, maxWidth: '100vw', overscrollBehavior: 'none' }}>
+      {/* Lift toasts above the bottom nav so "Undo" stays tappable on mobile */}
+      <style>{`[data-sonner-toaster][data-y-position="bottom"]{--offset:calc(env(safe-area-inset-bottom, 0px) + 76px) !important;bottom:calc(env(safe-area-inset-bottom, 0px) + 76px) !important}`}</style>
       {/* Top safe area spacer — background color only, no interactive content */}
       <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: COLOR.surface2 }} />
       {/* Content — fills remaining height */}
@@ -1681,14 +1689,11 @@ function PlanTab() {
                   style={{
                     height: blockH,
                     marginBottom: 6,
-                    borderRadius: 6,
-                    padding: '6px 8px',
-                    borderTop: `3px solid ${color}`,
-                    borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
-                    borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
-                    borderBottom: `1px solid ${hexToRgba(color, 0.22)}`,
-                    backgroundColor: isSelected ? hexToRgba(color, 0.18) : '#FFF9EC',
-                    boxShadow: isSelected ? `0 0 0 2px ${color}` : '0 1px 4px rgba(0,0,0,0.08)',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                    borderLeft: `3px solid ${color}`,
+                    backgroundColor: isSelected ? hexToRgba(color, 0.18) : 'var(--tb-note-bg-soft)',
+                    boxShadow: isSelected ? `0 0 0 2px ${color}` : 'none',
                     cursor: 'grab',
                     overflow: 'hidden',
                     display: 'flex',
@@ -1700,7 +1705,7 @@ function PlanTab() {
                     touchAction: 'pan-y',
                   }}
                 >
-                  <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: Math.max(1, Math.floor((blockH - 24) / 14)), WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--tb-note-text)', margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: Math.max(1, Math.floor((blockH - 24) / 14)), WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>
                     {task.title}
                   </p>
                   {blockH >= 50 && (
@@ -2998,6 +3003,80 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
 
 // ─── TO-DO Tab (Quick capture + task list with scheduling) ──
 
+/** Calm to-do row (mirrors the desktop sidebar row): 44px touch height, 18px checkbox, one-line title + muted meta. */
+function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, onCheck }: {
+  task: Task; color: string; isNote: boolean; isDone: boolean; isExpanded: boolean; todayStr: string;
+  onToggle: () => void; onCheck: () => void;
+}) {
+  const isRecurring = !!(task as any).recurring || !!(task as any).seriesId || !!(task as any).recurrenceSeriesId;
+  const isOverdue = !!task.dueDate && !isDone && task.dueDate < todayStr;
+  const mins = task.estimatedMinutes || 0;
+  const dur = mins > 0 ? (mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}` : `${mins}m`) : null;
+  const dueText = task.dueDate && !isDone ? (isOverdue ? 'Overdue' : `Due ${formatDateHeader(task.dueDate)}`) : null;
+  const metaParts = [dueText, !isNote ? dur : null].filter(Boolean) as string[];
+  const hasMeta = metaParts.length > 0 || isRecurring;
+  const prio = task.priority ?? 0;
+  return (
+    <div
+      onClick={onToggle}
+      className="touch-manipulation"
+      style={{
+        display: 'flex', alignItems: isNote ? 'flex-start' : 'center', gap: 8, boxSizing: 'border-box',
+        minHeight: 44, padding: isNote ? '8px 12px' : '4px 8px', margin: isNote ? '4px 0' : 0,
+        borderRadius: 8, cursor: 'pointer',
+        backgroundColor: isNote ? 'var(--tb-note-bg)' : isExpanded ? 'rgba(0,0,0,0.03)' : 'transparent',
+        border: isNote ? '1px solid var(--tb-note-border)' : 'none',
+      }}
+    >
+      {!isNote && (
+        <button
+          type="button"
+          aria-label={isDone ? `Mark "${task.title}" not done` : `Mark "${task.title}" done`}
+          onClick={(e) => { e.stopPropagation(); onCheck(); }}
+          className="touch-manipulation"
+          style={{ flexShrink: 0, width: 44, height: 44, margin: '-13px -13px -13px -13px', padding: 0, border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <span style={{ width: 18, height: 18, boxSizing: 'border-box', borderRadius: '50%', border: `1.5px solid ${isDone ? color : 'rgba(0,0,0,0.25)'}`, backgroundColor: isDone ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isDone && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+          </span>
+        </button>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              flex: 1, minWidth: 0, fontSize: 13, lineHeight: '20px', fontWeight: 500,
+              color: isDone ? COLOR.faint : isNote ? 'var(--tb-note-text)' : COLOR.text,
+              textDecoration: isDone ? 'line-through' : 'none',
+              ...(isNote
+                ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', wordBreak: 'break-word' as const }
+                : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }),
+            }}
+          >
+            {task.title}
+          </span>
+          {prio > 0 && !isDone && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0, color: '#F5A623' }}>
+              <StarIcon style={{ width: 12, height: 12 }} />
+              <span style={{ fontSize: 11, fontWeight: 500 }}>{prio}</span>
+            </span>
+          )}
+        </div>
+        {hasMeta && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, lineHeight: '16px', color: isOverdue ? '#D63031' : isNote ? 'var(--tb-note-text)' : COLOR.muted, opacity: isNote ? 0.7 : 1 }}>
+            {isRecurring && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeats" style={{ flexShrink: 0 }}>
+                <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            )}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{metaParts.join(' · ')}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(() => void) | null> }) {
   const tasks = useStore((s) => s.tasks);
   const timeBlocks = useStore((s) => s.timeBlocks);
@@ -3007,10 +3086,13 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const addTask = useStore((s) => s.addTask);
   const updateTask = useStore((s) => s.updateTask);
   const addTimeBlock = useStore((s) => s.addTimeBlock);
+  const addEvent = useStore((s) => s.addEvent);
   const { saveSnapshot } = useHistoryStore();
 
   const [title, setTitle] = useState('');
-  const [filter, setFilter] = useState<'all' | 'today'>('all');
+  const [groupBy, setGroupBy] = useState<'day' | 'due'>('day');
+  const [miniOpen, setMiniOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   // Quick capture creates a note by default (same as the Add sheet and desktop); tick "To-do" for a checkbox item.
   const [captureAsTodo, setCaptureAsTodo] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
@@ -3133,7 +3215,9 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     }) ?? categories[0];
   }, [defaultCalendar, categories]);
 
-  const parsed = useMemo(() => parseTaskInput(title), [title]);
+  const parsed = useMemo(() => parseQuickAdd(title), [title]);
+  const previewText = title.trim() && (parsed.hasDate || parsed.hasTime || parsed.durationMins) ? describeQuickParse(parsed) || (parsed.durationMins ? `${parsed.durationMins} min` : '') : '';
+  const willCreateEvent = parsed.hasTime && !captureAsTodo;
 
   const handleCapture = useCallback(() => {
     if (!parsed.title) return;
@@ -3141,55 +3225,95 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     const calId = defaultCalendar?.id ?? calendarContainers[0]?.id ?? '';
     const catId = defaultCategory?.id ?? categories[0]?.id ?? '';
     saveSnapshot();
-    addTask({
-      title: parsed.title,
-      estimatedMinutes: parsed.minutes,
-      calendarContainerId: calId,
-      categoryId: catId,
-      tagIds: [],
-      flexible: true,
-      status: 'inbox',
-      isTodo: captureAsTodo,
-    });
+    const day = parsed.date ?? getLocalDateString();
+    if (parsed.hasTime && parsed.start) {
+      if (captureAsTodo) {
+        // To-do mode + a time: create the to-do and put it on the calendar at that time.
+        const mins = parsed.durationMins ?? 30;
+        const endM = Math.min(parseTimeToMinutes(parsed.start) + mins, 1439);
+        const taskId = addTask({
+          title: parsed.title, estimatedMinutes: mins, calendarContainerId: calId, categoryId: catId,
+          tagIds: [], flexible: true, status: 'inbox', isTodo: true,
+        });
+        if (taskId) {
+          addTimeBlock({
+            taskId, title: parsed.title, date: day, start: parsed.start, end: minutesToHHMM(endM),
+            mode: 'planned', source: 'manual', categoryId: catId, calendarContainerId: calId, tagIds: [],
+          } as any);
+        }
+        undoToast(`Scheduled "${parsed.title}"`);
+      } else {
+        const endM = parsed.end ? parseTimeToMinutes(parsed.end) : Math.min(parseTimeToMinutes(parsed.start) + (parsed.durationMins ?? 60), 1439);
+        addEvent({
+          title: parsed.title, calendarContainerId: calId, categoryId: catId, date: day,
+          start: parsed.start, end: minutesToHHMM(endM), recurring: false, source: 'manual',
+        } as any);
+        undoToast(`Event added: ${describeQuickParse(parsed)}`);
+      }
+    } else {
+      addTask({
+        title: parsed.title,
+        estimatedMinutes: parsed.durationMins ?? 30,
+        calendarContainerId: calId,
+        categoryId: catId,
+        tagIds: [],
+        flexible: true,
+        status: 'inbox',
+        isTodo: captureAsTodo,
+        ...(parsed.date ? { dueDate: parsed.date } : {}),
+      });
+      undoToast(captureAsTodo ? 'To-do added' : 'Note added');
+    }
     setTitle('');
     inputRef.current?.focus();
-  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask, captureAsTodo]);
+  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask, addTimeBlock, addEvent, captureAsTodo]);
 
-  // Tasks with blocks scheduled for today
-  const todayTaskIds = useMemo(() => {
-    const ids = new Set<string>();
+  const tomorrowStr = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + 1); return getLocalDateString(d); }, [todayStr]);
+  const weekSet = useMemo(() => {
+    const st = getStartOfWeek(new Date(selectedDate + 'T12:00:00'), false);
+    return new Set(Array.from({ length: 7 }, (_, i) => getLocalDateString(new Date(st.getFullYear(), st.getMonth(), st.getDate() + i))));
+  }, [selectedDate]);
+
+  const dayLabel = (key: string): string => {
+    if (key === 'none') return 'No due date';
+    if (key === todayStr) return 'Today';
+    if (key === tomorrowStr) return 'Tomorrow';
+    const label = new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return key < todayStr ? `${label} · overdue` : label;
+  };
+
+  // Same buckets as the desktop sidebar: scheduled (by day / by due), Unscheduled, then the Done fold.
+  const { mainGroups, unscheduledList } = useMemo(() => {
+    const firstBlockDate = new Map<string, string>();
     for (const b of timeBlocks) {
-      if (b.date === todayStr && b.taskId) ids.add(b.taskId);
+      if (!b.taskId) continue;
+      const cur = firstBlockDate.get(b.taskId);
+      if (!cur || b.date < cur) firstBlockDate.set(b.taskId, b.date);
     }
-    return ids;
-  }, [timeBlocks, todayStr]);
-
-  const activeTasks = useMemo(() => {
-    const filtered = tasks.filter((t) => {
-      if (filter === 'today') return t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id);
-      return t.status !== 'done' && t.status !== 'archived';
-    });
-    // Sort: priority desc → due date asc (soonest first) → newest first (reverse array order)
-    return [...filtered].sort((a, b) => {
-      // Priority: higher number = more important → show first
-      const pa = a.priority ?? 0;
-      const pb = b.priority ?? 0;
-      if (pb !== pa) return pb - pa;
-      // Due date: tasks with due dates before those without, sooner dates first
-      const da = a.dueDate ?? '';
-      const db = b.dueDate ?? '';
+    const sortFn = (a: Task, b: Task) => {
+      const da = a.dueDate ?? '', db = b.dueDate ?? '';
       if (da && !db) return -1;
       if (!da && db) return 1;
       if (da && db && da !== db) return da.localeCompare(db);
-      // Newest first: later index in original array = newer
-      return filtered.indexOf(b) - filtered.indexOf(a);
-    });
-  }, [tasks, filter, todayTaskIds]);
-
-  const counts = useMemo(() => ({
-    all: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived').length,
-    today: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id)).length,
-  }), [tasks, todayTaskIds]);
+      const pa = a.priority ?? 0, pb = b.priority ?? 0;
+      if (pa !== pb) return pb - pa;
+      return a.title.localeCompare(b.title);
+    };
+    const map = new Map<string, Task[]>();
+    const unscheduled: Task[] = [];
+    for (const t of tasks) {
+      if (t.status === 'done' || t.status === 'archived') continue;
+      const sd = firstBlockDate.get(t.id);
+      if (!sd) { unscheduled.push(t); continue; }
+      const key = groupBy === 'day' ? (weekSet.has(sd) ? sd : null) : (t.dueDate || 'none');
+      if (key === null) continue;
+      const arr = map.get(key); if (arr) arr.push(t); else map.set(key, [t]);
+    }
+    return {
+      mainGroups: [...map.keys()].sort().map((key) => ({ key, label: dayLabel(key), tasks: map.get(key)!.slice().sort(sortFn) })),
+      unscheduledList: unscheduled.sort(sortFn),
+    };
+  }, [tasks, timeBlocks, groupBy, weekSet, todayStr, tomorrowStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Completed to-dos live in a folded "Done" section at the bottom; they can be un-ticked there.
   const doneTasks = useMemo(
@@ -3199,9 +3323,11 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
 
   const handleToggleDone = useCallback((task: Task) => {
     // Same as desktop: completing also confirms the todo's blocks; un-completing reverses it (B-39).
-    if (actions.markTaskDone) { actions.markTaskDone(task.id); return; }
+    const wasDone = task.status === 'done';
+    if (actions.markTaskDone) { actions.markTaskDone(task.id); undoToast(wasDone ? 'Marked not done' : 'Marked done'); return; }
     saveSnapshot();
-    updateTask(task.id, { status: task.status === 'done' ? 'inbox' : 'done' });
+    updateTask(task.id, { status: wasDone ? 'inbox' : 'done' });
+    undoToast(wasDone ? 'Marked not done' : 'Marked done');
   }, [saveSnapshot, updateTask, actions]);
 
   const handleScheduleToday = useCallback((task: Task) => {
@@ -3252,45 +3378,82 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     toast.success(`Scheduled for ${dayLabel} at ${formatTime12(time)}`);
   }, [saveSnapshot, addTimeBlock]);
 
+  const renderRow = (task: Task) => {
+    const cat = categories.find((c) => c.id === task.categoryId);
+    const color = cat?.color ?? THEME.primary;
+    const isNote = task.isTodo === false;
+    const isExpanded = expandedTaskId === task.id;
+    return (
+      <div key={task.id}>
+        <TodoRow
+          task={task} color={color} isNote={isNote} isDone={false} isExpanded={isExpanded} todayStr={todayStr}
+          onToggle={() => setExpandedTaskId(isExpanded ? null : task.id)}
+          onCheck={() => handleToggleDone(task)}
+        />
+        {isExpanded && <TodoExpandedPanel task={task} color={color} onScheduleToday={handleScheduleToday} onScheduleLater={handleScheduleLater} />}
+      </div>
+    );
+  };
+
+  const sectionLabel = (label: string, count: number) => (
+    <div style={{ display: 'flex', alignItems: 'center', height: 24, padding: '0 4px', marginBottom: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLOR.muted }}>
+        {label}<span style={{ marginLeft: 6, fontWeight: 500, color: COLOR.faint }}>{count}</span>
+      </span>
+    </div>
+  );
+
+  const weekLabel = (() => {
+    const dates = [...weekSet].sort();
+    const f = (k: string) => new Date(k + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${f(dates[0])} – ${f(dates[dates.length - 1])}`;
+  })();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', boxSizing: 'border-box' }}>
-      {/* Quick capture input — always visible at top */}
-      <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
+      {/* 1. MiniMonth (collapsible) */}
+      <div style={{ flexShrink: 0, borderBottom: miniOpen ? `1px solid ${COLOR.border}` : 'none' }}>
+        {miniOpen ? (
+          <MiniMonth touch view="week" selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setMiniOpen(false); }} onTitleClick={() => setMiniOpen(false)} />
+        ) : (
+          <button type="button" data-testid="mini-month-toggle" onClick={() => setMiniOpen(true)} className="touch-manipulation" style={{ width: '100%', minHeight: 44, border: 'none', background: 'transparent', fontSize: 12, color: COLOR.text2, fontWeight: 600 }}>
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ▾
+          </button>
+        )}
+      </div>
+
+      {/* 2. Title row with By day / By due on the same row */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 8px', minHeight: 44 }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: COLOR.text }}>To-Dos</span>
+        <SegmentedControl
+          options={[{ value: 'day' as const, label: 'By day' }, { value: 'due' as const, label: 'By due' }]}
+          value={groupBy}
+          onChange={(v) => setGroupBy(v as 'day' | 'due')}
+          compact
+          size="touch"
+        />
+      </div>
+
+      {/* Quick capture */}
+      <div style={{ flexShrink: 0, padding: '0 16px 8px' }}>
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
+            data-testid="quick-capture-input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleCapture(); }}
-            placeholder='Add a note... (e.g. "Read book 30min")'
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid rgba(0,0,0,0.10)',
-              fontSize: 14,
-              color: THEME.textPrimary,
-              backgroundColor: '#FFFFFF',
-              outline: 'none',
-            }}
+            placeholder='Add… e.g. "lunch 12-1 tomorrow"'
+            style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, border: `1px solid ${COLOR.border}`, fontSize: 16, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', minHeight: 44, boxSizing: 'border-box' }}
           />
           <button
             type="button"
+            aria-label="Add"
             onClick={handleCapture}
             disabled={!parsed.title}
             className="touch-manipulation flex-shrink-0"
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              border: 'none',
-              backgroundColor: parsed.title ? THEME.primary : 'rgba(0,0,0,0.06)',
-              color: parsed.title ? '#FFFFFF' : COLOR.muted,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            style={{ width: 44, height: 44, borderRadius: 10, border: 'none', backgroundColor: parsed.title ? THEME.primary : 'rgba(0,0,0,0.06)', color: parsed.title ? '#FFFFFF' : COLOR.muted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -3298,217 +3461,63 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             </svg>
           </button>
         </div>
-        <label className="touch-manipulation" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, color: COLOR.text2 }}>
-          <input type="checkbox" data-testid="capture-as-todo" checked={captureAsTodo} onChange={(e) => setCaptureAsTodo(e.target.checked)} style={{ width: 16, height: 16, accentColor: THEME.primary }} />
-          To-do (with a checkbox)
-        </label>
-        {title.trim() && parsed.minutes !== 30 && (
-          <p style={{ fontSize: 11, color: THEME.primary, margin: '4px 0 0 2px', fontWeight: 500 }}>
-            {parsed.minutes}min estimated
-          </p>
-        )}
-
-        {/* Filter chips */}
-        <div className="flex gap-2" style={{ marginTop: 12, marginBottom: 10 }}>
-          {(['all', 'today'] as const).map((f) => {
-            const isActive = filter === f;
-            const count = counts[f];
-            return (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className="touch-manipulation flex items-center gap-1.5"
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 400,
-                  border: isActive ? 'none' : '1px solid rgba(0,0,0,0.10)',
-                  backgroundColor: isActive ? `${THEME.primary}15` : 'transparent',
-                  color: isActive ? THEME.primary : COLOR.muted,
-                }}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-                <span style={{ fontSize: 11, fontWeight: 600, opacity: isActive ? 0.7 : 0.5 }}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+          <label className="touch-manipulation" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLOR.text2, minHeight: 24 }}>
+            <input type="checkbox" data-testid="capture-as-todo" checked={captureAsTodo} onChange={(e) => setCaptureAsTodo(e.target.checked)} style={{ width: 16, height: 16, accentColor: THEME.primary }} />
+            To-do (with a checkbox)
+          </label>
+          {previewText && (
+            <span data-testid="quick-parse-preview" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: THEME.primary, backgroundColor: `${THEME.primary}15`, padding: '3px 8px', borderRadius: 999 }}>
+              {willCreateEvent ? 'Event' : parsed.hasTime ? 'Scheduled to-do' : parsed.hasDate ? 'Due' : ''}{(willCreateEvent || parsed.hasTime || parsed.hasDate) ? ' · ' : ''}{previewText}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Task list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', overscrollBehavior: 'contain' } as React.CSSProperties}>
-        {activeTasks.length === 0 && (
-          <div className="flex flex-col items-center" style={{ paddingTop: 48 }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D1D1D6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <p style={{ fontSize: 14, color: COLOR.muted, margin: 0 }}>
-              {filter === 'today' ? 'Nothing scheduled today' : 'No notes or to-dos yet'}
-            </p>
-          </div>
-        )}
-        {activeTasks.map((task) => {
-          const cat = categories.find((c) => c.id === task.categoryId);
-          const color = cat?.color ?? THEME.primary;
-          const isDone = task.status === 'done';
-          const isNote = task.isTodo === false;
-          const isExpanded = expandedTaskId === task.id;
-          // Find if this task has blocks scheduled
-          const taskBlocks = timeBlocks.filter((b) => b.taskId === task.id && b.mode === 'planned');
-          const nextBlock = taskBlocks.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))[0];
-          return (
-            <div key={task.id} style={{ marginBottom: 8 }}>
-              <div
-                onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  borderRadius: isExpanded ? '5px 5px 0 0' : 5,
-                  padding: '10px 12px',
-                  borderTop: `3px solid ${isDone ? hexToRgba(color, 0.35) : color}`,
-                  borderLeft: `1px solid ${hexToRgba(color, 0.22)}`,
-                  borderRight: `1px solid ${hexToRgba(color, 0.22)}`,
-                  borderBottom: isExpanded ? 'none' : `1px solid ${hexToRgba(color, 0.22)}`,
-                  backgroundColor: isDone ? hexToRgba(color, 0.12) : isNote ? '#FFF6C8' : '#FFF9EC',
-                  boxShadow: isDone ? 'none' : isExpanded ? 'none' : '0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)',
-                  opacity: isDone ? 0.6 : 1,
-                  cursor: 'pointer',
-                }}
-              >
-                {/* Checkbox — todos only; notes are sticky cards */}
-                {!isNote && <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
-                  className="touch-manipulation"
-                  style={{
-                    flexShrink: 0,
-                    // 44px touch target around the 22px visual box
-                    width: 44,
-                    height: 44,
-                    margin: -11,
-                    padding: 0,
-                    border: 'none',
-                    background: 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    border: isDone ? 'none' : `1.5px solid ${hexToRgba(color, 0.5)}`,
-                    backgroundColor: isDone ? color : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  {isDone && (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                  </span>
-                </button>}
+      {/* One calm scroll area: sections, Unscheduled, Done fold */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)', overscrollBehavior: 'contain' } as React.CSSProperties}>
+        {groupBy === 'day' && <div style={{ fontSize: 11, color: COLOR.faint, padding: '0 4px' }}>Week of {weekLabel}</div>}
+        {mainGroups.length === 0 ? (
+          <div style={{ fontSize: 12, color: COLOR.faint, padding: '12px 4px 0' }}>{groupBy === 'day' ? 'Nothing scheduled this week' : 'No scheduled to-dos'}</div>
+        ) : mainGroups.map((g) => (
+          <section key={g.key} style={{ marginTop: 16 }}>
+            {sectionLabel(g.label, g.tasks.length)}
+            {g.tasks.map(renderRow)}
+          </section>
+        ))}
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{
-                    fontSize: 13, fontWeight: 500, color: THEME.textPrimary, margin: 0,
-                    wordBreak: 'break-word', lineHeight: 1.35,
-                    textDecoration: isDone ? 'line-through' : 'none',
-                  }}>
-                    {task.title}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-                    {task.estimatedMinutes > 0 && (
-                      <span style={{ fontSize: 11, color: COLOR.muted }}>
-                        {task.estimatedMinutes >= 60
-                          ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`
-                          : `${task.estimatedMinutes}m`
-                        }
-                      </span>
-                    )}
-                    {nextBlock && (
-                      <span style={{ fontSize: 11, color: THEME.primary }}>
-                        {nextBlock.date === todayStr ? formatTime12(nextBlock.start) : formatDateHeader(nextBlock.date)}
-                      </span>
-                    )}
-                    {task.dueDate && (
-                      <span style={{ fontSize: 11, color: THEME.warningOrange }}>
-                        Due {formatDateHeader(task.dueDate)}
-                      </span>
-                    )}
-                    {task.priority != null && task.priority > 0 && (
-                      <span style={{ display: 'inline-flex', gap: 1 }}>
-                        {Array.from({ length: Math.min(task.priority, 5) }, (_, i) => (
-                          <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill="#F5A623" stroke="none">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Chevron */}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </div>
-
-              {/* Expanded schedule actions */}
-              {isExpanded && !isDone && (
-                <TodoExpandedPanel task={task} color={color} onScheduleToday={handleScheduleToday} onScheduleLater={handleScheduleLater} />
-              )}
-            </div>
-          );
-        })}
+        <section style={{ marginTop: 16 }}>
+          {sectionLabel('Unscheduled', unscheduledList.length)}
+          {unscheduledList.length === 0
+            ? <div style={{ fontSize: 12, color: COLOR.faint, padding: '4px' }}>Nothing unscheduled</div>
+            : unscheduledList.map(renderRow)}
+        </section>
 
         {/* Done - folded away by default; untick to bring a to-do back */}
         {doneTasks.length > 0 && (
-          <div style={{ marginTop: 8 }}>
+          <section style={{ marginTop: 16 }}>
             <button
               type="button"
               data-testid="done-section-toggle"
               onClick={() => setDoneOpen((v) => !v)}
               aria-expanded={doneOpen}
               className="touch-manipulation"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '10px 2px', border: 'none', background: 'transparent', textAlign: 'left', minHeight: 44 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', padding: '0 4px', border: 'none', background: 'transparent', textAlign: 'left', minHeight: 44 }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                 style={{ transform: doneOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s ease', color: COLOR.muted }}>
                 <polyline points="9 18 15 12 9 6" />
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 600, color: THEME.textPrimary }}>Done</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted }}>{doneTasks.length}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLOR.muted }}>
+                Done<span style={{ marginLeft: 6, fontWeight: 500, color: COLOR.faint }}>{doneTasks.length}</span>
+              </span>
             </button>
-            {doneOpen && doneTasks.map((task) => {
-              const color = categories.find((c) => c.id === task.categoryId)?.color ?? THEME.primary;
-              return (
-                <div key={task.id} data-testid="done-task-row" style={{ display: 'flex', alignItems: 'center', gap: 10, borderRadius: 5, padding: '8px 12px', marginBottom: 6, backgroundColor: hexToRgba(color, 0.12), borderTop: `3px solid ${hexToRgba(color, 0.35)}`, opacity: 0.75 }}>
-                  <button
-                    type="button"
-                    aria-label={`Mark "${task.title}" not done`}
-                    onClick={() => handleToggleDone(task)}
-                    className="touch-manipulation"
-                    style={{ flexShrink: 0, width: 44, height: 44, margin: -11, padding: 0, border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <span style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                    </span>
-                  </button>
-                  <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 13, color: THEME.textPrimary, textDecoration: 'line-through', wordBreak: 'break-word' }}>{task.title}</p>
-                </div>
-              );
-            })}
-          </div>
+            {doneOpen && doneTasks.map((task) => (
+              <div key={task.id} data-testid="done-task-row">
+                <TodoRow task={task} color={categories.find((c) => c.id === task.categoryId)?.color ?? THEME.primary} isNote={false} isDone isExpanded={false} todayStr={todayStr} onToggle={() => {}} onCheck={() => handleToggleDone(task)} />
+              </div>
+            ))}
+          </section>
         )}
       </div>
 
