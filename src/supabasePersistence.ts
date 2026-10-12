@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { useStore } from './store/useStore';
 import { DEFAULT_PALETTE_COLOR } from './constants/colors';
-import { getLocalTimeZone } from './utils/dateTime';
+import { getLocalTimeZone, padTime } from './utils/dateTime';
 import type { Task, TimeBlock, CalendarContainer, Category, Tag, Event } from './types';
 
 /** Delete the current user's account via the database function.
@@ -244,14 +244,14 @@ export async function loadSupabaseState(isInitialLoad = true) {
         calendarContainerId: b.calendar_container_id,
         categoryId: b.category_id,
         tagIds: b.tag_ids ?? [],
-        start: b.start,
-        end: b.end,
+        start: padTime(b.start),
+        end: padTime(b.end),
         date: b.date,
         mode: b.mode,
         source: b.source,
         confirmationStatus: b.confirmation_status ?? undefined,
-        recordedStart: b.recorded_start ?? null,
-        recordedEnd: b.recorded_end ?? null,
+        recordedStart: b.recorded_start ? padTime(b.recorded_start) : null,
+        recordedEnd: b.recorded_end ? padTime(b.recorded_end) : null,
         link: b.link ?? null,
         description: b.description ?? null,
         notes: b.notes ?? null,
@@ -267,8 +267,8 @@ export async function loadSupabaseState(isInitialLoad = true) {
             title: e.title,
             calendarContainerId: e.calendar_container_id,
             categoryId: e.category_id,
-            start: e.start,
-            end: e.end,
+            start: padTime(e.start),
+            end: padTime(e.end),
             date: e.date,
             recurring: e.recurring,
             recurrencePattern: e.recurrence_pattern ?? undefined,

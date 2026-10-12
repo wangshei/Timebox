@@ -28,7 +28,7 @@ import {
   parseTimeToMinutes,
 } from '../utils/taskHelpers';
 import { convertOldTimeBlockToNew, convertOldTaskToNew } from '../utils/migrateData';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, minutesToHHMM, padTime } from '../utils/dateTime';
 import { generateRecurrenceDates } from '../utils/recurrenceExpander';
 import {
   calendarContainers as seedContainers,
@@ -425,8 +425,8 @@ export const useStore = create<AppState & AppActions>()(
       // Drop: create exactly one block; reduce task so remainder stays in todo
       const scheduledMins = Math.min(remaining, blockMins);
       const endMins = startMins + scheduledMins;
-      const startStr = `${Math.floor(startMins / 60)}:${String(startMins % 60).padStart(2, '0')}`;
-      const endStr = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+      const startStr = minutesToHHMM(startMins);
+      const endStr = minutesToHHMM(endMins);
       blocks.push({
         id: generateId(),
         taskId,
@@ -456,8 +456,8 @@ export const useStore = create<AppState & AppActions>()(
       // Schedule modal: create exactly one block of chosen length (or remaining), no loop, no task reduction
       const scheduledMins = Math.min(remaining, blockMins);
       const endMins = startMins + scheduledMins;
-      const startStr = `${Math.floor(startMins / 60)}:${String(startMins % 60).padStart(2, '0')}`;
-      const endStr = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+      const startStr = minutesToHHMM(startMins);
+      const endStr = minutesToHHMM(endMins);
       blocks.push({
         id: generateId(),
         taskId,
@@ -481,8 +481,8 @@ export const useStore = create<AppState & AppActions>()(
 
     while (remainingToSchedule >= blockMins) {
       const endMins = currentStart + blockMins;
-      const startStr = `${Math.floor(currentStart / 60)}:${String(currentStart % 60).padStart(2, '0')}`;
-      const endStr = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+      const startStr = minutesToHHMM(currentStart);
+      const endStr = minutesToHHMM(endMins);
       blocks.push({
         id: generateId(),
         taskId,
@@ -1032,6 +1032,19 @@ export function hydrateFromLocalStorage() {
   if (!raw) return;
   try {
     const parsed = JSON.parse(raw) as Partial<PersistedSlice>;
+    // B-35/N-07: older builds wrote unpadded times ("9:00"); normalize on load.
+    if (Array.isArray(parsed.events)) {
+      parsed.events = parsed.events.map((e) => ({ ...e, start: padTime(e.start), end: padTime(e.end) }));
+    }
+    if (Array.isArray(parsed.timeBlocks)) {
+      parsed.timeBlocks = parsed.timeBlocks.map((b) => ({
+        ...b,
+        start: padTime(b.start),
+        end: padTime(b.end),
+        ...(b.recordedStart ? { recordedStart: padTime(b.recordedStart) } : {}),
+        ...(b.recordedEnd ? { recordedEnd: padTime(b.recordedEnd) } : {}),
+      }));
+    }
     useStore.setState((prev) => ({
       ...prev,
       ...parsed,

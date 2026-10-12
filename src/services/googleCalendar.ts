@@ -6,7 +6,7 @@
 
 import { supabase } from '../supabaseClient';
 import type { Event, CalendarContainer, Category, RecurrencePattern } from '../types';
-import { getLocalTimeZone } from '../utils/dateTime';
+import { getLocalTimeZone, padTime } from '../utils/dateTime';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '660640300058-deh7j9q1q00aa7385a7js6liksic1mdi.apps.googleusercontent.com';
@@ -719,8 +719,8 @@ export async function createGcalEvent(params: {
 
   const body: Record<string, unknown> = {
     summary: params.title,
-    start: { dateTime: `${startDate}T${params.startTime}:00`, timeZone: tz },
-    end: { dateTime: `${endDate}T${params.endTime}:00`, timeZone: tz },
+    start: { dateTime: `${startDate}T${padTime(params.startTime)}:00`, timeZone: tz },
+    end: { dateTime: `${endDate}T${padTime(params.endTime)}:00`, timeZone: tz },
     attendees: params.attendeeEmails.map(email => ({ email })),
   };
   if (params.description) body.description = params.description;
@@ -792,11 +792,11 @@ export async function updateGcalEvent(params: {
     body.attendees = merged;
   }
   if (params.date && params.startTime) {
-    body.start = { dateTime: `${params.date}T${params.startTime}:00`, timeZone: tz };
+    body.start = { dateTime: `${params.date}T${padTime(params.startTime)}:00`, timeZone: tz };
   }
   if (params.endTime) {
     const endDate = params.endDate || params.date || current.start?.dateTime?.split('T')[0];
-    body.end = { dateTime: `${endDate}T${params.endTime}:00`, timeZone: tz };
+    body.end = { dateTime: `${endDate}T${padTime(params.endTime)}:00`, timeZone: tz };
   }
 
   const sendUpdates = params.sendUpdates ? 'all' : 'none';

@@ -3,7 +3,7 @@ import { Sheet } from './ds/Sheet';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
-import { getLocalDateString } from '../utils/dateTime';
+import { getLocalDateString, padTime } from '../utils/dateTime';
 import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
@@ -411,10 +411,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const handleSaveEdit = () => {
     saveSnapshot();
     // Normalize time format (HTML time inputs give HH:MM, we need H:MM)
-    const normalizeTime = (t: string) => {
-      const [h, m] = t.split(':').map(Number);
-      return `${h}:${String(m).padStart(2, '0')}`;
-    };
+    const normalizeTime = (t: string) => padTime(t);
     const normStart = normalizeTime(editStart);
     const normEnd = normalizeTime(editEnd);
 
@@ -869,7 +866,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         isTodo,
       });
     } else {
-      const normalizeTime = (t: string) => { const [h, m] = t.split(':').map(Number); return `${h}:${String(m).padStart(2, '0')}`; };
+      const normalizeTime = (t: string) => padTime(t);
       addEvent({
         title: title.trim(),
         calendarContainerId: calId,

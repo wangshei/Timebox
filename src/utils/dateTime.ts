@@ -252,3 +252,23 @@ export function convertEventTimezone(
     endDate: convertedEnd.dateStr !== converted.dateStr ? convertedEnd.dateStr : undefined,
   };
 }
+
+/** Zero-pad a time string to "HH:MM" ("9:00" -> "09:00"). Returns the input unchanged if it is not H:MM. */
+export function padTime(t: string | null | undefined): string {
+  if (!t) return t ?? '';
+  const m = /^(\d{1,2}):(\d{1,2})(?::\d{2})?$/.exec(t.trim());
+  if (!m) return t;
+  return `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}`;
+}
+
+/** Minutes since midnight -> zero-padded "HH:MM". */
+export function minutesToHHMM(mins: number): string {
+  const m = Math.max(0, Math.round(mins));
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** Wall-clock date + time (local zone) -> ISO instant. Tolerates unpadded times; never throws. */
+export function toIsoInstant(date: string, time: string): string {
+  const d = new Date(`${date}T${padTime(time)}:00`);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
