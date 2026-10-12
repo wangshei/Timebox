@@ -42,6 +42,7 @@ import {
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin, padTime, toIsoInstant } from './utils/dateTime';
+import { deleteEventScoped } from './services/eventActions';
 import { getInviteTiming, getSeriesRows, getGuestEmails, hasInvitedGuests } from './utils/inviteSeries';
 import { generateRecurrenceDates, generateRecurrenceDatesAfter, defaultSeriesUntil } from './utils/recurrenceExpander';
 import { MINS_PER_DAY, absMinsToEndParts, dayOffsetBetween, addDaysToDateString } from './utils/gridUtils';
@@ -1506,6 +1507,23 @@ export default function App() {
     }
   };
 
+  /** Fields a derived piece of a todo (chunk / split / continuation) inherits, so nothing is lost (N-05). */
+  const inheritTaskFields = (task: import('./types').Task) => ({
+    title: task.title,
+    calendarContainerId: task.calendarContainerId,
+    categoryId: task.categoryId,
+    tagIds: task.tagIds ?? [],
+    flexible: task.flexible,
+    dueDate: task.dueDate ?? undefined,
+    priority: task.priority,
+    notes: task.notes ?? undefined,
+    description: task.description ?? undefined,
+    link: task.link ?? undefined,
+    isTodo: task.isTodo,
+    pinned: task.pinned,
+    emoji: task.emoji ?? undefined,
+  });
+
   const handleBreakIntoChunks = (taskId: string, chunkMinutes: number) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task || chunkMinutes <= 0) return;
@@ -1515,15 +1533,7 @@ export default function App() {
     for (let i = 0; i < n; i++) {
       const mins = i === n - 1 ? total - (n - 1) * chunkMinutes : chunkMinutes;
       if (mins <= 0) continue;
-      addTask({
-        title: task.title,
-        estimatedMinutes: mins,
-        calendarContainerId: task.calendarContainerId,
-        categoryId: task.categoryId,
-        tagIds: task.tagIds ?? [],
-        flexible: task.flexible,
-        dueDate: task.dueDate ?? undefined,
-      });
+      addTask({ ...inheritTaskFields(task), estimatedMinutes: mins });
     }
     deleteTask(taskId);
   };
@@ -1535,15 +1545,7 @@ export default function App() {
     saveSnapshot();
     const remainder = task.estimatedMinutes - chunkMinutes;
     if (remainder <= 0) return; // not enough to split
-    addTask({
-      title: task.title,
-      estimatedMinutes: chunkMinutes,
-      calendarContainerId: task.calendarContainerId,
-      categoryId: task.categoryId,
-      tagIds: task.tagIds ?? [],
-      flexible: task.flexible,
-      dueDate: task.dueDate ?? undefined,
-    });
+    addTask({ ...inheritTaskFields(task), estimatedMinutes: chunkMinutes });
     updateTask(taskId, { estimatedMinutes: remainder });
   };
 
@@ -2065,19 +2067,7 @@ export default function App() {
     const task = tasks.find((t) => t.id === block.taskId);
     if (!task) return;
     saveSnapshot();
-    const newTaskId = addTask({
-      title: task.title,
-      estimatedMinutes: minutes,
-      calendarContainerId: task.calendarContainerId,
-      categoryId: task.categoryId,
-      tagIds: task.tagIds ?? [],
-      flexible: task.flexible,
-      priority: task.priority,
-      dueDate: task.dueDate ?? undefined,
-      notes: task.notes ?? undefined,
-      description: task.description ?? undefined,
-      link: task.link ?? undefined,
-    });
+    const newTaskId = addTask({ ...inheritTaskFields(task), estimatedMinutes: minutes });
 
     // Auto-schedule to next available slot
     if (newTaskId) {
@@ -2571,78 +2561,45 @@ export default function App() {
     updateEvent(eventId, { attendanceStatus: status });
   };
 
+  /** Delete a todo/note; a repeating one asks This / This and following / All. */
   const handleDeleteTask = (taskId: string) => {
-    saveSnapshot();
-    deleteTask(taskId);
+    const state = useStore.getState();
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const noun = task.isTodo === false ? 'note' : 'todo';
+    const sid = task.recurrenceSeriesId;
+    const isSeries = !!sid && (task.recurring || state.tasks.filter((t) => t.recurrenceSeriesId === sid).length > 1);
+    if (!isSeries) { saveSnapshot(); deleteTask(taskId); return; }
+    const pick = (scope: 'this' | 'all_after' | 'all') => () => { saveSnapshot(); useStore.getState().deleteTaskSeries(taskId, scope); };
+    setScopePrompt({
+      title: `Delete repeating ${noun}`,
+      subtitle: `"${task.title}" repeats. Which ones do you want to delete?`,
+      options: [
+        { label: `This ${noun}`, desc: 'Only this date', danger: true, onPick: pick('this') },
+        { label: `This and following ${noun}s`, desc: 'From this date forward', danger: true, onPick: pick('all_after') },
+        { label: `All ${noun}s`, desc: 'Every copy in the series', danger: true, onPick: pick('all') },
+      ],
+    });
   };
 
-  /** Delete an event (or part of its series) and, when `notifyGuests`, tell invited guests:
-   *  whole event / whole series -> METHOD:CANCEL via cancel_share; a partial series delete ->
-   *  text note (+ shortened RRULE for "this and following"). */
-  const executeDeleteEvent = (id: string, scope: 'this' | 'all' | 'all_after', notifyGuests: boolean) => {
-    const allBefore = useStore.getState().events;
-    const event = allBefore.find((e) => e.id === id);
-    if (!event) return;
-    saveSnapshot();
-
-    // Determine series grouping key: native recurrence or Google recurring event
-    const seriesKey = event.recurrenceSeriesId
-      ? { field: 'recurrenceSeriesId' as const, value: event.recurrenceSeriesId }
-      : event.recurringGoogleEventId
-        ? { field: 'recurringGoogleEventId' as const, value: event.recurringGoogleEventId }
-        : null;
-
-    let deletedIds: string[] = [id];
-    if (scope === 'this' || !seriesKey) {
-      if (event.googleEventId) dismissGcalEventId(id);
-      deleteEvent(id);
-    } else if (scope === 'all') {
-      const toDelete = allBefore.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value);
-      deletedIds = toDelete.map((e) => e.id);
-      const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
-      if (gcalIds.length) dismissGcalEventIds(gcalIds);
-      // Google series: dismiss the whole series so future occurrences (outside the
-      // +-90-day window) never re-import. Per-instance dismissal above is kept too.
-      if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, '');
-      deleteEvents(deletedIds);
-    } else {
-      const toDelete = allBefore.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date);
-      deletedIds = toDelete.map((e) => e.id);
-      const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
-      if (gcalIds.length) dismissGcalEventIds(gcalIds);
-      // Google series: dismiss occurrences from this date forward so future ones
-      // outside the loaded window never re-import.
-      if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, event.date);
-      deleteEvents(deletedIds);
+  /** Delete entry point for a block on the calendar (popover, Delete key, drag-out): a scheduled
+   *  todo always asks "Remove from calendar" vs "Delete todo" - never silently does one of them. */
+  const requestDeleteBlock = (blockId: string) => {
+    const block = timeBlocks.find((b) => b.id === blockId);
+    if (!block) return;
+    const task = block.taskId ? tasks.find((t) => t.id === block.taskId) : undefined;
+    if (!task) { handleDeleteBlock(blockId); return; }
+    const noun = task.isTodo === false ? 'note' : 'todo';
+    const options: Array<{ label: string; desc?: string; danger?: boolean; onPick: () => void }> = [];
+    if (!isPastPlannedBlock(block)) {
+      options.push({ label: 'Remove from calendar', desc: `Keep the ${noun}; it goes back to your list`, onPick: () => handleDeleteBlock(blockId) });
     }
-    if (!notifyGuests || !hasInvitedGuests(event)) return;
-    const timing = getInviteTiming(event, allBefore);
-    const guests = getGuestEmails(event);
-    const gone = new Set(deletedIds);
-    const remaining = timing.rows.filter((r) => !gone.has(r.id));
-    const a = timing.anchor;
-    const evInfo = { title: event.title, start: toIsoInstant(a.date, a.start), end: toIsoInstant(a.endDate ?? a.date, a.end) };
-    if (!timing.seriesId || remaining.length === 0) {
-      // Whole event or whole series is gone: cancel for everyone and revoke the share.
-      cancelShare({ eventId: a.id, seriesId: timing.seriesId, event: evInfo, senderName: userName || undefined })
-        .then(() => toast.success('Guests notified of the cancellation'))
-        .catch((err) => { console.warn('[cancel] failed:', err); toast.error(`Couldn't notify guests: ${err?.message || err}`); });
-      return;
-    }
-    // Part of a series: the guests' recurring invite can only be shortened or annotated.
-    const last = [...remaining].sort((x, y) => y.date.localeCompare(x.date))[0];
-    notifyEventUpdate({
-      eventTitle: event.title,
-      attendeeEmails: guests,
-      changes: scope === 'this' ? `Cancelled: ${event.date}` : `Cancelled from ${event.date} onwards`,
-      senderName: userName || undefined,
-      eventId: a.id,
-      seriesId: timing.seriesId,
-      event: scope === 'all_after' && timing.rrule
-        ? { start: evInfo.start, end: evInfo.end, rrule: timing.rrule, until: toIsoInstant(last.endDate ?? last.date, last.end) }
-        : undefined,
-    }).catch((err) => { console.warn('[cancel] notify failed:', err); toast.error(`Couldn't notify guests: ${err?.message || err}`); });
+    options.push({ label: `Delete ${noun}`, desc: `Delete the ${noun} and everything scheduled for it`, danger: true, onPick: () => handleDeleteTask(task.id) });
+    setScopePrompt({ title: `Delete scheduled ${noun}`, subtitle: `"${task.title}" is on your calendar.`, options });
   };
+
+  const executeDeleteEvent = (id: string, scope: 'this' | 'all' | 'all_after', notifyGuests: boolean) =>
+    deleteEventScoped(id, scope, notifyGuests, userName || undefined);
 
   /** If the event has invited guests, ask whether to notify them before deleting. */
   const requestDeleteWithNotify = (id: string, scope: 'this' | 'all' | 'all_after') => {
@@ -3889,7 +3846,7 @@ export default function App() {
           onConfirm={handleConfirmBlock}
           onSkip={handleSkipBlock}
           onUnconfirm={handleUnconfirmBlock}
-          onDeleteBlock={handleDeleteBlock}
+          onDeleteBlock={requestDeleteBlock}
           onDeleteTask={handleDeleteTask}
           onDropTask={handleDropTask}
           onCreateBlock={handleCreateBlock}
@@ -4031,7 +3988,7 @@ export default function App() {
                 onDeleteTask={handleDeleteTask}
                 onMarkTaskDone={handleMarkTaskDone}
                 onOpenAddModal={handleOpenAddModal}
-                onDropBlock={mode === 'overall' ? handleDeleteBlock : undefined}
+                onDropBlock={mode === 'overall' ? requestDeleteBlock : undefined}
                 onBreakIntoChunks={handleBreakIntoChunks}
                 onSplitTask={handleSplitTask}
                 onTogglePin={(taskId) => {

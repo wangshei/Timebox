@@ -97,6 +97,15 @@ function TimeBlockCardInner({
 }: TimeBlockCardProps) {
   const updateTimeBlock = useStore((s) => s.updateTimeBlock);
   const [showPopover, setShowPopover] = useState(false);
+  // Esc closes the popover (N-14).
+  useEffect(() => {
+    if (!showPopover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowPopover(false); doDeselect(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPopover]);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverDragOffset, setPopoverDragOffset] = useState({ x: 0, y: 0 });
   const [showDetails, setShowDetails] = useState(false);
@@ -802,11 +811,9 @@ function TimeBlockCardInner({
               style={{ '--hv-bg': 'rgba(196,80,80,0.06)', color: '#C45050', fontSize: 11 } as React.CSSProperties}
               onClick={(e) => {
                 e.stopPropagation();
-                if (block.taskId && onDeleteTask) {
-                  onDeleteTask(block.taskId);
-                } else {
-                  onDeleteBlock?.(block.id);
-                }
+                // One path for every delete: the app asks "Remove from calendar" vs "Delete todo".
+                if (onDeleteBlock) onDeleteBlock(block.id);
+                else if (block.taskId && onDeleteTask) onDeleteTask(block.taskId);
                 setShowPopover(false);
                 doDeselect();
               }}

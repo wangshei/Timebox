@@ -101,6 +101,15 @@ export function EventCard({
   focusedCalendarId = null,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  // Esc closes the popover (N-14).
+  useEffect(() => {
+    if (!showPopover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowPopover(false); onDeselect(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPopover]);
   const [deleteConfirmState, setDeleteConfirmState] = useState<null | 'confirm' | 'confirm_gcal'>(null);
   const [editConfirmState, setEditConfirmState] = useState<null | 'confirm'>(null);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);

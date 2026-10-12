@@ -88,6 +88,15 @@ export function TaskCard({
   onResizeTask,
 }: TaskCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  // Esc closes the popover (N-14).
+  useEffect(() => {
+    if (!showPopover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowPopover(false); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPopover]);
   const [splitBlockMinutes, setSplitBlockMinutes] = useState(60);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);

@@ -479,6 +479,17 @@ export function AddModal({
     }
   }, [mode, startTime, endTime, date, endDate]);
 
+  // Esc closes the panel (N-14). Ignored while a native <select>/date picker has focus handling it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;

@@ -198,9 +198,9 @@ export function RightSidebar({
   //  • Done       = completed to-dos scheduled in the shown week, grouped by day → fold.
   //  • Main       = the rest (scheduled, not done): "By day" is week-filtered + grouped by
   //                 scheduled day; "By due" groups by due date across all weeks.
-  const { mainGroups, unscheduledList, doneGroups } = useMemo(() => {
+  const { mainGroups, unscheduledList, doneList } = useMemo(() => {
     const mainMap = new Map<string, Task[]>();
-    const doneMap = new Map<string, Task[]>();
+    const doneAll: Task[] = [];
     const unscheduled: Task[] = [];
     const push = (map: Map<string, Task[]>, key: string, t: Task) => {
       const arr = map.get(key); if (arr) arr.push(t); else map.set(key, [t]);
@@ -208,8 +208,9 @@ export function RightSidebar({
     for (const t of tasks) {
       const sd = scheduledDateOf(t.id);
       const done = doneIdSet.has(t.id);
-      if (!sd) { if (!done) unscheduled.push(t); continue; }   // no block → Unscheduled (done+unscheduled hidden)
-      if (done) { if (weekSet.has(sd)) push(doneMap, sd, t); continue; } // done → this-week only, by day
+      // Every completed to-do (with or without a block, any week) lives in the Done fold (N-02).
+      if (done) { if (t.isTodo !== false) doneAll.push(t); continue; }
+      if (!sd) { unscheduled.push(t); continue; }   // no block → Unscheduled
       if (groupBy === 'day') {
         if (weekSet.has(sd)) push(mainMap, sd, t);             // week-filtered scheduled view
       } else {
@@ -225,11 +226,9 @@ export function RightSidebar({
     return {
       mainGroups: toGroups(mainMap),
       unscheduledList: unscheduled.slice().sort(sortByUrgencyAndPriority),
-      doneGroups: toGroups(doneMap),
+      doneList: doneAll.slice().sort((a, b) => a.title.localeCompare(b.title)),
     };
   }, [tasks, timeBlocks, groupBy, doneIdSet, weekSet, todayStr, tomorrowStr]);
-
-  const doneCount = useMemo(() => doneGroups.reduce((n, g) => n + g.tasks.length, 0), [doneGroups]);
 
   // ─── Drag & drop (pointer-based) ──────────────────────────────────────────
   const sidebarDropRef = React.useRef<HTMLDivElement>(null);
@@ -361,23 +360,6 @@ export function RightSidebar({
           renderGroups(mainGroups)
         )}
 
-        {/* Done — folded, grouped by day, this week only */}
-        {doneCount > 0 && (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => setDoneOpen((v) => !v)}
-              className="flex items-center gap-1 w-full text-left px-1 mb-1.5"
-            >
-              {doneOpen
-                ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
-                : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />}
-              <span className="font-semibold" style={{ fontSize: 13, color: THEME.textPrimary }}>Done</span>
-              <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{doneCount}</span>
-            </button>
-            {doneOpen && renderGroups(doneGroups)}
-          </div>
-        )}
       </div>
 
       {/* Unscheduled — its own section pinned at the bottom, scrolls independently */}
@@ -406,6 +388,30 @@ export function RightSidebar({
             <div className="text-xs text-center py-3" style={{ color: '#8E8E93' }}>Nothing unscheduled</div>
           ) : (
             unscheduledList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))
+          )}
+
+          {/* Done - folded away by default; completed to-dos can be un-ticked from here. */}
+          {doneList.length > 0 && (
+            <div className="mt-3">
+              <button
+                type="button"
+                data-testid="done-section-toggle"
+                onClick={() => setDoneOpen((v) => !v)}
+                aria-expanded={doneOpen}
+                className="flex items-center gap-1 w-full text-left px-1 mb-1.5"
+              >
+                {doneOpen
+                  ? <ChevronDownIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />
+                  : <ChevronRightIcon className="h-3 w-3 flex-shrink-0" style={{ color: THEME.textPrimary }} />}
+                <span className="font-semibold" style={{ fontSize: 13, color: THEME.textPrimary }}>Done</span>
+                <span style={{ fontSize: 11, color: '#AEAEB2', fontWeight: 500 }}>{doneList.length}</span>
+              </button>
+              {doneOpen && (
+                <div className={planMode ? 'space-y-2' : ''}>
+                  {doneList.map((task) => renderTaskCard(task, planMode ? 'plan' : 'overview'))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

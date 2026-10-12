@@ -154,6 +154,8 @@ export interface AppActions {
   addTask: (task: Omit<Task, 'id'>) => string | undefined;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  /** Delete a repeating todo at a scope: 'this' (one date), 'all_after' (this date onward, ends the series there) or 'all'. */
+  deleteTaskSeries: (id: string, scope: 'this' | 'all_after' | 'all') => void;
   /** Materialize recurring-task instances whose due date falls in the given dates. Lazy/idempotent. */
   expandRecurringTasks: (rangeDates: string[]) => void;
 
@@ -320,6 +322,33 @@ export const useStore = create<AppState & AppActions>()(
       }
       return { tasks, timeBlocks: s.timeBlocks.filter((b) => b.taskId !== id) };
     }),
+
+  deleteTaskSeries: (id, scope) => {
+    const s0 = get();
+    const target = s0.tasks.find((t) => t.id === id);
+    if (!target) return;
+    const sid = target.recurrenceSeriesId;
+    if (!sid || scope === 'this') { get().deleteTask(id); return; }
+    const inSeries = s0.tasks.filter((t) => t.recurrenceSeriesId === sid);
+    const head = inSeries.find((t) => t.recurring);
+    const cutoff = target.dueDate ?? '';
+    // Deleting "this and following" from the head itself is the same as deleting everything.
+    const wholeSeries = scope === 'all' || !head || head.id === target.id || !cutoff;
+    const goneIds = new Set(
+      wholeSeries ? inSeries.map((t) => t.id) : inSeries.filter((t) => !t.recurring && (t.dueDate ?? '') >= cutoff).map((t) => t.id),
+    );
+    const dayBefore = (d: string) => {
+      const [y, m, dd] = d.split('-').map(Number);
+      const prev = new Date(y, (m ?? 1) - 1, (dd ?? 1) - 1, 12);
+      return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+    };
+    set((s) => ({
+      tasks: s.tasks
+        .filter((t) => !goneIds.has(t.id))
+        .map((t) => (!wholeSeries && head && t.id === head.id ? { ...t, recurrenceUntil: dayBefore(cutoff) } : t)),
+      timeBlocks: s.timeBlocks.filter((b) => !b.taskId || !goneIds.has(b.taskId)),
+    }));
+  },
 
   expandRecurringTasks: (rangeDates) =>
     set((s) => {
