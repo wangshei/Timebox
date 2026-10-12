@@ -57,6 +57,55 @@ type ScheduleMode = 'list' | 'plan';
 /** Selected date shared between the Schedule list and Plan modes. */
 const SharedDateContext = React.createContext<[string, (d: string) => void] | null>(null);
 
+const ScheduleModeContext = React.createContext<[ScheduleMode, (m: ScheduleMode) => void]>(['list', () => {}]);
+
+/** Shared date header for Schedule List and Plan: prev / title (opens mini month) / next / undo / mode toggle. */
+function ScheduleHeader({ selectedDate, today, onNavigate, onToday, miniOpen, onToggleMini }: {
+  selectedDate: string; today: string; onNavigate: (dir: -1 | 1) => void; onToday: () => void; miniOpen: boolean; onToggleMini: () => void;
+}) {
+  const [mode, setMode] = React.useContext(ScheduleModeContext);
+  const undoDepth = useHistoryStore((st) => st.past.length);
+  const iconBtn: React.CSSProperties = { width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0, padding: 0 };
+  const seg = (active: boolean): React.CSSProperties => ({ width: 30, height: 28, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? COLOR.surface : 'transparent', color: active ? THEME.textPrimary : COLOR.muted, boxShadow: active ? '0 1px 2px rgba(0,0,0,0.12)' : 'none' });
+  return (
+    <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+      <div className="flex items-center" style={{ padding: '4px 8px', gap: 0 }}>
+        <button type="button" aria-label="Previous day" onClick={() => onNavigate(-1)} className="touch-manipulation flex items-center justify-center" style={iconBtn}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+          <button type="button" data-testid="schedule-title" onClick={onToggleMini} className="touch-manipulation"
+            style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0, border: 'none', background: 'transparent', minHeight: 44, padding: '0 4px', whiteSpace: 'nowrap' }}>
+            {formatDateHeader(selectedDate)} <span style={{ fontSize: 10, color: COLOR.muted }}>{miniOpen ? '▴' : '▾'}</span>
+          </button>
+        </div>
+        <button type="button" aria-label="Next day" onClick={() => onNavigate(1)} className="touch-manipulation flex items-center justify-center" style={iconBtn}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+        {selectedDate !== today && (
+          <button type="button" onClick={onToday} className="touch-manipulation"
+            style={{ height: 28, padding: '0 8px', margin: '0 2px', borderRadius: 14, border: `1px solid ${THEME.primary}30`, backgroundColor: `${THEME.primary}08`, color: THEME.primary, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+            Today
+          </button>
+        )}
+        <button type="button" data-testid="schedule-undo" aria-label="Undo last change" title="Undo" disabled={undoDepth === 0}
+          onClick={() => useHistoryStore.getState().undo()} className="touch-manipulation flex items-center justify-center"
+          style={{ ...iconBtn, opacity: undoDepth === 0 ? 0.3 : 1 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></svg>
+        </button>
+        <button type="button" data-testid="schedule-mode" aria-label={mode === 'list' ? 'Switch to Plan' : 'Switch to List'} title={mode === 'list' ? 'Switch to Plan' : 'Switch to List'}
+          onClick={() => setMode(mode === 'list' ? 'plan' : 'list')} className="touch-manipulation flex items-center justify-center"
+          style={{ minWidth: 44, height: 44, border: 'none', background: 'transparent', padding: '0 2px 0 4px', flexShrink: 0 }}>
+          <span style={{ display: 'flex', padding: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.06)' }}>
+            <span style={seg(mode === 'list')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><circle cx="3.5" cy="6" r="1" fill="currentColor" /><circle cx="3.5" cy="12" r="1" fill="currentColor" /><circle cx="3.5" cy="18" r="1" fill="currentColor" /></svg></span>
+            <span style={seg(mode === 'plan')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2" /><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /></svg></span>
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface AgendaItem {
   type: 'block' | 'event';
   id: string;
@@ -209,16 +258,15 @@ export function MobileApp(actions: MobileActions) {
       {/* Content — fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <SharedDateContext.Provider value={sharedDate}>
+          <ScheduleModeContext.Provider value={[schedMode, setSchedMode]}>
           {activeTab === 'schedule' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ flexShrink: 0, padding: '6px 12px 0' }}>
-                <SegmentedControl data-testid="schedule-mode" options={[{ value: 'list' as ScheduleMode, label: 'List' }, { value: 'plan' as ScheduleMode, label: 'Plan' }]} value={schedMode} onChange={setSchedMode} size="touch" fullWidth />
-              </div>
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                 {schedMode === 'plan' ? <PlanTab /> : <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
               </div>
             </div>
           )}
+          </ScheduleModeContext.Provider>
         </SharedDateContext.Provider>
         {activeTab === 'todo' && <TodoTab addTriggerRef={todoAddTriggerRef} />}
       </div>
@@ -1573,56 +1621,22 @@ function PlanTab() {
           onExpand={(t, _pos, todoOn) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' && todoOn, asTask: ic.mode === 'todo' }); }} />
       )}
       {mobSheet && <AddSheet mode={mobSheet.asTask ?? mobSheet.isTodo ? 'task' : 'event'} prefill={mobSheet} onClose={() => setMobSheet(null)} />}
-      {/* Header: date nav */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
-        <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"
-          style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-        </button>
-        <p style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
-          {formatDateHeader(selectedDate)}
-        </p>
-        <button type="button" onClick={() => navigateDate(1)} className="touch-manipulation flex items-center justify-center"
-          style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-        </button>
-        {selectedDate !== today && (
-          <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.primary, flexShrink: 0, fontSize: 11, fontWeight: 600 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-              <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div style={{ flexShrink: 0, borderBottom: miniOpen ? `1px solid ${COLOR.border}` : 'none' }}>
-        {miniOpen ? (
+      <ScheduleHeader selectedDate={selectedDate} today={today} onNavigate={navigateDate} onToday={() => setSelectedDate(today)} miniOpen={miniOpen} onToggleMini={() => setMiniOpen((o) => !o)} />
+      {miniOpen && (
+        <div style={{ flexShrink: 0, borderBottom: `1px solid ${COLOR.border}` }}>
           <MiniMonth touch view="day" selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setMiniOpen(false); }} onTitleClick={() => setMiniOpen(false)} />
-        ) : (
-          <button type="button" data-testid="mini-month-toggle" onClick={() => setMiniOpen(true)} className="touch-manipulation" style={{ width: '100%', minHeight: 44, border: 'none', background: 'transparent', fontSize: 12, color: COLOR.text2, fontWeight: 600 }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ▾
-          </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div style={{ flexShrink: 0, padding: '6px 12px 0' }}>
-        <SegmentedControl options={[{ value: 'event' as CreateMode, label: 'Event' }, { value: 'todo' as CreateMode, label: 'Todo' }]} value={createMode} onChange={setCreateModeValue} size="touch" fullWidth />
-      </div>
-
-      {/* Instruction / selected task hint */}
-      <div style={{ flexShrink: 0, padding: '6px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)', minHeight: 28, display: 'flex', alignItems: 'center' }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        <SegmentedControl options={[{ value: 'event' as CreateMode, label: 'Event' }, { value: 'todo' as CreateMode, label: 'Todo' }]} value={createMode} onChange={setCreateModeValue} size="md" style={{ width: 132, flexShrink: 0 }} />
         {selectedTask ? (
-          <p style={{ fontSize: 11, color: THEME.primary, margin: 0, fontWeight: 500 }}>
-            Tap or drag "{selectedTask.title}" to a time slot →
-          </p>
+          <>
+            <p style={{ flex: 1, minWidth: 0, fontSize: 11, color: THEME.primary, margin: 0, fontWeight: 500, lineHeight: 1.3 }}>Tap a time slot to place "{selectedTask.title}"</p>
+            <button type="button" aria-label="Clear selection" onClick={() => setSelectedTaskId(null)} className="touch-manipulation" style={{ width: 44, height: 44, margin: '-8px -12px -8px 0', border: 'none', background: 'transparent', color: COLOR.muted, fontSize: 14 }}>✕</button>
+          </>
         ) : (
-          <p style={{ fontSize: 11, color: COLOR.muted, margin: 0 }}>
-            Hold a card and drag it onto the timeline, or hold empty time and drag to create
-          </p>
-        )}
-        {selectedTask && (
-          <button type="button" onClick={() => setSelectedTaskId(null)} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: COLOR.muted, fontSize: 12 }}>✕</button>
+          <p style={{ flex: 1, minWidth: 0, fontSize: 11, color: COLOR.muted, margin: 0, lineHeight: 1.3 }}>Hold and drag to create or place</p>
         )}
       </div>
 
@@ -2305,62 +2319,9 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     );
   };
 
-  const undoDepth = useHistoryStore((st) => st.past.length);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      {/* Header: Date navigation */}
-      <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center" style={{ padding: '10px 16px', gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => navigateDate(-1)}
-            className="touch-manipulation flex items-center justify-center"
-            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
-
-          <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-            <button type="button" data-testid="schedule-title" onClick={() => setMiniOpen((o) => !o)} className="touch-manipulation"
-              style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0, border: 'none', background: 'transparent', minHeight: 44, padding: '0 8px' }}>
-              {formatDateHeader(selectedDate)} <span style={{ fontSize: 10, color: COLOR.muted }}>{miniOpen ? '▴' : '▾'}</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigateDate(1)}
-            className="touch-manipulation flex items-center justify-center"
-            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-          </button>
-
-          <button
-            type="button"
-            data-testid="schedule-undo"
-            aria-label="Undo last change"
-            title="Undo"
-            disabled={undoDepth === 0}
-            onClick={() => useHistoryStore.getState().undo()}
-            className="touch-manipulation flex items-center justify-center"
-            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0, opacity: undoDepth === 0 ? 0.3 : 1 }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></svg>
-          </button>
-
-          {selectedDate !== today && (
-            <button type="button" onClick={() => setSelectedDate(today)} className="touch-manipulation"
-              style={{
-                padding: '4px 10px', borderRadius: 14, border: `1px solid ${THEME.primary}30`,
-                backgroundColor: `${THEME.primary}08`, color: THEME.primary,
-                fontSize: 11, fontWeight: 600, flexShrink: 0,
-              }}>
-              Today
-            </button>
-          )}
-        </div>
-      </div>
+      <ScheduleHeader selectedDate={selectedDate} today={today} onNavigate={navigateDate} onToday={() => setSelectedDate(today)} miniOpen={miniOpen} onToggleMini={() => setMiniOpen((o) => !o)} />
 
       {miniOpen && (
         <div style={{ flexShrink: 0, borderBottom: `1px solid ${COLOR.border}` }}>
