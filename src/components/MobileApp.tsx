@@ -63,6 +63,7 @@ interface AgendaItem {
   color: string;
   confirmationStatus?: TimeBlock['confirmationStatus'];
   taskId?: string | null;
+  isNote?: boolean;
 }
 
 // ─── Tab Icons ─────────────────────────────────────────────
