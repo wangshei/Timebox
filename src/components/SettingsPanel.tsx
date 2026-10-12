@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon, PlusIcon, PencilIcon, TrashIcon, CalendarIcon, FolderIcon, TagIcon, CheckIcon, Cog6ToothIcon, UserPlusIcon, UserGroupIcon, CloudIcon } from '@heroicons/react/24/outline';
 import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, ComputerDesktopIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
 import type { CalendarContainer, Category, Tag } from '../types';
@@ -125,6 +125,14 @@ export function SettingsPanel({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
   const [confirmDeleteInput, setConfirmDeleteInput] = useState('');
+
+  // Esc closes the panel (unless an inner control already handled it, e.g. cancelling an inline edit)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   // ── Timezone state ──
   const [tzSearch, setTzSearch] = useState('');
