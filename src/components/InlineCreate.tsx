@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 import { IconButton } from './ds/IconButton';
 import { COLOR, RADIUS, SHADOW, Z, FONT_SIZE } from '../styles/tokens';
+import { TodoToggle } from './TodoToggle';
 import type { CreateMode } from '../utils/createMode';
 
 interface InlineCreateProps {
@@ -11,10 +12,10 @@ interface InlineCreateProps {
   /** Human-readable range, e.g. "Mon 9:00 → Wed 11:00". */
   label: string;
   /** Called with a non-empty trimmed title. */
-  onSave: (title: string) => void;
+  onSave: (title: string, isTodo: boolean) => void;
   onCancel: () => void;
   /** Expand into the full add form, carrying the typed title (may be empty). */
-  onExpand?: (title: string, pos: { x: number; y: number }) => void;
+  onExpand?: (title: string, pos: { x: number; y: number }, isTodo: boolean) => void;
 }
 
 /**
@@ -23,6 +24,7 @@ interface InlineCreateProps {
  */
 export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }: InlineCreateProps) {
   const [title, setTitle] = React.useState('');
+  const [isTodo, setIsTodo] = React.useState(mode === 'todo');
   const doneRef = React.useRef(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -37,7 +39,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
     if (doneRef.current) return;
     doneRef.current = true;
     const t = title.trim();
-    if (save && t) onSave(t); else onCancel();
+    if (save && t) onSave(t, isTodo); else onCancel();
   };
 
   const W = 220;
@@ -47,7 +49,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
   const expand = () => {
     if (doneRef.current || !onExpand) return;
     doneRef.current = true;
-    onExpand(title.trim(), { x: left, y: top });
+    onExpand(title.trim(), { x: left, y: top }, isTodo);
   };
 
   return (
@@ -57,7 +59,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         position: 'fixed', left, top, width: W, zIndex: Z.popover,
         background: mode === 'todo' ? COLOR.noteBg : COLOR.surface,
         border: `1px solid ${mode === 'todo' ? COLOR.noteBorder : COLOR.borderStrong}`,
-        borderLeft: `4px solid ${mode === 'todo' ? '#C9AE7C' : COLOR.accent}`, borderRadius: RADIUS.md,
+        borderLeft: `4px solid ${mode === 'todo' ? 'rgba(180,150,100,0.45)' : COLOR.accent}`, borderRadius: RADIUS.md,
         boxShadow: SHADOW.sh2, padding: '6px 8px',
       }}
       onMouseDown={(e) => {
@@ -67,10 +69,12 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
       }}
       onClick={(e) => { if (e.target !== inputRef.current) expand(); }}
     >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {mode === 'todo' && <TodoToggle checked={isTodo} onChange={setIsTodo} />}
       <input
         ref={inputRef}
         value={title}
-        placeholder={mode === 'todo' ? 'New todo' : 'New event'}
+        placeholder={mode === 'todo' ? (isTodo ? 'New todo' : 'New note') : 'New event'}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -83,10 +87,11 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
           finish(true);
         }}
         style={{
-          width: '100%', border: 'none', outline: 'none', background: 'transparent',
-          fontSize: FONT_SIZE.base, color: mode === 'todo' ? COLOR.noteText : COLOR.text, padding: 0,
+          flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
+          fontSize: FONT_SIZE.base, color: COLOR.text, padding: 0,
         }}
       />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>
         <span style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted }}>{label}</span>
         {onExpand && <IconButton icon={ArrowsPointingOutIcon} size="sm" aria-label="More options" title="More options" onClick={(e) => { e.stopPropagation(); expand(); }} />}

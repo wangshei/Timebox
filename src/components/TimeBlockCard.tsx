@@ -8,7 +8,7 @@ import { getLocalDateString } from '../utils/dateTime';
 import { getTextClassForBackground, hexToRgba, lighten, desaturate } from '../utils/color';
 import { THEME } from '../constants/colors';
 import { activeDrag, initPointerDrag } from '../utils/dragState';
-import { ChevronRightIcon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, ArrowPathIcon, ScissorsIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ChevronRightIcon, CalendarIcon, CheckIcon, ClockIcon, PencilIcon, TrashIcon, XMarkIcon, LockClosedIcon, ArrowsRightLeftIcon, ArrowPathIcon, ScissorsIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { useStore } from '../store/useStore';
 import { cn } from './ui/utils';
@@ -247,6 +247,8 @@ function TimeBlockCardInner({
 
   const isEvent = !block.taskId;
   const isTask = !!block.taskId;
+  const isNote = !!block.isNote;
+  const noteText = (block.description || block.notes || '').trim();
 
   // Urgency detection: red styling for past-due or due-within-1-day tasks
   const isUrgent = (() => {
@@ -282,6 +284,7 @@ function TimeBlockCardInner({
   /** Renders the confirmation status circle (top-right corner).
    *  Shows for all past blocks (always visible) and future task blocks (hover-only). Clickable unless locked. */
   const renderStatusCircle = (size: number) => {
+    if (block.isNote) return null;
     const isFutureTask = !isPast && !isCompareMode && isTask;
     const isFutureEvent = !isPast && !isCompareMode && isEvent;
     // Hide for future events — they don't need a done circle
@@ -389,6 +392,9 @@ function TimeBlockCardInner({
    *   PastConfirmed: 15% fill + solid border (done, muted)
    */
   const getBlockInlineStyle = (): React.CSSProperties => {
+    if (isNote) {
+      return { backgroundColor: 'var(--tb-note-bg)', border: '1px solid var(--tb-note-border)', borderRadius: 6, boxShadow: 'var(--tb-sh-1)' };
+    }
     const opacity = getOpacity();
     const vars: Record<string, string> = {
       '--block-color': blockColor,
@@ -522,6 +528,7 @@ function TimeBlockCardInner({
   };
 
   const getTitleColor = (): string => {
+    if (isNote) return 'var(--tb-note-text)';
     if (isUrgent) return URGENT_TEXT;
     if (isEvent && blockVisualState === 'ghost') return '#AEAEB2';
     return THEME.textPrimary;
@@ -1088,8 +1095,12 @@ function TimeBlockCardInner({
               >
                 {block.title || 'Untitled'}
               </span>
+              {isNote && <DocumentTextIcon className="flex-shrink-0" style={{ width: 12, height: 12, marginTop: 2, color: 'var(--tb-note-text)', opacity: 0.45 }} />}
             </div>
 
+            {isNote && noteText && (
+              <div className="line-clamp-2" style={{ fontSize: 11, lineHeight: '14px', color: 'var(--tb-note-text)', opacity: 0.7 }}>{noteText}</div>
+            )}
             {/* Bottom row: category chip + (optionally) time-range on non-task blocks */}
             {showMeta && (
               <div className="flex items-end justify-between gap-1 mt-1 min-w-0">

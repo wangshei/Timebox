@@ -2313,7 +2313,7 @@ export default function App() {
   };
 
   /** Popup clicked: hand the drag range + typed title to the full AddModal (nothing saved yet). */
-  const expandInlineCreate = (title: string, pos: { x: number; y: number }) => {
+  const expandInlineCreate = (title: string, pos: { x: number; y: number }, todoOn = true) => {
     const ic = inlineCreate;
     setInlineCreate(null);
     if (!ic) { setPendingBlockPreview(null); return; }
@@ -2328,13 +2328,13 @@ export default function App() {
     setAddModalInitialEnd(isTodo && ic.endDate ? '23:59' : ic.endTime);
     setAddModalInitialEndDate(isTodo ? null : ic.endDate ?? null);
     setAddModalInitialTitle(title);
-    setAddModalInitialTodo(isTodo);
+    setAddModalInitialTodo(isTodo && todoOn);
     setAddModalAnchor(pos);
     setAddModalAnchorExact(true);
     setIsAddModalOpen(true);
   };
 
-  const finishInlineCreate = (title: string | null) => {
+  const finishInlineCreate = (title: string | null, todoOn = true) => {
     const ic = inlineCreate;
     setInlineCreate(null);
     setPendingBlockPreview(null);
@@ -2359,7 +2359,7 @@ export default function App() {
       const mins = Math.max(15, parseTimeToMins(endTime) - parseTimeToMins(ic.startTime));
       handleAddTask({
         title, estimatedHours: mins / 60, category: cat, tags: [], calendar: cal.id as any,
-        isTodo: true, scheduleAt: { date: ic.date, startTime: ic.startTime, endTime },
+        isTodo: todoOn, scheduleAt: { date: ic.date, startTime: ic.startTime, endTime },
       });
     }
   };
@@ -2518,6 +2518,7 @@ export default function App() {
       updateEvent(eventId, updates);
     }
     notifyAttendeesIfNeeded(event, updates, { scope });
+    if (!isDesktop) toastUndo('Moved');
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string; endDate?: string }) => {
@@ -4106,6 +4107,8 @@ export default function App() {
           deleteBlock={requestDeleteBlock}
           deleteTask={handleDeleteTask}
           markTaskDone={handleMarkTaskDone}
+          moveEvent={handleMoveEvent}
+          moveBlock={(id, p) => { handleMoveBlock(id, p); toastUndo('Moved'); }}
           eventEdited={(eventId, updates) => {
             const ev = useStore.getState().events.find((e) => e.id === eventId);
             if (ev) notifyAttendeesIfNeeded(ev, updates, { scope: 'this' });
@@ -4293,7 +4296,7 @@ export default function App() {
           mode={inlineCreate.mode}
           anchor={inlineCreate.anchor}
           label={`${inlineCreate.date.slice(5)} ${inlineCreate.startTime}${inlineCreate.endDate ? ` → ${inlineCreate.endDate.slice(5)} ${inlineCreate.endTime}` : `–${inlineCreate.endTime}`}`}
-          onSave={(t) => finishInlineCreate(t)}
+          onSave={(t, td) => finishInlineCreate(t, td)}
           onCancel={() => finishInlineCreate(null)}
           onExpand={expandInlineCreate}
         />

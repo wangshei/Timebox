@@ -36,7 +36,7 @@
   --tb-danger: #FF3B30;
   --tb-success: #34C759;
   --tb-warning: #FF9500;
-  --tb-note-bg: #FAF1DC; --tb-note-bg-soft: #FDF8EC; --tb-note-border: rgba(160,135,90,0.30); --tb-note-text: #4A3F2C;
+  --tb-note-bg: #FFF8EA; --tb-note-bg-soft: #FFFBF2; --tb-note-border: rgba(180,150,100,0.25); --tb-note-text: #1C1C1E;
   --tb-backdrop: rgba(0,0,0,0.35);
 
   /* shadows */

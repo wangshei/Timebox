@@ -26,9 +26,9 @@ export const COLOR = {
   success: '#34C759',
   warning: '#FF9500',
   backdrop: 'rgba(0,0,0,0.35)',
-  noteBg: '#FAF1DC',
-  noteBgSoft: '#FDF8EC',
-  noteBorder: 'rgba(160,135,90,0.30)',
+  noteBg: '#FFF8EA',
+  noteBgSoft: '#FFFBF2',
+  noteBorder: 'rgba(180,150,100,0.25)',
   noteText: '#4A3F2C',
 } as const;
 export const SHADOW = {

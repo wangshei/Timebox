@@ -5,7 +5,6 @@ import { getLocalDateString, getStartOfWeek } from '../utils/dateTime';
 import { TaskCard } from './TaskCard';
 import { PlusIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon, RectangleStackIcon } from '@heroicons/react/24/outline';
 import type { TimeBlock, Event } from '../types';
-import { SegmentedControl } from './ui/SegmentedControl';
 import { THEME } from '../constants/colors';
 import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { COLOR } from '../styles/tokens';
@@ -96,8 +95,7 @@ export function RightSidebar({
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
   // Plan toggle: OFF = compact list rows, ON = duration-sized cards.
   const [planMode, setPlanMode] = useState(false);
-  // Grouping: by the day each to-do is scheduled on, or by its due date.
-  const [groupBy, setGroupBy] = useState<'day' | 'due'>('day');
+  const [notesOpen, setNotesOpen] = useState(false);
   // Done section is folded away by default.
   const [doneOpen, setDoneOpen] = useState(false);
 
@@ -207,7 +205,8 @@ export function RightSidebar({
   //  • Done       = completed to-dos scheduled in the shown week, grouped by day → fold.
   //  • Main       = the rest (scheduled, not done): "By day" is week-filtered + grouped by
   //                 scheduled day; "By due" groups by due date across all weeks.
-  const { mainGroups, unscheduledList, doneList } = useMemo(() => {
+  const { mainGroups, unscheduledList, doneList, unplacedNotes } = useMemo(() => {
+    const notes: Task[] = [];
     const mainMap = new Map<string, Task[]>();
     const doneAll: Task[] = [];
     const unscheduled: Task[] = [];
@@ -215,16 +214,17 @@ export function RightSidebar({
       const arr = map.get(key); if (arr) arr.push(t); else map.set(key, [t]);
     };
     for (const t of tasks) {
+      // Notes live on the calendar; only unplaced ones surface here (collapsed fold).
+      if (t.isTodo === false) {
+        if (!scheduledDateOf(t.id) && !doneIdSet.has(t.id)) notes.push(t);
+        continue;
+      }
       const sd = scheduledDateOf(t.id);
       const done = doneIdSet.has(t.id);
       // Every completed to-do (with or without a block, any week) lives in the Done fold (N-02).
       if (done) { if (t.isTodo !== false) doneAll.push(t); continue; }
       if (!sd) { unscheduled.push(t); continue; }   // no block → Unscheduled
-      if (groupBy === 'day') {
-        if (weekSet.has(sd)) push(mainMap, sd, t);             // week-filtered scheduled view
-      } else {
-        push(mainMap, ((t as any).dueDate as string | null) || 'none', t); // by due date, all weeks
-      }
+      if (weekSet.has(sd)) push(mainMap, sd, t);             // week-filtered scheduled view
     }
     const toGroups = (map: Map<string, Task[]>) =>
       [...map.keys()].sort().map((key) => ({
@@ -236,8 +236,9 @@ export function RightSidebar({
       mainGroups: toGroups(mainMap),
       unscheduledList: unscheduled.slice().sort(sortByUrgencyAndPriority),
       doneList: doneAll.slice().sort((a, b) => a.title.localeCompare(b.title)),
+      unplacedNotes: notes.slice().sort((a, b) => a.title.localeCompare(b.title)),
     };
-  }, [tasks, timeBlocks, groupBy, doneIdSet, weekSet, todayStr, tomorrowStr]);
+  }, [tasks, timeBlocks, doneIdSet, weekSet, todayStr, tomorrowStr]);
 
   // ─── Drag & drop (pointer-based) ──────────────────────────────────────────
   const sidebarDropRef = React.useRef<HTMLDivElement>(null);
@@ -307,11 +308,6 @@ export function RightSidebar({
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const groupOptions: Array<{ value: 'day' | 'due'; label: string }> = [
-    { value: 'day', label: 'By day' },
-    { value: 'due', label: 'By due' },
-  ];
-
   return (
     <div
       data-tour="right-sidebar"
@@ -338,13 +334,6 @@ export function RightSidebar({
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tb-text)' }}>To-Dos</span>
           <div className="flex items-center" style={{ gap: 4 }}>
             {headerExtra}
-            <SegmentedControl
-              options={groupOptions}
-              value={groupBy}
-              onChange={(v) => setGroupBy(v as 'day' | 'due')}
-              compact
-              size="sm"
-            />
             <IconButton
               icon={RectangleStackIcon}
               size={isMobile ? 'touch' : 'md'}
@@ -373,12 +362,10 @@ export function RightSidebar({
 
       {/* One calm scroll area: sections, then Unscheduled, then the Done fold */}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" style={{ padding: '0 var(--tb-sp-3) var(--tb-sp-4)' }}>
-        {groupBy === 'day' && (
-          <div style={{ fontSize: 11, color: 'var(--tb-faint)', padding: '0 4px' }}>Week of {weekRangeLabel}</div>
-        )}
+        <div style={{ fontSize: 11, color: 'var(--tb-faint)', padding: '0 4px' }}>Week of {weekRangeLabel}</div>
         {mainGroups.length === 0 ? (
           <div className="text-center" style={{ fontSize: 12, color: 'var(--tb-faint)', padding: '16px 8px 0' }}>
-            {groupBy === 'day' ? 'Nothing scheduled this week' : 'No scheduled to-dos'}
+            Nothing scheduled this week
           </div>
         ) : (
           renderGroups(mainGroups)
@@ -403,6 +390,27 @@ export function RightSidebar({
             ? <div style={{ fontSize: 12, color: 'var(--tb-faint)', padding: '4px' }}>Nothing unscheduled</div>
             : renderList(unscheduledList)}
         </section>
+
+        {unplacedNotes.length > 0 && (
+          <section style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              data-testid="unplaced-notes-toggle"
+              onClick={() => setNotesOpen((v) => !v)}
+              aria-expanded={notesOpen}
+              className="flex items-center w-full text-left"
+              style={{ height: 24, padding: '0 4px', gap: 4, marginBottom: 4 }}
+            >
+              {notesOpen
+                ? <ChevronDownIcon className="flex-shrink-0" style={{ width: 12, height: 12, color: 'var(--tb-muted)' }} />
+                : <ChevronRightIcon className="flex-shrink-0" style={{ width: 12, height: 12, color: 'var(--tb-muted)' }} />}
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--tb-muted)' }}>
+                Unplaced notes<span style={{ marginLeft: 6, fontWeight: 500, color: 'var(--tb-faint)' }}>{unplacedNotes.length}</span>
+              </span>
+            </button>
+            {notesOpen && renderList(unplacedNotes)}
+          </section>
+        )}
 
         {doneList.length > 0 && (
           <section style={{ marginTop: 16 }}>

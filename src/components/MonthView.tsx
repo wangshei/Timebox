@@ -176,15 +176,20 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                   return (
                     <div
                       key={block.id}
-                      className="text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded text-white truncate cursor-pointer hover:opacity-100 transition-opacity touch-manipulation border-l-2"
-                      style={{
+                      className={`text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded truncate cursor-pointer hover:opacity-100 transition-opacity touch-manipulation ${block.isNote ? '' : 'text-white border-l-2'}`}
+                      style={block.isNote ? {
+                        backgroundColor: 'var(--tb-note-bg)',
+                        border: '1px solid var(--tb-note-border)',
+                        color: 'var(--tb-note-text)',
+                        opacity: Math.max(opacity, 0.9),
+                      } : {
                         backgroundColor: block.category.color,
                         borderLeftColor: block.calendarContainer.color,
                         opacity,
                       }}
                       onClick={(e) => { e.stopPropagation(); onSelectBlock?.(block.id); }}
                     >
-                      <span className="hidden md:inline">{block.start} </span>
+                      {!block.isNote && <span className="hidden md:inline">{block.start} </span>}
                       {block.title}
                     </div>
                   );

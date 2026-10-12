@@ -31,6 +31,8 @@ export interface ResolvedTimeBlock {
   description?: string | null;
   /** Link — from block itself or inherited from linked Task. */
   link?: string | null;
+  /** Linked Task is a sticky note (isTodo === false). */
+  isNote?: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export function resolveTimeBlock(
     notes: block.notes || linkedTask?.notes || null,
     description: block.description || linkedTask?.description || null,
     link: block.link || linkedTask?.link || null,
+    isNote: linkedTask?.isTodo === false,
   };
 }
 

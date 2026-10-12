@@ -1,3 +1,4 @@
+import { TodoToggle } from './TodoToggle';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useBreakpoint } from '../utils/useBreakpoint';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
@@ -709,7 +710,7 @@ export function AddModal({
           ...(isMobileModal ? {} : { left: panelPos.x, top: panelPos.y, width: `${PANEL_WIDTH}px` }),
           maxWidth: isMobileModal ? undefined : 'calc(100vw - 32px)',
           maxHeight: anchorExact ? Math.min(maxH, window.innerHeight - 32) : maxH,
-          backgroundColor: mode === 'task' ? 'var(--tb-note-bg-soft)' : '#FFFFFF',
+          backgroundColor: '#FFFFFF',
           borderRadius: '16px',
           border: '1px solid rgba(160, 140, 120, 0.2)',
           boxShadow: 'var(--tb-sh-3)',
@@ -718,7 +719,7 @@ export function AddModal({
         {/* Drag header (drag disabled on mobile) */}
         <div
           className="flex items-center gap-2 px-6 pt-6 pb-3.5 shrink-0 cursor-grab active:cursor-grabbing select-none"
-          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)', backgroundColor: mode === 'task' ? 'var(--tb-note-bg)' : undefined }}
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
           onMouseDown={(e) => {
             if (isMobileModal) return;
             if ((e.target as HTMLElement).closest('button')) return;
@@ -763,13 +764,14 @@ export function AddModal({
         >
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           {/* Title — borderless with a sage underline (Google-Calendar style) */}
-          <div>
+          <div className="flex items-center gap-2">
+            {mode === 'task' && <TodoToggle checked={isTodo} onChange={setIsTodo} size={18} />}
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={mode === 'task' ? 'Add note title' : 'Add event title'}
-              className="w-full bg-transparent focus:outline-none"
+              placeholder={mode === 'task' ? (isTodo ? 'Add todo title' : 'Add note title') : 'Add event title'}
+              className="flex-1 min-w-0 bg-transparent focus:outline-none"
               style={{
                 fontSize: 15,
                 fontWeight: 500,
@@ -786,17 +788,6 @@ export function AddModal({
 
           {mode === 'task' && (
             <>
-              {/* Todo checkbox — unticked = sticky note */}
-              <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: THEME.textPrimary }}>
-                <input
-                  type="checkbox"
-                  checked={isTodo}
-                  onChange={(e) => setIsTodo(e.target.checked)}
-                  className="h-4 w-4 shrink-0"
-                  style={{ accentColor: THEME.primary }}
-                />
-                Todo
-              </label>
               {/* Estimated time — icon-led row */}
               <div className="flex items-center gap-2.5">
                 <ClockIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
