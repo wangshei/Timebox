@@ -1,7 +1,7 @@
 import { MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, PlusIcon, Cog6ToothIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { Bars3BottomLeftIcon, Bars3Icon } from '@heroicons/react/24/outline';
+import { Bars3BottomLeftIcon } from '@heroicons/react/24/outline';
 import { Mode, View, TimeBlock, Category, Tag, CalendarContainer, Task, Event, AvailableSlot } from '../types';
 import { useStore } from '../store/useStore';
 import { resolveTimeBlocks, resolveEvents, selectMainViewBlocks } from '../utils/dataResolver';
@@ -13,7 +13,7 @@ import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { useCreateMode, CreateMode } from '../utils/createMode';
-import { Button, IconButton, Popover } from './ds';
+import { Button, IconButton } from './ds';
 import { useStickerSet, setStickerSet, parseEmoji, DEFAULT_STICKER_SET } from '../utils/stickerSet';
 import { PX_PER_HOUR } from '../utils/gridUtils';
 import { COLOR } from '../styles/tokens';
@@ -45,7 +45,6 @@ interface CalendarViewProps {
   containerVisibility: { [key: string]: boolean };
   focusedCategoryId?: string | null;
   focusedCalendarId?: string | null;
-  isMobile?: boolean;
   onOpenAddModal?: (mode: 'task' | 'event') => void;
   onConfirm?: (blockId: string) => void;
   onSkip?: (blockId: string) => void;
@@ -76,7 +75,6 @@ interface CalendarViewProps {
   /** Seed value for the internal showDifferences toggle (used by walkthrough overlay). */
   defaultShowDifferences?: boolean;
   /** Mobile: open the slide-over calendar sidebar */
-  onOpenMobileSidebar?: () => void;
   /** Mobile: open settings */
   onOpenSettings?: () => void;
   /** Mobile: open task list panel */
@@ -105,7 +103,7 @@ const CREATE_MODE_OPTIONS: { value: CreateMode; label: string }[] = [
 export function CalendarView({
   mode, onModeChange, view, onViewChange, selectedDate, onSelectedDateChange,
   timeBlocks, tasks, categories, tags, containers, containerVisibility,
-  focusedCategoryId = null, focusedCalendarId = null, isMobile = false,
+  focusedCategoryId = null, focusedCalendarId = null,
   onOpenAddModal, onConfirm, onSkip, onUnconfirm, onDeleteBlock, onDeleteTask,
   onDropTask, onCreateBlock, onMoveBlock, onResizeBlock, onEditEvent, onEditEventWithScope, onEditBlock,
   events: eventsProp = [], onDeleteEvent, onDeleteEventSeries, onMoveEvent, onResizeEvent,
@@ -116,7 +114,6 @@ export function CalendarView({
   onAddTimeToComplete,
   pendingBlockPreview,
   defaultShowDifferences,
-  onOpenMobileSidebar,
   onOpenSettings,
   onOpenMobileTasks,
   selectionMode,
@@ -170,15 +167,6 @@ export function CalendarView({
   }, []);
 
   const isNarrow = containerWidth < NARROW_BREAKPOINT;
-
-  // If mobile and stuck on week view (e.g. resized window), auto-switch to day
-  // Guard: only run when this component is actually visible (both desktop and mobile
-  // CalendarViews render simultaneously; CSS hides one, but effects still fire).
-  useEffect(() => {
-    if (isMobile && view === 'week' && containerRef.current?.offsetParent !== null) {
-      onViewChange('day');
-    }
-  }, [isMobile, view, onViewChange]);
 
   // Stamp mode keyboard: Escape exits, arrow keys cycle emoji
   useEffect(() => {
@@ -401,135 +389,6 @@ export function CalendarView({
   return (
     <div ref={containerRef} className="flex-1 flex flex-col relative min-w-0 overflow-hidden" style={{ backgroundColor: BG, isolation: 'isolate' }}>
       {/* Header */}
-      {isMobile ? (
-        /* ── Mobile header: single compact row ── */
-        <div
-          className="px-2 py-1 flex items-center gap-1 shrink-0"
-          style={{ paddingTop: 'max(4px, env(safe-area-inset-top, 0px))', paddingLeft: 'max(8px, env(safe-area-inset-left, 0px))', paddingRight: 'max(8px, env(safe-area-inset-right, 0px))', borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, zIndex: 10 }}
-        >
-          {/* Hamburger — 40px touch target */}
-          {onOpenMobileSidebar && (
-            <button
-              type="button"
-              onClick={() => { setSelectedBlock(null); onOpenMobileSidebar(); }}
-              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
-              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
-              aria-label="Open calendars"
-            >
-              <Bars3Icon style={{ width: 16, height: 16 }} />
-            </button>
-          )}
-
-          {/* Nav arrows — 36px touch targets */}
-          <div className="flex items-center shrink-0">
-            <button onClick={navigatePrevious} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 44, height: 44, color: TEXT_MUTED }}>
-              <ChevronLeftIcon className="h-4 w-4" />
-            </button>
-            <button onClick={navigateNext} className="flex items-center justify-center rounded-md touch-manipulation" style={{ width: 44, height: 44, color: TEXT_MUTED }}>
-              <ChevronRightIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Date title — truncates to fit */}
-          <h1 className="text-xs font-semibold truncate shrink min-w-0" style={{ color: TEXT_PRIMARY }}>
-            {view === 'day'
-              ? currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : typeof headerTitle === 'string' ? headerTitle : `${(headerTitle as any).dayName}`}
-          </h1>
-
-          {/* Spacer */}
-          <div className="flex-1 min-w-1" />
-
-          <div className="shrink-0" style={{ marginRight: 4 }}>
-            <SegmentedControl options={CREATE_MODE_OPTIONS} value={createMode} onChange={setCreateModeValue} size="sm" />
-          </div>
-
-          {/* View switcher: [· D 3D M] — Today is a dot */}
-          <div className="flex items-center shrink-0"
-            style={{
-              backgroundColor: 'rgba(0,0,0,0.06)',
-              borderRadius: 7,
-              padding: 2,
-              gap: 1,
-            }}
-          >
-            <button
-              onClick={navigateToday}
-              className="flex items-center justify-center touch-manipulation"
-              style={{
-                width: 28,
-                height: 28,
-                fontSize: 11,
-                fontWeight: 500,
-                borderRadius: 5,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                backgroundColor: 'transparent',
-                color: PRIMARY,
-              }}
-              aria-label="Go to today"
-            >
-              <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: PRIMARY }} />
-            </button>
-            {VIEW_OPTIONS.filter(o => o.value !== 'week').map((option) => {
-              const isActive = option.value === view;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => onViewChange(option.value)}
-                  className="flex items-center justify-center touch-manipulation"
-                  style={{
-                    minWidth: 28,
-                    height: 28,
-                    padding: '0 6px',
-                    fontSize: 11,
-                    fontWeight: isActive ? 600 : 400,
-                    borderRadius: 5,
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                    backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-                    color: isActive ? TEXT_PRIMARY : TEXT_SECONDARY,
-                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.04)' : 'none',
-                  }}
-                >
-                  {option.shortLabel ?? option.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Settings gear — 36px touch target */}
-          {onOpenSettings && (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0"
-              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
-              aria-label="Open settings"
-            >
-              <Cog6ToothIcon className="h-[17px] w-[17px]" />
-            </button>
-          )}
-
-          {/* Tasks button — 36px touch target */}
-          {onOpenMobileTasks && (
-            <button
-              type="button"
-              onClick={() => { setSelectedBlock(null); onOpenMobileTasks(); }}
-              className="flex items-center justify-center rounded-lg touch-manipulation shrink-0 -mr-1"
-              style={{ width: 44, height: 44, color: TEXT_PRIMARY }}
-              aria-label="Open to-dos"
-            >
-              <Bars3BottomLeftIcon style={{ width: 16, height: 16 }} />
-            </button>
-          )}
-        </div>
-      ) : (
-        /* ── Desktop header ── */
         <div className="shrink-0" style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: BG, minHeight: 'var(--tb-header-h)', paddingInline: 'var(--tb-sp-5)', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
           {/* flex-wrap: when the calendar column is narrow (both sidebars open) the view controls drop to a second row instead of overlapping the nav arrows */}
           <div className="flex items-center justify-between w-full flex-wrap" style={{ minWidth: 0, gap: 'var(--tb-sp-2)', paddingBlock: 'var(--tb-sp-1)' }}>
@@ -602,7 +461,6 @@ export function CalendarView({
             </div>
           </div>
         </div>
-      )}
 
       {/* Calendar Content */}
       {mode === 'compare' && view === 'day' ? (
@@ -693,7 +551,7 @@ export function CalendarView({
       )}
 
       {/* Floating buttons — pinned to bottom-right */}
-      <div className={`absolute ${isMobile ? '' : 'bottom-6 right-6'} z-30 flex flex-col items-center gap-3`} style={isMobile ? { bottom: 'calc(var(--tb-sp-5) + env(safe-area-inset-bottom, 0px))', right: 'calc(var(--tb-sp-4) + env(safe-area-inset-right, 0px))' } : undefined}>
+      <div className={`absolute bottom-6 right-6 z-30 flex flex-col items-center gap-3`}>
         {/* Stamp button — smaller, above + */}
         <div className="relative">
           <button
@@ -710,7 +568,7 @@ export function CalendarView({
             }}
             className="flex items-center justify-center shadow-md transition-all active:scale-90"
             style={{
-              width: isMobile ? 44 : 40, height: isMobile ? 44 : 40, borderRadius: '50%',
+              width: 40, height: 40, borderRadius: '50%',
               backgroundColor: '#FFFFFF',
               border: stampMode ? `2px solid ${PRIMARY}` : '1.5px solid rgba(0,0,0,0.08)',
               boxShadow: stampMode
@@ -729,43 +587,19 @@ export function CalendarView({
             <>
               <div className="fixed inset-0 z-40" onClick={() => { setStampMode(false); setActiveStampEmoji(null); setCustomOpen(false); }} />
               <div
-                className="absolute z-50 flex items-center gap-1 rounded-full py-1.5 px-2"
+                data-testid={customOpen ? 'sticker-editor' : undefined}
+                className={`absolute z-50 flex gap-1 ${customOpen ? 'flex-col rounded-2xl' : 'items-center rounded-full py-1.5 px-2'}`}
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  right: isMobile ? 52 : 48,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  right: 48,
+                  ...(customOpen ? { bottom: 0, width: 232, padding: 12 } : { top: '50%', transform: 'translateY(-50%)' }),
                   backgroundColor: '#FFFFFF',
                   border: '1.5px solid rgba(0,0,0,0.06)',
                   boxShadow: 'var(--tb-sh-2)',
                 }}
               >
-                {STAMP_DEFAULTS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className="flex items-center justify-center rounded-full transition-all hover:scale-125 active:scale-95 tb-hv-bg"
-                    style={{ '--hv-bg': 'rgba(0,0,0,0.04)', width: 32, height: 32, fontSize: 20, lineHeight: 1 } as React.CSSProperties}
-                    onClick={() => setActiveStampEmoji(emoji)}
-                  >
-                    {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  aria-label="Edit stickers"
-                  className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
-                  style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
-                    color: TEXT_MUTED, backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
-                  onClick={() => setCustomOpen((v) => !v)}
-                >
-                  +
-                </button>
-                {customOpen && (
-                  <Popover
-                    data-testid="sticker-editor"
-                    style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 232, padding: 12 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                {customOpen ? (
+                  <>
                     <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 8 }}>Your stickers</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                       {userStickers.map((em) => (
@@ -799,7 +633,31 @@ export function CalendarView({
                       <button type="button" style={{ fontSize: 12, color: TEXT_MUTED, textDecoration: 'underline' }} onClick={() => setStickerSet(DEFAULT_STICKER_SET)}>Reset to defaults</button>
                       <Button size="sm" onClick={() => { setCustomOpen(false); setEmojiDraft(''); setEmojiError(''); }}>Done</Button>
                     </div>
-                  </Popover>
+                  </>
+                ) : (
+                  <>
+                {STAMP_DEFAULTS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-125 active:scale-95 tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.04)', width: 32, height: 32, fontSize: 20, lineHeight: 1 } as React.CSSProperties}
+                    onClick={() => setActiveStampEmoji(emoji)}
+                  >
+                    {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  aria-label="Edit stickers"
+                  className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
+                    color: TEXT_MUTED, backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
+                  onClick={() => setCustomOpen((v) => !v)}
+                >
+                  +
+                </button>
+                  </>
                 )}
               </div>
             </>
@@ -810,7 +668,7 @@ export function CalendarView({
             <div
               className="absolute whitespace-nowrap rounded-full px-3 py-1"
               style={{
-                right: isMobile ? 52 : 48,
+                right: 48,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 fontSize: 10, fontWeight: 500, color: PRIMARY,
