@@ -603,11 +603,11 @@ export function TaskCard({
                 aria-label={isDone ? 'Mark as not done' : 'Mark as done'}
               >
                 <div className="flex items-center justify-center rounded-full" style={{
-                  width: 16, height: 16, boxSizing: 'border-box',
+                  width: 14, height: 14, boxSizing: 'border-box',
                   border: `1.5px solid ${isDone ? catColor : 'rgba(0,0,0,0.25)'}`,
                   backgroundColor: isDone ? catColor : 'transparent',
                 }}>
-                  {isDone && <CheckIcon style={{ width: 12, height: 12, color: '#FFFFFF' }} />}
+                  {isDone && <CheckIcon style={{ width: 10, height: 10, color: '#FFFFFF' }} strokeWidth={3} />}
                 </div>
               </button>
             ) : <div className="flex-shrink-0" style={{ width: 20, height: 20 }} />

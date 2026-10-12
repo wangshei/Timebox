@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 /** Radio-style ring that toggles a note into a to-do (filled = to-do). Matches the list checkbox. */
-export function TodoToggle({ checked, onChange, size = 16 }: { checked: boolean; onChange: (v: boolean) => void; size?: number }) {
+export function TodoToggle({ checked, onChange, size = 14, style }: { checked: boolean; onChange: (v: boolean) => void; size?: number; style?: React.CSSProperties }) {
   return (
     <button
       type="button"
@@ -13,7 +13,7 @@ export function TodoToggle({ checked, onChange, size = 16 }: { checked: boolean;
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
       className="flex-shrink-0 flex items-center justify-center"
-      style={{ width: size + 4, height: size + 4, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+      style={{ width: size + 2, height: size + 2, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', ...style }}
     >
       <span
         className="flex items-center justify-center rounded-full"
