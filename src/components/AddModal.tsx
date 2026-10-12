@@ -730,11 +730,11 @@ export function AddModal({
           <Bars3Icon className="h-3.5 w-3.5 shrink-0" style={{ color: '#8E8E93' }} />
           <h2 className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: '#1C1C1E' }}>
             {editingTask
-              ? 'Edit Note'
+              ? (isTodo ? 'Edit To-Do' : 'Edit Note')
               : editingTimeBlock || editingEvent
                 ? 'Edit Event'
                 : mode === 'task'
-                  ? 'New Note'
+                  ? (isTodo ? 'New To-Do' : 'New Note')
                   : 'New Event'}
           </h2>
           {/* Compact mode switch — small icon to flip between To-Do and Event (new only) */}
@@ -1464,7 +1464,7 @@ export function AddModal({
               style={{ backgroundColor: '#8DA286', color: '#FFFFFF' }}
             >
               <PlusIcon className="h-4 w-4" />
-              {mode === 'task' && editingTask ? 'Save Note' : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? 'Note' : 'Event'}`}
+              {mode === 'task' && editingTask ? (isTodo ? 'Save To-Do' : 'Save Note') : editingEvent || editingTimeBlock ? 'Save' : `Add ${mode === 'task' ? (isTodo ? 'To-Do' : 'Note') : 'Event'}`}
             </button>
           </div>
         </form>
