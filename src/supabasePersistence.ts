@@ -1025,3 +1025,26 @@ export function startSupabasePersistence() {
   };
 }
 
+
+/** Fetch the user's custom sticker set (user_settings.sticker_set text[]). Null if unset/column missing. */
+export async function fetchStickerSetFromSupabase(): Promise<string[] | null> {
+  if (!supabase) return null;
+  const userId = await getCurrentUserIdLocal();
+  if (!userId) return null;
+  const { data, error } = await supabase.from('user_settings').select('sticker_set').eq('user_id', userId).maybeSingle();
+  if (error) return null; // column may not exist yet
+  const set = (data as { sticker_set?: string[] | null } | null)?.sticker_set;
+  return Array.isArray(set) && set.length > 0 ? set : null;
+}
+
+/** Persist the user's custom sticker set. Tolerates a missing column. */
+export async function persistStickerSetToSupabase(set: string[]) {
+  if (!supabase) return;
+  const userId = await getCurrentUserIdLocal();
+  if (!userId) return;
+  const { error } = await supabase.from('user_settings').upsert({ user_id: userId, sticker_set: set }, { onConflict: 'user_id' });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[supabasePersistence] persistStickerSetToSupabase skipped (sticker_set column may not exist):', error.message);
+  }
+}

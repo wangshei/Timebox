@@ -13,7 +13,8 @@ import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { useCreateMode, CreateMode } from '../utils/createMode';
-import { Button, IconButton } from './ds';
+import { Button, IconButton, Popover } from './ds';
+import { useStickerSet, setStickerSet, parseEmoji, DEFAULT_STICKER_SET } from '../utils/stickerSet';
 import { PX_PER_HOUR } from '../utils/gridUtils';
 import { COLOR } from '../styles/tokens';
 
@@ -25,7 +26,6 @@ const TEXT_MUTED = COLOR.muted;
 const TEXT_SECONDARY = COLOR.text2;
 
 /** Default stamp emojis */
-const STAMP_DEFAULTS = ['🔋', '🪫', '😁', '☺️', '🤯', '😵', MISSED_STAMP];
 
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
@@ -139,6 +139,17 @@ export function CalendarView({
   // Hidden input ref for native emoji picker
   const emojiInputRef = useRef<HTMLInputElement>(null);
   const [customOpen, setCustomOpen] = useState(false);
+  const userStickers = useStickerSet();
+  const STAMP_DEFAULTS = useMemo(() => [...userStickers, MISSED_STAMP], [userStickers]);
+  const [emojiDraft, setEmojiDraft] = useState('');
+  const [emojiError, setEmojiError] = useState('');
+  const addDraftEmoji = () => {
+    const e = parseEmoji(emojiDraft);
+    if (!e) { setEmojiError(emojiDraft.trim() ? 'Enter a single emoji' : ''); return; }
+    if (userStickers.includes(e)) { setEmojiError('Already in your set'); return; }
+    setStickerSet([...userStickers, e]);
+    setEmojiDraft(''); setEmojiError('');
+  };
 
   // Track container width for responsive compare layout
   const containerRef = useRef<HTMLDivElement>(null);
@@ -739,42 +750,56 @@ export function CalendarView({
                     {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
                   </button>
                 ))}
-                {/* Plus for custom emoji — reveals a visible input; type, paste, or use the OS emoji picker (Ctrl+Cmd+Space / Win+.) */}
-                {customOpen ? (
-                  <input
-                    ref={emojiInputRef}
-                    type="text"
-                    autoFocus
-                    aria-label="Custom emoji"
-                    placeholder="😀 paste or ⌃⌘Space"
-                    className="rounded-full outline-none"
-                    style={{ width: isMobile ? 120 : 140, height: 32, fontSize: 14, padding: '0 10px', border: '1px solid rgba(0,0,0,0.12)', backgroundColor: 'rgba(0,0,0,0.03)' }}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setCustomOpen(false); } }}
-                    onInput={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      if (val && val.trim()) {
-                        const segments = typeof Intl !== 'undefined' && Intl.Segmenter
-                          ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(val.trim())]
-                          : null;
-                        const emoji = segments && segments.length > 0 ? segments[0].segment : val.trim().slice(0, 2);
-                        setActiveStampEmoji(emoji);
-                        setCustomOpen(false);
-                        (e.target as HTMLInputElement).value = '';
-                      }
-                    }}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    aria-label="Add custom sticker"
-                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
-                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
-                      color: TEXT_MUTED,
-                      backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
-                    onClick={() => setCustomOpen(true)}
+                <button
+                  type="button"
+                  aria-label="Edit stickers"
+                  className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
+                  style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
+                    color: TEXT_MUTED, backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
+                  onClick={() => setCustomOpen((v) => !v)}
+                >
+                  +
+                </button>
+                {customOpen && (
+                  <Popover
+                    data-testid="sticker-editor"
+                    style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 232, padding: 12 }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    +
-                  </button>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_MUTED, marginBottom: 8 }}>Your stickers</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      {userStickers.map((em) => (
+                        <div key={em} className="group relative" style={{ width: 36, height: 36 }}>
+                          <div className="flex items-center justify-center rounded-lg" style={{ width: 36, height: 36, fontSize: 20, backgroundColor: 'rgba(0,0,0,0.04)' }}>{em}</div>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${em}`}
+                            className="absolute opacity-0 group-hover:opacity-100 focus:opacity-100 flex items-center justify-center rounded-full"
+                            style={{ top: -5, right: -5, width: 16, height: 16, fontSize: 11, lineHeight: 1, background: '#5F615F', color: '#fff', border: 'none', touchAction: 'manipulation' }}
+                            onClick={() => setStickerSet(userStickers.filter((x) => x !== em))}
+                            onTouchStart={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                    <input
+                      ref={emojiInputRef}
+                      type="text"
+                      autoFocus
+                      aria-label="Add emoji"
+                      placeholder="Add emoji, press Enter"
+                      value={emojiDraft}
+                      onChange={(e) => { setEmojiDraft(e.target.value); setEmojiError(''); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDraftEmoji(); } if (e.key === 'Escape') { e.stopPropagation(); setCustomOpen(false); } }}
+                      className="w-full rounded-lg outline-none"
+                      style={{ height: 32, fontSize: 14, padding: '0 10px', border: '1px solid rgba(0,0,0,0.12)', backgroundColor: 'rgba(0,0,0,0.03)', boxSizing: 'border-box' }}
+                    />
+                    {emojiError && <div style={{ fontSize: 11, color: '#FF3B30', marginTop: 4 }}>{emojiError}</div>}
+                    <div className="flex items-center justify-between" style={{ marginTop: 10 }}>
+                      <button type="button" style={{ fontSize: 12, color: TEXT_MUTED, textDecoration: 'underline' }} onClick={() => setStickerSet(DEFAULT_STICKER_SET)}>Reset to defaults</button>
+                      <Button size="sm" onClick={() => { setCustomOpen(false); setEmojiDraft(''); setEmojiError(''); }}>Done</Button>
+                    </div>
+                  </Popover>
                 )}
               </div>
             </>

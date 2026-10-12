@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { MiniMonth } from './MiniMonth';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
+import { useStickerSet } from '../utils/stickerSet';
 import { getLocalDateString, padTime, minutesToHHMM, getStartOfWeek } from '../utils/dateTime';
 import { activeDrag, registerDropZone, unregisterDropZone, initPointerDrag, type PointerDragOptions } from '../utils/dragState';
 import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
@@ -401,6 +402,7 @@ interface DetailSheetProps {
 }
 
 function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
+  const userStickerSet = useStickerSet();
   const categories = useStore((s) => s.categories);
   const timeBlocks = useStore((s) => s.timeBlocks);
   const events = useStore((s) => s.events);
@@ -893,8 +895,8 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               {(isPast || (itemEndDate === today && startM <= nowMins)) && (
                 <div data-testid="how-did-it-go" style={{ padding: '8px 4px 12px', borderBottom: '1px solid rgba(0,0,0,0.05)', marginBottom: 4 }}>
                   <p style={{ fontSize: 12, fontWeight: 600, color: COLOR.muted, margin: '0 0 8px' }}>How did it go?</p>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    {['😁', '☺️', '🤯', '😵'].map((em) => {
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    {userStickerSet.map((em) => {
                       const existing = stickers.find((st) => st.emoji === em && (isBlock ? st.blockId === item.id : st.eventId === item.id));
                       return (
                         <button key={em} type="button" className="touch-manipulation" aria-pressed={!!existing}
