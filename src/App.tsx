@@ -203,6 +203,7 @@ export default function App() {
   const [addModalInitialEndDate, setAddModalInitialEndDate] = useState<string | null>(null);
   const [addModalInitialTodo, setAddModalInitialTodo] = useState(false);
   const [addModalAnchor, setAddModalAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [addModalAnchorExact, setAddModalAnchorExact] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -2312,7 +2313,7 @@ export default function App() {
   };
 
   /** Popup clicked: hand the drag range + typed title to the full AddModal (nothing saved yet). */
-  const expandInlineCreate = (title: string) => {
+  const expandInlineCreate = (title: string, pos: { x: number; y: number }) => {
     const ic = inlineCreate;
     setInlineCreate(null);
     if (!ic) { setPendingBlockPreview(null); return; }
@@ -2328,6 +2329,8 @@ export default function App() {
     setAddModalInitialEndDate(isTodo ? null : ic.endDate ?? null);
     setAddModalInitialTitle(title);
     setAddModalInitialTodo(isTodo);
+    setAddModalAnchor(pos);
+    setAddModalAnchorExact(true);
     setIsAddModalOpen(true);
   };
 
@@ -4333,7 +4336,7 @@ export default function App() {
           setAddModalInitialTitle(null);
           setAddModalInitialEndDate(null);
           setAddModalInitialTodo(false);
-          setAddModalAnchor(null);
+          setAddModalAnchor(null); setAddModalAnchorExact(false);
           setPendingBlockPreview(null);
         }}
         categories={categories}
@@ -4354,6 +4357,7 @@ export default function App() {
         initialEndDate={addModalInitialEndDate}
         initialIsTodo={addModalInitialTodo}
         anchorPoint={addModalAnchor}
+        anchorExact={addModalAnchorExact}
         onAddTask={handleAddTask}
         onUpdateTask={(id, updates) => {
           const task = tasks.find((t) => t.id === id);

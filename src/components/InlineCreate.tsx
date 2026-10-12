@@ -14,7 +14,7 @@ interface InlineCreateProps {
   onSave: (title: string) => void;
   onCancel: () => void;
   /** Expand into the full add form, carrying the typed title (may be empty). */
-  onExpand?: (title: string) => void;
+  onExpand?: (title: string, pos: { x: number; y: number }) => void;
 }
 
 /**
@@ -40,15 +40,15 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
     if (save && t) onSave(t); else onCancel();
   };
 
-  const expand = () => {
-    if (doneRef.current || !onExpand) return;
-    doneRef.current = true;
-    onExpand(title.trim());
-  };
-
   const W = 220;
   const left = Math.max(8, Math.min(anchor.x + 8, window.innerWidth - W - 8));
   const top = Math.max(8, Math.min(anchor.y - 20, window.innerHeight - 80));
+
+  const expand = () => {
+    if (doneRef.current || !onExpand) return;
+    doneRef.current = true;
+    onExpand(title.trim(), { x: left, y: top });
+  };
 
   return (
     <div
@@ -57,7 +57,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         position: 'fixed', left, top, width: W, zIndex: Z.popover,
         background: mode === 'todo' ? COLOR.noteBg : COLOR.surface,
         border: `1px solid ${mode === 'todo' ? COLOR.noteBorder : COLOR.borderStrong}`,
-        borderLeft: `4px solid ${mode === 'todo' ? '#D6B43C' : COLOR.accent}`, borderRadius: RADIUS.md,
+        borderLeft: `4px solid ${mode === 'todo' ? '#C9AE7C' : COLOR.accent}`, borderRadius: RADIUS.md,
         boxShadow: SHADOW.sh2, padding: '6px 8px',
       }}
       onMouseDown={(e) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useBreakpoint } from '../utils/useBreakpoint';
 import { XMarkIcon, PlusIcon, TagIcon, Bars3Icon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon, ClockIcon, CalendarDaysIcon, PencilSquareIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { StarIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
@@ -60,6 +60,8 @@ interface AddModalProps {
   initialIsTodo?: boolean;
   /** Viewport pixel point to open the panel beside (e.g. the selected calendar slot). */
   anchorPoint?: { x: number; y: number } | null;
+  /** Place the panel's top-left exactly at anchorPoint (clamped to the viewport after measuring). */
+  anchorExact?: boolean;
   onAddTask: (task: {
     title: string;
     estimatedHours: number;
@@ -158,6 +160,7 @@ export function AddModal({
   onAddTag,
   initialDate = null,
   anchorPoint = null,
+  anchorExact = false,
   initialStartTime = null,
   initialEndTime = null,
   initialTitle = null,
@@ -262,6 +265,7 @@ export function AddModal({
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Show newly added category immediately (before parent re-render) so user can continue without refresh
   const categoriesToShow = React.useMemo(() => {
@@ -274,6 +278,10 @@ export function AddModal({
   useEffect(() => {
     if (isOpen && typeof window !== 'undefined') {
       const maxH = (window.innerHeight * PANEL_MAX_HEIGHT) / 100;
+      if (anchorPoint && anchorExact) {
+        setPanelPos({ x: anchorPoint.x, y: anchorPoint.y }); // refined by the clamp layout effect below
+        return;
+      }
       if (anchorPoint) {
         // Open beside the selected slot: prefer the right of the anchor, flip left if it won't fit.
         const GAP = 12;
@@ -290,7 +298,18 @@ export function AddModal({
       const y = Math.max(16, window.innerHeight - maxH - 24);
       setPanelPos({ x, y });
     }
-  }, [isOpen, anchorPoint]);
+  }, [isOpen, anchorPoint, anchorExact]);
+
+  // Exact-anchor mode: after the panel renders, shift it so it stays fully on-screen.
+  useLayoutEffect(() => {
+    if (!isOpen || !anchorExact || !anchorPoint || !panelRef.current) return;
+    const M = 16;
+    const r = panelRef.current.getBoundingClientRect();
+    if (panelPos.x !== anchorPoint.x || panelPos.y !== anchorPoint.y) return; // only the initial placement
+    const x = Math.max(M, Math.min(anchorPoint.x, window.innerWidth - r.width - M));
+    const y = Math.max(M, Math.min(anchorPoint.y, window.innerHeight - r.height - M));
+    if (x !== panelPos.x || y !== panelPos.y) setPanelPos({ x, y });
+  }, [isOpen, anchorExact, anchorPoint, panelPos]);
 
   // Reset recurrence when modal closes; apply initial scope when opening
   useEffect(() => {
@@ -684,11 +703,12 @@ export function AddModal({
 
       {/* Draggable panel — Monet warm canvas theme; centered on mobile */}
       <div
+        ref={panelRef}
         className={`pointer-events-auto flex flex-col overflow-hidden ${isMobileModal ? 'fixed inset-x-4 top-[max(8dvh,env(safe-area-inset-top))]' : 'absolute'}`}
         style={{
           ...(isMobileModal ? {} : { left: panelPos.x, top: panelPos.y, width: `${PANEL_WIDTH}px` }),
           maxWidth: isMobileModal ? undefined : 'calc(100vw - 32px)',
-          maxHeight: maxH,
+          maxHeight: anchorExact ? Math.min(maxH, window.innerHeight - 32) : maxH,
           backgroundColor: mode === 'task' ? 'var(--tb-note-bg-soft)' : '#FFFFFF',
           borderRadius: '16px',
           border: '1px solid rgba(160, 140, 120, 0.2)',

@@ -338,6 +338,13 @@ export function RightSidebar({
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tb-text)' }}>To-Dos</span>
           <div className="flex items-center" style={{ gap: 4 }}>
             {headerExtra}
+            <SegmentedControl
+              options={groupOptions}
+              value={groupBy}
+              onChange={(v) => setGroupBy(v as 'day' | 'due')}
+              compact
+              size="sm"
+            />
             <IconButton
               icon={RectangleStackIcon}
               size={isMobile ? 'touch' : 'md'}
@@ -361,14 +368,6 @@ export function RightSidebar({
               />
             )}
           </div>
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <SegmentedControl
-            options={groupOptions}
-            value={groupBy}
-            onChange={(v) => setGroupBy(v as 'day' | 'due')}
-            compact
-          />
         </div>
       </div>
 

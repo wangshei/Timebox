@@ -126,7 +126,7 @@ export function TaskCard({
   const isDone = task.status === 'done';
   // Sticky note: isTodo === false. No checkbox, soft yellow card.
   const isNote = task.isTodo === false;
-  const NOTE_BG = '#FFF6C8';
+  const NOTE_BG = 'var(--tb-note-bg)';
   const NOTE_BORDER = 'rgba(214,180,60,0.35)';
   const priority = typeof task.priority === 'number' && task.priority >= 1 && task.priority <= 5
     ? task.priority
