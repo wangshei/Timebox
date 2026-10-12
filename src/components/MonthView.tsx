@@ -96,7 +96,7 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
         {calendarDays.map((day, index) => {
           const blocks = getBlocksForDate(day.date);
           const dateStr = formatDate(day.date);
-          const dayEvents = events.filter(e => e.date === dateStr);
+          const dayEvents = events.filter(e => e.date <= dateStr && dateStr <= (e.endDate ?? e.date));
           const today = isToday(day.date);
           const dayBg = today ? BG_TODAY : undefined;
           const plannedBlocks = blocks.filter(b => b.mode === 'planned');

@@ -9,9 +9,35 @@ export function generateRecurrenceDates(
   startDate: string,
   pattern: RecurrencePattern,
   recurrenceDays?: number[],
-  maxInstances = 52
+  maxInstances = DEFAULT_MAX_INSTANCES,
+  untilDate?: string
 ): string[] {
   if (pattern === 'none') return [startDate];
+  // `until` (inclusive) caps the series by date; the instance cap stays as a safety net.
+  const dates = generateRaw(startDate, pattern, recurrenceDays, untilDate ? MAX_UNTIL_INSTANCES : maxInstances, untilDate);
+  // The date the user picked is always an occurrence, even when a custom pattern's weekdays
+  // don't include it (B-26 / N-17) - it must never be silently skipped or moved.
+  return dates.includes(startDate) ? dates : [startDate, ...dates];
+}
+
+/** Default horizon for a series created without an explicit end date: one year. */
+export function defaultSeriesUntil(startDate: string): string {
+  const [y, m, d] = startDate.split('-').map(Number);
+  const end = new Date(y, (m ?? 1) - 1, d ?? 1, 12);
+  end.setFullYear(end.getFullYear() + 1);
+  return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+}
+
+/** Instances to keep when no explicit end date is given (daily = ~1 year). */
+const DEFAULT_MAX_INSTANCES = 400;
+
+function generateRaw(
+  startDate: string,
+  pattern: RecurrencePattern,
+  recurrenceDays: number[] | undefined,
+  maxInstances: number,
+  untilDate?: string
+): string[] {
 
   // Parse startDate into a local Date (noon to avoid DST shifts)
   const [sy, sm, sd] = startDate.split('-').map(Number);
@@ -31,21 +57,27 @@ export function generateRecurrenceDates(
 
   if (pattern === 'daily') {
     for (let i = 0; dates.length < maxInstances; i++) {
-      dates.push(toStr(addDays(origin, i)));
+      const s = toStr(addDays(origin, i));
+      if (untilDate && s > untilDate) break;
+      dates.push(s);
     }
     return dates;
   }
 
   if (pattern === 'every_other_day') {
     for (let i = 0; dates.length < maxInstances; i++) {
-      dates.push(toStr(addDays(origin, i * 2)));
+      const s = toStr(addDays(origin, i * 2));
+      if (untilDate && s > untilDate) break;
+      dates.push(s);
     }
     return dates;
   }
 
   if (pattern === 'weekly') {
     for (let i = 0; dates.length < maxInstances; i++) {
-      dates.push(toStr(addDays(origin, i * 7)));
+      const s = toStr(addDays(origin, i * 7));
+      if (untilDate && s > untilDate) break;
+      dates.push(s);
     }
     return dates;
   }
@@ -62,7 +94,11 @@ export function generateRecurrenceDates(
       );
       monthOffset++;
       // If the day rolled over (e.g. Jan 31 → Feb 3), skip this month
-      if (candidate.getDate() !== origin.getDate()) continue;
+      if (candidate.getDate() !== origin.getDate()) {
+        if (untilDate && toStr(candidate) > untilDate) break;
+        continue;
+      }
+      if (untilDate && toStr(candidate) > untilDate) break;
       dates.push(toStr(candidate));
     }
     return dates;
@@ -74,6 +110,7 @@ export function generateRecurrenceDates(
     let d = origin;
     const maxDaysToSearch = maxInstances * 10;
     for (let i = 0; dates.length < maxInstances && i < maxDaysToSearch; i++) {
+      if (untilDate && toStr(d) > untilDate) break;
       if (recurrenceDays.includes(d.getDay())) {
         dates.push(toStr(d));
       }
@@ -85,7 +122,7 @@ export function generateRecurrenceDates(
   return [startDate];
 }
 
-/** Max occurrences a "repeat until" extension may generate in one go. */
+/** Max occurrences a "repeat until" series may generate in one go. */
 const MAX_UNTIL_INSTANCES = 800;
 
 /**
@@ -99,6 +136,6 @@ export function generateRecurrenceDatesAfter(
   untilDate: string
 ): string[] {
   if (pattern === 'none' || untilDate <= afterDate) return [];
-  return generateRecurrenceDates(afterDate, pattern, recurrenceDays, MAX_UNTIL_INSTANCES)
+  return generateRecurrenceDates(afterDate, pattern, recurrenceDays, MAX_UNTIL_INSTANCES, untilDate)
     .filter((d) => d > afterDate && d <= untilDate);
 }

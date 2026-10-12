@@ -158,7 +158,9 @@ export function EventCard({
     const [h, m] = event.end.split(':').map(Number);
     return (h ?? 0) * 60 + (m ?? 0);
   })();
-  const isPast = event.date < todayStr || (event.date === todayStr && eventEndMins <= nowMins);
+  // N-06: a cross-midnight event is past only once its END (on its end date) has passed.
+  const eventEndDate = event.endDate ?? event.date;
+  const isPast = eventEndDate < todayStr || (eventEndDate === todayStr && eventEndMins <= nowMins);
   // "Reveal past" toggle: when on, past events render at full strength (not faded).
   const fadePast = isPast && !revealPast;
 

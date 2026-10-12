@@ -69,6 +69,8 @@ export interface Task {
   recurrenceSeriesId?: string | null;
   /** Dates (YYYY-MM-DD) the user removed from the series — never re-materialized. */
   recurrenceExceptions?: string[];
+  /** Last date (YYYY-MM-DD, inclusive) a repeating todo may generate instances. Series head only. */
+  recurrenceUntil?: string | null;
 
   // Derived (computed from TimeBlocks, not stored)
   // plannedMinutes: number;

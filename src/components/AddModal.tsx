@@ -70,6 +70,8 @@ interface AddModalProps {
     recurring?: boolean;
     recurrencePattern?: RecurrencePattern;
     recurrenceDays?: number[];
+    /** Last date a repeating todo generates copies; empty = forever. */
+    recurrenceUntil?: string | null;
     /** When created from a calendar drag, schedule the task at this slot. */
     scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => void;
@@ -88,6 +90,8 @@ interface AddModalProps {
     recurring?: boolean;
     recurrencePattern?: RecurrencePattern;
     recurrenceDays?: number[];
+    /** Last date of a new repeating series (inclusive); empty = one year. */
+    repeatUntil?: string;
     link?: string | null;
     description?: string | null;
     notes?: string | null;
@@ -337,6 +341,7 @@ export function AddModal({
       setPriority(typeof editingTask.priority === 'number' ? editingTask.priority : undefined);
       setRecurrencePattern(editingTask.recurrencePattern ?? 'none');
       setRecurrenceDays(editingTask.recurrenceDays ?? []);
+      setRepeatUntil(editingTask.recurrenceUntil ?? '');
     }
   }, [isOpen, editingTask?.id]); // categories/tags intentionally omitted to avoid form reset on add
 
@@ -521,6 +526,7 @@ export function AddModal({
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
+        recurrenceUntil: recurrencePattern !== 'none' && repeatUntil ? repeatUntil : null,
       });
     } else if (editingEvent && onUpdateEvent) {
       onUpdateEvent(editingEvent.id, {
@@ -578,6 +584,7 @@ export function AddModal({
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
+        recurrenceUntil: recurrencePattern !== 'none' && repeatUntil ? repeatUntil : null,
         scheduleAt: initialDate && initialStartTime && initialEndTime
           ? { date: initialDate, startTime: initialStartTime, endTime: initialEndTime }
           : null,
@@ -595,6 +602,7 @@ export function AddModal({
         recurring: recurrencePattern !== 'none',
         recurrencePattern: recurrencePattern === 'none' ? undefined : recurrencePattern,
         recurrenceDays: recurrencePattern === 'custom' && recurrenceDays.length > 0 ? recurrenceDays : undefined,
+        repeatUntil: recurrencePattern !== 'none' && repeatUntil ? repeatUntil : undefined,
         link: link.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
@@ -1190,6 +1198,17 @@ export function AddModal({
                           onChange={(e) => setRepeatUntil(e.target.value)}
                           className="px-2 py-1 rounded-md" style={{ border: '1px solid rgba(0,0,0,0.12)' }}
                         />
+                      </div>
+                    )}
+                    {recurrencePattern !== 'none' && !editingEvent && !editingTimeBlock && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" style={{ color: '#636366' }}>
+                        <label htmlFor="repeat-until-new" className="font-semibold">Repeat until</label>
+                        <input
+                          id="repeat-until-new" type="date" value={repeatUntil} min={mode === 'task' ? (dueDate.trim() || undefined) : date}
+                          onChange={(e) => setRepeatUntil(e.target.value)}
+                          className="px-2 py-1 rounded-md" style={{ border: '1px solid rgba(0,0,0,0.12)' }}
+                        />
+                        <span style={{ color: '#8E8E93' }}>{mode === 'task' ? 'Empty = repeats forever' : 'Empty = repeats for 1 year'}</span>
                       </div>
                     )}
                     {editingEvent && (editingEvent.recurring || recurrencePattern !== 'none') && (

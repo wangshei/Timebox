@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { useStore } from './store/useStore';
 import { DEFAULT_PALETTE_COLOR } from './constants/colors';
 import { getLocalTimeZone, padTime } from './utils/dateTime';
-import type { Task, TimeBlock, CalendarContainer, Category, Tag, Event } from './types';
+import type { Task, TimeBlock, CalendarContainer, Category, Tag, Event, Sticker } from './types';
 
 /** Delete the current user's account via the database function.
  *  Requires the `delete_own_account` RPC (see docs/SUPABASE_SETUP.md). */
@@ -26,7 +26,14 @@ type PersistableState = {
   categories: Category[];
   tags: Tag[];
   events: Event[];
+  stickers: Sticker[];
 };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** null = unknown, false = the `stickers` table is not in this DB (migration not applied). */
+let stickersTableOk: boolean | null = null;
+const isMissingRelation = (err: { message?: string; code?: string } | null | undefined) =>
+  !!err && (err.code === '42P01' || err.code === 'PGRST205' || /does not exist|schema cache|relation/i.test(err.message ?? ''));
 
 // Gate: saves are blocked until the initial Supabase load completes.
 // This prevents the seed/localStorage state (with empty categories/events)
@@ -62,7 +69,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
   // eslint-disable-next-line no-console
   console.log('[supabasePersistence] Loading state for user', userId);
 
-  const [containersRes, categoriesRes, tagsRes, tasksRes, blocksRes, eventsRes, settingsRes] = await Promise.all([
+  const [containersRes, categoriesRes, tagsRes, tasksRes, blocksRes, eventsRes, settingsRes, stickersRes] = await Promise.all([
     supabase.from('calendar_containers').select('*').eq('user_id', userId),
     supabase.from('categories').select('*').eq('user_id', userId),
     supabase.from('tags').select('*').eq('user_id', userId),
@@ -70,7 +77,10 @@ export async function loadSupabaseState(isInitialLoad = true) {
     supabase.from('time_blocks').select('*').eq('user_id', userId),
     supabase.from('events').select('*').eq('user_id', userId),
     supabase.from('user_settings').select('timezone, has_completed_setup, week_starts_on_monday, wake_time, sleep_time').eq('user_id', userId).maybeSingle(),
+    // Optional table (supabase/migrations/20261013_*): an error here is non-fatal.
+    supabase.from('stickers').select('*').eq('user_id', userId),
   ]);
+  stickersTableOk = stickersRes.error ? (isMissingRelation(stickersRes.error) ? false : stickersTableOk) : true;
 
   const hasError =
     containersRes.error ||
@@ -234,6 +244,22 @@ export async function loadSupabaseState(isInitialLoad = true) {
         priority: typeof t.priority === 'number' ? t.priority : undefined,
         pinned: t.pinned ?? false,
         emoji: t.emoji ?? null,
+        // Repeating-todo fields (N-01). Fall back to the in-memory copy when the columns
+        // don't exist yet so a not-yet-migrated DB doesn't wipe them on reload.
+        ...(() => {
+          const ex = prev.tasks.find((x) => x.id === t.id);
+          const hasCols = 'recurring' in t || 'recurrence_pattern' in t;
+          const recurring = hasCols ? !!t.recurring : ex?.recurring;
+          const pattern = hasCols ? (t.recurrence_pattern ?? undefined) : ex?.recurrencePattern;
+          return {
+            recurring: recurring || undefined,
+            recurrencePattern: pattern,
+            recurrenceDays: hasCols ? (t.recurrence_days ?? undefined) : ex?.recurrenceDays,
+            recurrenceSeriesId: hasCols ? (t.recurrence_series_id ?? null) : (ex?.recurrenceSeriesId ?? null),
+            recurrenceExceptions: hasCols ? (t.recurrence_exceptions ?? undefined) : ex?.recurrenceExceptions,
+            recurrenceUntil: hasCols ? (t.recurrence_until ?? null) : (ex?.recurrenceUntil ?? null),
+          };
+        })(),
       })
     ),
     timeBlocks: blocks.map(
@@ -284,13 +310,32 @@ export async function loadSupabaseState(isInitialLoad = true) {
             attendanceStatus: (e as any).attendance_status ?? existing?.attendanceStatus ?? undefined,
             googleEventId: (e as any).google_event_id ?? existing?.googleEventId ?? null,
             attendees: (e as any).attendees ?? existing?.attendees ?? null,
-            // timezone lives in localStorage (via Zustand persistence), not Supabase yet
-            timezone: existing?.timezone ?? null,
+            // timezone: DB column when present (migration 20261013), else the locally-held value
+            timezone: ('timezone' in e ? (e as any).timezone : existing?.timezone) ?? null,
           };
         }
       ),
       ...prevGcalEvents,
     ],
+    stickers: (() => {
+      if (stickersRes.error || !stickersRes.data) return prev.stickers; // table missing: keep local
+      const fromDb: Sticker[] = (stickersRes.data as any[]).map((r) => ({
+        id: r.id,
+        emoji: r.emoji,
+        date: r.date,
+        blockId: r.block_id ?? null,
+        eventId: r.event_id ?? null,
+        offsetXPercent: r.offset_x_percent ?? 50,
+        offsetYPercent: r.offset_y_percent ?? 50,
+        timeMinutes: r.time_minutes ?? undefined,
+      }));
+      // First load after the migration: DB is empty but this browser still has its local
+      // stickers - keep them; the next save uploads them.
+      if (fromDb.length === 0 && isInitialLoad && prev.stickers.length > 0) return prev.stickers;
+      // Keep local-only stickers anchored to ephemeral (gcal/shared) events - they are never saved.
+      const ephemeral = prev.stickers.filter((st) => (st.eventId && !UUID_RE.test(st.eventId)) || (st.blockId && !UUID_RE.test(st.blockId)));
+      return [...fromDb, ...ephemeral];
+    })(),
     };
   });
 
@@ -399,14 +444,31 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       emoji: t.emoji ?? null,
       // Needs supabase/migrations/20261011_task_is_todo.sql; dropped by the retry below if the column is missing.
       is_todo: t.isTodo ?? true,
+      // Needs supabase/migrations/20261013_*; stripped by the first retry if missing.
+      recurring: t.recurring ?? false,
+      recurrence_pattern: t.recurrencePattern ?? null,
+      recurrence_days: t.recurrenceDays ?? null,
+      recurrence_series_id: t.recurrenceSeriesId && UUID_RE.test(t.recurrenceSeriesId) ? t.recurrenceSeriesId : null,
+      recurrence_exceptions: t.recurrenceExceptions ?? null,
+      recurrence_until: t.recurrenceUntil ?? null,
     });
     let taskResult = await supabase.from('tasks').upsert(state.tasks.map(taskRow), { onConflict: 'id' });
+    if (taskResult.error && /recurrence|recurring/.test(taskResult.error.message)) {
+      // Repeating-todo columns not migrated yet: keep saving everything else.
+      taskResult = await supabase.from('tasks').upsert(
+        state.tasks.map((t) => {
+          const { recurring, recurrence_pattern, recurrence_days, recurrence_series_id, recurrence_exceptions, recurrence_until, ...rest } = taskRow(t);
+          return rest;
+        }),
+        { onConflict: 'id' }
+      );
+    }
     if (taskResult.error && /column|notes|priority|pinned|emoji|link|description|is_todo/.test(taskResult.error.message)) {
       // eslint-disable-next-line no-console
       console.warn('[supabasePersistence] tasks upsert failed on an optional column — retrying with core columns only:', taskResult.error.message);
       taskResult = await supabase.from('tasks').upsert(
         state.tasks.map((t) => {
-          const { notes, priority, pinned, emoji, link, description, is_todo, ...core } = taskRow(t);
+          const { notes, priority, pinned, emoji, link, description, is_todo, recurring, recurrence_pattern, recurrence_days, recurrence_series_id, recurrence_exceptions, recurrence_until, ...core } = taskRow(t);
           return core;
         }),
         { onConflict: 'id' }
@@ -468,8 +530,15 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       attendance_status: e.attendanceStatus ?? null,
       google_event_id: e.googleEventId ?? null,
       attendees: e.attendees ?? null,
+      timezone: e.timezone ?? null, // needs supabase/migrations/20261013_*
     });
     let evResult = await supabase.from('events').upsert(nonGcalEvents.map(eventRow), { onConflict: 'id' });
+    if (evResult.error && /timezone/i.test(evResult.error.message)) {
+      evResult = await supabase.from('events').upsert(
+        nonGcalEvents.map((e) => { const { timezone, ...rest } = eventRow(e); return rest; }),
+        { onConflict: 'id' }
+      );
+    }
     if (evResult.error && /column|does not exist|schema cache/i.test(evResult.error.message)) {
       // A column is missing from this DB's schema. Retry with only the core columns so
       // a schema gap can't fail the whole events upsert — which would otherwise SKIP the
@@ -493,6 +562,46 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       );
     }
     check('events', 'upsert', evResult);
+  }
+
+  // Stickers (optional table): never fails the save and never shows the error banner.
+  // Only stickers anchored to persisted (uuid) events/blocks are saved.
+  const persistableStickers = (state.stickers ?? []).filter((st) =>
+    UUID_RE.test(st.id) && (!st.eventId || UUID_RE.test(st.eventId)) && (!st.blockId || UUID_RE.test(st.blockId)));
+  if (stickersTableOk !== false) {
+    try {
+      if (persistableStickers.length) {
+        const res = await supabase.from('stickers').upsert(
+          persistableStickers.map((st) => ({
+            id: st.id, user_id: userId, emoji: st.emoji, date: st.date,
+            block_id: st.blockId ?? null, event_id: st.eventId ?? null,
+            offset_x_percent: st.offsetXPercent ?? 50, offset_y_percent: st.offsetYPercent ?? 50,
+            time_minutes: st.timeMinutes ?? null,
+          })),
+          { onConflict: 'id' }
+        );
+        if (res.error) {
+          if (isMissingRelation(res.error)) stickersTableOk = false;
+          // eslint-disable-next-line no-console
+          console.warn('[supabasePersistence] stickers upsert skipped:', res.error.message);
+        }
+      }
+      if (stickersTableOk !== false) {
+        const keep = new Set(persistableStickers.map((st) => st.id));
+        const { data: rows, error } = await supabase.from('stickers').select('id').eq('user_id', userId);
+        if (error) {
+          if (isMissingRelation(error)) stickersTableOk = false;
+        } else {
+          const orphans = (rows ?? []).map((r: { id: string }) => r.id).filter((id: string) => !keep.has(id));
+          for (let i = 0; i < orphans.length; i += 150) {
+            await supabase.from('stickers').delete().eq('user_id', userId).in('id', orphans.slice(i, i + 150));
+          }
+        }
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[supabasePersistence] stickers sync failed:', e);
+    }
   }
 
   // If upserts failed, log but continue with orphan cleanup for tables that succeeded.
@@ -737,6 +846,7 @@ export function startSupabasePersistence() {
       categories: state.categories,
       tags: state.tags,
       events: state.events,
+      stickers: state.stickers,
     }),
     (slice) => {
       scheduleFlush(slice);
@@ -762,6 +872,7 @@ export function startSupabasePersistence() {
         categories: state.categories,
         tags: state.tags,
         events: state.events,
+        stickers: state.stickers,
         viewMode: state.viewMode,
         view: state.view,
         selectedDate: state.selectedDate,
@@ -809,6 +920,7 @@ export function startSupabasePersistence() {
       categories: state.categories,
       tags: state.tags,
       events: state.events,
+      stickers: state.stickers,
     };
     scheduleFlush(slice);
   };

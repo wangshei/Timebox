@@ -263,6 +263,9 @@ function dateTimeToEpoch(date: string, time: string): number {
   return new Date(y, m - 1, d, h, min).getTime();
 }
 
+/** Set by useHistoryStore so sticker add/delete become undo steps (history imports this store, not vice versa). */
+export const undoHooks: { snapshot?: () => void } = {};
+
 // --- Store ---
 
 export const useStore = create<AppState & AppActions>()(
@@ -335,8 +338,10 @@ export const useStore = create<AppState & AppActions>()(
         const existing = new Set(
           s.tasks.filter((t) => t.recurrenceSeriesId === anchor.recurrenceSeriesId).map((t) => t.dueDate),
         );
-        const occ = generateRecurrenceDates(anchorDate, anchor.recurrencePattern!, anchor.recurrenceDays)
-          .filter((d) => d >= minD && d <= maxD && d > anchorDate && !existing.has(d) && !exceptions.has(d));
+        // Lazy + unbounded: generate only up to the end of the visible range (or the series' end date).
+        const horizon = anchor.recurrenceUntil && anchor.recurrenceUntil < maxD ? anchor.recurrenceUntil : maxD;
+        const occ = generateRecurrenceDates(anchorDate, anchor.recurrencePattern!, anchor.recurrenceDays, 800, horizon)
+          .filter((d) => d >= minD && d <= horizon && d > anchorDate && !existing.has(d) && !exceptions.has(d));
         for (const d of occ) {
           if (s.tasks.length + newTasks.length >= ENTITY_LIMITS.tasks) break;
           const { id: _id, ...rest } = anchor;
@@ -350,6 +355,7 @@ export const useStore = create<AppState & AppActions>()(
             recurrencePattern: undefined,
             recurrenceDays: undefined,
             recurrenceExceptions: undefined,
+            recurrenceUntil: undefined,
             recurrenceSeriesId: anchor.recurrenceSeriesId,
           });
         }
@@ -908,6 +914,8 @@ export const useStore = create<AppState & AppActions>()(
   deleteEvents: (ids) =>
     set((s) => ({
       events: s.events.filter((e) => !ids.includes(e.id)),
+      // Event-anchored stickers go with their events (B-30).
+      stickers: s.stickers.filter((st) => !(st.eventId && ids.includes(st.eventId))),
     })),
 
   setCalendarContainers: (containers) => set({ calendarContainers: containers }),
@@ -941,14 +949,17 @@ export const useStore = create<AppState & AppActions>()(
   addSticker: (s) => {
     const current = get();
     if (current.stickers.length >= ENTITY_LIMITS.stickers) return '';
+    undoHooks.snapshot?.();
     const id = generateId();
     set((state) => ({ stickers: [...state.stickers, { ...s, id }] }));
     return id;
   },
   updateSticker: (id, updates) =>
     set((s) => ({ stickers: s.stickers.map((st) => (st.id === id ? { ...st, ...updates } : st)) })),
-  deleteSticker: (id) =>
-    set((s) => ({ stickers: s.stickers.filter((st) => st.id !== id) })),
+  deleteSticker: (id) => {
+    undoHooks.snapshot?.();
+    set((s) => ({ stickers: s.stickers.filter((st) => st.id !== id) }));
+  },
 
   addSchedulingLink: (link) => {
     const id = generateId();

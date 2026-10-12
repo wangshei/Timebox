@@ -43,7 +43,7 @@ import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
 import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin, padTime, toIsoInstant } from './utils/dateTime';
 import { getInviteTiming, getSeriesRows, getGuestEmails, hasInvitedGuests } from './utils/inviteSeries';
-import { generateRecurrenceDates, generateRecurrenceDatesAfter } from './utils/recurrenceExpander';
+import { generateRecurrenceDates, generateRecurrenceDatesAfter, defaultSeriesUntil } from './utils/recurrenceExpander';
 import { MINS_PER_DAY, absMinsToEndParts, dayOffsetBetween, addDaysToDateString } from './utils/gridUtils';
 import { splitAroundOverlaps, rangesOverlap, TimeRange } from './utils/splitAroundOverlaps';
 import type { Category, Tag, Mode as StoreMode, TimeBlock } from './types';
@@ -853,6 +853,8 @@ export default function App() {
         // --- Timebox events: re-derive future events from epoch ---
         if (evt.date < todayStr) continue;
         if (!evt.startEpoch || !evt.endEpoch) continue;
+        // Floating events (timezone "None") keep their wall-clock time when the user travels (N-10).
+        if (!evt.timezone) continue;
 
         const startDate = new Date(evt.startEpoch);
         const endDate = new Date(evt.endEpoch);
@@ -1319,6 +1321,7 @@ export default function App() {
     recurring?: boolean;
     recurrencePattern?: import('./types').RecurrencePattern;
     recurrenceDays?: number[];
+    recurrenceUntil?: string | null;
     scheduleAt?: { date: string; startTime: string; endTime: string } | null;
   }) => {
     saveSnapshot();
@@ -1345,6 +1348,7 @@ export default function App() {
             recurring: true,
             recurrencePattern: taskData.recurrencePattern,
             recurrenceDays: taskData.recurrencePattern === 'custom' ? taskData.recurrenceDays : undefined,
+            recurrenceUntil: taskData.recurrenceUntil || undefined,
             recurrenceSeriesId: crypto.randomUUID(),
           }
         : {}),
@@ -1386,6 +1390,7 @@ export default function App() {
     recurring?: boolean;
     recurrencePattern?: import('./types').RecurrencePattern;
     recurrenceDays?: number[];
+    repeatUntil?: string;
     link?: string | null;
     description?: string | null;
     notes?: string | null;
@@ -1400,7 +1405,8 @@ export default function App() {
     const evNow = new Date();
     const evNowMins = evNow.getHours() * 60 + evNow.getMinutes();
     const evEndMins = (() => { const [h, m] = eventData.endTime.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); })();
-    const isPastEvent = eventData.date < evTodayStr || (eventData.date === evTodayStr && evEndMins <= evNowMins);
+    const evEndDate = eventData.endDate ?? eventData.date;
+    const isPastEvent = evEndDate < evTodayStr || (evEndDate === evTodayStr && evEndMins <= evNowMins);
     const eventPayload = {
       title: eventData.title,
       calendarContainerId: eventData.calendar,
@@ -1433,7 +1439,7 @@ export default function App() {
       const payloadWithSource = { ...eventPayload, source: draftSource };
       if (isRecurring) {
         const seriesId = crypto.randomUUID();
-        const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+        const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays, 800, eventData.repeatUntil || defaultSeriesUntil(eventData.date));
         deleteTimeBlock(editingTimeBlockId);
         const draftSpanDays = payloadWithSource.endDate
           ? Math.round((new Date(payloadWithSource.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
@@ -1456,7 +1462,7 @@ export default function App() {
       setIsDraftTimeBlock(false);
     } else if (isRecurring) {
       const seriesId = crypto.randomUUID();
-      const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays);
+      const dates = generateRecurrenceDates(eventData.date, eventData.recurrencePattern!, eventData.recurrenceDays, 800, eventData.repeatUntil || defaultSeriesUntil(eventData.date));
       // Compute day span for cross-date events
       const spanDays = eventPayload.endDate
         ? Math.round((new Date(eventPayload.endDate + 'T00:00:00').getTime() - new Date(eventData.date + 'T00:00:00').getTime()) / 86400000)
@@ -2609,12 +2615,6 @@ export default function App() {
       if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, event.date);
       deleteEvents(deletedIds);
     }
-    // Deleted occurrences take their stickers with them (B-30).
-    if (deletedIds.length > 1) {
-      const gone = new Set(deletedIds);
-      useStore.setState((s) => ({ stickers: s.stickers.filter((st) => !(st.eventId && gone.has(st.eventId))) }));
-    }
-
     if (!notifyGuests || !hasInvitedGuests(event)) return;
     const timing = getInviteTiming(event, allBefore);
     const guests = getGuestEmails(event);
@@ -4299,12 +4299,28 @@ export default function App() {
           const wantsRecurring = !!u.recurring && !!u.recurrencePattern && u.recurrencePattern !== 'none';
           if (wantsRecurring) {
             // Editing a task into a recurring series: give it a series id + an anchor date.
-            if (task && !task.recurrenceSeriesId) u.recurrenceSeriesId = crypto.randomUUID();
+            // An existing INSTANCE (belongs to another series but is not its head) starts its own
+            // series instead of becoming a second head of the old one (B-43).
+            if (task && (!task.recurrenceSeriesId || !task.recurring)) u.recurrenceSeriesId = crypto.randomUUID();
             if (!(u.dueDate ?? task?.dueDate)) u.dueDate = getLocalDateString();
+            // Head's pattern / weekdays / end changed: drop its untouched future copies so they
+            // regenerate on the new pattern.
+            if (task?.recurring && task.recurrenceSeriesId) {
+              const patternChanged = u.recurrencePattern !== task.recurrencePattern
+                || JSON.stringify(u.recurrenceDays ?? []) !== JSON.stringify(task.recurrenceDays ?? [])
+                || (u.recurrenceUntil ?? null) !== (task.recurrenceUntil ?? null);
+              if (patternChanged) {
+                const headDue = u.dueDate ?? task.dueDate ?? '';
+                const stale = tasks.filter((t) => t.recurrenceSeriesId === task.recurrenceSeriesId && !t.recurring && (t.dueDate ?? '') > headDue
+                  && !timeBlocks.some((b) => b.taskId === t.id) && t.status !== 'done').map((t) => t.id);
+                if (stale.length) useStore.setState((st) => ({ tasks: st.tasks.filter((t) => !stale.includes(t.id)) }));
+              }
+            }
           } else if (u.recurring === false && task?.recurring) {
             // Recurrence turned off — drop the series metadata on the head.
             u.recurrencePattern = undefined;
             u.recurrenceDays = undefined;
+            u.recurrenceUntil = undefined;
           }
           updateTask(id, u);
           if (wantsRecurring) expandRecurringTasks(analyticsDateRange);
@@ -4380,33 +4396,88 @@ export default function App() {
           // Notify attendees if this is the organizer's own event (not guests removed /
           // newly invited in this same save - they get a cancel / an invite instead, B-09).
           if (event) notifyAttendeesIfNeeded(event, eventUpdates, { scope: recurrenceEditScope, excludeEmails: [...guestsRemoved, ...guestsAdded] });
+          const euAll = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
+          const wantsRepeat = !!euAll.recurring && !!euAll.recurrencePattern && euAll.recurrencePattern !== 'none';
           if ((recurrenceEditScope === 'all' || recurrenceEditScope === 'all_after') && event?.recurrenceSeriesId) {
-            const { date: newDate, endDate: newEndDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
-            // Each occurrence keeps its own start date, so propagate the end date as a
-            // day-span from the edited occurrence's (possibly new) start date.
+            const { date: newDate, endDate: newEndDate, recurring: _recurring, recurrencePattern: newPattern, recurrenceDays: newDays, ...rest } = euAll;
+            const allRows = useStore.getState().events;
+            const seriesRows = allRows
+              .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId)
+              .sort((a, b) => a.date.localeCompare(b.date));
+            const targetRows = seriesRows.filter((e) => recurrenceEditScope === 'all' || e.date >= event.date);
+            const sameVal = (a: unknown, b: unknown) => (a ?? '') === (b ?? '') || JSON.stringify(a) === JSON.stringify(b);
+            // N-08: only propagate fields the user actually changed, so per-occurrence
+            // customizations (moved time, notes, link...) on other rows survive.
+            const diff: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(rest)) {
+              if (!sameVal(v, (event as unknown as Record<string, unknown>)[k])) diff[k] = v;
+            }
             const spanDays = newEndDate && newEndDate !== (newDate ?? event.date)
               ? dayOffsetBetween(newDate ?? event.date, newEndDate)
               : 0;
-            updateEvents(
-              events
-                .filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId && (recurrenceEditScope === 'all' || e.date >= event.date))
-                .map((e) => ({
-                  id: e.id,
-                  changes: { ...sharedUpdates, endDate: spanDays > 0 ? addDaysToDateString(e.date, spanDays) : undefined },
-                }))
-            );
+            const endChanged = (newEndDate ?? undefined) !== (event.endDate ?? undefined) || (!!newDate && newDate !== event.date);
+            const patternChanged = wantsRepeat && (
+              newPattern !== event.recurrencePattern || JSON.stringify(newDays ?? []) !== JSON.stringify(event.recurrenceDays ?? []));
+
+            if (!wantsRepeat) {
+              // "Stop repeating" (B-20): drop the other occurrences in scope; the edited one stays.
+              const dropIds = seriesRows.filter((e) => e.id !== id && (recurrenceEditScope === 'all' || e.date > event.date)).map((e) => e.id);
+              if (dropIds.length) deleteEvents(dropIds);
+              updateEvent(id, {
+                ...rest, date: newDate ?? event.date, endDate: newEndDate,
+                ...(recurrenceEditScope === 'all' ? { recurring: false, recurrencePattern: undefined, recurrenceDays: undefined, recurrenceSeriesId: null } : {}),
+              });
+            } else if (patternChanged) {
+              // Changed pattern (B-20): rebuild the occurrences in scope on the new pattern.
+              const firstDate = recurrenceEditScope === 'all' ? seriesRows[0].date : (newDate ?? event.date);
+              const lastDate = seriesRows[seriesRows.length - 1].date;
+              const until = repeatUntil || (lastDate > firstDate ? lastDate : defaultSeriesUntil(firstDate));
+              const dropIds = seriesRows.filter((e) => e.id !== id && (recurrenceEditScope === 'all' || e.date > event.date)).map((e) => e.id);
+              if (dropIds.length) deleteEvents(dropIds);
+              const editedDate = newDate ?? event.date;
+              updateEvent(id, { ...rest, date: editedDate, endDate: newEndDate, recurring: true, recurrencePattern: newPattern, recurrenceDays: newDays });
+              const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...base } = { ...event, ...rest, recurring: true, recurrencePattern: newPattern, recurrenceDays: newDays };
+              const dates = generateRecurrenceDates(firstDate, newPattern!, newDays, 800, until).filter((d) => d !== editedDate);
+              const room = Math.max(0, ENTITY_LIMITS.events - useStore.getState().events.length);
+              const span = spanDays;
+              addEvents(dates.slice(0, room).map((d) => ({ ...base, date: d, endDate: span > 0 ? addDaysToDateString(d, span) : undefined })));
+            } else {
+              updateEvents(
+                targetRows.map((e) => e.id === id
+                  ? { id: e.id, changes: { ...rest, ...(newDate ? { date: newDate } : {}), endDate: newEndDate } }
+                  : { id: e.id, changes: { ...diff, ...(endChanged ? { endDate: spanDays > 0 ? addDaysToDateString(e.date, spanDays) : undefined } : {}) } })
+              );
+            }
             // "Repeat until": extend the series past its last occurrence, or trim occurrences after the new end.
             // Never fills gaps, so occurrences the user deleted earlier stay deleted.
-            if (repeatUntil) {
-              const series = events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId);
+            if (repeatUntil && !patternChanged && wantsRepeat) {
+              const series = useStore.getState().events.filter((e) => e.recurrenceSeriesId === event.recurrenceSeriesId);
               const lastDate = series.reduce((m, e) => (e.date > m ? e.date : m), event.date);
-              const pattern = (eventUpdates as { recurrencePattern?: import('./types').RecurrencePattern }).recurrencePattern ?? event.recurrencePattern;
-              const days = (eventUpdates as { recurrenceDays?: number[] }).recurrenceDays ?? event.recurrenceDays;
+              const pattern = newPattern ?? event.recurrencePattern;
+              const days = newDays ?? event.recurrenceDays;
               if (repeatUntil < lastDate) {
-                deleteEvents(series.filter((e) => e.date > repeatUntil).map((e) => e.id));
+                const trimmed = series.filter((e) => e.date > repeatUntil);
+                deleteEvents(trimmed.map((e) => e.id));
+                // N-22: guests of a shared series keep a stale tail unless told the series now ends earlier.
+                if (trimmed.length && hasInvitedGuests(event)) {
+                  const timing = getInviteTiming(event, allRows);
+                  const keep = series.filter((e) => e.date <= repeatUntil);
+                  const lastKept = keep[keep.length - 1];
+                  if (timing.rrule && lastKept) {
+                    notifyEventUpdate({
+                      eventTitle: event.title, attendeeEmails: getGuestEmails(event), senderName: userName || undefined,
+                      changes: `Repeats until ${repeatUntil}`, eventId: timing.anchor.id, seriesId: timing.seriesId,
+                      event: {
+                        start: toIsoInstant(timing.anchor.date, timing.anchor.start),
+                        end: toIsoInstant(timing.anchor.endDate ?? timing.anchor.date, timing.anchor.end),
+                        rrule: timing.rrule, until: toIsoInstant(lastKept.endDate ?? lastKept.date, lastKept.end),
+                      },
+                    }).catch((err) => console.warn('[notify] series end update failed:', err));
+                  }
+                }
               } else if (pattern && pattern !== 'none') {
-                const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...base } = { ...event, ...sharedUpdates };
-                const room = Math.max(0, ENTITY_LIMITS.events - events.length);
+                const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...base } = { ...event, ...rest };
+                const room = Math.max(0, ENTITY_LIMITS.events - useStore.getState().events.length);
                 const newDates = generateRecurrenceDatesAfter(lastDate, pattern, days, repeatUntil).slice(0, room);
                 if (newDates.length) {
                   addEvents(newDates.map((d) => ({ ...base, date: d, endDate: spanDays > 0 ? addDaysToDateString(d, spanDays) : undefined })));
@@ -4415,24 +4486,28 @@ export default function App() {
             }
           } else {
             // Check if a singular event is becoming recurring
-            const eu = eventUpdates as typeof eventUpdates & { recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
-            const isBecomingRecurring = eu.recurring && eu.recurrencePattern && eu.recurrencePattern !== 'none' && !event?.recurrenceSeriesId;
+            const eu = euAll;
+            const isBecomingRecurring = wantsRepeat && !event?.recurrenceSeriesId;
             if (isBecomingRecurring && event) {
               const seriesId = crypto.randomUUID();
-              const eventDate = (eventUpdates as any).date ?? event.date;
-              const dates = generateRecurrenceDates(eventDate, eu.recurrencePattern!, eu.recurrenceDays);
-              // Ensure the origin occurrence sits on a day that's part of the pattern.
-              const originDate = dates.includes(eventDate) ? eventDate : (dates[0] ?? eventDate);
+              const eventDate = eu.date ?? event.date;
+              const dates = generateRecurrenceDates(eventDate, eu.recurrencePattern!, eu.recurrenceDays, 800, repeatUntil || defaultSeriesUntil(eventDate));
+              // B-26: the edited occurrence always stays on its own date (generateRecurrenceDates includes it).
+              const originDate = eventDate;
               // Cross-date span: each occurrence's endDate is offset from its own start date.
-              const baseEndDate = (eventUpdates as { endDate?: string }).endDate ?? event.endDate;
+              const baseEndDate = eu.endDate ?? event.endDate;
               const spanDays = baseEndDate && baseEndDate !== eventDate ? dayOffsetBetween(eventDate, baseEndDate) : 0;
               const endDateFor = (d: string) => (spanDays > 0 ? addDaysToDateString(d, spanDays) : undefined);
-              // Update the original event with series ID (re-anchored to a pattern day)
               updateEvent(id, { ...eventUpdates, date: originDate, endDate: endDateFor(originDate), recurrenceSeriesId: seriesId });
               // Add new events for the remaining dates. Strip gcal/epoch/id fields so
               // addEvents derives fresh epochs per occurrence.
               const { id: _id, googleEventId: _gid, gcalStartISO: _gsi, gcalEndISO: _gei, startEpoch: _se, endEpoch: _ee, editedAt: _ea, ...baseWithoutId } = { ...event, ...eventUpdates, recurrenceSeriesId: seriesId };
               addEvents(dates.filter((d) => d !== originDate).map((date) => ({ ...baseWithoutId, date, endDate: endDateFor(date) })));
+            } else if (event?.recurrenceSeriesId) {
+              // Scope "this" on a series row: never write series-level fields onto one row.
+              // Turning repeat off detaches just this occurrence into a standalone event (N-15).
+              const { recurring: _r, recurrencePattern: _p, recurrenceDays: _d, ...single } = eu;
+              updateEvent(id, (wantsRepeat || !event.recurrencePattern || event.recurrencePattern === 'none') ? single : { ...single, recurring: false, recurrencePattern: undefined, recurrenceDays: undefined, recurrenceSeriesId: null });
             } else {
               updateEvent(id, eventUpdates);
             }
@@ -4466,7 +4541,7 @@ export default function App() {
               };
               if (isRecurring) {
                 const seriesId = crypto.randomUUID();
-                const dates = generateRecurrenceDates(eventDate, u.recurrencePattern!, u.recurrenceDays);
+                const dates = generateRecurrenceDates(eventDate, u.recurrencePattern!, u.recurrenceDays, 800, defaultSeriesUntil(eventDate));
                 deleteTimeBlock(id);
                 addEvents(dates.map((date) => ({ ...eventBase, date, recurrenceSeriesId: seriesId })));
               } else {

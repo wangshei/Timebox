@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useStore } from './useStore';
+import { useStore, undoHooks } from './useStore';
 import type { Task, TimeBlock, Event, CalendarContainer, Category, Tag, Sticker } from '../types';
 
 /**
@@ -92,3 +92,6 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
     applySnapshot(next);
   },
 }));
+
+// Sticker add/delete are undoable (the store calls this before mutating).
+undoHooks.snapshot = () => useHistoryStore.getState().saveSnapshot();
