@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useStore } from './useStore';
-import type { Task, TimeBlock, Event, CalendarContainer, Category, Tag } from '../types';
+import type { Task, TimeBlock, Event, CalendarContainer, Category, Tag, Sticker } from '../types';
 
 /**
  * Domain-state snapshot for undo/redo.
@@ -13,6 +13,7 @@ export interface DomainSnapshot {
   calendarContainers: CalendarContainer[];
   categories: Category[];
   tags: Tag[];
+  stickers: Sticker[];
 }
 
 const MAX_HISTORY = 50;
@@ -23,6 +24,8 @@ interface HistoryState {
   saveSnapshot: () => void;
   undo: () => void;
   redo: () => void;
+  /** Drop all history (sign-out / user switch, B-46). */
+  clear: () => void;
 }
 
 function captureDomainSnapshot(): DomainSnapshot {
@@ -34,6 +37,7 @@ function captureDomainSnapshot(): DomainSnapshot {
     calendarContainers: s.calendarContainers,
     categories: s.categories,
     tags: s.tags,
+    stickers: s.stickers,
   };
 }
 
@@ -45,6 +49,8 @@ function applySnapshot(snapshot: DomainSnapshot) {
     calendarContainers: snapshot.calendarContainers,
     categories: snapshot.categories,
     tags: snapshot.tags,
+    // Older snapshots may predate sticker capture.
+    ...(snapshot.stickers ? { stickers: snapshot.stickers } : {}),
   });
 }
 
@@ -52,9 +58,10 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
   past: [],
   future: [],
 
+  clear: () => set({ past: [], future: [] }),
+
   saveSnapshot: () => {
     const snapshot = captureDomainSnapshot();
-    console.log('[HistoryStore] saveSnapshot — past will have', get().past.length + 1, 'entries. timeBlocks:', snapshot.timeBlocks.length, 'tasks:', snapshot.tasks.length);
     set((s) => ({
       past: [...s.past.slice(-(MAX_HISTORY - 1)), snapshot],
       future: [],
@@ -63,22 +70,18 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
   undo: () => {
     const { past } = get();
-    console.log('[HistoryStore] undo called — past.length:', past.length);
     if (past.length === 0) { console.log('[HistoryStore] nothing to undo'); return; }
     const current = captureDomainSnapshot();
     const previous = past[past.length - 1];
-    console.log('[HistoryStore] restoring snapshot. current timeBlocks:', current.timeBlocks.length, 'previous timeBlocks:', previous.timeBlocks.length);
     set((s) => ({
       past: s.past.slice(0, -1),
       future: [current, ...s.future],
     }));
     applySnapshot(previous);
-    console.log('[HistoryStore] snapshot applied. store timeBlocks now:', useStore.getState().timeBlocks.length);
   },
 
   redo: () => {
     const { future } = get();
-    console.log('[HistoryStore] redo called — future.length:', future.length);
     if (future.length === 0) { console.log('[HistoryStore] nothing to redo'); return; }
     const current = captureDomainSnapshot();
     const next = future[0];

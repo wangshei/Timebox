@@ -32,7 +32,6 @@ interface ShareModalProps {
   /** Called when user updates a collaborator's role */
   onUpdateRole: (collaboratorId: string, role: ShareRole) => void;
   /** Called when user copies the share link */
-  onCopyLink: () => void;
   /** Close modal */
   onClose: () => void;
 }
@@ -149,12 +148,10 @@ export function ShareModal({
   onInvite,
   onRemove,
   onUpdateRole,
-  onCopyLink,
   onClose,
 }: ShareModalProps) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<ShareRole>('viewer');
-  const [linkCopied, setLinkCopied] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape
@@ -171,12 +168,6 @@ export function ShareModal({
     if (!trimmed || !trimmed.includes('@')) return;
     onInvite(trimmed, role);
     setEmail('');
-  };
-
-  const handleCopyLink = () => {
-    onCopyLink();
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   return createPortal(
@@ -254,39 +245,6 @@ export function ShareModal({
 
         {/* Body */}
         <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
-          {/* Copy link section */}
-          <button className={!linkCopied ? 'tb-hv-bg' : undefined}
-            type="button"
-            onClick={handleCopyLink}
-            style={{ '--hv-bg': 'rgba(0,0,0,0.04)', display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid rgba(0,0,0,0.08)',
-              backgroundColor: linkCopied ? `${color}08` : '#FAFAFA',
-              cursor: 'pointer',
-              transition: 'all 0.15s', } as React.CSSProperties}
-          >
-            {linkCopied ? (
-              <CheckIcon style={{ width: 16, height: 16, color, flexShrink: 0 }} />
-            ) : (
-              <LinkIcon style={{ width: 16, height: 16, color: '#8E8E93', flexShrink: 0 }} />
-            )}
-            <div style={{ flex: 1, textAlign: 'left' }}>
-              <span style={{ fontSize: 12, fontWeight: 500, color: linkCopied ? color : '#1C1C1E' }}>
-                {linkCopied ? 'Link copied!' : 'Copy public view link'}
-              </span>
-              <span style={{ display: 'block', fontSize: 10, color: '#8E8E93', marginTop: 1 }}>
-                Anyone with the link can view
-              </span>
-            </div>
-          </button>
-
-          {/* Divider */}
-          <div style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', margin: '16px 0' }} />
-
           {/* Add people */}
           <div>
             <span

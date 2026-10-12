@@ -26,7 +26,7 @@ import { isTauri, getActivityBlocks, ActivityBlock, isTracking as checkIsTrackin
 import { useStore, ENTITY_LIMITS } from './store/useStore';
 import { useHistoryStore } from './store/useHistoryStore';
 import { isGoogleConnected, hasGcalWriteAccess, loadCachedGcalData, importGoogleCalendarEvents, getGcalDismissedIds, dismissGcalEventId, dismissGcalEventIds, getGcalDismissedCalendarIds, dismissGcalCalendarId, getDismissedGcalRecurring, dismissGcalRecurring, disconnectGoogle, getGoogleAuthUrl, GcalAuthError, createGcalEvent, updateGcalEvent } from './services/googleCalendar';
-import { createShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, resendInvite, getSharedCalendarsWithEvents } from './services/sharing';
+import { createShare, cancelShare, addShareMember, removeShareMember, removeAttendees, getMyShares, notifyEventUpdate, resendInvite, getSharedCalendarsWithEvents } from './services/sharing';
 import { scheduleNotifications, requestNotificationPermission } from './services/notifications';
 import {
   selectTimeBlocksForView,
@@ -41,7 +41,8 @@ import {
 } from './store/selectors';
 import { resolveTimeBlocks } from './utils/dataResolver';
 import { findNextAvailableSlot, parseTimeToMinutes, getTaskStatus } from './utils/taskHelpers';
-import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin } from './utils/dateTime';
+import { getLocalDateString, getLocalTimeZone, getViewDateRange, getAppOrigin, padTime, toIsoInstant } from './utils/dateTime';
+import { getInviteTiming, getSeriesRows, getGuestEmails, hasInvitedGuests } from './utils/inviteSeries';
 import { generateRecurrenceDates, generateRecurrenceDatesAfter } from './utils/recurrenceExpander';
 import { MINS_PER_DAY, absMinsToEndParts, dayOffsetBetween, addDaysToDateString } from './utils/gridUtils';
 import { splitAroundOverlaps, rangesOverlap, TimeRange } from './utils/splitAroundOverlaps';
@@ -51,7 +52,7 @@ import { supabase } from './supabaseClient';
 import { loadSupabaseState, startSupabasePersistence, persistOnboardingToSupabase, persistUserPreferencesToSupabase, deleteOwnAccount } from './supabasePersistence';
 import { saveSchedulingLinkToDb, deleteSchedulingLinkFromDb, loadSchedulingLinksAndBookings } from './services/booking';
 import { SegmentedControl } from './components/ui/SegmentedControl';
-import { IconButton, Popover } from './components/ds';
+import { IconButton, Popover, Modal, Button } from './components/ds';
 import { useBreakpoint } from './utils/useBreakpoint';
 import { THEME } from './constants/colors';
 
@@ -252,11 +253,19 @@ export default function App() {
   const [showTour, setShowTour] = useState(false);
   const [tzChangeBanner, setTzChangeBanner] = useState<{ from: string; to: string; count: number } | null>(null);
   const [inviteConfirm, setInviteConfirm] = useState<{
-    type: 'new' | 'update';
+    type: 'new' | 'update' | 'cancel';
     eventTitle: string;
     emails: string[];
     onConfirm: () => void;
     onSkip: () => void;
+    /** Backdrop / "keep" action; defaults to onSkip. */
+    onDismiss?: () => void;
+  } | null>(null);
+  // Generic "which ones?" chooser (recurring delete scope, todo delete vs remove from calendar).
+  const [scopePrompt, setScopePrompt] = useState<{
+    title: string;
+    subtitle?: string;
+    options: Array<{ label: string; desc?: string; danger?: boolean; onPick: () => void }>;
   } | null>(null);
 
   // Auto-show walkthrough for existing users who completed setup but never saw the tour
@@ -438,6 +447,44 @@ export default function App() {
     void loadSharedCalendars();
   }, [session, loadSharedCalendars]);
 
+  // B-34: web RSVPs (accept/decline on the invite page) only update share_members.status.
+  // Mirror them onto events.attendees[].responseStatus so the organizer's "Invited" chips
+  // show who answered. Series: the share sits on the first row; copy to every row.
+  const syncRsvpFromShares = useCallback(async () => {
+    if (!import.meta.env.VITE_SUPABASE_URL) return;
+    try {
+      const shares = (await getMyShares()) as Array<Record<string, any>>;
+      const state = useStore.getState();
+      const changes: Array<{ id: string; changes: Partial<import('./types').Event> }> = [];
+      for (const sh of shares) {
+        if (sh.scope !== 'event' || !sh.event_id) continue;
+        const ev = state.events.find((e) => e.id === sh.event_id);
+        if (!ev?.attendees?.length) continue;
+        const statusByEmail = new Map<string, string>(
+          (sh.share_members ?? []).map((m: Record<string, any>) => [String(m.email).toLowerCase(), String(m.status ?? '')]),
+        );
+        const next = ev.attendees.map((a) => {
+          const st = statusByEmail.get(a.email.toLowerCase());
+          const rs = st === 'accepted' ? 'accepted' : st === 'declined' ? 'declined' : null;
+          return rs && a.responseStatus !== rs ? { ...a, responseStatus: rs } : a;
+        });
+        if (!next.some((a, i) => a !== ev.attendees![i])) continue;
+        for (const row of getSeriesRows(ev, state.events)) changes.push({ id: row.id, changes: { attendees: next } });
+      }
+      if (changes.length) useStore.getState().updateEvents(changes);
+    } catch (err) {
+      console.warn('[rsvp-sync] failed:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session || !dataReady) return;
+    void syncRsvpFromShares();
+    const onVisible = () => { if (!document.hidden) void syncRsvpFromShares(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [session, dataReady, syncRsvpFromShares]);
+
   // Manual refresh — re-pull own data + shared calendars from the server on demand
   // (invites/edits from others don't always arrive via realtime, so give a button).
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -447,6 +494,7 @@ export default function App() {
     try {
       await loadSupabaseState();
       await loadSharedCalendars();
+      await syncRsvpFromShares();
       toast.success('Refreshed');
     } catch (err) {
       console.warn('[refresh] Failed:', err);
@@ -454,7 +502,7 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, loadSharedCalendars]);
+  }, [isRefreshing, loadSharedCalendars, syncRsvpFromShares]);
 
   // ─── Share Modal state ─────────────────────────────────────────────────────
   const [shareModal, setShareModal] = useState<{
@@ -507,17 +555,6 @@ export default function App() {
     void loadCollaborators(scope, id);
   }, [loadCollaborators]);
 
-  const handleShareCopyLink = useCallback(() => {
-    if (!shareModal) return;
-    const slug = shareModal.scope === 'calendar' ? 'cal' : shareModal.scope === 'category' ? 'cat' : 'tag';
-    const link = `${getAppOrigin()}/share/${slug}_${shareModal.id.slice(0, 8)}`;
-    navigator.clipboard.writeText(link).then(() => {
-      toast.success('Link copied!');
-    }).catch(() => {
-      toast.error('Failed to copy link');
-    });
-  }, [shareModal]);
-
   const handleShareInvite = useCallback(async (email: string, _role: ShareRole) => {
     if (!shareModal) return;
     const { scope, id, name } = shareModal;
@@ -558,7 +595,7 @@ export default function App() {
       toast.success(`Invite sent to ${email}`);
     } catch (err) {
       console.warn('[share] Failed to send invite:', err);
-      toast.success(`Invite saved (email may not have sent)`);
+      toast.error(`Couldn't send the invite to ${email}: ${(err as Error)?.message || err}`);
     }
     // Reconcile with the server so the row carries the real member id (needed for
     // removal) and true status.
@@ -1380,9 +1417,8 @@ export default function App() {
       notes: eventData.notes ?? undefined,
       timezone: eventData.timezone ?? null,
       ...(isPastEvent ? { source: 'unplanned' as const } : {}),
-      ...(eventData.inviteEmails && eventData.inviteEmails.length > 0
-        ? { attendees: eventData.inviteEmails.map(email => ({ email, responseStatus: 'needsAction' })) }
-        : {}),
+      // Guests are NOT stored here: they are recorded when the organizer confirms the
+      // invite popup (B-03), on every row of the series.
     };
     const isRecurring = eventData.recurring && eventData.recurrencePattern && eventData.recurrencePattern !== 'none';
 
@@ -1523,8 +1559,30 @@ export default function App() {
     setIsAddModalOpen(true);
   };
 
+  /** Merge guests into every row of the event's series (or just the event). Guests are only
+   *  recorded once the organizer confirms the invite (B-03), and always series-wide (B-16). */
+  const addGuestsToSeries = (eventId: string, emails: string[]) => {
+    const all = useStore.getState().events;
+    const live = all.find((e) => e.id === eventId);
+    if (!live) return;
+    const rows = getSeriesRows(live, all);
+    updateEvents(rows.map((row) => {
+      const have = new Set((row.attendees ?? []).map((a) => a.email.toLowerCase()));
+      const add = emails.filter((e) => !have.has(e.toLowerCase())).map((email) => ({ email, responseStatus: 'needsAction' }));
+      return { id: row.id, changes: { attendees: [...(row.attendees ?? []), ...add] } };
+    }));
+  };
+
+  /** Replace the guest list on every row of the event's series. */
+  const setSeriesGuests = (event: import('./types').Event, attendees: NonNullable<import('./types').Event['attendees']>) => {
+    const rows = getSeriesRows(event, useStore.getState().events);
+    updateEvents(rows.map((row) => ({ id: row.id, changes: { attendees } })));
+  };
+
   /** Show the invite popup and, on confirm, send Timebox email invites + push to
    *  attendees' Google Calendars. Shared by the create-event and edit-event paths.
+   *  Guests are recorded on the event only after the organizer confirms, and a repeating
+   *  event sends ONE recurring invite (RRULE, UID = series id) anchored on its first row.
    *  Pass existingGoogleEventId when the event is already on Google Calendar so we
    *  add guests to that event instead of creating a duplicate. */
   const sendNewInvites = (params: {
@@ -1537,33 +1595,47 @@ export default function App() {
     endDate?: string;
     description?: string;
     notes?: string;
-    /** Full guest list for the .ics, so each participant sees the others. Defaults to `emails`. */
+    /** Full guest list for the .ics, so each participant sees the others. Defaults to existing guests + `emails`. */
     allAttendeeEmails?: string[];
     existingGoogleEventId?: string | null;
   }) => {
     const { eventId, title, emails, date, startTime, endTime, endDate, description, notes, allAttendeeEmails, existingGoogleEventId } = params;
-    // Interpret the event's wall-clock time in the browser's local zone → UTC instants
-    // for the .ics attachment carried by the invite email.
-    const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
-    // The .ics DESCRIPTION combines both the event's Description and Notes fields — the
+    // The .ics DESCRIPTION combines both the event's Description and Notes fields - the
     // guest should see whichever the organizer filled in (Notes is the prominent one).
     const icsDescription = [description, notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
-    const eventIcs = {
-      start: toIso(date, startTime),
-      end: toIso(endDate ?? date, endTime),
-      title,
-      description: icsDescription,
-      attendeeEmails: (allAttendeeEmails && allAttendeeEmails.length > 0) ? allAttendeeEmails : emails,
-    };
     setInviteConfirm({
       type: 'new',
       eventTitle: title,
       emails,
       onConfirm: () => {
         setInviteConfirm(null);
+        const all = useStore.getState().events;
+        const live = all.find((e) => e.id === eventId);
+        const timing = live ? getInviteTiming(live, all) : null;
+        const isSeries = !!timing?.seriesId;
+        const anchorId = timing?.anchor.id ?? eventId;
+        // Record the guests on the event (every row of a series) now that the invite is confirmed.
+        addGuestsToSeries(eventId, emails);
+        const guestList = Array.from(new Set([
+          ...(allAttendeeEmails ?? []),
+          ...getGuestEmails({ attendees: live?.attendees }),
+          ...emails,
+        ].map((e) => e.toLowerCase())));
+        // A series is invited from its first occurrence; the RRULE describes the rest.
+        const startDate = isSeries ? timing!.anchor.date : date;
+        const spanEnd = isSeries ? (timing!.anchor.endDate ?? timing!.anchor.date) : (endDate ?? date);
+        const eventIcs = {
+          start: toIsoInstant(startDate, startTime),
+          end: toIsoInstant(spanEnd, endTime),
+          title,
+          description: icsDescription,
+          attendeeEmails: guestList,
+          rrule: timing?.rrule,
+          until: timing?.until,
+        };
         // Send Timebox invite emails first (delay for Supabase persistence, retry on failure)
         const sendShare = (attempt = 1) => {
-          createShare({ scope: 'event', scopeId: eventId, displayName: title, emails, event: eventIcs, senderName: userName || undefined })
+          createShare({ scope: 'event', scopeId: anchorId, displayName: title, emails, event: eventIcs, seriesId: timing?.seriesId, senderName: userName || undefined })
             .then((result) => {
               toast.success(`Invitations sent to ${result.memberCount} ${result.memberCount === 1 ? 'person' : 'people'}`);
             })
@@ -1577,10 +1649,11 @@ export default function App() {
             });
         };
         setTimeout(() => sendShare(), 2000);
-        // Also push to Google Calendar so attendees see it in their GCal.
-        if (isGoogleConnected() && hasGcalWriteAccess()) {
+        // Also push to Google Calendar so attendees see it in their GCal (single events only:
+        // a series is already carried by the recurring .ics above).
+        if (!isSeries && isGoogleConnected() && hasGcalWriteAccess()) {
           if (existingGoogleEventId) {
-            // Event already exists on Google — add guests in place (no duplicate).
+            // Event already exists on Google - add guests in place (no duplicate).
             updateGcalEvent({ googleEventId: existingGoogleEventId, addAttendeeEmails: emails, sendUpdates: true })
               .then(() => toast.success('Guests added to the Google Calendar event'))
               .catch((err) => console.warn('[gcal] Failed to add attendees to GCal event:', err));
@@ -1598,37 +1671,49 @@ export default function App() {
           }
         }
       },
+      // Skip: nothing is sent and nobody is recorded as invited (B-03).
       onSkip: () => setInviteConfirm(null),
     });
   };
 
-  /** Notify attendees when organizer updates their own event. Fire-and-forget. */
-  const notifyAttendeesIfNeeded = (event: import('./types').Event, updates: Record<string, unknown>) => {
-    // Respect the user's email notification preference — toggling this off in
+  /** Notify attendees when organizer updates their own event. Fire-and-forget.
+   *  `scope` is the recurrence scope of the edit; `excludeEmails` are guests removed/newly
+   *  invited in the same save (they get a cancel / an invite instead, B-09). */
+  const notifyAttendeesIfNeeded = (
+    event: import('./types').Event,
+    updates: Record<string, unknown>,
+    opts: { scope?: 'this' | 'all' | 'all_after'; excludeEmails?: string[] } = {},
+  ) => {
+    // Respect the user's email notification preference - toggling this off in
     // Settings should actually suppress attendee notifications.
     if (!emailNotificationsEnabled) return;
+    if (event.readOnly || event.sharedFromShareId || event.id.startsWith('gcal-evt-')) return;
     if (!event.attendees?.length) return;
+    const excluded = new Set((opts.excludeEmails ?? []).map((e) => e.toLowerCase()));
     const otherEmails = event.attendees
-      .filter(a => !a.self && a.email)
+      .filter(a => !a.self && a.email && !excluded.has(a.email.toLowerCase()))
       .map(a => a.email);
     if (otherEmails.length === 0) return;
 
+    // null / undefined / '' all mean "empty" (B-07): only a real text change counts.
+    const txt = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
     // Build human-readable change summary
     const parts: string[] = [];
     if (updates.title && updates.title !== event.title) parts.push(`Title: ${updates.title}`);
     if (updates.date && updates.date !== event.date) parts.push(`Date: ${updates.date}`);
-    if (updates.start && updates.start !== event.start) parts.push(`Start: ${updates.start}`);
-    if (updates.end && updates.end !== event.end) parts.push(`End: ${updates.end}`);
-    if (updates.description !== undefined && updates.description !== event.description) parts.push('Description updated');
-    if (updates.notes !== undefined && updates.notes !== event.notes) parts.push('Notes updated');
-    if (updates.location !== undefined && updates.location !== event.location) parts.push(`Location: ${updates.location || 'removed'}`);
-    // No detectable meaningful change — don't pester the user with a confirm modal.
-    // (Previously this pushed a generic "details updated" string and fired anyway.)
+    if (updates.start && padTime(updates.start as string) !== padTime(event.start)) parts.push(`Start: ${updates.start}`);
+    if (updates.end && padTime(updates.end as string) !== padTime(event.end)) parts.push(`End: ${updates.end}`);
+    if (updates.description !== undefined && txt(updates.description) !== txt(event.description)) parts.push('Description updated');
+    if (updates.notes !== undefined && txt(updates.notes) !== txt(event.notes)) parts.push('Notes updated');
+    if (updates.location !== undefined && txt(updates.location) !== txt(event.location)) parts.push(`Location: ${updates.location || 'removed'}`);
+    // No detectable meaningful change - don't pester the user with a confirm modal.
     if (parts.length === 0) return;
 
+    const allEvents = useStore.getState().events;
+    const timing = getInviteTiming(event, allEvents);
+    const scope = opts.scope ?? 'this';
     const capturedEmails = [...otherEmails];
     const capturedTitle = (updates.title as string) || event.title;
-    const capturedChanges = parts.join('\n');
     // Resolve the new timing (updated fields fall back to the event's current values)
     // so the revised .ics carries correct start/end.
     const newDate = (updates.date as string) ?? event.date;
@@ -1638,8 +1723,15 @@ export default function App() {
     const newDescription = (updates.description as string | undefined) ?? event.description ?? undefined;
     const newNotes = (updates.notes as string | undefined) ?? event.notes ?? undefined;
     const icsDescription = [newDescription, newNotes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
-    const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
-    const capturedEventId = event.id;
+    const isSeries = !!timing.seriesId;
+    // A repeating event has one recurring invite on the guests' side. Only an "all events"
+    // edit can be expressed as a revised series .ics; "this" / "this and following" go out
+    // as a text-only note (a per-occurrence override is not something the invite supports).
+    const sendSeriesIcs = isSeries && scope === 'all';
+    const capturedChanges = (isSeries && scope !== 'all' ? [`Occurrence on ${event.date}${scope === 'all_after' ? ' and following' : ''}:`] : []).concat(parts).join('\n');
+    const icsStartDate = isSeries ? (timing.anchor.id === event.id ? newDate : timing.anchor.date) : newDate;
+    const icsEndDate = isSeries ? (timing.anchor.id === event.id ? newEndDate : (timing.anchor.endDate ?? timing.anchor.date)) : newEndDate;
+    const capturedEventId = timing.anchor.id;
 
     setInviteConfirm({
       type: 'update',
@@ -1662,13 +1754,23 @@ export default function App() {
             console.warn('[gcal] Failed to update GCal event:', err);
           });
         }
+        const withIcs = !isSeries || sendSeriesIcs;
         notifyEventUpdate({
           eventTitle: capturedTitle,
           attendeeEmails: capturedEmails,
           changes: capturedChanges,
           senderName: userName || undefined,
           eventId: capturedEventId,
-          event: { start: toIso(newDate, newStart), end: toIso(newEndDate, newEnd), description: icsDescription },
+          seriesId: timing.seriesId,
+          event: withIcs
+            ? {
+                start: toIsoInstant(icsStartDate, newStart),
+                end: toIsoInstant(icsEndDate, newEnd),
+                description: icsDescription,
+                rrule: sendSeriesIcs ? timing.rrule : undefined,
+                until: sendSeriesIcs ? timing.until : undefined,
+              }
+            : undefined,
         })
           .then(() => toast.success(`Update sent to ${capturedEmails.length} attendee${capturedEmails.length !== 1 ? 's' : ''}`))
           .catch((err) => {
@@ -1678,6 +1780,27 @@ export default function App() {
       },
       onSkip: () => setInviteConfirm(null),
     });
+  };
+
+  /** resend_invite payload: series-aware (anchor row, RRULE, UID = series id). */
+  const buildResendPayload = (ev: import('./types').Event) => {
+    const timing = getInviteTiming(ev, useStore.getState().events);
+    const a = timing.anchor;
+    const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
+    return {
+      eventId: a.id,
+      seriesId: timing.seriesId,
+      event: {
+        start: toIsoInstant(a.date, a.start),
+        end: toIsoInstant(a.endDate ?? a.date, a.end),
+        title: ev.title,
+        description: icsDescription,
+        attendeeEmails: getGuestEmails(ev),
+        rrule: timing.rrule,
+        until: timing.until,
+      },
+      senderName: userName || undefined,
+    };
   };
 
   const handleEditEvent = (id: string) => {
@@ -2292,7 +2415,7 @@ export default function App() {
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
     const event = events.find((e) => e.id === eventId);
-    if (!event) return;
+    if (!event || event.readOnly) return;
     // Recurring events: ask which occurrences the move applies to. Until the user
     // picks, hold the move; dismissing the prompt defaults to just this occurrence.
     const isRecurring = !!(event.recurrenceSeriesId || event.recurringGoogleEventId);
@@ -2337,12 +2460,12 @@ export default function App() {
     } else {
       updateEvent(eventId, updates);
     }
-    notifyAttendeesIfNeeded(event, updates);
+    notifyAttendeesIfNeeded(event, updates, { scope });
   };
 
   const handleResizeEvent = (eventId: string, params: { date: string; endTime: string; endDate?: string }) => {
     const event = events.find((e) => e.id === eventId);
-    if (!event) return;
+    if (!event || event.readOnly) return;
     // Normalize endDate: a value equal to the start date means "same day" (no cross-date).
     const newEndDate = params.endDate && params.endDate !== event.date ? params.endDate : undefined;
     // Reject only genuinely-empty ranges (same day AND end not after start).
@@ -2447,16 +2570,12 @@ export default function App() {
     deleteTask(taskId);
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    saveSnapshot();
-    // If it's a gcal event, dismiss it so it won't come back on re-import
-    const evt = events.find(e => e.id === eventId);
-    if (evt?.googleEventId) dismissGcalEventId(eventId);
-    deleteEvent(eventId);
-  };
-
-  const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
-    const event = events.find((e) => e.id === id);
+  /** Delete an event (or part of its series) and, when `notifyGuests`, tell invited guests:
+   *  whole event / whole series -> METHOD:CANCEL via cancel_share; a partial series delete ->
+   *  text note (+ shortened RRULE for "this and following"). */
+  const executeDeleteEvent = (id: string, scope: 'this' | 'all' | 'all_after', notifyGuests: boolean) => {
+    const allBefore = useStore.getState().events;
+    const event = allBefore.find((e) => e.id === id);
     if (!event) return;
     saveSnapshot();
 
@@ -2467,26 +2586,108 @@ export default function App() {
         ? { field: 'recurringGoogleEventId' as const, value: event.recurringGoogleEventId }
         : null;
 
+    let deletedIds: string[] = [id];
     if (scope === 'this' || !seriesKey) {
       if (event.googleEventId) dismissGcalEventId(id);
       deleteEvent(id);
     } else if (scope === 'all') {
-      const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value);
+      const toDelete = allBefore.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value);
+      deletedIds = toDelete.map((e) => e.id);
       const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
       if (gcalIds.length) dismissGcalEventIds(gcalIds);
       // Google series: dismiss the whole series so future occurrences (outside the
-      // ±90-day window) never re-import. Per-instance dismissal above is kept too.
+      // +-90-day window) never re-import. Per-instance dismissal above is kept too.
       if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, '');
-      deleteEvents(toDelete.map((e) => e.id));
-    } else if (scope === 'all_after') {
-      const toDelete = events.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date);
+      deleteEvents(deletedIds);
+    } else {
+      const toDelete = allBefore.filter((e) => (e as Record<string, unknown>)[seriesKey.field] === seriesKey.value && e.date >= event.date);
+      deletedIds = toDelete.map((e) => e.id);
       const gcalIds = toDelete.filter(e => e.googleEventId).map(e => e.id);
       if (gcalIds.length) dismissGcalEventIds(gcalIds);
       // Google series: dismiss occurrences from this date forward so future ones
       // outside the loaded window never re-import.
       if (event.recurringGoogleEventId) dismissGcalRecurring(event.recurringGoogleEventId, event.date);
-      deleteEvents(toDelete.map((e) => e.id));
+      deleteEvents(deletedIds);
     }
+    // Deleted occurrences take their stickers with them (B-30).
+    if (deletedIds.length > 1) {
+      const gone = new Set(deletedIds);
+      useStore.setState((s) => ({ stickers: s.stickers.filter((st) => !(st.eventId && gone.has(st.eventId))) }));
+    }
+
+    if (!notifyGuests || !hasInvitedGuests(event)) return;
+    const timing = getInviteTiming(event, allBefore);
+    const guests = getGuestEmails(event);
+    const gone = new Set(deletedIds);
+    const remaining = timing.rows.filter((r) => !gone.has(r.id));
+    const a = timing.anchor;
+    const evInfo = { title: event.title, start: toIsoInstant(a.date, a.start), end: toIsoInstant(a.endDate ?? a.date, a.end) };
+    if (!timing.seriesId || remaining.length === 0) {
+      // Whole event or whole series is gone: cancel for everyone and revoke the share.
+      cancelShare({ eventId: a.id, seriesId: timing.seriesId, event: evInfo, senderName: userName || undefined })
+        .then(() => toast.success('Guests notified of the cancellation'))
+        .catch((err) => { console.warn('[cancel] failed:', err); toast.error(`Couldn't notify guests: ${err?.message || err}`); });
+      return;
+    }
+    // Part of a series: the guests' recurring invite can only be shortened or annotated.
+    const last = [...remaining].sort((x, y) => y.date.localeCompare(x.date))[0];
+    notifyEventUpdate({
+      eventTitle: event.title,
+      attendeeEmails: guests,
+      changes: scope === 'this' ? `Cancelled: ${event.date}` : `Cancelled from ${event.date} onwards`,
+      senderName: userName || undefined,
+      eventId: a.id,
+      seriesId: timing.seriesId,
+      event: scope === 'all_after' && timing.rrule
+        ? { start: evInfo.start, end: evInfo.end, rrule: timing.rrule, until: toIsoInstant(last.endDate ?? last.date, last.end) }
+        : undefined,
+    }).catch((err) => { console.warn('[cancel] notify failed:', err); toast.error(`Couldn't notify guests: ${err?.message || err}`); });
+  };
+
+  /** If the event has invited guests, ask whether to notify them before deleting. */
+  const requestDeleteWithNotify = (id: string, scope: 'this' | 'all' | 'all_after') => {
+    const evt = useStore.getState().events.find((e) => e.id === id);
+    if (!evt) return;
+    if (!hasInvitedGuests(evt)) { executeDeleteEvent(id, scope, false); return; }
+    const guests = getGuestEmails(evt);
+    setInviteConfirm({
+      type: 'cancel',
+      eventTitle: evt.title,
+      emails: guests,
+      onConfirm: () => { setInviteConfirm(null); executeDeleteEvent(id, scope, true); },
+      onSkip: () => { setInviteConfirm(null); executeDeleteEvent(id, scope, false); },
+      onDismiss: () => setInviteConfirm(null),
+    });
+  };
+
+  /** Delete entry point shared by the popover, the Delete key and mobile: recurring events
+   *  ask This / This and following / All; events with guests then ask to notify them. */
+  const handleDeleteEvent = (eventId: string) => {
+    const evt = useStore.getState().events.find((e) => e.id === eventId);
+    if (!evt) return;
+    if (evt.readOnly || evt.id.startsWith('gcal-evt-')) { executeDeleteEvent(eventId, 'this', false); return; }
+    const inSeries = !!evt.recurrenceSeriesId && useStore.getState().events.filter((e) => e.recurrenceSeriesId === evt.recurrenceSeriesId).length > 1;
+    if (inSeries) {
+      setScopePrompt({
+        title: 'Delete repeating event',
+        subtitle: `"${evt.title}" repeats. Which events do you want to delete?`,
+        options: [
+          { label: 'This event', desc: 'Only this occurrence', danger: true, onPick: () => requestDeleteWithNotify(eventId, 'this') },
+          { label: 'This and following events', desc: 'From this date forward', danger: true, onPick: () => requestDeleteWithNotify(eventId, 'all_after') },
+          { label: 'All events', desc: 'Every event in the series', danger: true, onPick: () => requestDeleteWithNotify(eventId, 'all') },
+        ],
+      });
+      return;
+    }
+    requestDeleteWithNotify(eventId, 'this');
+  };
+
+  /** Scope already chosen by the caller (popover scope picker). */
+  const handleDeleteEventSeries = (id: string, scope: 'this' | 'all' | 'all_after') => {
+    const evt = useStore.getState().events.find((e) => e.id === id);
+    if (!evt) return;
+    if (evt.readOnly || evt.id.startsWith('gcal-evt-')) { executeDeleteEvent(id, scope, false); return; }
+    requestDeleteWithNotify(id, scope);
   };
 
   // Supabase auth session + persistence
@@ -2498,6 +2699,9 @@ export default function App() {
     let unsubscribePersistence: (() => void) | undefined;
 
     const setupForSession = async (next: Session | null) => {
+      // B-46: a snapshot from another account must never be restorable (it would be
+      // uploaded to the new account by the persistence layer).
+      useHistoryStore.getState().clear();
       setSession(next);
       sessionRef.current = next;
       // Store email for booking notifications (read synchronously by SchedulingModal)
@@ -3883,22 +4087,52 @@ export default function App() {
       />
       )}
 
+      {/* Generic scope chooser (recurring delete, todo delete vs remove from calendar) */}
+      {scopePrompt && createPortal(
+        <Modal
+          title={scopePrompt.title}
+          size="sm"
+          onClose={() => setScopePrompt(null)}
+        >
+          {scopePrompt.subtitle && (
+            <p style={{ fontSize: 13, color: '#636366', margin: '0 0 12px', lineHeight: 1.5 }}>{scopePrompt.subtitle}</p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {scopePrompt.options.map((opt) => (
+              <Button
+                key={opt.label}
+                variant={opt.danger ? 'danger' : 'secondary'}
+                onClick={() => { const pick = opt.onPick; setScopePrompt(null); pick(); }}
+                style={{ height: 'auto', padding: '8px 12px', flexDirection: 'column', alignItems: 'flex-start', gap: 2, whiteSpace: 'normal', textAlign: 'left' }}
+              >
+                <span>{opt.label}</span>
+                {opt.desc && <span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>{opt.desc}</span>}
+              </Button>
+            ))}
+            <Button variant="ghost" onClick={() => setScopePrompt(null)}>Cancel</Button>
+          </div>
+        </Modal>,
+        document.body
+      )}
+
       {/* Invite / Update notification confirmation popup */}
       {inviteConfirm && createPortal(
         <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 'var(--tb-z-top)' }}>
           <div
             className="absolute inset-0"
             style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-            onClick={inviteConfirm.onSkip}
+            onClick={inviteConfirm.onDismiss ?? inviteConfirm.onSkip}
           />
           <div className="relative rounded-2xl shadow-2xl mx-4" style={{ backgroundColor: '#FFFFFF', maxWidth: 380, width: '100%', padding: 24 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1C1C1E', margin: '0 0 4px' }}>
-              {inviteConfirm.type === 'new' ? 'Send invitations?' : 'Notify attendees?'}
+              {inviteConfirm.type === 'new' ? 'Send invitations?' : inviteConfirm.type === 'cancel' ? 'Notify guests of cancellation?' : 'Notify attendees?'}
             </h3>
             <p style={{ fontSize: 13, color: '#636366', margin: '0 0 16px', lineHeight: 1.5 }}>
               {inviteConfirm.type === 'new'
                 ? `Send email invites for "${inviteConfirm.eventTitle}" to ${inviteConfirm.emails.length} ${inviteConfirm.emails.length === 1 ? 'person' : 'people'}. Non-users will receive a calendar link.`
-                : `Send update notification for "${inviteConfirm.eventTitle}" to ${inviteConfirm.emails.length} attendee${inviteConfirm.emails.length !== 1 ? 's' : ''}.`
+                : inviteConfirm.type === 'cancel'
+                  ? `"${inviteConfirm.eventTitle}" has ${inviteConfirm.emails.length} invited guest${inviteConfirm.emails.length !== 1 ? 's' : ''}. Email them a cancellation so it leaves their calendar?`
+                  : `Send update notification for "${inviteConfirm.eventTitle}" to ${inviteConfirm.emails.length} attendee${inviteConfirm.emails.length !== 1 ? 's' : ''}.`
               }
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
@@ -3927,7 +4161,7 @@ export default function App() {
                   border: 'none', cursor: 'pointer', backgroundColor: 'rgba(0,0,0,0.05)', color: '#1C1C1E',
                 }}
               >
-                {inviteConfirm.type === 'new' ? 'Skip' : "Don't notify"}
+                {inviteConfirm.type === 'new' ? 'Skip' : inviteConfirm.type === 'cancel' ? 'Delete only' : "Don't notify"}
               </button>
               <button
                 onClick={inviteConfirm.onConfirm}
@@ -3936,9 +4170,17 @@ export default function App() {
                   border: 'none', cursor: 'pointer', backgroundColor: '#8DA286', color: '#FFFFFF',
                 }}
               >
-                {inviteConfirm.type === 'new' ? 'Send invitations' : 'Send update'}
+                {inviteConfirm.type === 'new' ? 'Send invitations' : inviteConfirm.type === 'cancel' ? 'Delete & notify' : 'Send update'}
               </button>
             </div>
+            {inviteConfirm.type === 'cancel' && inviteConfirm.onDismiss && (
+              <button
+                onClick={inviteConfirm.onDismiss}
+                style={{ width: '100%', marginTop: 10, padding: '8px 0', fontSize: 12, border: 'none', cursor: 'pointer', backgroundColor: 'transparent', color: '#8E8E93' }}
+              >
+                Keep event
+              </button>
+            )}
           </div>
         </div>,
         document.body
@@ -4002,30 +4244,14 @@ export default function App() {
         onResendInvite={(email) => {
           const ev = editingEvent;
           if (!ev) return;
-          const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
-          const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
-          const guestList = (ev.attendees ?? []).filter((a) => !a.self && a.email).map((a) => a.email);
-          resendInvite({
-            eventId: ev.id,
-            emails: [email],
-            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription, attendeeEmails: guestList },
-            senderName: userName || undefined,
-          })
+          resendInvite({ ...buildResendPayload(ev), emails: [email] })
             .then(() => toast.success(`Invite resent to ${email}`))
             .catch((err) => toast.error(`Failed to resend: ${err?.message || err}`));
         }}
         onResendInvites={(emails) => {
           const ev = editingEvent;
           if (!ev || emails.length === 0) return;
-          const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
-          const icsDescription = [ev.description, ev.notes].map((s) => s?.trim()).filter(Boolean).join('\n\n') || undefined;
-          const guestList = (ev.attendees ?? []).filter((a) => !a.self && a.email).map((a) => a.email);
-          resendInvite({
-            eventId: ev.id,
-            emails,
-            event: { start: toIso(ev.date, ev.start), end: toIso(ev.endDate ?? ev.date, ev.end), title: ev.title, description: icsDescription, attendeeEmails: guestList.length > 0 ? guestList : emails },
-            senderName: userName || undefined,
-          })
+          resendInvite({ ...buildResendPayload(ev), emails })
             .then((r) => toast.success(`Invitation resent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}`))
             .catch((err) => toast.error(`Failed to resend: ${err?.message || err}`));
         }}
@@ -4097,18 +4323,20 @@ export default function App() {
         onUpdateEvent={(id, updates) => {
           const { recurrenceEditScope, repeatUntil, inviteEmails, excludedSubscribers: _excluded, removedAttendeeEmails, ...eventUpdates } = updates as typeof updates & { recurrenceEditScope?: 'this' | 'all' | 'all_after'; repeatUntil?: string; inviteEmails?: string[]; excludedSubscribers?: string[]; removedAttendeeEmails?: string[] };
           const event = events.find((e) => e.id === id);
+          saveSnapshot(); // B-31: popup saves are undoable
           // Attendee changes while editing: recompute the guest list (drop removed, keep
           // the rest, add newly-invited) and fire the invite flow for the new emails only.
+          let guestsRemoved: string[] = [];
+          let guestsAdded: string[] = [];
           if (event && ((inviteEmails && inviteEmails.length > 0) || (removedAttendeeEmails && removedAttendeeEmails.length > 0))) {
             const removedSet = new Set((removedAttendeeEmails ?? []).map((e) => e.toLowerCase()));
             const existingEmails = new Set((event.attendees ?? []).map((a) => a.email.toLowerCase()));
             const newEmails = (inviteEmails ?? []).filter((e) => !existingEmails.has(e.toLowerCase()));
             const keptAttendees = (event.attendees ?? []).filter((a) => !removedSet.has(a.email.toLowerCase()));
-            const mergedAttendees = [
-              ...keptAttendees,
-              ...newEmails.map((email) => ({ email, responseStatus: 'needsAction' })),
-            ];
-            updateEvent(id, { attendees: mergedAttendees });
+            guestsAdded = newEmails;
+            // Removals apply now (series-wide). New guests are only recorded once the
+            // organizer confirms the invite popup, so Skip leaves no phantom attendees (B-03).
+            if (removedSet.size > 0) setSeriesGuests(event, keptAttendees);
             if (newEmails.length > 0) {
               sendNewInvites({
                 eventId: id,
@@ -4120,7 +4348,7 @@ export default function App() {
                 endDate: (eventUpdates as { endDate?: string }).endDate ?? event.endDate,
                 description: (eventUpdates as { description?: string | null }).description ?? event.description ?? undefined,
                 notes: (eventUpdates as { notes?: string | null }).notes ?? event.notes ?? undefined,
-                allAttendeeEmails: mergedAttendees.map((a) => a.email),
+                allAttendeeEmails: [...keptAttendees.map((a) => a.email), ...newEmails],
                 existingGoogleEventId: event.googleEventId,
               });
             }
@@ -4129,19 +4357,17 @@ export default function App() {
             const removedEmails = (event.attendees ?? [])
               .filter((a) => removedSet.has(a.email.toLowerCase()))
               .map((a) => a.email);
+            guestsRemoved = removedEmails;
             if (removedEmails.length > 0) {
-              const rDate = (eventUpdates as { date?: string }).date ?? event.date;
-              const rEndDate = (eventUpdates as { endDate?: string }).endDate ?? event.endDate ?? rDate;
-              const rStart = (eventUpdates as { start?: string }).start ?? event.start;
-              const rEnd = (eventUpdates as { end?: string }).end ?? event.end;
-              const toIso = (d: string, t: string) => new Date(`${d}T${t}:00`).toISOString();
+              const timing = getInviteTiming(event, useStore.getState().events);
               removeAttendees({
-                eventId: id,
+                eventId: timing.anchor.id,
+                seriesId: timing.seriesId,
                 emails: removedEmails,
                 event: {
                   title: (eventUpdates as { title?: string }).title ?? event.title,
-                  start: toIso(rDate, rStart),
-                  end: toIso(rEndDate, rEnd),
+                  start: toIsoInstant(timing.anchor.date, timing.anchor.start),
+                  end: toIsoInstant(timing.anchor.endDate ?? timing.anchor.date, timing.anchor.end),
                 },
               })
                 .then((res) => toast.success(`Removed ${res.removed} guest${res.removed !== 1 ? 's' : ''}`))
@@ -4151,8 +4377,9 @@ export default function App() {
                 });
             }
           }
-          // Notify attendees if this is the organizer's own event
-          if (event) notifyAttendeesIfNeeded(event, eventUpdates);
+          // Notify attendees if this is the organizer's own event (not guests removed /
+          // newly invited in this same save - they get a cancel / an invite instead, B-09).
+          if (event) notifyAttendeesIfNeeded(event, eventUpdates, { scope: recurrenceEditScope, excludeEmails: [...guestsRemoved, ...guestsAdded] });
           if ((recurrenceEditScope === 'all' || recurrenceEditScope === 'all_after') && event?.recurrenceSeriesId) {
             const { date: newDate, endDate: newEndDate, recurring: _recurring, recurrencePattern: _rp, recurrenceDays: _rd, ...sharedUpdates } = eventUpdates as typeof eventUpdates & { date?: string; endDate?: string; recurring?: boolean; recurrencePattern?: import('./types').RecurrencePattern; recurrenceDays?: number[] };
             // Each occurrence keeps its own start date, so propagate the end date as a
@@ -4473,7 +4700,6 @@ export default function App() {
           onInvite={handleShareInvite}
           onRemove={handleShareRemove}
           onUpdateRole={handleShareUpdateRole}
-          onCopyLink={handleShareCopyLink}
           onClose={() => setShareModal(null)}
         />
       )}

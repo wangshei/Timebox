@@ -872,7 +872,7 @@ export function EventCard({
                       style={{ '--hv-bg': 'rgba(0,0,0,0.04)', color: THEME.textSecondary, backgroundColor: 'transparent', fontSize: 11 } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (event.recurring && event.recurrenceSeriesId && onEditEventWithScope) {
+                        if (event.recurrenceSeriesId && onEditEventWithScope) {
                           setEditConfirmState('confirm');
                         } else {
                           onEditEvent(event.id);
@@ -892,7 +892,7 @@ export function EventCard({
                       style={{ '--hv-bg': 'rgba(184,80,80,0.07)', color: '#FF3B30', backgroundColor: 'transparent', fontSize: 11 } as React.CSSProperties}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (event.recurring && event.recurrenceSeriesId && onDeleteEventSeries) {
+                        if (event.recurrenceSeriesId && onDeleteEventSeries) {
                           setDeleteConfirmState('confirm');
                         } else {
                           onDeleteEvent?.(event.id);

@@ -14,6 +14,20 @@ async function callEdgeFunction(body: Record<string, unknown>) {
   return data;
 }
 
+/** Event timing/details carried in invite + update emails (ISO instants). */
+export interface InviteEventInfo {
+  start: string;
+  end: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  attendeeEmails?: string[];
+  /** e.g. "FREQ=WEEKLY;BYDAY=MO" - makes the .ics a recurring invite. */
+  rrule?: string;
+  /** ISO datetime the recurrence ends (appended as UNTIL=). */
+  until?: string;
+}
+
 /** Create a new share at any hierarchy level and invite members. */
 export async function createShare(params: {
   scope: ShareScope;
@@ -24,7 +38,9 @@ export async function createShare(params: {
   pushToGoogle?: boolean;
   /** For event-scoped shares: timing/details so the invite email carries an .ics
    *  calendar attachment (lands in the recipient's Google/Outlook/Apple calendar). */
-  event?: { start: string; end: string; title: string; description?: string; attendeeEmails?: string[] };
+  event?: InviteEventInfo;
+  /** Recurring invites: the series id is the .ics UID (event.rrule/until describe the pattern). */
+  seriesId?: string;
   /** The inviting user's display name, for the email + .ics organizer. */
   senderName?: string;
 }): Promise<{
@@ -40,6 +56,9 @@ export async function addShareMember(params: {
   shareId: string;
   email: string;
   pushToGoogle?: boolean;
+  event?: InviteEventInfo;
+  seriesId?: string;
+  senderName?: string;
 }): Promise<{ memberId: string; token: string }> {
   return callEdgeFunction({ action: 'add_member', ...params });
 }
@@ -58,6 +77,7 @@ export async function removeAttendees(params: {
   eventId: string;
   emails: string[];
   event?: { title: string; start: string; end: string };
+  seriesId?: string;
 }): Promise<{ success: boolean; removed: number }> {
   return callEdgeFunction({ action: 'remove_attendees', ...params });
 }
@@ -114,7 +134,8 @@ export async function getSharedCalendarsWithEvents(): Promise<import('../types/s
 export async function resendInvite(params: {
   eventId: string;
   emails: string[];
-  event?: { start: string; end: string; title: string; description?: string; attendeeEmails?: string[] };
+  event?: InviteEventInfo;
+  seriesId?: string;
   senderName?: string;
 }): Promise<{ success: boolean; sent: number }> {
   return callEdgeFunction({ action: 'resend_invite', ...params });
@@ -127,8 +148,23 @@ export async function notifyEventUpdate(params: {
   attendeeEmails: string[];
   changes: string;
   senderName?: string;
-  eventId?: string;
-  event?: { start: string; end: string; description?: string };
+  /** Required by the server (ownership check + recipient allow-list). */
+  eventId: string;
+  seriesId?: string;
+  /** Omit start/end for a text-only update (no revised .ics). */
+  event?: { start?: string; end?: string; description?: string; location?: string; rrule?: string; until?: string };
 }): Promise<{ success: boolean; notified: number }> {
   return callEdgeFunction({ action: 'notify_event_update', ...params });
+}
+
+/** Cancel an invited event for everyone (or just `emails`): sends a METHOD:CANCEL .ics and
+ *  revokes the event's share. For a recurring invite pass the same seriesId used to invite. */
+export async function cancelShare(params: {
+  eventId: string;
+  event: { title: string; start: string; end: string };
+  emails?: string[];
+  seriesId?: string;
+  senderName?: string;
+}): Promise<{ success: boolean; cancelled?: number }> {
+  return callEdgeFunction({ action: 'cancel_share', ...params });
 }
