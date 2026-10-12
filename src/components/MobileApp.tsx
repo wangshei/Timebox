@@ -872,7 +872,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               )}
 
               {/* Mark linked task done/undone */}
-              {linkedTask && (
+              {linkedTask && linkedTask.isTodo !== false && (
                 <button
                   type="button"
                   onClick={() => { handleToggleTaskDone(); onClose(); }}
