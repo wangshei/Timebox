@@ -821,6 +821,42 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                 </button>
               )}
 
+              {/* Quick reflection: "How did it go?" note + sticker reactions (past or in-progress items) */}
+              {(isPast || (itemEndDate === today && startM <= nowMins)) && (
+                <div data-testid="how-did-it-go" style={{ padding: '8px 4px 12px', borderBottom: '1px solid rgba(0,0,0,0.05)', marginBottom: 4 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: COLOR.muted, margin: '0 0 8px' }}>How did it go?</p>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    {['😁', '☺️', '🤯', '😵'].map((em) => {
+                      const existing = stickers.find((st) => st.emoji === em && (isBlock ? st.blockId === item.id : st.eventId === item.id));
+                      return (
+                        <button key={em} type="button" className="touch-manipulation" aria-pressed={!!existing}
+                          onClick={() => {
+                            saveSnapshot();
+                            if (existing) { deleteSticker(existing.id); return; }
+                            addSticker({ emoji: em, date: fullBlock?.date ?? fullEvent?.date ?? today, ...(isBlock ? { blockId: item.id } : { eventId: item.id }), offsetXPercent: 80, offsetYPercent: 30 });
+                          }}
+                          style={{ width: 44, height: 44, borderRadius: 12, fontSize: 22, border: `1px solid ${existing ? THEME.primary : COLOR.border}`, backgroundColor: existing ? `${THEME.primary}14` : 'transparent' }}>
+                          {em}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <textarea
+                    defaultValue={(fullBlock?.notes ?? fullEvent?.notes ?? '') || ''}
+                    placeholder="Add a quick note..."
+                    rows={2}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v === ((fullBlock?.notes ?? fullEvent?.notes ?? '') || '')) return;
+                      saveSnapshot();
+                      if (isBlock) updateTimeBlock(item.id, { notes: v || null });
+                      else updateEvent(item.id, { notes: v || null });
+                    }}
+                    style={{ width: '100%', boxSizing: 'border-box', fontSize: 16, padding: '8px 10px', borderRadius: 10, border: `1px solid ${COLOR.border}`, resize: 'none', fontFamily: 'inherit', color: THEME.textPrimary, background: 'transparent' }}
+                  />
+                </div>
+              )}
+
               {/* Didn't happen — red cross on the card */}
               <button
                 type="button"
@@ -1742,6 +1778,8 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     morning: false, afternoon: false, evening: false,
   });
   const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
+  const [miniOpen, setMiniOpen] = useState(false);
+  const daySwipeRef = useRef<{ x: number; y: number } | null>(null);
   const swipeStartXRef = useRef(0);
   const swipeCurrentXRef = useRef(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -1944,6 +1982,14 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     setSelectedDate(getLocalDateString(d));
     setSwipedItemId(null);
   };
+
+  const tomorrowStr = (() => { const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() + 1); return getLocalDateString(d); })();
+  const tomorrowFirst = useMemo(() => {
+    const c = [...events.map((e) => ({ title: e.title, date: e.date, start: e.start })), ...timeBlocks.map((b) => ({ title: b.title, date: b.date, start: b.start }))]
+      .filter((x) => x.date >= tomorrowStr && x.start);
+    c.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    return c[0] ?? null;
+  }, [events, timeBlocks, tomorrowStr]);
 
   const toggleSection = (section: TimeOfDaySection) => {
     setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -2186,9 +2232,10 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           </button>
 
           <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-            <p style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
-              {formatDateHeader(selectedDate)}
-            </p>
+            <button type="button" data-testid="schedule-title" onClick={() => setMiniOpen((o) => !o)} className="touch-manipulation"
+              style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0, border: 'none', background: 'transparent', minHeight: 44, padding: '0 8px' }}>
+              {formatDateHeader(selectedDate)} <span style={{ fontSize: 10, color: COLOR.muted }}>{miniOpen ? '▴' : '▾'}</span>
+            </button>
           </div>
 
           <button
@@ -2213,8 +2260,22 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         </div>
       </div>
 
+      {miniOpen && (
+        <div style={{ flexShrink: 0, borderBottom: `1px solid ${COLOR.border}` }}>
+          <MiniMonth touch view="day" selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setMiniOpen(false); }} onTitleClick={() => setMiniOpen(false)} />
+        </div>
+      )}
+
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', padding: '12px 16px 100px' } as React.CSSProperties}>
+      <div
+        onTouchStart={(e) => { daySwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+        onTouchEnd={(e) => {
+          const st = daySwipeRef.current; daySwipeRef.current = null;
+          if (!st || swipedItemId) return;
+          const dx = e.changedTouches[0].clientX - st.x, dy = e.changedTouches[0].clientY - st.y;
+          if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) navigateDate(dx < 0 ? 1 : -1);
+        }}
+        style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', padding: '12px 16px 100px' } as React.CSSProperties}>
 
         {/* "Now" card — shows what's happening right now */}
         {selectedDate === today && (
@@ -2274,10 +2335,10 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             ) : (
               <>
                 <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR.muted }}>
-                  All done
+                  {tomorrowFirst ? 'Up next' : 'All done'}
                 </span>
                 <p style={{ fontSize: 15, fontWeight: 500, color: THEME.textSecondary, margin: '4px 0 0' }}>
-                  No more items for today
+                  {tomorrowFirst ? `${tomorrowFirst.title}, ${tomorrowFirst.date === tomorrowStr ? 'tomorrow' : formatDateHeader(tomorrowFirst.date)} ${formatTime12(tomorrowFirst.start)}` : 'No more items for today'}
                 </p>
               </>
             )}
