@@ -25,7 +25,7 @@ const TEXT_MUTED = COLOR.muted;
 const TEXT_SECONDARY = COLOR.text2;
 
 /** Default stamp emojis */
-const STAMP_DEFAULTS = ['🔋', '🪫', '❤️', '🤍', MISSED_STAMP];
+const STAMP_DEFAULTS = ['😁', '☺️', '🤯', '😵', MISSED_STAMP];
 
 /** Breakpoint (px) below which compare mode switches to tabbed layout */
 const NARROW_BREAKPOINT = 600;
@@ -138,6 +138,7 @@ export function CalendarView({
 
   // Hidden input ref for native emoji picker
   const emojiInputRef = useRef<HTMLInputElement>(null);
+  const [customOpen, setCustomOpen] = useState(false);
 
   // Track container width for responsive compare layout
   const containerRef = useRef<HTMLDivElement>(null);
@@ -714,7 +715,7 @@ export function CalendarView({
           {/* Emoji shelf — pops out left of button */}
           {stampMode && !activeStampEmoji && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => { setStampMode(false); setActiveStampEmoji(null); }} />
+              <div className="fixed inset-0 z-40" onClick={() => { setStampMode(false); setActiveStampEmoji(null); setCustomOpen(false); }} />
               <div
                 className="absolute z-50 flex items-center gap-1 rounded-full py-1.5 px-2"
                 style={{
@@ -737,42 +738,17 @@ export function CalendarView({
                     {emoji === MISSED_STAMP ? <span style={{ color: '#FF3B30', fontWeight: 600, fontSize: 18 }} title="Didn't happen">✕</span> : emoji}
                   </button>
                 ))}
-                {/* Plus for custom emoji — opens native OS emoji picker */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
-                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
-                      color: TEXT_MUTED,
-                      backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
-                    onClick={() => {
-                      const input = emojiInputRef.current;
-                      if (input) {
-                        input.value = '';
-                        input.focus();
-                      }
-                    }}
-                  >
-                    +
-                  </button>
-                  {/* Hidden input to capture emoji from native OS picker */}
+                {/* Plus for custom emoji — reveals a visible input; type, paste, or use the OS emoji picker (Ctrl+Cmd+Space / Win+.) */}
+                {customOpen ? (
                   <input
                     ref={emojiInputRef}
                     type="text"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    style={{
-                      position: 'absolute',
-                      opacity: 0,
-                      width: 1,
-                      height: 1,
-                      pointerEvents: 'none',
-                      top: 0,
-                      left: 0,
-                      border: 'none',
-                      padding: 0,
-                      margin: 0,
-                    }}
+                    autoFocus
+                    aria-label="Custom emoji"
+                    placeholder="😀 paste or ⌃⌘Space"
+                    className="rounded-full outline-none"
+                    style={{ width: isMobile ? 120 : 140, height: 32, fontSize: 14, padding: '0 10px', border: '1px solid rgba(0,0,0,0.12)', backgroundColor: 'rgba(0,0,0,0.03)' }}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setCustomOpen(false); } }}
                     onInput={(e) => {
                       const val = (e.target as HTMLInputElement).value;
                       if (val && val.trim()) {
@@ -781,15 +757,24 @@ export function CalendarView({
                           : null;
                         const emoji = segments && segments.length > 0 ? segments[0].segment : val.trim().slice(0, 2);
                         setActiveStampEmoji(emoji);
+                        setCustomOpen(false);
                         (e.target as HTMLInputElement).value = '';
                       }
                     }}
-                    onBlur={() => {
-                      // Clear value when focus leaves
-                      if (emojiInputRef.current) emojiInputRef.current.value = '';
-                    }}
                   />
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Add custom sticker"
+                    className="flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 tb-hv-bg"
+                    style={{ '--hv-bg': 'rgba(0,0,0,0.08)', width: 32, height: 32, fontSize: 16, lineHeight: 1,
+                      color: TEXT_MUTED,
+                      backgroundColor: 'rgba(0,0,0,0.04)', } as React.CSSProperties}
+                    onClick={() => setCustomOpen(true)}
+                  >
+                    +
+                  </button>
+                )}
               </div>
             </>
           )}
