@@ -1040,22 +1040,31 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
+  const parsed = useMemo(() => parseQuickAdd(title), [title]);
+  const hasParse = !!title.trim() && (parsed.hasDate || parsed.hasTime || !!parsed.durationMins);
+  const finalTitle = hasParse && parsed.title ? parsed.title : title.trim();
   const canSubmit = title.trim() && (categoryId || filteredCategories.length === 0) && (mode === 'task' || (eventStart && eventEnd));
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const crossesMidnight = mode === 'event' && parseTimeToMinutes(eventEnd) < parseTimeToMinutes(eventStart);
-    if (mode === 'event' && parseTimeToMinutes(eventEnd) === parseTimeToMinutes(eventStart)) {
+    const effStart = hasParse && parsed.hasTime && parsed.start ? parsed.start : eventStart;
+    const effEnd = hasParse && parsed.hasTime && parsed.start ? (parsed.end ?? minutesToHHMM(Math.min(parseTimeToMinutes(parsed.start) + (parsed.durationMins ?? 60), 1439))) : eventEnd;
+    const crossesMidnight = mode === 'event' && parseTimeToMinutes(effEnd) < parseTimeToMinutes(effStart);
+    if (mode === 'event' && parseTimeToMinutes(effEnd) === parseTimeToMinutes(effStart)) {
       toast.error('End time must be after the start time.');
       return;
     }
+    // Quick-parse overrides: "standup 10-11 tomorrow" fills date/time without touching the pickers.
+    const pDate = hasParse && parsed.date ? parsed.date : undefined;
+    const pStart = hasParse && parsed.hasTime ? parsed.start : undefined;
+    const pEnd = pStart ? (parsed.end ?? minutesToHHMM(Math.min(parseTimeToMinutes(pStart) + (parsed.durationMins ?? 60), 1439))) : undefined;
     saveSnapshot();
     undoToast(mode === 'task' ? (isTodo ? 'To-do added' : 'Note added') : 'Event added');
     const cat = categories.find((c) => c.id === categoryId);
     const calId = calendarId || (cat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
     if (mode === 'task') {
       const newTaskId = addTask({
-        title: title.trim(),
+        title: finalTitle,
         estimatedMinutes: prefill ? Math.max(15, parseTimeToMinutes(prefill.endTime) - parseTimeToMinutes(prefill.startTime)) : estimatedMins,
         calendarContainerId: calId,
         categoryId,
@@ -1063,25 +1072,31 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
         flexible: true,
         status: 'inbox',
         notes: notes.trim() || undefined,
-        dueDate: dueDate || undefined,
+        dueDate: dueDate || (!pStart ? pDate : undefined) || undefined,
         isTodo,
       });
+      if (!prefill && newTaskId && pStart && pEnd) {
+        addTimeBlock({
+          taskId: newTaskId, title: finalTitle, calendarContainerId: calId, categoryId, tagIds: selectedTagIds,
+          start: pStart, end: pEnd, date: pDate ?? today, mode: 'planned', source: 'manual',
+        } as any);
+      }
       if (prefill && newTaskId) {
         addTimeBlock({
-          taskId: newTaskId, title: title.trim(), calendarContainerId: calId, categoryId, tagIds: selectedTagIds,
+          taskId: newTaskId, title: finalTitle, calendarContainerId: calId, categoryId, tagIds: selectedTagIds,
           start: prefill.startTime, end: prefill.endTime, date: prefill.date, mode: 'planned', source: 'manual',
         } as any);
       }
     } else {
       const normalizeTime = (t: string) => padTime(t);
       addEvent({
-        title: title.trim(),
+        title: finalTitle,
         calendarContainerId: calId,
         categoryId,
-        date: eventDate,
-        start: normalizeTime(eventStart),
-        end: normalizeTime(eventEnd),
-        ...(crossesMidnight ? { endDate: (() => { const d = new Date(eventDate + 'T12:00:00'); d.setDate(d.getDate() + 1); return getLocalDateString(d); })() } : {}),
+        date: pDate ?? eventDate,
+        start: normalizeTime(pStart ?? eventStart),
+        end: normalizeTime(pEnd ?? eventEnd),
+        ...(crossesMidnight ? { endDate: (() => { const d = new Date((pDate ?? eventDate) + 'T12:00:00'); d.setDate(d.getDate() + 1); return getLocalDateString(d); })() } : {}),
         recurring: false,
         source: 'manual',
         notes: notes.trim() || undefined,
@@ -1130,6 +1145,11 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
                 style={{ ...inputStyle, flex: 1, minWidth: 0 }}
               />
             </div>
+            {hasParse && (
+              <div data-testid="addsheet-parse-chip" style={{ marginTop: 6, fontSize: 12, color: COLOR.text2 }}>
+                {describeQuickParse(parsed) || (parsed.durationMins ? `${parsed.durationMins} min` : '')}
+              </div>
+            )}
           </div>
 
           {/* Event-only: date + time */}
@@ -1436,8 +1456,11 @@ function PlanTab() {
   }, [timeBlocks, selectedDate]);
 
   const pendingTasks = useMemo(() => {
-    return tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && t.isTodo !== false && !scheduledTaskIds.has(t.id));
-  }, [tasks, scheduledTaskIds]);
+    // Notes only show here while they have no block anywhere ("Unplaced notes"), so they can be dragged onto the day.
+    const placedAnywhere = new Set<string>();
+    for (const b of timeBlocks) if (b.taskId) placedAnywhere.add(b.taskId);
+    return tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && !scheduledTaskIds.has(t.id) && (t.isTodo !== false || !placedAnywhere.has(t.id)));
+  }, [tasks, scheduledTaskIds, timeBlocks]);
 
   const agenda = useMemo(() => {
     const items: AgendaItem[] = [];
@@ -3298,7 +3321,6 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
 
   const parsed = useMemo(() => parseQuickAdd(title), [title]);
   const previewText = title.trim() && (parsed.hasDate || parsed.hasTime || parsed.durationMins) ? describeQuickParse(parsed) || (parsed.durationMins ? `${parsed.durationMins} min` : '') : '';
-  const willCreateEvent = parsed.hasTime && !captureAsTodo;
 
   const handleCapture = useCallback(() => {
     if (!parsed.title) return;
@@ -3308,29 +3330,21 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     saveSnapshot();
     const day = parsed.date ?? getLocalDateString();
     if (parsed.hasTime && parsed.start) {
-      if (captureAsTodo) {
-        // To-do mode + a time: create the to-do and put it on the calendar at that time.
-        const mins = parsed.durationMins ?? 30;
-        const endM = Math.min(parseTimeToMinutes(parsed.start) + mins, 1439);
-        const taskId = addTask({
-          title: parsed.title, estimatedMinutes: mins, calendarContainerId: calId, categoryId: catId,
-          tagIds: [], flexible: true, status: 'inbox', isTodo: true,
-        });
-        if (taskId) {
-          addTimeBlock({
-            taskId, title: parsed.title, date: day, start: parsed.start, end: minutesToHHMM(endM),
-            mode: 'planned', source: 'manual', categoryId: catId, calendarContainerId: calId, tagIds: [],
-          } as any);
-        }
-        undoToast(`Scheduled "${parsed.title}"`);
-      } else {
-        const endM = parsed.end ? parseTimeToMinutes(parsed.end) : Math.min(parseTimeToMinutes(parsed.start) + (parsed.durationMins ?? 60), 1439);
-        addEvent({
-          title: parsed.title, calendarContainerId: calId, categoryId: catId, date: day,
-          start: parsed.start, end: minutesToHHMM(endM), recurring: false, source: 'manual',
+      // Circle on = to-do, off = note; either way a time puts it on the calendar (same as desktop).
+      const startM = parseTimeToMinutes(parsed.start);
+      const mins = parsed.end ? Math.max(15, parseTimeToMinutes(parsed.end) - startM) : (parsed.durationMins ?? (captureAsTodo ? 30 : 60));
+      const endM = Math.min(startM + mins, 1439);
+      const taskId = addTask({
+        title: parsed.title, estimatedMinutes: mins, calendarContainerId: calId, categoryId: catId,
+        tagIds: [], flexible: true, status: 'inbox', isTodo: captureAsTodo,
+      });
+      if (taskId) {
+        addTimeBlock({
+          taskId, title: parsed.title, date: day, start: parsed.start, end: minutesToHHMM(endM),
+          mode: 'planned', source: 'manual', categoryId: catId, calendarContainerId: calId, tagIds: [],
         } as any);
-        undoToast(`Event added: ${describeQuickParse(parsed)}`);
       }
+      undoToast(captureAsTodo ? `Scheduled "${parsed.title}"` : `Note added: ${describeQuickParse(parsed)}`);
     } else {
       addTask({
         title: parsed.title,
@@ -3347,7 +3361,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     }
     setTitle('');
     inputRef.current?.focus();
-  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask, addTimeBlock, addEvent, captureAsTodo]);
+  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask, addTimeBlock, captureAsTodo]);
 
   const tomorrowStr = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + 1); return getLocalDateString(d); }, [todayStr]);
   const weekSet = useMemo(() => {
@@ -3544,7 +3558,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
           {previewText && (
             <span data-testid="quick-parse-preview" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: THEME.primary, backgroundColor: `${THEME.primary}15`, padding: '3px 8px', borderRadius: 999 }}>
-              {willCreateEvent ? 'Event' : parsed.hasTime ? 'Scheduled to-do' : parsed.hasDate ? 'Due' : ''}{(willCreateEvent || parsed.hasTime || parsed.hasDate) ? ' · ' : ''}{previewText}
+              {parsed.hasTime ? (captureAsTodo ? 'Scheduled to-do' : 'Note on calendar') : parsed.hasDate ? 'Due' : ''}{(parsed.hasTime || parsed.hasDate) ? ' · ' : ''}{previewText}
             </span>
           )}
         </div>

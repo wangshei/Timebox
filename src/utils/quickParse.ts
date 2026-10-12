@@ -97,8 +97,10 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickParse
     const [, h1s, m1s, mer1, h2s, m2s, mer2] = rm;
     const explicit = !!(m1s || m2s || mer1 || mer2);
     const h1 = parseInt(h1s, 10), h2 = parseInt(h2s, 10);
-    // Bare "12-1" only counts as a time range when a date word is also present (avoids "chapters 1-2").
-    if (h1 <= 24 && h2 <= 24 && (explicit || date) && (!m1s || parseInt(m1s, 10) < 60) && (!m2s || parseInt(m2s, 10) < 60)) {
+    // Bare "12-1" counts as a range with a date word, or when it clearly looks like clock hours
+    // ("standup 10-11": start 7-12 and a short span). Avoids "chapters 1-2".
+    const clockLike = h1 >= 7 && h1 <= 12 && h2 > h1 && h2 - h1 <= 3 && h2 <= 12;
+    if (h1 <= 24 && h2 <= 24 && (explicit || date || clockLike) && (!m1s || parseInt(m1s, 10) < 60) && (!m2s || parseInt(m2s, 10) < 60)) {
       take(rangeRe);
       let sh = withMeridiem(h1, mer1 ?? mer2 ?? undefined);
       // "11-1pm": the unmarked start inherits pm, then falls back to am if it would pass the end.
