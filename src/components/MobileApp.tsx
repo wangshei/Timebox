@@ -141,6 +141,10 @@ export interface MobileActions {
   deleteTask?: (taskId: string) => void;
   /** Toggle a todo done (also confirms/unconfirms its blocks). */
   markTaskDone?: (taskId: string) => void;
+  /** Move an event (asks This/Following/All for repeating events, then notifies guests). */
+  moveEvent?: (eventId: string, params: { date: string; startTime: string; endTime: string }) => void;
+  /** Move a calendar block (same guards as desktop drag). */
+  moveBlock?: (blockId: string, params: { date: string; startTime: string; endTime: string }) => void;
   /** An event was edited on mobile; lets the shell notify its guests. */
   eventEdited?: (eventId: string, updates: Record<string, unknown>) => void;
 }
@@ -456,6 +460,40 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
     onClose();
   };
 
+  // Nudge: shift the item by 15m / 1h / to tomorrow. Events go through the shell's move path
+  // (This/Following/All prompt for repeating events, guest-notify for shared ones).
+  const canNudge = !(fullEvent?.readOnly || fullEvent?.sharedFromShareId) && (!!fullBlock || !!fullEvent);
+  const handleNudge = (kind: '15m' | '1h' | 'tomorrow') => {
+    const curDate = fullBlock?.date ?? fullEvent?.date ?? today;
+    let date = curDate;
+    let sm = startM;
+    if (kind === 'tomorrow') {
+      date = addDaysStr(curDate, 1);
+    } else {
+      const abs = sm + (kind === '15m' ? 15 : 60);
+      if (abs >= 24 * 60) {
+        if (isBlock) { toast.error('Cannot move a block past midnight.'); return; }
+        date = addDaysStr(curDate, Math.floor(abs / (24 * 60)));
+      }
+      sm = abs % (24 * 60);
+    }
+    const em = (sm + durationMins) % (24 * 60);
+    if (isBlock && sm + durationMins >= 24 * 60) { toast.error('Cannot move a block past midnight.'); return; }
+    const params = { date, startTime: minutesToHHMM(sm), endTime: minutesToHHMM(em) };
+    if (isBlock) {
+      if (actions.moveBlock) actions.moveBlock(item.id, params);
+      else { saveSnapshot(); updateTimeBlock(item.id, { date, start: params.startTime, end: params.endTime }); undoToast('Moved'); }
+    } else if (actions.moveEvent) {
+      actions.moveEvent(item.id, params);
+    } else {
+      saveSnapshot();
+      const endDate = em < sm ? addDaysStr(date, 1) : undefined;
+      updateEvent(item.id, { date, start: params.startTime, end: params.endTime, endDate });
+      undoToast('Moved');
+    }
+    onClose();
+  };
+
   const missedSticker = stickers.find((st) => st.emoji === MISSED_STAMP && (isBlock ? st.blockId === item.id : st.eventId === item.id));
   const handleToggleMissed = () => {
     saveSnapshot();
@@ -472,9 +510,11 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const handleToggleTaskDone = () => {
     if (!linkedTask) return;
     // Desktop semantics (B-39): completing the task also confirms its blocks, un-completing undoes it.
-    if (actions.markTaskDone) { actions.markTaskDone(linkedTask.id); return; }
+    const was = linkedTask.status === 'done';
+    if (actions.markTaskDone) { actions.markTaskDone(linkedTask.id); undoToast(was ? 'Marked not done' : 'Marked done'); return; }
     saveSnapshot();
-    updateTask(linkedTask.id, { status: linkedTask.status === 'done' ? 'inbox' : 'done' });
+    updateTask(linkedTask.id, { status: was ? 'inbox' : 'done' });
+    undoToast(was ? 'Marked not done' : 'Marked done');
   };
 
   const [editError, setEditError] = useState<string | null>(null);
@@ -490,6 +530,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
     }
     setEditError(null);
     saveSnapshot();
+    undoToast('Changes saved');
 
     if (isBlock && fullBlock) {
       updateTimeBlock(item.id, {
@@ -761,6 +802,24 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           {/* Actions */}
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 12, marginTop: 4 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Nudge: shift without opening the editor */}
+              {canNudge && (
+                <div data-testid="nudge-row" style={{ display: 'flex', gap: 8, padding: '4px 0 8px' }}>
+                  {([['15m', '+15m'], ['1h', '+1h'], ['tomorrow', 'Tomorrow']] as const).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      data-testid={`nudge-${k}`}
+                      onClick={() => handleNudge(k)}
+                      className="touch-manipulation"
+                      style={{ flex: 1, minHeight: 44, borderRadius: 10, border: `1px solid ${COLOR.border}`, backgroundColor: 'transparent', fontSize: 13, fontWeight: 600, color: THEME.textPrimary }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Edit button */}
               <button
                 type="button"
@@ -990,6 +1049,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
       return;
     }
     saveSnapshot();
+    undoToast(mode === 'task' ? (isTodo ? 'To-do added' : 'Note added') : 'Event added');
     const cat = categories.find((c) => c.id === categoryId);
     const calId = calendarId || (cat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
     if (mode === 'task') {
@@ -1346,6 +1406,7 @@ function PlanTab() {
     const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId)) || cals[0];
     if (!cal || !cat) { toast.error('Create a calendar and category first.'); return; }
     saveSnapshot();
+    undoToast(ic.mode === 'event' ? 'Event added' : 'To-do added');
     if (ic.mode === 'event') {
       addEventAction({ title, calendarContainerId: cal.id, categoryId: cat.id, date: selectedDate, start: ic.startTime, end: ic.endTime, recurring: false } as any);
     } else {
@@ -1423,6 +1484,7 @@ function PlanTab() {
     if (!t) return;
     const durationMins = t.estimatedMinutes || 30;
     saveSnapshot();
+    undoToast(`Scheduled "${t.title}"`);
     addTimeBlock({
       taskId: t.id, title: t.title, date: selectedDate,
       start: minutesToHHMM(startMins), end: minutesToHHMM(startMins + durationMins),
@@ -1477,6 +1539,7 @@ function PlanTab() {
     const endMins = snapped + durationMins;
     const fmtTime = minutesToHHMM;
     saveSnapshot();
+    undoToast(`Scheduled "${selectedTask.title}"`);
     addTimeBlock({
       taskId: selectedTask.id, title: selectedTask.title, date: selectedDate,
       start: fmtTime(snapped), end: fmtTime(endMins),
@@ -1920,6 +1983,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   const handleConfirm = useCallback((blockId: string) => {
     saveSnapshot();
+    undoToast('Marked done');
     confirmBlock(blockId);
     const block = timeBlocks.find((b) => b.id === blockId);
     if (!block?.taskId) return;
@@ -1931,6 +1995,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   const handleSkip = useCallback((blockId: string) => {
     saveSnapshot();
+    undoToast('Skipped');
     skipBlock(blockId);
   }, [saveSnapshot, skipBlock]);
 
@@ -1943,6 +2008,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
       return;
     }
     saveSnapshot();
+    undoToast('Event added');
     addEvent({
       title: eventTitle.trim(),
       calendarContainerId: eventCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
@@ -1967,6 +2033,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     if (!slot) return;
     const cat = categories.find((c) => c.id === task.categoryId);
     saveSnapshot();
+    undoToast(`Scheduled "${task.title}"`);
     addTimeBlock({
       taskId: task.id,
       title: task.title,
@@ -2222,6 +2289,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     );
   };
 
+  const undoDepth = useHistoryStore((st) => st.past.length);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {/* Header: Date navigation */}
@@ -2250,6 +2318,19 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0 }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+
+          <button
+            type="button"
+            data-testid="schedule-undo"
+            aria-label="Undo last change"
+            title="Undo"
+            disabled={undoDepth === 0}
+            onClick={() => useHistoryStore.getState().undo()}
+            className="touch-manipulation flex items-center justify-center"
+            style={{ width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0, opacity: undoDepth === 0 ? 0.3 : 1 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></svg>
           </button>
 
           {selectedDate !== today && (
@@ -3340,6 +3421,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       return;
     }
     saveSnapshot();
+    undoToast(`Scheduled "${task.title}" today`);
     addTimeBlock({
       taskId: task.id,
       title: task.title,
@@ -3375,7 +3457,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     setExpandedTaskId(null);
     const d = new Date(date + 'T00:00:00');
     const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    toast.success(`Scheduled for ${dayLabel} at ${formatTime12(time)}`);
+    undoToast(`Scheduled for ${dayLabel} at ${formatTime12(time)}`);
   }, [saveSnapshot, addTimeBlock]);
 
   const renderRow = (task: Task) => {
