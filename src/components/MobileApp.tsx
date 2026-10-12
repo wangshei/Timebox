@@ -3129,7 +3129,7 @@ function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, 
       className="touch-manipulation"
       style={{
         display: 'flex', alignItems: isNote ? 'flex-start' : 'center', gap: 8, boxSizing: 'border-box',
-        minHeight: 44, padding: isNote ? '8px 12px' : '4px 8px', margin: isNote ? '4px 0' : 0,
+        minHeight: 40, padding: isNote ? '8px 12px' : '2px 8px', margin: isNote ? '4px 0' : 0,
         borderRadius: 8, cursor: 'pointer',
         backgroundColor: isNote ? 'var(--tb-note-bg)' : isExpanded ? 'rgba(0,0,0,0.03)' : 'transparent',
         border: isNote ? '1px solid var(--tb-note-border)' : 'none',
@@ -3152,7 +3152,7 @@ function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span
             style={{
-              flex: 1, minWidth: 0, fontSize: 13, lineHeight: '20px', fontWeight: 500,
+              ...(isNote ? { flex: 1 } : { flex: '0 1 auto' }), minWidth: 0, fontSize: 13, lineHeight: '20px', fontWeight: 500,
               color: isDone ? COLOR.faint : isNote ? 'var(--tb-note-text)' : COLOR.text,
               textDecoration: isDone ? 'line-through' : 'none',
               ...(isNote
@@ -3162,6 +3162,16 @@ function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, 
           >
             {task.title}
           </span>
+          {!isNote && hasMeta && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, maxWidth: '55%', whiteSpace: 'nowrap', fontSize: 11, lineHeight: '20px', color: isOverdue ? '#D63031' : COLOR.muted }}>
+              {isRecurring && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeats" style={{ flexShrink: 0 }}>
+                  <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+              )}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{metaParts.join(' · ')}</span>
+            </span>
+          )}
           {prio > 0 && !isDone && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0, color: '#F5A623' }}>
               <StarIcon style={{ width: 12, height: 12 }} />
@@ -3169,7 +3179,7 @@ function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, 
             </span>
           )}
         </div>
-        {hasMeta && (
+        {isNote && hasMeta && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, lineHeight: '16px', color: isOverdue ? '#D63031' : isNote ? 'var(--tb-note-text)' : COLOR.muted, opacity: isNote ? 0.7 : 1 }}>
             {isRecurring && (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Repeats" style={{ flexShrink: 0 }}>

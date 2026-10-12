@@ -581,11 +581,11 @@ export function TaskCard({
         onPointerDown={handlePointerDragStart}
       >
         <div
-          className={`flex items-start transition-colors ${!showPopover && !isNote ? 'tb-hover' : ''}`}
+          className={`flex ${isNote ? 'items-start' : 'items-center'} transition-colors ${!showPopover && !isNote ? 'tb-hover' : ''}`}
           style={{
             gap: 8,
-            padding: isNote ? '8px 12px' : '8px 8px',
-            minHeight: 36,
+            padding: isNote ? '8px 12px' : '4px 8px',
+            minHeight: isNote ? 36 : 32,
             borderRadius: RADIUS.md,
             boxSizing: 'border-box',
             backgroundColor: isNote ? 'var(--tb-note-bg)' : showPopover ? 'var(--tb-hover)' : undefined,
@@ -616,10 +616,11 @@ export function TaskCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center" style={{ gap: 8, minHeight: 20 }}>
               <span
-                className={isNote ? 'flex-1 min-w-0' : 'flex-1 min-w-0 truncate'}
+                className={isNote ? 'flex-1 min-w-0' : 'min-w-0 truncate'}
                 title={task.title}
                 style={{
                   fontSize: 13, lineHeight: '20px', fontWeight: 500,
+                  ...(isNote ? {} : { flex: '0 1 auto' }),
                   color: isDone ? 'var(--tb-faint)' : isNote ? 'var(--tb-note-text)' : 'var(--tb-text)',
                   textDecorationLine: isDone ? 'line-through' : 'none',
                   textDecorationColor: 'rgba(0,0,0,0.3)',
@@ -634,9 +635,15 @@ export function TaskCard({
                   <span style={{ fontSize: 11, fontWeight: 500 }}>{priority}</span>
                 </span>
               )}
-              <Bars3Icon className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ width: 14, height: 14, color: 'var(--tb-muted)' }} />
+              {!isNote && hasMeta && (
+                <span className="flex items-center" style={{ gap: 4, fontSize: 11, lineHeight: '20px', flexShrink: 0, maxWidth: '55%', whiteSpace: 'nowrap', color: isOverdue ? URGENT_TEXT : 'var(--tb-muted)' }}>
+                  {isRecurring && <ArrowPathIcon className="flex-shrink-0" style={{ width: 12, height: 12 }} aria-label="Repeats" />}
+                  <span className="truncate">{metaParts.join(' · ')}</span>
+                </span>
+              )}
+              <Bars3Icon className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ width: 14, height: 14, marginLeft: 'auto', color: 'var(--tb-muted)' }} />
             </div>
-            {hasMeta && (
+            {isNote && hasMeta && (
               <div className="flex items-center" style={{ gap: 4, fontSize: 11, lineHeight: '16px', color: isOverdue ? URGENT_TEXT : isNote ? 'var(--tb-note-text)' : 'var(--tb-muted)', opacity: isNote ? 0.7 : 1 }}>
                 {isRecurring && <ArrowPathIcon style={{ width: 12, height: 12 }} aria-label="Repeats" />}
                 <span className="truncate">{metaParts.join(' · ')}</span>
