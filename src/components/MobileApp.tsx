@@ -213,9 +213,6 @@ export function MobileApp(actions: MobileActions) {
   const [addSheetMode, setAddSheetMode] = useState<'task' | 'event'>('task');
   const [showAddSheet, setShowAddSheet] = useState(false);
 
-  // Refs to trigger add flows in child tabs
-  const todoAddTriggerRef = useRef<(() => void) | null>(null);
-  const scheduleAddEventTriggerRef = useRef<(() => void) | null>(null);
 
   // Prevent iOS rubber-band / pull-to-refresh on the document level
   useEffect(() => {
@@ -262,13 +259,13 @@ export function MobileApp(actions: MobileActions) {
           {activeTab === 'schedule' && (
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-                {schedMode === 'plan' ? <PlanTab /> : <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
+                {schedMode === 'plan' ? <PlanTab /> : <ScheduleTab />}
               </div>
             </div>
           )}
           </ScheduleModeContext.Provider>
         </SharedDateContext.Provider>
-        {activeTab === 'todo' && <TodoTab addTriggerRef={todoAddTriggerRef} />}
+        {activeTab === 'todo' && <TodoTab />}
       </div>
 
       {/* Single floating add button, bottom-right above the nav */}
@@ -1844,7 +1841,7 @@ interface ScheduleCardItem {
   section: TimeOfDaySection;
 }
 
-function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.MutableRefObject<(() => void) | null> }) {
+function ScheduleTab() {
   const timeBlocks = useStore((s) => s.timeBlocks);
   const events = useStore((s) => s.events);
   const categories = useStore((s) => s.categories);
@@ -1863,12 +1860,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
 
   const [selectedDate, setSelectedDate] = React.useContext(SharedDateContext)!;
   const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
-  const [showEventForm, setShowEventForm] = useState(false);
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventStart, setEventStart] = useState('');
-  const [eventEnd, setEventEnd] = useState('');
-  const [eventCalendarId, setEventCalendarId] = useState('');
-  const [eventCategoryId, setEventCategoryId] = useState('');
   const [collapsedSections, setCollapsedSections] = useState<Record<TimeOfDaySection, boolean>>({
     morning: false, afternoon: false, evening: false,
   });
@@ -1878,30 +1869,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const swipeStartXRef = useRef(0);
   const swipeCurrentXRef = useRef(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
-
-  const eventInputRef = useRef<HTMLInputElement>(null);
-
-  // Wire up the addEvent trigger ref from parent
-  useEffect(() => {
-    if (addEventTriggerRef) {
-      addEventTriggerRef.current = () => {
-        const now = new Date();
-        const h = now.getHours();
-        const m = now.getMinutes();
-        const roundedM = Math.ceil(m / 15) * 15;
-        const startH = roundedM >= 60 ? h + 1 : h;
-        const startMin = roundedM >= 60 ? 0 : roundedM;
-        setEventStart(`${String(startH).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
-        setEventEnd(`${String(startH + 1).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`);
-        if (calendarContainers.length > 0 && !eventCalendarId) {
-          setEventCalendarId(calendarContainers[0].id);
-        }
-        setShowEventForm(true);
-        setTimeout(() => eventInputRef.current?.focus(), 100);
-      };
-    }
-    return () => { if (addEventTriggerRef) addEventTriggerRef.current = null; };
-  }, [addEventTriggerRef, calendarContainers, eventCalendarId]);
 
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
@@ -1992,22 +1959,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     });
   }, [tasks, timeBlocks, selectedDate, today]);
 
-  // Filtered categories for event form
-  const eventFilteredCategories = useMemo(() => {
-    if (!eventCalendarId) return categories;
-    return categories.filter((c) => {
-      const ids = c.calendarContainerIds;
-      if (ids && ids.length > 0) return ids.includes(eventCalendarId);
-      return c.calendarContainerId === eventCalendarId || !c.calendarContainerId;
-    });
-  }, [eventCalendarId, categories]);
-
-  // Auto-select calendar/category for event form
-  useEffect(() => {
-    if (!eventCalendarId) return;
-    const first = eventFilteredCategories[0];
-    if (first) setEventCategoryId(first.id);
-  }, [eventCalendarId, eventFilteredCategories]);
 
   const handleConfirm = useCallback((blockId: string) => {
     saveSnapshot();
@@ -2026,32 +1977,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     undoToast('Skipped');
     skipBlock(blockId);
   }, [saveSnapshot, skipBlock]);
-
-  const handleCreateEvent = useCallback(() => {
-    if (!eventTitle.trim() || !eventStart || !eventEnd || !eventCategoryId) return;
-    const cat = categories.find((c) => c.id === eventCategoryId);
-    if (!cat) return;
-    if (parseTimeToMinutes(eventEnd) <= parseTimeToMinutes(eventStart)) {
-      toast.error('End time must be after the start time.');
-      return;
-    }
-    saveSnapshot();
-    undoToast('Event added');
-    addEvent({
-      title: eventTitle.trim(),
-      calendarContainerId: eventCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
-      categoryId: cat.id,
-      start: padTime(eventStart),
-      end: padTime(eventEnd),
-      date: selectedDate,
-      recurring: false,
-      source: 'manual',
-    });
-    setShowEventForm(false);
-    setEventTitle('');
-    setEventStart('');
-    setEventEnd('');
-  }, [eventTitle, eventStart, eventEnd, eventCategoryId, eventCalendarId, categories, calendarContainers, selectedDate, saveSnapshot, addEvent]);
 
   const handleQuickSchedule = useCallback((task: Task) => {
     const afterTime = selectedDate === today
@@ -2567,79 +2492,6 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         />
       )}
 
-      {/* Event creation sheet */}
-      {showEventForm && (
-        <>
-          <Sheet onBackdropClick={() => { setShowEventForm(false); setEventTitle(''); }}>
-            <div style={{ padding: '8px 20px 16px' }}>
-              <p style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: '0 0 12px' }}>New Event</p>
-              <input
-                ref={eventInputRef}
-                type="text"
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreateEvent();
-                  if (e.key === 'Escape') { setShowEventForm(false); setEventTitle(''); }
-                }}
-                placeholder="Event title"
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid rgba(0,0,0,0.10)', fontSize: 15,
-                  color: THEME.textPrimary, backgroundColor: 'rgba(0,0,0,0.02)',
-                  outline: 'none', boxSizing: 'border-box', marginBottom: 10,
-                }}
-              />
-              <div className="flex gap-2" style={{ marginBottom: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <SectionLabel as="label" mb={4}>Start</SectionLabel>
-                  <input type="time" value={eventStart} onChange={(e) => setEventStart(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <SectionLabel as="label" mb={4}>End</SectionLabel>
-                  <input type="time" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', fontSize: 14, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-              {calendarContainers.length > 1 && (
-                <div className="flex flex-wrap gap-2" style={{ marginBottom: 8 }}>
-                  {calendarContainers.map((cal) => {
-                    const isSel = eventCalendarId === cal.id;
-                    return (
-                      <button key={cal.id} type="button" onClick={() => setEventCalendarId(cal.id)} className="touch-manipulation"
-                        style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cal.color}20` : 'transparent', color: isSel ? cal.color : COLOR.text2 }}>
-                        {cal.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2" style={{ marginBottom: 10 }}>
-                {eventFilteredCategories.map((cat) => {
-                  const isSel = eventCategoryId === cat.id;
-                  return (
-                    <button key={cat.id} type="button" onClick={() => setEventCategoryId(cat.id)} className="touch-manipulation"
-                      style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, border: isSel ? 'none' : '1px solid rgba(0,0,0,0.12)', backgroundColor: isSel ? `${cat.color}20` : 'transparent', color: isSel ? cat.color : COLOR.text2 }}>
-                      {cat.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => { setShowEventForm(false); setEventTitle(''); }} className="touch-manipulation"
-                  style={{ flex: 1, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 500, border: '1px solid rgba(0,0,0,0.10)', backgroundColor: 'transparent', color: COLOR.text2 }}>
-                  Cancel
-                </button>
-                <button type="button" onClick={handleCreateEvent} disabled={!eventTitle.trim() || !eventStart || !eventEnd} className="touch-manipulation"
-                  style={{ flex: 2, padding: '10px', borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', backgroundColor: eventTitle.trim() && eventStart && eventEnd ? THEME.primary : 'rgba(0,0,0,0.06)', color: eventTitle.trim() && eventStart && eventEnd ? '#FFFFFF' : COLOR.muted }}>
-                  Create Event
-                </button>
-              </div>
-            </div>
-          </Sheet>
-        </>
-      )}
     </div>
   );
 }
@@ -3107,7 +2959,7 @@ function TodoRow({ task, color, isNote, isDone, isExpanded, todayStr, onToggle, 
   );
 }
 
-function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(() => void) | null> }) {
+function TodoTab() {
   const tasks = useStore((s) => s.tasks);
   const timeBlocks = useStore((s) => s.timeBlocks);
   const categories = useStore((s) => s.categories);
@@ -3134,15 +2986,6 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const [micError, setMicError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Wire up add trigger ref from parent (for bottom nav Add button)
-  useEffect(() => {
-    if (addTriggerRef) {
-      addTriggerRef.current = () => {
-        inputRef.current?.focus();
-      };
-    }
-    return () => { if (addTriggerRef) addTriggerRef.current = null; };
-  }, [addTriggerRef]);
   const recognitionRef = useRef<any>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
 
@@ -3438,21 +3281,19 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', boxSizing: 'border-box' }}>
-      {/* 1. MiniMonth (collapsible) */}
-      <div style={{ flexShrink: 0, borderBottom: miniOpen ? `1px solid ${COLOR.border}` : 'none' }}>
-        {miniOpen ? (
+      {/* Title row: To-Dos + month toggle (opens mini month) */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px', minHeight: 44 }}>
+        <span style={{ fontSize: 17, fontWeight: 600, color: COLOR.text }}>To-Dos</span>
+        <button type="button" data-testid="mini-month-toggle" onClick={() => setMiniOpen((o) => !o)} className="touch-manipulation"
+          style={{ minHeight: 44, padding: '0 4px', border: 'none', background: 'transparent', fontSize: 13, color: COLOR.text2, fontWeight: 600 }}>
+          {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} <span style={{ fontSize: 10, color: COLOR.muted }}>{miniOpen ? '▴' : '▾'}</span>
+        </button>
+      </div>
+      {miniOpen && (
+        <div style={{ flexShrink: 0, borderBottom: `1px solid ${COLOR.border}` }}>
           <MiniMonth touch view="week" selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setMiniOpen(false); }} onTitleClick={() => setMiniOpen(false)} />
-        ) : (
-          <button type="button" data-testid="mini-month-toggle" onClick={() => setMiniOpen(true)} className="touch-manipulation" style={{ width: '100%', minHeight: 44, border: 'none', background: 'transparent', fontSize: 12, color: COLOR.text2, fontWeight: 600 }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ▾
-          </button>
-        )}
-      </div>
-
-      {/* 2. Title row with By day / By due on the same row */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 8px', minHeight: 44 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: COLOR.text }}>To-Dos</span>
-      </div>
+        </div>
+      )}
 
       {/* Quick capture */}
       <div style={{ flexShrink: 0, padding: '0 16px 8px' }}>
@@ -3468,6 +3309,16 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             placeholder='Add… e.g. "lunch 12-1 tomorrow"'
             style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, border: `1px solid ${COLOR.border}`, fontSize: 16, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', minHeight: 44, boxSizing: 'border-box' }}
           />
+          {speechSupported && !isListening && (
+            <button type="button" aria-label="Dictate" onClick={(e) => { e.preventDefault(); startListening(); }} onContextMenu={(e) => e.preventDefault()}
+              className="touch-manipulation flex-shrink-0"
+              style={{ width: 44, height: 44, borderRadius: 10, border: 'none', backgroundColor: 'rgba(0,0,0,0.06)', color: COLOR.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none', WebkitUserSelect: 'none' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             aria-label="Add"
@@ -3551,39 +3402,6 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
           </section>
         )}
       </div>
-
-      {/* Floating mic FAB */}
-      {speechSupported && !isListening && (
-        <button
-          type="button"
-          onClick={(e) => { e.preventDefault(); startListening(); }}
-          onContextMenu={(e) => e.preventDefault()}
-          className="touch-manipulation"
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: THEME.primary,
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.10)',
-            zIndex: 30,
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-          </svg>
-        </button>
-      )}
 
       {/* Full-screen listening overlay */}
       {isListening && (
