@@ -21,6 +21,7 @@ import { SegmentedControl } from './ds/SegmentedControl';
 import { useCreateMode, getCreateMode, type CreateMode } from '../utils/createMode';
 import { CheckIcon, XMarkIcon, ClockIcon, CalendarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
+import { TodoToggle } from './TodoToggle';
 
 /** Hook that returns current time in minutes, updating every 30s. */
 function useCurrentMinutes(): number {
@@ -1107,7 +1108,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ fontSize: 17, fontWeight: 600, color: THEME.textPrimary, margin: 0 }}>
-              {mode === 'task' ? 'New Note' : 'New Event'}
+              {mode === 'task' ? (isTodo ? 'New To-do' : 'New Note') : 'New Event'}
             </p>
             <button type="button" onClick={onClose} className="touch-manipulation" style={{ border: 'none', background: 'transparent', color: COLOR.muted, padding: 4 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -1117,15 +1118,18 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
           {/* Title */}
           <div>
             <SectionLabel as="label" mb={5}>Title</SectionLabel>
-            <input
-              ref={inputRef}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-              placeholder={mode === 'task' ? 'Note...' : 'Event title...'}
-              style={inputStyle}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {mode === 'task' && <TodoToggle checked={isTodo} onChange={setIsTodo} size={20} />}
+              <input
+                ref={inputRef}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                placeholder={mode === 'task' ? (isTodo ? 'To-do...' : 'Note...') : 'Event title...'}
+                style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+              />
+            </div>
           </div>
 
           {/* Event-only: date + time */}
@@ -1148,14 +1152,6 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
                 </div>
               </div>
             </>
-          )}
-
-          {/* Note-only: Todo checkbox (unticked = sticky note) */}
-          {mode === 'task' && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.textPrimary }}>
-              <input type="checkbox" checked={isTodo} onChange={(e) => setIsTodo(e.target.checked)} style={{ width: 18, height: 18, accentColor: THEME.primary }} />
-              Todo
-            </label>
           )}
 
           {/* Task-only: estimated time */}
@@ -1440,7 +1436,7 @@ function PlanTab() {
   }, [timeBlocks, selectedDate]);
 
   const pendingTasks = useMemo(() => {
-    return tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && !scheduledTaskIds.has(t.id));
+    return tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && t.isTodo !== false && !scheduledTaskIds.has(t.id));
   }, [tasks, scheduledTaskIds]);
 
   const agenda = useMemo(() => {
@@ -1814,6 +1810,7 @@ interface ScheduleCardItem {
   color: string;
   confirmationStatus?: TimeBlock['confirmationStatus'];
   taskId?: string | null;
+  isNote?: boolean;
   section: TimeOfDaySection;
 }
 
@@ -1903,6 +1900,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         start: b.start, end: b.end, startMins: startM, endMins: endM,
         color: cat?.color ?? THEME.primary,
         confirmationStatus: b.confirmationStatus, taskId: b.taskId,
+        isNote: !!b.taskId && tasks.find((t) => t.id === b.taskId)?.isTodo === false,
         section: getSection(startM),
       });
     }
@@ -1923,7 +1921,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     }
     items.sort((a, b) => a.startMins - b.startMins);
     return items;
-  }, [timeBlocks, events, selectedDate, categories]);
+  }, [timeBlocks, events, selectedDate, categories, tasks]);
 
   // Group by section
   const sectionItems = useMemo(() => {
@@ -2186,7 +2184,9 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
             position: 'relative',
             transform: isSwiped ? `translateX(${swipeOffset}px)` : 'translateX(0)',
             transition: swipedItemId === item.id ? 'none' : 'transform 0.2s ease',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: item.isNote ? 'var(--tb-note-bg)' : '#FFFFFF',
+            border: item.isNote ? '1px solid var(--tb-note-border)' : 'none',
+            boxSizing: 'border-box',
             borderRadius: 12,
             padding: '12px 14px',
             minHeight: 44,
@@ -2202,15 +2202,15 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         >
           {stickers.some((st) => st.emoji === MISSED_STAMP && (item.type === 'block' ? st.blockId === item.id : st.eventId === item.id)) && <MissedOverlay />}
 
-          {/* Color indicator */}
-          <div style={{
+          {/* Color indicator (notes are sticky cards, no bar) */}
+          {!item.isNote && <div style={{
             width: 4,
             alignSelf: 'stretch',
             borderRadius: 2,
             backgroundColor: item.color,
             flexShrink: 0,
             opacity: isPast ? 0.5 : 1,
-          }} />
+          }} />}
 
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2218,13 +2218,13 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
               <span style={{
                 fontSize: 14,
                 fontWeight: 500,
-                color: THEME.textPrimary,
+                color: item.isNote ? 'var(--tb-note-text)' : THEME.textPrimary,
                 textDecoration: isSkipped ? 'line-through' : 'none',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
                 flex: 1,
+                ...(item.isNote ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, wordBreak: 'break-word' as const } : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }),
               }}>
+                {item.isNote && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, verticalAlign: '-2px', opacity: 0.6 }}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z" /><polyline points="14 21 14 15 20 15" /></svg>}
                 {item.title}
               </span>
               {isConfirmed && <CheckBadge color={item.color} />}
@@ -2253,7 +2253,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
           </div>
 
           {/* Quick confirm/skip for past pending blocks */}
-          {item.type === 'block' && isPast && !isConfirmed && !isSkipped && (
+          {item.type === 'block' && !item.isNote && isPast && !isConfirmed && !isSkipped && (
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => handleConfirm(item.id)} className="touch-manipulation"
                 style={{
@@ -2855,7 +2855,10 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
       {/* Edit / Delete */}
       {editing ? (
         <div data-testid="todo-edit-form" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
-          <input type="text" value={eTitle} onChange={(e) => setETitle(e.target.value)} placeholder="Title" style={inputBase} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TodoToggle checked={eIsTodo} onChange={setEIsTodo} size={20} />
+            <input type="text" value={eTitle} onChange={(e) => setETitle(e.target.value)} placeholder="Title" style={{ ...inputBase, flex: 1, minWidth: 0 }} />
+          </div>
           <div>
             <SectionLabel as="label" mb={4}>Due date</SectionLabel>
             <input type="date" value={eDue} onChange={(e) => setEDue(e.target.value)} style={inputBase} />
@@ -2872,10 +2875,6 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
             </div>
           </div>
           <textarea value={eNotes} onChange={(e) => setENotes(e.target.value)} rows={3} placeholder="Notes" style={{ ...inputBase, fontSize: 14, resize: 'none', fontFamily: 'inherit' }} />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.textPrimary }}>
-            <input type="checkbox" checked={eIsTodo} onChange={(e) => setEIsTodo(e.target.checked)} style={{ width: 18, height: 18, accentColor: THEME.primary }} />
-            To-do (with a checkbox)
-          </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={() => setEditing(false)} className="touch-manipulation" style={{ flex: 1, padding: 10, borderRadius: 10, fontSize: 13, border: '1px solid rgba(0,0,0,0.10)', background: 'transparent', color: COLOR.text2 }}>Cancel</button>
             <button type="button" data-testid="todo-edit-save" onClick={saveEdit} disabled={!eTitle.trim()} className="touch-manipulation" style={{ flex: 2, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', backgroundColor: THEME.primary, color: '#FFFFFF' }}>Save</button>
@@ -3171,7 +3170,8 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const { saveSnapshot } = useHistoryStore();
 
   const [title, setTitle] = useState('');
-  const [groupBy, setGroupBy] = useState<'day' | 'due'>('day');
+  const groupBy = 'day' as const;
+  const [notesOpen, setNotesOpen] = useState(false);
   const [miniOpen, setMiniOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   // Quick capture creates a note by default (same as the Add sheet and desktop); tick "To-do" for a checkbox item.
@@ -3364,7 +3364,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   };
 
   // Same buckets as the desktop sidebar: scheduled (by day / by due), Unscheduled, then the Done fold.
-  const { mainGroups, unscheduledList } = useMemo(() => {
+  const { mainGroups, unscheduledList, unplacedNotes } = useMemo(() => {
     const firstBlockDate = new Map<string, string>();
     for (const b of timeBlocks) {
       if (!b.taskId) continue;
@@ -3382,9 +3382,12 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     };
     const map = new Map<string, Task[]>();
     const unscheduled: Task[] = [];
+    const notes: Task[] = [];
     for (const t of tasks) {
       if (t.status === 'done' || t.status === 'archived') continue;
       const sd = firstBlockDate.get(t.id);
+      // Notes live on the calendar; only unplaced ones are listed (in their own fold).
+      if (t.isTodo === false) { if (!sd) notes.push(t); continue; }
       if (!sd) { unscheduled.push(t); continue; }
       const key = groupBy === 'day' ? (weekSet.has(sd) ? sd : null) : (t.dueDate || 'none');
       if (key === null) continue;
@@ -3393,6 +3396,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     return {
       mainGroups: [...map.keys()].sort().map((key) => ({ key, label: dayLabel(key), tasks: map.get(key)!.slice().sort(sortFn) })),
       unscheduledList: unscheduled.sort(sortFn),
+      unplacedNotes: notes.sort(sortFn),
     };
   }, [tasks, timeBlocks, groupBy, weekSet, todayStr, tomorrowStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3507,18 +3511,12 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       {/* 2. Title row with By day / By due on the same row */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 8px', minHeight: 44 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: COLOR.text }}>To-Dos</span>
-        <SegmentedControl
-          options={[{ value: 'day' as const, label: 'By day' }, { value: 'due' as const, label: 'By due' }]}
-          value={groupBy}
-          onChange={(v) => setGroupBy(v as 'day' | 'due')}
-          compact
-          size="touch"
-        />
       </div>
 
       {/* Quick capture */}
       <div style={{ flexShrink: 0, padding: '0 16px 8px' }}>
         <div className="flex items-center gap-2">
+          <TodoToggle checked={captureAsTodo} onChange={setCaptureAsTodo} size={20} />
           <input
             ref={inputRef}
             type="text"
@@ -3544,10 +3542,6 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-          <label className="touch-manipulation" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLOR.text2, minHeight: 24 }}>
-            <input type="checkbox" data-testid="capture-as-todo" checked={captureAsTodo} onChange={(e) => setCaptureAsTodo(e.target.checked)} style={{ width: 16, height: 16, accentColor: THEME.primary }} />
-            To-do (with a checkbox)
-          </label>
           {previewText && (
             <span data-testid="quick-parse-preview" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: THEME.primary, backgroundColor: `${THEME.primary}15`, padding: '3px 8px', borderRadius: 999 }}>
               {willCreateEvent ? 'Event' : parsed.hasTime ? 'Scheduled to-do' : parsed.hasDate ? 'Due' : ''}{(willCreateEvent || parsed.hasTime || parsed.hasDate) ? ' · ' : ''}{previewText}
@@ -3574,6 +3568,20 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             ? <div style={{ fontSize: 12, color: COLOR.faint, padding: '4px' }}>Nothing unscheduled</div>
             : unscheduledList.map(renderRow)}
         </section>
+
+        {unplacedNotes.length > 0 && (
+          <section style={{ marginTop: 16 }}>
+            <button type="button" data-testid="notes-section-toggle" onClick={() => setNotesOpen((v) => !v)} aria-expanded={notesOpen} className="touch-manipulation"
+              style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', padding: '0 4px', border: 'none', background: 'transparent', textAlign: 'left', minHeight: 44 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: notesOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s ease', color: COLOR.muted }}><polyline points="9 18 15 12 9 6" /></svg>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: COLOR.muted }}>
+                Unplaced notes<span style={{ marginLeft: 6, fontWeight: 500, color: COLOR.faint }}>{unplacedNotes.length}</span>
+              </span>
+            </button>
+            {notesOpen && unplacedNotes.map(renderRow)}
+          </section>
+        )}
 
         {/* Done - folded away by default; untick to bring a to-do back */}
         {doneTasks.length > 0 && (
