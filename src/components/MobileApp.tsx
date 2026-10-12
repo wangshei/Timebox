@@ -65,7 +65,7 @@ function ScheduleHeader({ selectedDate, today, onNavigate, onToday, miniOpen, on
 }) {
   const [mode, setMode] = React.useContext(ScheduleModeContext);
   const undoDepth = useHistoryStore((st) => st.past.length);
-  const iconBtn: React.CSSProperties = { width: 44, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0, padding: 0 };
+  const iconBtn: React.CSSProperties = { width: 40, height: 44, borderRadius: 8, border: 'none', backgroundColor: 'transparent', color: THEME.textSecondary, flexShrink: 0, padding: 0 };
   const seg = (active: boolean): React.CSSProperties => ({ width: 30, height: 28, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? COLOR.surface : 'transparent', color: active ? THEME.textPrimary : COLOR.muted, boxShadow: active ? '0 1px 2px rgba(0,0,0,0.12)' : 'none' });
   return (
     <div className="flex-shrink-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
@@ -75,7 +75,7 @@ function ScheduleHeader({ selectedDate, today, onNavigate, onToday, miniOpen, on
         </button>
         <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
           <button type="button" data-testid="schedule-title" onClick={onToggleMini} className="touch-manipulation"
-            style={{ fontSize: 16, fontWeight: 600, color: THEME.textPrimary, margin: 0, border: 'none', background: 'transparent', minHeight: 44, padding: '0 4px', whiteSpace: 'nowrap' }}>
+            style={{ fontSize: 15, fontWeight: 600, color: THEME.textPrimary, margin: 0, border: 'none', background: 'transparent', minHeight: 44, padding: '0 2px', whiteSpace: 'nowrap' }}>
             {formatDateHeader(selectedDate)} <span style={{ fontSize: 10, color: COLOR.muted }}>{miniOpen ? '▴' : '▾'}</span>
           </button>
         </div>
@@ -90,7 +90,7 @@ function ScheduleHeader({ selectedDate, today, onNavigate, onToday, miniOpen, on
         )}
         <button type="button" data-testid="schedule-undo" aria-label="Undo last change" title="Undo" disabled={undoDepth === 0}
           onClick={() => useHistoryStore.getState().undo()} className="touch-manipulation flex items-center justify-center"
-          style={{ ...iconBtn, opacity: undoDepth === 0 ? 0.3 : 1 }}>
+          style={{ ...iconBtn, width: 44, opacity: undoDepth === 0 ? 0.3 : 1 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></svg>
         </button>
         <button type="button" data-testid="schedule-mode" aria-label={mode === 'list' ? 'Switch to Plan' : 'Switch to List'} title={mode === 'list' ? 'Switch to Plan' : 'Switch to List'}
