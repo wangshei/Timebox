@@ -970,7 +970,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
 // ─── Full-Detail Add Sheet ─────────────────────────────────
 
-interface AddSheetPrefill { title: string; date: string; startTime: string; endTime: string; isTodo: boolean }
+interface AddSheetPrefill { title: string; date: string; startTime: string; endTime: string; isTodo: boolean; asTask?: boolean }
 
 function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose: () => void; prefill?: AddSheetPrefill }) {
   const calendarContainers = useStore((s) => s.calendarContainers);
@@ -1059,7 +1059,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
     // Quick-parse overrides: "standup 10-11 tomorrow" fills date/time without touching the pickers.
     const pDate = hasParse && parsed.date ? parsed.date : undefined;
     const pStart = hasParse && parsed.hasTime ? parsed.start : undefined;
-    const pEnd = pStart ? (parsed.end ?? minutesToHHMM(Math.min(parseTimeToMinutes(pStart) + (parsed.durationMins ?? 60), 1439))) : undefined;
+    const pEnd = pStart ? (mode === 'task' && !isTodo ? minutesToHHMM(Math.min(parseTimeToMinutes(pStart) + 60, 1439)) : (parsed.end ?? minutesToHHMM(Math.min(parseTimeToMinutes(pStart) + (parsed.durationMins ?? 60), 1439)))) : undefined;
     saveSnapshot();
     undoToast(mode === 'task' ? (isTodo ? 'To-do added' : 'Note added') : 'Event added');
     const cat = categories.find((c) => c.id === categoryId);
@@ -1067,7 +1067,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
     if (mode === 'task') {
       const newTaskId = addTask({
         title: finalTitle,
-        estimatedMinutes: prefill ? Math.max(15, parseTimeToMinutes(prefill.endTime) - parseTimeToMinutes(prefill.startTime)) : estimatedMins,
+        estimatedMinutes: !isTodo ? 60 : prefill ? Math.max(15, parseTimeToMinutes(prefill.endTime) - parseTimeToMinutes(prefill.startTime)) : estimatedMins,
         calendarContainerId: calId,
         categoryId,
         tagIds: selectedTagIds,
@@ -1086,7 +1086,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
       if (prefill && newTaskId) {
         addTimeBlock({
           taskId: newTaskId, title: finalTitle, calendarContainerId: calId, categoryId, tagIds: selectedTagIds,
-          start: prefill.startTime, end: prefill.endTime, date: prefill.date, mode: 'planned', source: 'manual',
+          start: prefill.startTime, end: !isTodo ? minutesToHHMM(Math.min(parseTimeToMinutes(prefill.startTime) + 60, 1439)) : prefill.endTime, date: prefill.date, mode: 'planned', source: 'manual',
         } as any);
       }
     } else {
@@ -1177,7 +1177,7 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
           )}
 
           {/* Task-only: estimated time */}
-          {mode === 'task' && (
+          {mode === 'task' && isTodo && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                 <SectionLabel as="label" mb={0}>Estimated Time</SectionLabel>
@@ -1415,7 +1415,7 @@ function PlanTab() {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', cancel);
   };
-  const finishTimelineCreate = (title: string | null) => {
+  const finishTimelineCreate = (title: string | null, todoOn = true) => {
     const ic = mobInline;
     setMobInline(null);
     if (!ic || !title) return;
@@ -1424,18 +1424,20 @@ function PlanTab() {
     const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId)) || cals[0];
     if (!cal || !cat) { toast.error('Create a calendar and category first.'); return; }
     saveSnapshot();
-    undoToast(ic.mode === 'event' ? 'Event added' : 'To-do added');
+    undoToast(ic.mode === 'event' ? 'Event added' : todoOn ? 'To-do added' : 'Note added');
     if (ic.mode === 'event') {
       addEventAction({ title, calendarContainerId: cal.id, categoryId: cat.id, date: selectedDate, start: ic.startTime, end: ic.endTime, recurring: false } as any);
     } else {
-      const mins = Math.max(15, parseTimeToMinutes(ic.endTime) - parseTimeToMinutes(ic.startTime));
+      // A note has no time: fixed 1h block from the drag start.
+      const mins = todoOn ? Math.max(15, parseTimeToMinutes(ic.endTime) - parseTimeToMinutes(ic.startTime)) : 60;
+      const endT = todoOn ? ic.endTime : minutesToHHMM(Math.min(parseTimeToMinutes(ic.startTime) + 60, 1439));
       const taskId = addTaskAction({
-        title, estimatedMinutes: mins, calendarContainerId: cal.id, categoryId: cat.id, tagIds: [], flexible: true, isTodo: true,
+        title, estimatedMinutes: mins, calendarContainerId: cal.id, categoryId: cat.id, tagIds: [], flexible: true, isTodo: todoOn,
       } as any);
       if (taskId) {
         addTimeBlock({
           taskId, title, calendarContainerId: cal.id, categoryId: cat.id, tagIds: [],
-          start: ic.startTime, end: ic.endTime, date: selectedDate, mode: 'planned', source: 'manual',
+          start: ic.startTime, end: endT, date: selectedDate, mode: 'planned', source: 'manual',
         } as any);
       }
     }
@@ -1584,10 +1586,10 @@ function PlanTab() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
       {mobInline && (
         <InlineCreate mode={mobInline.mode} anchor={mobInline.anchor} label={`${mobInline.startTime}–${mobInline.endTime}`}
-          onSave={(t) => finishTimelineCreate(t)} onCancel={() => finishTimelineCreate(null)}
-          onExpand={(t) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' }); }} />
+          onSave={(t, todoOn) => finishTimelineCreate(t, todoOn)} onCancel={() => finishTimelineCreate(null)}
+          onExpand={(t, _pos, todoOn) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' && todoOn, asTask: ic.mode === 'todo' }); }} />
       )}
-      {mobSheet && <AddSheet mode={mobSheet.isTodo ? 'task' : 'event'} prefill={mobSheet} onClose={() => setMobSheet(null)} />}
+      {mobSheet && <AddSheet mode={mobSheet.asTask ?? mobSheet.isTodo ? 'task' : 'event'} prefill={mobSheet} onClose={() => setMobSheet(null)} />}
       {/* Header: date nav */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
         <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"
@@ -3334,7 +3336,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     if (parsed.hasTime && parsed.start) {
       // Circle on = to-do, off = note; either way a time puts it on the calendar (same as desktop).
       const startM = parseTimeToMinutes(parsed.start);
-      const mins = parsed.end ? Math.max(15, parseTimeToMinutes(parsed.end) - startM) : (parsed.durationMins ?? (captureAsTodo ? 30 : 60));
+      const mins = !captureAsTodo ? 60 : parsed.end ? Math.max(15, parseTimeToMinutes(parsed.end) - startM) : (parsed.durationMins ?? 30);
       const endM = Math.min(startM + mins, 1439);
       const taskId = addTask({
         title: parsed.title, estimatedMinutes: mins, calendarContainerId: calId, categoryId: catId,

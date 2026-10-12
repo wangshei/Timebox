@@ -93,7 +93,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
       />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>
-        <span style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted }}>{label}</span>
+        <span style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted }}>{mode === 'todo' && !isTodo ? 'Note · 1h block' : label}</span>
         {onExpand && <IconButton icon={ArrowsPointingOutIcon} size="sm" aria-label="More options" title="More options" onClick={(e) => { e.stopPropagation(); expand(); }} />}
       </div>
     </div>

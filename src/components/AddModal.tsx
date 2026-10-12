@@ -788,8 +788,8 @@ export function AddModal({
 
           {mode === 'task' && (
             <>
-              {/* Estimated time — icon-led row */}
-              <div className="flex items-center gap-2.5">
+              {/* Estimated time — icon-led row (notes have no time) */}
+              {isTodo && <div className="flex items-center gap-2.5">
                 <ClockIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />
                 <div className="flex-1 flex gap-3 items-center">
                   <input
@@ -802,7 +802,7 @@ export function AddModal({
                     {estimatedHours >= 1 ? `${estimatedHours}h` : `${Math.round(estimatedHours * 60)}m`}
                   </span>
                 </div>
-              </div>
+              </div>}
               {/* Due date — icon-led row */}
               <div className="flex items-center gap-2.5">
                 <CalendarDaysIcon className="h-4 w-4 shrink-0" style={{ color: '#8E8E93' }} />

@@ -1365,9 +1365,13 @@ export default function App() {
     if (isRecurringTask) expandRecurringTasks(analyticsDateRange);
     // If created from a calendar drag, also schedule the task at that time slot
     if (taskData.scheduleAt && taskId) {
-      const slot = taskData.scheduleAt;
-      const todayStr = getLocalDateString();
       const parseT = (t: string) => { const [h, m] = t.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); };
+      const toT = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      // Notes have no time: any placement is a fixed 1h block from the start.
+      const slot = taskData.isTodo === false
+        ? { ...taskData.scheduleAt, endTime: toT(Math.min(parseT(taskData.scheduleAt.startTime) + 60, 24 * 60 - 1)) }
+        : taskData.scheduleAt;
+      const todayStr = getLocalDateString();
       const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
       const endMins = parseT(slot.endTime);
       const isPastSlot = slot.date < todayStr || (slot.date === todayStr && endMins <= nowMins);
@@ -2163,7 +2167,8 @@ export default function App() {
       .reduce((s, b) => s + (parseTimeToMinsLocal(b.end) - parseTimeToMinsLocal(b.start)), 0);
     const remaining = Math.max(0, task.estimatedMinutes - planned - recorded);
     // Only block the drop if the task has an estimate AND all time is already scheduled
-    if (task.estimatedMinutes > 0 && remaining <= 0) {
+    const isNoteTask = task.isTodo === false;
+    if (!isNoteTask && task.estimatedMinutes > 0 && remaining <= 0) {
       toast(`"${task.title}" already has all its time scheduled. Raise the estimate to add more.`);
       return;
     }
@@ -2175,9 +2180,10 @@ export default function App() {
         : task.estimatedMinutes || 60; // default to 1h for tasks without estimate
     // When task has no estimate, don't cap by remaining
     const budget = task.estimatedMinutes > 0 ? remaining : requested;
-    const duration = Math.max(15, Math.min(budget, Math.round(requested / 15) * 15));
+    // Notes have no time: placing one always makes a fixed 1h block.
+    const duration = isNoteTask ? 60 : Math.max(15, Math.min(budget, Math.round(requested / 15) * 15));
     const startMins = parseTimeToMinsLocal(params.startTime);
-    const endMins = startMins + duration;
+    const endMins = Math.min(startMins + duration, 24 * 60 - 1);
     const minsToTimeString = (mins: number) =>
       `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
     const todayStr = getLocalDateString();
@@ -2326,6 +2332,10 @@ export default function App() {
     setAddModalInitialDate(ic.date);
     setAddModalInitialStart(ic.startTime);
     setAddModalInitialEnd(isTodo && ic.endDate ? '23:59' : ic.endTime);
+    if (isTodo && !todoOn) {
+      const m = parseTimeToMins(ic.startTime) + 60;
+      setAddModalInitialEnd(minsToTime(Math.min(m, 24 * 60 - 1)));
+    }
     setAddModalInitialEndDate(isTodo ? null : ic.endDate ?? null);
     setAddModalInitialTitle(title);
     setAddModalInitialTodo(isTodo && todoOn);
@@ -2355,8 +2365,9 @@ export default function App() {
       });
     } else {
       // A to-do's scheduled block lives on one day: clamp multi-day drags to the start day.
-      const endTime = ic.endDate ? '23:59' : ic.endTime;
-      const mins = Math.max(15, parseTimeToMins(endTime) - parseTimeToMins(ic.startTime));
+      // A note has no time: fixed 1h block from the drag start, drag length ignored.
+      const endTime = !todoOn ? minsToTime(Math.min(parseTimeToMins(ic.startTime) + 60, 24 * 60 - 1)) : ic.endDate ? '23:59' : ic.endTime;
+      const mins = !todoOn ? 60 : Math.max(15, parseTimeToMins(endTime) - parseTimeToMins(ic.startTime));
       handleAddTask({
         title, estimatedHours: mins / 60, category: cat, tags: [], calendar: cal.id as any,
         isTodo: todoOn, scheduleAt: { date: ic.date, startTime: ic.startTime, endTime },
