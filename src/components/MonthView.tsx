@@ -1,5 +1,5 @@
 import React from 'react';
-import { GRID } from '../styles/tokens';
+import { GRID, COLOR } from '../styles/tokens';
 import { Mode, Event } from '../types';
 import { ResolvedTimeBlock } from '../utils/dataResolver';
 import { getLocalDateString, isTodayLocal } from '../utils/dateTime';
@@ -16,11 +16,41 @@ interface MonthViewProps {
   events?: Event[];
   /** When true, first column is Monday; when false, Sunday. */
   weekStartsOnMonday?: boolean;
+  /** Drag across 2+ day cells: create a multi-day all-day-span event. */
+  onCreateRange?: (params: { date: string; endDate: string; startTime: string; endTime: string; anchor: { x: number; y: number } }) => void;
 }
 
 const BG_TODAY = GRID.today;
 
-export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [], weekStartsOnMonday = false }: MonthViewProps) {
+export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSelectBlock, focusedCategoryId, focusedCalendarId, onSelectDate, events = [], weekStartsOnMonday = false, onCreateRange }: MonthViewProps) {
+  const [rangeDrag, setRangeDrag] = React.useState<{ anchor: string; cur: string } | null>(null);
+  const rangeRef = React.useRef(rangeDrag);
+  const suppressClick = React.useRef(false);
+  React.useEffect(() => {
+    if (!rangeDrag) return;
+    const dateAt = (x: number, y: number) =>
+      (document.elementFromPoint(x, y)?.closest('[data-month-date]') as HTMLElement | null)?.getAttribute('data-month-date') ?? null;
+    const onMove = (e: MouseEvent) => {
+      const d = dateAt(e.clientX, e.clientY);
+      if (!d) return;
+      setRangeDrag((p) => { if (!p || p.cur === d) return p; const n = { ...p, cur: d }; rangeRef.current = n; return n; });
+    };
+    const onUp = (e: MouseEvent) => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      const r = rangeRef.current;
+      rangeRef.current = null;
+      setRangeDrag(null);
+      if (!r || r.anchor === r.cur) return;
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 0);
+      const [a, b] = r.anchor < r.cur ? [r.anchor, r.cur] : [r.cur, r.anchor];
+      onCreateRange?.({ date: a, endDate: b, startTime: '00:00', endTime: '23:59', anchor: { x: e.clientX, y: e.clientY } });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [rangeDrag !== null, onCreateRange]);
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -98,7 +128,8 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
           const dateStr = formatDate(day.date);
           const dayEvents = events.filter(e => e.date <= dateStr && dateStr <= (e.endDate ?? e.date));
           const today = isToday(day.date);
-          const dayBg = today ? BG_TODAY : undefined;
+          const inRange = !!rangeDrag && dateStr >= (rangeDrag.anchor < rangeDrag.cur ? rangeDrag.anchor : rangeDrag.cur) && dateStr <= (rangeDrag.anchor < rangeDrag.cur ? rangeDrag.cur : rangeDrag.anchor) && rangeDrag.anchor !== rangeDrag.cur;
+          const dayBg = inRange ? COLOR.accentSoft : today ? BG_TODAY : undefined;
           const plannedBlocks = blocks.filter(b => b.mode === 'planned');
           const recordedBlocks = blocks.filter(b => b.mode === 'recorded');
           const allItems = [...blocks.map(b => ({ ...b, _type: 'block' as const })), ...dayEvents.map(e => ({ ...e, _type: 'event' as const }))];
@@ -111,7 +142,9 @@ export function MonthView({ mode, timeBlocks, currentDate, selectedBlock, onSele
                 !day.isCurrentMonth ? 'opacity-50' : ''
               }`} ${!dayBg ? 'tb-hv-bg' : ''}`}
               style={{ '--hv-bg': '#fafafa', backgroundColor: '#ffffff', ...(dayBg ? { backgroundImage: `linear-gradient(${dayBg}, ${dayBg})` } : {}) } as React.CSSProperties}
-              onClick={() => onSelectDate?.(formatDate(day.date))}
+              data-month-date={dateStr}
+              onMouseDown={onCreateRange ? (e) => { if (e.button !== 0) return; const r = { anchor: dateStr, cur: dateStr }; rangeRef.current = r; setRangeDrag(r); } : undefined}
+              onClick={() => { if (suppressClick.current) return; onSelectDate?.(formatDate(day.date)); }}
             >
               {/* Current day indicator — red line on left for today */}
               {today && (

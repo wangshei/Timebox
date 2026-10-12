@@ -77,3 +77,56 @@ export function resolveGridColumnAtPoint(
   const mins = snapToGrid(((clientY - chosen.rect.top) / pxPerHour) * 60);
   return { date: chosen.date, minsInDay: Math.max(0, Math.min(mins, MINS_PER_DAY)) };
 }
+
+// ── Multi-day drag-to-create ────────────────────────────────────────────────
+
+export interface CreateRange {
+  startDate: string;
+  startMins: number;
+  endDate: string;
+  endMins: number;
+  anchorDate: string;
+  anchorMins: number;
+}
+
+const MIN_CREATE = 15;
+
+/**
+ * Build the selection range for a drag-to-create gesture from the press point (anchor) to the
+ * current pointer point. Handles dragging backward (end before start → swapped) and enforces a
+ * minimum length on the same day.
+ */
+export function computeCreateRange(
+  anchor: { date: string; mins: number },
+  cur: { date: string; mins: number },
+): CreateRange {
+  const cmp = anchor.date === cur.date ? anchor.mins - cur.mins : anchor.date < cur.date ? -1 : 1;
+  const [a, b] = cmp <= 0 ? [anchor, cur] : [cur, anchor];
+  let endMins = b.mins;
+  if (a.date === b.date) endMins = Math.max(b.mins, a.mins + MIN_CREATE);
+  return {
+    startDate: a.date, startMins: a.mins, endDate: b.date, endMins: Math.min(endMins, MINS_PER_DAY),
+    anchorDate: anchor.date, anchorMins: anchor.mins,
+  };
+}
+
+/** The slice of a create range that falls on `date` (minutes from top of that day's column). */
+export function createRangeSegment(r: CreateRange, date: string): { startMins: number; endMins: number } | null {
+  if (date < r.startDate || date > r.endDate) return null;
+  return {
+    startMins: date === r.startDate ? r.startMins : 0,
+    endMins: date === r.endDate ? r.endMins : MINS_PER_DAY,
+  };
+}
+
+/** Convert a create range into the params AddModal / inline creation expect (no "24:00" times). */
+export function createRangeToParams(r: CreateRange): { date: string; startTime: string; endDate?: string; endTime: string } {
+  const startMins = Math.min(r.startMins, MINS_PER_DAY - MIN_CREATE);
+  const endTime = r.endMins >= MINS_PER_DAY ? '23:59' : minutesToTimeString(r.endMins);
+  return {
+    date: r.startDate,
+    startTime: minutesToTimeString(startMins),
+    endDate: r.endDate !== r.startDate ? r.endDate : undefined,
+    endTime,
+  };
+}

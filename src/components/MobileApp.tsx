@@ -14,6 +14,9 @@ import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
 import { dismissGcalEventId } from '../services/googleCalendar';
 import { toast } from 'sonner';
+import { InlineCreate } from './InlineCreate';
+import { SegmentedControl } from './ds/SegmentedControl';
+import { useCreateMode, getCreateMode, type CreateMode } from '../utils/createMode';
 import { CheckIcon, XMarkIcon, ClockIcon, CalendarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
@@ -1213,6 +1216,91 @@ function PlanTab() {
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
 
+  // Create mode (Event | Todo): long-press then drag on the empty timeline to create.
+  const [createMode, setCreateModeValue] = useCreateMode();
+  const addEventAction = useStore((s) => s.addEvent);
+  const addTaskAction = useStore((s) => s.addTask);
+  const [mobCreate, setMobCreate] = useState<{ anchorMins: number; startMins: number; endMins: number } | null>(null);
+  const [mobInline, setMobInline] = useState<{ startTime: string; endTime: string; anchor: { x: number; y: number }; mode: CreateMode } | null>(null);
+  const startTimelineCreate = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (selectedTaskId || e.button !== 0) return;
+    const host = e.currentTarget;
+    const startX = e.clientX, startY = e.clientY;
+    let lastY = startY;
+    let armed = false;
+    const toMins = (y: number) => {
+      const r = host.getBoundingClientRect();
+      const m = Math.round((((y - r.top) / PLAN_HOUR_HEIGHT) * 60) / 15) * 15 + gridStartMins;
+      return Math.max(gridStartMins, Math.min(m, 1440));
+    };
+    const lock = (ev: TouchEvent) => { if (ev.cancelable) ev.preventDefault(); };
+    const cleanup = () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', cancel);
+      document.removeEventListener('touchmove', lock);
+    };
+    let anchor = 0;
+    const apply = (y: number) => {
+      const cur = toMins(y);
+      const a = Math.min(anchor, cur);
+      const b = Math.max(Math.max(anchor, cur), a + 15);
+      setMobCreate({ anchorMins: anchor, startMins: a, endMins: Math.min(b, 1440) });
+    };
+    const onMove = (ev: PointerEvent) => {
+      lastY = ev.clientY;
+      if (!armed) { if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 8) cleanup(); return; }
+      apply(ev.clientY);
+    };
+    const cancel = () => { cleanup(); setMobCreate(null); };
+    const onUp = (ev: PointerEvent) => {
+      const wasArmed = armed;
+      cleanup();
+      if (!wasArmed) return;
+      const cur = toMins(ev.clientY);
+      const a = Math.min(anchor, cur);
+      const b = Math.min(Math.max(Math.max(anchor, cur), a + 15), 1440);
+      setMobCreate(null);
+      const toStr = (m: number) => (m >= 1440 ? '23:59' : minutesToHHMM(m));
+      setMobInline({ startTime: toStr(Math.min(a, 1425)), endTime: toStr(b), anchor: { x: ev.clientX, y: ev.clientY }, mode: getCreateMode() });
+    };
+    const timer = setTimeout(() => {
+      armed = true;
+      anchor = toMins(lastY);
+      document.addEventListener('touchmove', lock, { passive: false });
+      try { navigator.vibrate?.(8); } catch { /* not supported */ }
+      apply(lastY);
+    }, 450);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', cancel);
+  };
+  const finishTimelineCreate = (title: string | null) => {
+    const ic = mobInline;
+    setMobInline(null);
+    if (!ic || !title) return;
+    const cals = calendarContainers.filter((c) => !c.id.startsWith('gcal-'));
+    const cat = categories.find((c) => c.calendarContainerId && cals.some((k) => k.id === c.calendarContainerId)) ?? categories[0];
+    const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId)) || cals[0];
+    if (!cal || !cat) { toast.error('Create a calendar and category first.'); return; }
+    saveSnapshot();
+    if (ic.mode === 'event') {
+      addEventAction({ title, calendarContainerId: cal.id, categoryId: cat.id, date: selectedDate, start: ic.startTime, end: ic.endTime, recurring: false } as any);
+    } else {
+      const mins = Math.max(15, parseTimeToMinutes(ic.endTime) - parseTimeToMinutes(ic.startTime));
+      const taskId = addTaskAction({
+        title, estimatedMinutes: mins, calendarContainerId: cal.id, categoryId: cat.id, tagIds: [], flexible: true, isTodo: true,
+      } as any);
+      if (taskId) {
+        addTimeBlock({
+          taskId, title, calendarContainerId: cal.id, categoryId: cat.id, tagIds: [],
+          start: ic.startTime, end: ic.endTime, date: selectedDate, mode: 'planned', source: 'manual',
+        } as any);
+      }
+    }
+  };
+
   const wakeHour = Math.floor(parseTimeToMinutes(wakeTime || '8:00') / 60);
   const sleepHour = Math.ceil(parseTimeToMinutes(sleepTime || '23:00') / 60);
   const hours = useMemo(() => {
@@ -1349,6 +1437,10 @@ function PlanTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+      {mobInline && (
+        <InlineCreate mode={mobInline.mode} anchor={mobInline.anchor} label={`${mobInline.startTime}–${mobInline.endTime}`}
+          onSave={(t) => finishTimelineCreate(t)} onCancel={() => finishTimelineCreate(null)} />
+      )}
       {/* Header: date nav */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.06)', gap: 6 }}>
         <button type="button" onClick={() => navigateDate(-1)} className="touch-manipulation flex items-center justify-center"
@@ -1373,6 +1465,10 @@ function PlanTab() {
         )}
       </div>
 
+      <div style={{ flexShrink: 0, padding: '6px 12px 0' }}>
+        <SegmentedControl options={[{ value: 'event' as CreateMode, label: 'Event' }, { value: 'todo' as CreateMode, label: 'Todo' }]} value={createMode} onChange={setCreateModeValue} size="touch" fullWidth />
+      </div>
+
       {/* Instruction / selected task hint */}
       <div style={{ flexShrink: 0, padding: '6px 12px', borderBottom: '1px solid rgba(0,0,0,0.04)', minHeight: 28, display: 'flex', alignItems: 'center' }}>
         {selectedTask ? (
@@ -1381,7 +1477,7 @@ function PlanTab() {
           </p>
         ) : (
           <p style={{ fontSize: 11, color: COLOR.muted, margin: 0 }}>
-            Press and hold a card, drag it onto the timeline - or tap it, then tap a time
+            Hold a card and drag it onto the timeline, or hold empty time and drag to create
           </p>
         )}
         {selectedTask && (
@@ -1402,7 +1498,7 @@ function PlanTab() {
             overscrollBehavior: 'contain',
           } as React.CSSProperties}
         >
-          <div style={{ position: 'relative', height: hours.length * PLAN_HOUR_HEIGHT + 40 }}>
+          <div onPointerDown={startTimelineCreate} style={{ position: 'relative', height: hours.length * PLAN_HOUR_HEIGHT + 40, touchAction: 'pan-y' }}>
             {/* Hour lines */}
             {hours.map((h) => {
               const top = (h - wakeHour) * PLAN_HOUR_HEIGHT;
@@ -1420,6 +1516,14 @@ function PlanTab() {
 
             {/* Scheduled blocks */}
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: PLAN_TIME_COL + 2, right: 4 }}>
+              {mobCreate && (
+                <div style={{
+                  position: 'absolute', left: 0, right: 0, zIndex: 5, pointerEvents: 'none', borderRadius: 4,
+                  top: ((mobCreate.startMins - gridStartMins) / 60) * PLAN_HOUR_HEIGHT,
+                  height: ((mobCreate.endMins - mobCreate.startMins) / 60) * PLAN_HOUR_HEIGHT,
+                  backgroundColor: COLOR.accentSoft, borderLeft: `3px solid ${COLOR.accent}`, border: `1px dashed ${COLOR.accentRing}`,
+                }} />
+              )}
               {agenda.map((item) => {
                 const startM = parseTimeToMinutes(item.start);
                 const endM = parseTimeToMinutes(item.end);

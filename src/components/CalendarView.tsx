@@ -12,6 +12,7 @@ import { ThreeDayView } from './ThreeDayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { SegmentedControl } from './ui/SegmentedControl';
+import { useCreateMode, CreateMode } from '../utils/createMode';
 import { Button, IconButton } from './ds';
 import { PX_PER_HOUR } from '../utils/gridUtils';
 import { COLOR } from '../styles/tokens';
@@ -96,6 +97,11 @@ const VIEW_OPTIONS = [
   { value: 'month' as View, label: 'Month', shortLabel: 'M' },
 ];
 
+const CREATE_MODE_OPTIONS: { value: CreateMode; label: string }[] = [
+  { value: 'event', label: 'Event' },
+  { value: 'todo', label: 'Todo' },
+];
+
 export function CalendarView({
   mode, onModeChange, view, onViewChange, selectedDate, onSelectedDateChange,
   timeBlocks, tasks, categories, tags, containers, containerVisibility,
@@ -120,6 +126,7 @@ export function CalendarView({
   onSelectionCancel,
   highlightSlots,
 }: CalendarViewProps) {
+  const [createMode, setCreateModeValue] = useCreateMode();
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
   const revealPast = useStore((s) => s.revealPast);
   const setRevealPast = useStore((s) => s.setRevealPast);
@@ -421,6 +428,10 @@ export function CalendarView({
           {/* Spacer */}
           <div className="flex-1 min-w-1" />
 
+          <div className="shrink-0" style={{ marginRight: 4 }}>
+            <SegmentedControl options={CREATE_MODE_OPTIONS} value={createMode} onChange={setCreateModeValue} size="sm" />
+          </div>
+
           {/* View switcher: [· D 3D M] — Today is a dot */}
           <div className="flex items-center shrink-0"
             style={{
@@ -570,6 +581,9 @@ export function CalendarView({
 
             {/* Right: today + view selector */}
             <div className="flex items-center shrink-0" style={{ gap: 'var(--tb-sp-2)' }}>
+              <div title="Create mode: drag on the calendar to create an Event or a Todo (keys e / t)">
+                <SegmentedControl options={CREATE_MODE_OPTIONS} value={createMode} onChange={setCreateModeValue} size="md" />
+              </div>
               <Button icon={CalendarIcon} onClick={navigateToday} style={{ color: TEXT_SECONDARY }}>Today</Button>
               <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={onViewChange} size="md" />
             </div>
@@ -660,7 +674,7 @@ export function CalendarView({
             <WeekView mode={mode} timeBlocks={mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onConfirm={onConfirm} onSkip={onSkip} onUnconfirm={onUnconfirm} onDeleteBlock={onDeleteBlock} onDeleteTask={onDeleteTask} onDropTask={onDropTask} onMoveBlock={onMoveBlock} onResizeBlock={onResizeBlock} onMoveEvent={onMoveEvent} onResizeEvent={onResizeEvent} onSplitBlock={onSplitBlock} onSplitEvent={onSplitEvent} events={resolvedEvents} onDeleteEvent={onDeleteEvent} onDeleteEventSeries={onDeleteEventSeries} onCreateBlock={onCreateBlock} onEditEvent={onEditEvent} onEditEventWithScope={onEditEventWithScope} onEditBlock={onEditBlock} onToggleEventAttendance={onToggleEventAttendance} onRescheduleLater={onRescheduleLater} onAddTimeToComplete={onAddTimeToComplete} showDifferences={mode === 'compare' ? showDifferences : undefined} weekStartsOnMonday={weekStartsOnMonday} activeStampEmoji={activeStampEmoji} pendingBlockPreview={pendingBlockPreview} selectionMode={selectionMode} selectedSlots={selectedSlots} onToggleSlot={onToggleSlot} onSelectionDone={onSelectionDone} onSelectionCancel={onSelectionCancel} viewTimezone={viewTimezone} onSetViewTimezone={setViewTimezone} highlightSlots={highlightSlots} />
           )}
           {view === 'month' && (
-            <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} weekStartsOnMonday={weekStartsOnMonday} />
+            <MonthView mode={mode} timeBlocks={mode === 'compare' ? visibleBlocks : mainViewBlocks} currentDate={currentDate} selectedBlock={selectedBlock} onSelectBlock={setSelectedBlock} focusedCategoryId={focusedCategoryId} focusedCalendarId={focusedCalendarId} onSelectDate={(d) => { onSelectedDateChange?.(d); onViewChange('3day'); }} events={eventsProp} weekStartsOnMonday={weekStartsOnMonday} onCreateRange={onCreateBlock ? (p) => onCreateBlock({ ...p, forceEvent: true }) : undefined} />
           )}
         </div>
       )}

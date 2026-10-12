@@ -14,6 +14,8 @@ import { ShareModal } from './components/ShareModal';
 import type { ShareRole, Collaborator } from './components/ShareModal';
 import type { ShareScope } from './types/sharing';
 import { toast, Toaster } from 'sonner';
+import { InlineCreate } from './components/InlineCreate';
+import { getCreateMode, setCreateMode, CreateMode } from './utils/createMode';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AuthPage } from './components/AuthPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -202,6 +204,7 @@ export default function App() {
   const [editingTimeBlockId, setEditingTimeBlockId] = useState<string | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isDraftTimeBlock, setIsDraftTimeBlock] = useState(false);
+  const [inlineCreate, setInlineCreate] = useState<{ date: string; startTime: string; endDate?: string; endTime: string; anchor: { x: number; y: number }; mode: CreateMode } | null>(null);
   const [pendingBlockPreview, setPendingBlockPreview] = useState<{ date: string; startTime: string; endTime: string } | null>(null);
   const [pendingRecurrenceEditScope, setPendingRecurrenceEditScope] = useState<'this' | 'all' | 'all_after'>('this');
   // A drag-move of a recurring event, held until the user picks a scope (this / following / all).
@@ -2293,20 +2296,46 @@ export default function App() {
     );
   }, []);
 
-  const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; isRecordedPanel?: boolean }) => {
-    // Open the Add modal (with Task/Event toggle) pre-filled with the dragged time slot.
-    setEditingTaskId(null);
-    setEditingTimeBlockId(null);
-    setEditingEventId(null);
-    setIsDraftTimeBlock(false);
-    setAddModalInitialDate(params.date);
-    setAddModalInitialStart(params.startTime);
-    setAddModalInitialEnd(params.endTime);
-    setAddModalAnchor(params.anchor ?? null);
-    setAddModalMode('event');
-    setPendingBlockPreview({ date: params.date, startTime: params.startTime, endTime: params.endTime });
-    setIsAddModalOpen(true);
+  const handleCreateBlock = (params: { date: string; startTime: string; endTime: string; endDate?: string; isRecordedPanel?: boolean; forceEvent?: boolean; anchor?: { x: number; y: number } }) => {
+    // Drag on the grid creates directly in the persistent create mode (Event | Todo):
+    // an inline title input appears; the item is saved on Enter/blur.
+    setPendingBlockPreview({ date: params.date, startTime: params.startTime, endTime: params.endDate ? '23:59' : params.endTime });
+    setInlineCreate({
+      date: params.date, startTime: params.startTime, endDate: params.endDate, endTime: params.endTime,
+      anchor: params.anchor ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      mode: params.forceEvent ? 'event' : getCreateMode(),
+    });
     return undefined;
+  };
+
+  const finishInlineCreate = (title: string | null) => {
+    const ic = inlineCreate;
+    setInlineCreate(null);
+    setPendingBlockPreview(null);
+    if (!ic || !title) return;
+    const st = useStore.getState();
+    const cals = st.calendarContainers.filter((c) => !c.id.startsWith('gcal-'));
+    const cats = st.categories;
+    const pool = focusedCalendarId ? cats.filter((c) => c.calendarContainerId === focusedCalendarId) : cats;
+    const cat = (focusedCategoryId && cats.find((c) => c.id === focusedCategoryId))
+      || pool.find((c) => c.calendarContainerId && cals.some((k) => k.id === c.calendarContainerId)) || pool[0] || cats[0];
+    const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId))
+      || (focusedCalendarId && cals.find((c) => c.id === focusedCalendarId)) || cals[0];
+    if (!cal || !cat) { toast.error('Create a calendar and category first.'); return; }
+    if (ic.mode === 'event') {
+      handleAddEvent({
+        title, date: ic.date, startTime: ic.startTime, endTime: ic.endTime, endDate: ic.endDate,
+        category: cat, tags: [], calendar: cal.id,
+      });
+    } else {
+      // A to-do's scheduled block lives on one day: clamp multi-day drags to the start day.
+      const endTime = ic.endDate ? '23:59' : ic.endTime;
+      const mins = Math.max(15, parseTimeToMins(endTime) - parseTimeToMins(ic.startTime));
+      handleAddTask({
+        title, estimatedHours: mins / 60, category: cat, tags: [], calendar: cal.id as any,
+        isTodo: true, scheduleAt: { date: ic.date, startTime: ic.startTime, endTime },
+      });
+    }
   };
 
   const parseTimeToMins = (t: string) => {
@@ -2904,10 +2933,10 @@ export default function App() {
         }
         e.preventDefault();
       }
-      else if ((key === 't' || key === 'e') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-        // Smart keys: t = new note/todo, e = new event. Skip while any modal is open.
-        if (isAddModalOpen || isSettingsOpen || isBugReportOpen || showTour || schedulingTaskId || showSchedulingModal) return;
-        handleOpenAddModal(key === 't' ? 'task' : 'event');
+      else if ((key === 't' || key === 'e') && !e.shiftKey) {
+        // Create mode: e = event, t = todo. Dragging on the grid then creates that kind directly.
+        setCreateMode(key === 't' ? 'todo' : 'event');
+        toast(key === 't' ? 'Create mode: Todo' : 'Create mode: Event', { duration: 1200 });
         e.preventDefault();
       }
     };
@@ -3788,7 +3817,7 @@ export default function App() {
                   >
                     <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0', color: THEME.textPrimary, margin: '0 0 8px' }}>Shortcuts</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#636366' }}>
-                      {[['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
+                      {[['e', 'Create mode: Event'], ['t', 'Create mode: Todo'], ['3', '3-Day view'], ['d', 'Day view'], ['w', 'Week view'], ['m', 'Month view'], ['c', 'Compare plan vs actual'], ['a', 'Show all calendars']].map(([key, label]) => (
                         <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                           <kbd style={{ fontFamily: 'var(--tb-font-mono)', fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.09)', color: THEME.textPrimary }}>{key}</kbd>
                           <span>{label}</span>
@@ -4237,6 +4266,15 @@ export default function App() {
         );
       })()}
 
+      {inlineCreate && (
+        <InlineCreate
+          mode={inlineCreate.mode}
+          anchor={inlineCreate.anchor}
+          label={`${inlineCreate.date.slice(5)} ${inlineCreate.startTime}${inlineCreate.endDate ? ` → ${inlineCreate.endDate.slice(5)} ${inlineCreate.endTime}` : `–${inlineCreate.endTime}`}`}
+          onSave={(t) => finishInlineCreate(t)}
+          onCancel={() => finishInlineCreate(null)}
+        />
+      )}
       <AddModal
         isOpen={isAddModalOpen}
         onResendInvite={(email) => {

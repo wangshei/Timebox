@@ -36,6 +36,10 @@ export interface CreateBlockParams {
   date: string;
   startTime: string;
   endTime: string;
+  /** Set when the drag ended on a later day (multi-day event). */
+  endDate?: string;
+  /** Create an event regardless of the Event|Todo create mode (month-view range drag). */
+  forceEvent?: boolean;
   /** When true, block was created from the actual/recorded panel in compare mode. */
   isRecordedPanel?: boolean;
   /** Viewport pixel position of the created slot, so the Add popup can open beside it. */

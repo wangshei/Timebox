@@ -14,6 +14,7 @@ import {
 } from '../utils/gridUtils';
 import type { DropTaskParams, CreateBlockParams } from './DayView';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
+import { computeCreateRange, createRangeSegment, createRangeToParams, CreateRange } from '../utils/gridUtils';
 import { hexToRgba } from '../utils/color';
 import { DueBadge } from './DueBadge';
 import { useNow, useNowFrozen } from '../contexts/NowContext';
@@ -170,43 +171,40 @@ export function ThreeDayView({
 
   // Drag-to-create state
   const MIN_CREATE_MINUTES = 15;
-  const [creatingBlock, setCreatingBlock] = React.useState<{ date: string; startMins: number; endMins: number; anchorMins: number } | null>(null);
+  const [creatingBlock, setCreatingBlock] = React.useState<CreateRange | null>(null);
   const creatingBlockRef = React.useRef(creatingBlock);
   React.useEffect(() => { creatingBlockRef.current = creatingBlock; }, [creatingBlock]);
 
   React.useEffect(() => {
     if (!creatingBlock) return;
-    const gridEl = document.querySelector<HTMLDivElement>(`[data-3day-col="${creatingBlock.date}"] [data-3day-grid]`);
-    if (!gridEl) return;
+    const collectCols = () => {
+      const cols: Array<{ date: string; rect: DOMRect }> = [];
+      document.querySelectorAll<HTMLElement>('[data-3day-col]').forEach((el) => {
+        const date = el.getAttribute('data-3day-col');
+        const grid = el.querySelector('[data-3day-grid]');
+        if (date && grid) cols.push({ date, rect: grid.getBoundingClientRect() });
+      });
+      return cols;
+    };
     const onMove = (e: MouseEvent) => {
-      const rect = gridEl.getBoundingClientRect();
-      const offsetY = e.clientY - rect.top;
-      const currentMins = offsetYToMinutes(Math.max(0, Math.min(offsetY, GRID_HEIGHT)));
+      const hit = resolveGridColumnAtPoint(collectCols(), e.clientX, e.clientY, PX_PER_HOUR);
+      if (!hit) return;
       setCreatingBlock((prev) => {
         if (!prev) return null;
-        const anchor = prev.anchorMins;
-        let startMins: number;
-        let endMins: number;
-        if (currentMins >= anchor) {
-          startMins = anchor;
-          endMins = Math.max(currentMins, anchor + MIN_CREATE_MINUTES);
-        } else {
-          startMins = currentMins;
-          endMins = Math.max(anchor, currentMins + MIN_CREATE_MINUTES);
-        }
-        const next = { ...prev, startMins, endMins };
+        const next = computeCreateRange({ date: prev.anchorDate, mins: prev.anchorMins }, { date: hit.date, mins: hit.minsInDay });
         creatingBlockRef.current = next;
         return next;
       });
     };
-    const onUp = () => {
+    const onUp = (e: MouseEvent) => {
       const cur = creatingBlockRef.current ?? creatingBlock;
       setCreatingBlock(null);
       creatingBlockRef.current = null;
-      if (!cur || !onCreateBlock) return;
-      onCreateBlock({ date: cur.date, startTime: minsToTime(cur.startMins), endTime: minsToTime(cur.endMins) });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      if (!cur || !onCreateBlock) return;
+      const p = createRangeToParams(cur);
+      onCreateBlock({ ...p, anchor: { x: e.clientX, y: e.clientY } });
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -552,7 +550,7 @@ export function ThreeDayView({
                       const offsetY = e.clientY - rect.top;
                       if (offsetY < 0 || offsetY > GRID_HEIGHT) return;
                       const startMins = offsetYToMinutes(offsetY);
-                      setCreatingBlock({ date: dateStr, startMins, endMins: startMins + MIN_CREATE_MINUTES, anchorMins: startMins });
+                      setCreatingBlock(computeCreateRange({ date: dateStr, mins: startMins }, { date: dateStr, mins: startMins }));
                     } : undefined}
                   >
                     {/* Grid lines */}
@@ -825,12 +823,12 @@ export function ThreeDayView({
                     })()}
 
                     {/* Create-block preview — event-style (left stripe) */}
-                    {creatingBlock && creatingBlock.date === dateStr && (
+                    {creatingBlock && createRangeSegment(creatingBlock, dateStr) && (() => { const seg = createRangeSegment(creatingBlock, dateStr)!; return (
                       <div
                         className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
                         style={{
-                          top: `${(creatingBlock.startMins / 60) * PX_PER_HOUR}px`,
-                          height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+                          top: `${(seg.startMins / 60) * PX_PER_HOUR}px`,
+                          height: `${((seg.endMins - seg.startMins) / 60) * PX_PER_HOUR}px`,
                           backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
                           borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
                           borderTop: '1px dashed rgba(0,0,0,0.08)',
@@ -842,10 +840,10 @@ export function ThreeDayView({
                           className="absolute bottom-0.5 left-2 font-medium truncate"
                           style={{ color: THEME.textPrimary, fontSize: '10px' }}
                         >
-                          {minsToTime(creatingBlock.startMins)}–{minsToTime(creatingBlock.endMins)}
+                          {creatingBlock.startDate !== creatingBlock.endDate ? (dateStr === creatingBlock.startDate ? `${minsToTime(seg.startMins)} →` : dateStr === creatingBlock.endDate ? `→ ${minsToTime(seg.endMins)}` : 'all day') : `${minsToTime(seg.startMins)}–${minsToTime(seg.endMins)}`}
                         </span>
                       </div>
-                    )}
+                    ); })()}
 
                     {/* Pending create-block preview — stays visible behind AddModal backdrop */}
                     {!creatingBlock && pendingBlockPreview && pendingBlockPreview.date === dateStr && (() => {
