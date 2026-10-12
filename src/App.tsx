@@ -4087,6 +4087,8 @@ export default function App() {
                 onDeleteEvent={handleDeleteEvent}
                 onDeleteEventSeries={handleDeleteEventSeries}
                 weekStartsOnMonday={weekStartsOnMonday}
+                view={view}
+                onSelectedDateChange={setSelectedDate}
                 onResizeTask={(taskId, newMins) => updateTask(taskId, { estimatedMinutes: newMins })}
               />
             </div>

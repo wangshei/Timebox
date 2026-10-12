@@ -10,6 +10,7 @@ import { THEME } from '../constants/colors';
 import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { COLOR } from '../styles/tokens';
 import { Button, IconButton } from './ds';
+import { MiniMonth } from './MiniMonth';
 
 const BORDER = COLOR.border;
 const BG_PANEL = '#FCFBF7';
@@ -51,6 +52,9 @@ interface RightSidebarProps {
   /** Auto-schedule all unscheduled tasks into free calendar slots. Receives task IDs in desired order. */
   onAutoSchedule?: (taskIds: string[]) => void;
   weekStartsOnMonday?: boolean;
+  /** Main calendar view + date setter; enables the desktop mini-month picker above the list */
+  view?: 'day' | '3day' | 'week' | 'month';
+  onSelectedDateChange?: (date: string) => void;
   onResizeTask?: (taskId: string, newEstimatedMinutes: number) => void;
 }
 
@@ -82,6 +86,8 @@ export function RightSidebar({
   onRescheduleLater,
   onAutoSchedule,
   weekStartsOnMonday = false,
+  view,
+  onSelectedDateChange,
   onResizeTask,
 }: RightSidebarProps) {
   const [isDragOverBlock, setIsDragOverBlock] = useState(false);
@@ -309,6 +315,12 @@ export function RightSidebar({
       }}
       ref={sidebarDropRef}
     >
+      {!isMobile && view && onSelectedDateChange && (
+        <div className="flex-shrink-0" style={{ paddingTop: 'var(--tb-sp-2)' }}>
+          <MiniMonth selectedDate={selectedDate} view={view} onSelect={onSelectedDateChange} weekStartsOnMonday={weekStartsOnMonday} />
+        </div>
+      )}
+
       {/* Controls: grouping switch · Plan toggle · add */}
       <div className="flex-shrink-0" style={{ padding: 'var(--tb-sp-3) var(--tb-sp-3) var(--tb-sp-2)' }}>
         <div className="flex items-center justify-between gap-2">

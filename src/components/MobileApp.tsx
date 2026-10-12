@@ -1,6 +1,7 @@
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import { Sheet } from './ds/Sheet';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { MiniMonth } from './MiniMonth';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
 import { getLocalDateString, padTime, minutesToHHMM } from '../utils/dateTime';
@@ -1220,6 +1221,7 @@ function PlanTab() {
   const today = getLocalDateString();
   const nowMins = useCurrentMinutes();
   const [selectedDate, setSelectedDate] = useState(today);
+  const [miniOpen, setMiniOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [dropPreviewMins, setDropPreviewMins] = useState<number | null>(null);
   const [confirmedMsg, setConfirmedMsg] = useState<string | null>(null);
@@ -1475,6 +1477,15 @@ function PlanTab() {
               <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
               <circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none" />
             </svg>
+          </button>
+        )}
+      </div>
+      <div style={{ flexShrink: 0, borderBottom: miniOpen ? `1px solid ${COLOR.border}` : 'none' }}>
+        {miniOpen ? (
+          <MiniMonth touch view="day" selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setMiniOpen(false); }} onTitleClick={() => setMiniOpen(false)} />
+        ) : (
+          <button type="button" data-testid="mini-month-toggle" onClick={() => setMiniOpen(true)} className="touch-manipulation" style={{ width: '100%', minHeight: 44, border: 'none', background: 'transparent', fontSize: 12, color: COLOR.text2, fontWeight: 600 }}>
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ▾
           </button>
         )}
       </div>
