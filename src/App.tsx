@@ -2407,6 +2407,7 @@ export default function App() {
     if (block && isPastPlannedBlock(block)) return; // plan is frozen once past
     saveSnapshot();
     deleteTimeBlock(blockId);
+    toastUndo('Removed from calendar');
   };
 
   const handleMoveEvent = (eventId: string, params: { date: string; startTime: string; endTime: string }) => {
@@ -2561,6 +2562,11 @@ export default function App() {
     updateEvent(eventId, { attendanceStatus: status });
   };
 
+  /** Toast with an Undo action (also the only undo affordance on mobile). */
+  const toastUndo = (message: string) => {
+    toast(message, { action: { label: 'Undo', onClick: () => useHistoryStore.getState().undo() }, duration: 6000 });
+  };
+
   /** Delete a todo/note; a repeating one asks This / This and following / All. */
   const handleDeleteTask = (taskId: string) => {
     const state = useStore.getState();
@@ -2569,8 +2575,8 @@ export default function App() {
     const noun = task.isTodo === false ? 'note' : 'todo';
     const sid = task.recurrenceSeriesId;
     const isSeries = !!sid && (task.recurring || state.tasks.filter((t) => t.recurrenceSeriesId === sid).length > 1);
-    if (!isSeries) { saveSnapshot(); deleteTask(taskId); return; }
-    const pick = (scope: 'this' | 'all_after' | 'all') => () => { saveSnapshot(); useStore.getState().deleteTaskSeries(taskId, scope); };
+    if (!isSeries) { saveSnapshot(); deleteTask(taskId); toastUndo(`Deleted ${noun}`); return; }
+    const pick = (scope: 'this' | 'all_after' | 'all') => () => { saveSnapshot(); useStore.getState().deleteTaskSeries(taskId, scope); toastUndo(`Deleted ${noun}`); };
     setScopePrompt({
       title: `Delete repeating ${noun}`,
       subtitle: `"${task.title}" repeats. Which ones do you want to delete?`,
@@ -2598,8 +2604,10 @@ export default function App() {
     setScopePrompt({ title: `Delete scheduled ${noun}`, subtitle: `"${task.title}" is on your calendar.`, options });
   };
 
-  const executeDeleteEvent = (id: string, scope: 'this' | 'all' | 'all_after', notifyGuests: boolean) =>
+  const executeDeleteEvent = (id: string, scope: 'this' | 'all' | 'all_after', notifyGuests: boolean) => {
     deleteEventScoped(id, scope, notifyGuests, userName || undefined);
+    toastUndo('Event deleted');
+  };
 
   /** If the event has invited guests, ask whether to notify them before deleting. */
   const requestDeleteWithNotify = (id: string, scope: 'this' | 'all' | 'all_after') => {
@@ -4018,7 +4026,16 @@ export default function App() {
 
       {!isDesktop && (
       <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden relative">
-        <MobileApp />
+        <MobileApp
+          deleteEvent={handleDeleteEvent}
+          deleteBlock={requestDeleteBlock}
+          deleteTask={handleDeleteTask}
+          markTaskDone={handleMarkTaskDone}
+          eventEdited={(eventId, updates) => {
+            const ev = useStore.getState().events.find((e) => e.id === eventId);
+            if (ev) notifyAttendeesIfNeeded(ev, updates, { scope: 'this' });
+          }}
+        />
       </div>
       )}
 

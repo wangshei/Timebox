@@ -3,7 +3,8 @@ import { Sheet } from './ds/Sheet';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useHistoryStore } from '../store/useHistoryStore';
-import { getLocalDateString, padTime } from '../utils/dateTime';
+import { getLocalDateString, padTime, minutesToHHMM } from '../utils/dateTime';
+import { activeDrag, registerDropZone, unregisterDropZone, initPointerDrag, type PointerDragOptions } from '../utils/dragState';
 import { parseTimeToMinutes, findNextAvailableSlot } from '../utils/taskHelpers';
 import { computeOverlapLayout } from '../utils/overlapLayout';
 import { THEME } from '../constants/colors';
@@ -12,6 +13,7 @@ import { formatTime12, formatDateHeader, parseTaskInput } from '../utils/formatt
 import { hexToRgba } from '../utils/color';
 import type { TimeBlock, Task, Event } from '../types';
 import { dismissGcalEventId } from '../services/googleCalendar';
+import { toast } from 'sonner';
 import { CheckIcon, XMarkIcon, ClockIcon, CalendarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
@@ -43,7 +45,7 @@ const CARD_STYLE: React.CSSProperties = {
 
 // ─── Types ─────────────────────────────────────────────────
 
-type MobileTab = 'schedule' | 'todo';
+type MobileTab = 'schedule' | 'plan' | 'todo';
 
 interface AgendaItem {
   type: 'block' | 'event';
@@ -119,7 +121,22 @@ function PlanIcon({ active }: { active: boolean }) {
 
 // ─── Main Component ────────────────────────────────────────
 
-export function MobileApp() {
+/** Actions the desktop shell owns so mobile behaves identically (scope prompts, guest notices, undo toasts). */
+export interface MobileActions {
+  /** Delete an event: asks This/Following/All for repeating events and whether to notify guests. */
+  deleteEvent?: (eventId: string) => void;
+  /** Delete a calendar block: scheduled todos ask "Remove from calendar" vs "Delete todo". */
+  deleteBlock?: (blockId: string) => void;
+  /** Delete a todo/note (repeating ones ask for a scope). */
+  deleteTask?: (taskId: string) => void;
+  /** Toggle a todo done (also confirms/unconfirms its blocks). */
+  markTaskDone?: (taskId: string) => void;
+  /** An event was edited on mobile; lets the shell notify its guests. */
+  eventEdited?: (eventId: string, updates: Record<string, unknown>) => void;
+}
+const MobileActionsContext = React.createContext<MobileActions>({});
+
+export function MobileApp(actions: MobileActions) {
   const [activeTab, setActiveTab] = useState<MobileTab>('schedule');
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [addSheetMode, setAddSheetMode] = useState<'task' | 'event'>('task');
@@ -161,12 +178,14 @@ export function MobileApp() {
   }, []);
 
   return (
+    <MobileActionsContext.Provider value={actions}>
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', backgroundColor: COLOR.surface2, maxWidth: '100vw', overscrollBehavior: 'none' }}>
       {/* Top safe area spacer — background color only, no interactive content */}
       <div style={{ flexShrink: 0, height: 'env(safe-area-inset-top, 0px)', backgroundColor: COLOR.surface2 }} />
       {/* Content — fills remaining height */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {activeTab === 'schedule' && <ScheduleTab addEventTriggerRef={scheduleAddEventTriggerRef} />}
+        {activeTab === 'plan' && <PlanTab />}
         {activeTab === 'todo' && <TodoTab addTriggerRef={todoAddTriggerRef} />}
       </div>
 
@@ -207,6 +226,31 @@ export function MobileApp() {
         >
           <ScheduleIcon active={activeTab === 'schedule'} />
           <span style={{ fontSize: 11, fontWeight: activeTab === 'schedule' ? 600 : 400 }}>Schedule</span>
+        </button>
+
+        {/* Plan tab: drag todos/notes onto the day's timeline */}
+        <button
+          type="button"
+          data-testid="tab-plan"
+          onClick={() => setActiveTab('plan')}
+          className="touch-manipulation"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            padding: '6px 4px 2px',
+            minHeight: 44,
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: activeTab === 'plan' ? THEME.primary : COLOR.muted,
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'color 0.15s ease',
+          }}
+        >
+          <PlanIcon active={activeTab === 'plan'} />
+          <span style={{ fontSize: 11, fontWeight: activeTab === 'plan' ? 600 : 400 }}>Plan</span>
         </button>
 
         {/* Center FAB for quick add */}
@@ -272,7 +316,7 @@ export function MobileApp() {
                 <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${THEME.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={THEME.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 </div>
-                New Task
+                New Note or To-do
               </button>
               <button type="button" onClick={handleNewEvent} className="touch-manipulation"
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 8px', border: 'none', backgroundColor: 'transparent', width: '100%', textAlign: 'left', borderRadius: 10, fontSize: 15, fontWeight: 500, color: THEME.textPrimary }}>
@@ -291,6 +335,7 @@ export function MobileApp() {
         <AddSheet mode={addSheetMode} onClose={() => setShowAddSheet(false)} />
       )}
     </div>
+    </MobileActionsContext.Provider>
   );
 }
 
@@ -352,6 +397,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const addSticker = useStore((s) => s.addSticker);
   const deleteSticker = useStore((s) => s.deleteSticker);
   const { saveSnapshot } = useHistoryStore();
+  const actions = React.useContext(MobileActionsContext);
 
   const today = getLocalDateString();
   const nowMins = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
@@ -364,9 +410,10 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
   const startM = parseTimeToMinutes(item.start);
   const endM = parseTimeToMinutes(item.end);
-  const durationMins = endM - startM;
-  const isPast = (fullBlock?.date ?? fullEvent?.date ?? '') < today ||
-    ((fullBlock?.date ?? fullEvent?.date ?? '') === today && endM <= nowMins);
+  // Cross-midnight events end the next day: never show a negative duration (N-06).
+  const durationMins = endM > startM ? endM - startM : endM - startM + 24 * 60;
+  const itemEndDate = fullEvent?.endDate ?? fullEvent?.date ?? fullBlock?.date ?? '';
+  const isPast = itemEndDate < today || (itemEndDate === today && endM <= nowMins);
   const isConfirmed = item.confirmationStatus === 'confirmed';
   const isSkipped = item.confirmationStatus === 'skipped';
   const isBlock = item.type === 'block';
@@ -379,12 +426,20 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
   const [editEnd, setEditEnd] = useState(item.end);
   const [editCategoryId, setEditCategoryId] = useState(fullBlock?.categoryId ?? fullEvent?.categoryId ?? '');
 
+  const itemNoun = isBlock ? (linkedTask ? (linkedTask.isTodo === false ? 'note' : 'todo') : 'block') : 'event';
+  const isSeriesEvent = !!fullEvent?.recurrenceSeriesId;
+  // Same delete path as desktop: the shell asks Remove from calendar vs Delete todo, the
+  // This / Following / All scope for repeating items, and whether to notify guests.
   const handleDelete = () => {
-    saveSnapshot();
-    if (isBlock) deleteTimeBlock(item.id);
+    if (isBlock && actions.deleteBlock) actions.deleteBlock(item.id);
+    else if (!isBlock && actions.deleteEvent) actions.deleteEvent(item.id);
     else {
-      if (fullEvent?.googleEventId) dismissGcalEventId(item.id);
-      deleteEvent(item.id);
+      saveSnapshot();
+      if (isBlock) deleteTimeBlock(item.id);
+      else {
+        if (fullEvent?.googleEventId) dismissGcalEventId(item.id);
+        deleteEvent(item.id);
+      }
     }
     onClose();
   };
@@ -404,16 +459,25 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
   const handleToggleTaskDone = () => {
     if (!linkedTask) return;
+    // Desktop semantics (B-39): completing the task also confirms its blocks, un-completing undoes it.
+    if (actions.markTaskDone) { actions.markTaskDone(linkedTask.id); return; }
     saveSnapshot();
     updateTask(linkedTask.id, { status: linkedTask.status === 'done' ? 'inbox' : 'done' });
   };
 
+  const [editError, setEditError] = useState<string | null>(null);
   const handleSaveEdit = () => {
-    saveSnapshot();
-    // Normalize time format (HTML time inputs give HH:MM, we need H:MM)
     const normalizeTime = (t: string) => padTime(t);
     const normStart = normalizeTime(editStart);
     const normEnd = normalizeTime(editEnd);
+    // B-36: end must be after start. Events may cross midnight (ends next day); blocks may not.
+    const crossesMidnight = !isBlock && parseTimeToMinutes(normEnd) < parseTimeToMinutes(normStart);
+    if (parseTimeToMinutes(normEnd) <= parseTimeToMinutes(normStart) && !crossesMidnight) {
+      setEditError('End time must be after the start time.');
+      return;
+    }
+    setEditError(null);
+    saveSnapshot();
 
     if (isBlock && fullBlock) {
       updateTimeBlock(item.id, {
@@ -429,16 +493,25 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
         updateTask(linkedTask.id, { title: editTitle, categoryId: editCategoryId });
       }
     } else if (fullEvent) {
-      updateEvent(item.id, {
+      const next = {
         title: editTitle,
         date: editDate,
         start: normStart,
         end: normEnd,
+        endDate: crossesMidnight ? addDaysStr(editDate, 1) : undefined,
         categoryId: editCategoryId,
-      });
+      };
+      actions.eventEdited?.(item.id, next);
+      updateEvent(item.id, next);
     }
     setIsEditing(false);
     onClose();
+  };
+
+  const addDaysStr = (d: string, n: number) => {
+    const dt = new Date(d + 'T12:00:00');
+    dt.setDate(dt.getDate() + n);
+    return getLocalDateString(dt);
   };
 
   // Format time for HTML input (needs HH:MM with leading zeros)
@@ -520,6 +593,15 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                 </div>
               </div>
 
+              {editError && (
+                <p role="alert" style={{ fontSize: 12, color: COLOR.danger, margin: '0 0 10px' }}>{editError}</p>
+              )}
+              {isSeriesEvent && (
+                <p style={{ fontSize: 12, color: COLOR.muted, margin: '0 0 10px' }}>
+                  This event repeats. Changes here apply to this occurrence only; use the desktop app to edit the whole series.
+                </p>
+              )}
+
               {/* Category picker */}
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel as="label" mb={6}>Category</SectionLabel>
@@ -580,7 +662,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
             {cat && <span style={{ fontSize: 12, fontWeight: 500, color: item.color }}>{cat.name}</span>}
             <span style={{ fontSize: 11, color: COLOR.muted, marginLeft: 'auto' }}>
-              Event
+              {itemNoun === 'event' ? 'Event' : itemNoun === 'block' ? 'Block' : itemNoun === 'note' ? 'Note' : 'To-do'}
             </span>
           </div>
 
@@ -764,7 +846,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                 }}
               >
                 <TrashIcon style={{ width: 18, height: 18 }} />
-                Delete event
+                {isBlock && linkedTask ? `Delete ${itemNoun}...` : isSeriesEvent ? 'Delete event...' : `Delete ${itemNoun}`}
               </button>
             </div>
           </div>
@@ -849,6 +931,11 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    const crossesMidnight = mode === 'event' && parseTimeToMinutes(eventEnd) < parseTimeToMinutes(eventStart);
+    if (mode === 'event' && parseTimeToMinutes(eventEnd) === parseTimeToMinutes(eventStart)) {
+      toast.error('End time must be after the start time.');
+      return;
+    }
     saveSnapshot();
     const cat = categories.find((c) => c.id === categoryId);
     const calId = calendarId || (cat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
@@ -874,6 +961,7 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
         date: eventDate,
         start: normalizeTime(eventStart),
         end: normalizeTime(eventEnd),
+        ...(crossesMidnight ? { endDate: (() => { const d = new Date(eventDate + 'T12:00:00'); d.setDate(d.getDate() + 1); return getLocalDateString(d); })() } : {}),
         recurring: false,
         source: 'manual',
         notes: notes.trim() || undefined,
@@ -1058,6 +1146,46 @@ function AddSheet({ mode, onClose }: { mode: 'task' | 'event'; onClose: () => vo
   );
 }
 
+/**
+ * Pointer-drag start for touch + mouse on top of utils/dragState. Mouse drags start after a few px
+ * like on desktop; touch needs a ~300ms press-and-hold (so vertical swipes still scroll the list),
+ * after which the page is locked from scrolling until the finger lifts.
+ */
+function startLongPressDrag(e: React.PointerEvent, opts: PointerDragOptions) {
+  if (e.pointerType !== 'touch') {
+    initPointerDrag(e.nativeEvent, opts);
+    return;
+  }
+  let lastX = e.clientX;
+  let lastY = e.clientY;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let armed = false;
+  const lock = (ev: TouchEvent) => { if (ev.cancelable) ev.preventDefault(); };
+  const cleanup = () => {
+    clearTimeout(timer);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', cleanup);
+    window.removeEventListener('pointercancel', cleanup);
+    document.removeEventListener('touchmove', lock);
+  };
+  const onMove = (ev: PointerEvent) => {
+    lastX = ev.clientX; lastY = ev.clientY;
+    if (!armed && Math.hypot(lastX - startX, lastY - startY) > 8) cleanup(); // it's a scroll, not a drag
+  };
+  const timer = setTimeout(() => {
+    armed = true;
+    window.removeEventListener('pointermove', onMove);
+    document.addEventListener('touchmove', lock, { passive: false });
+    try { navigator.vibrate?.(8); } catch { /* not supported */ }
+    initPointerDrag({ button: 0, clientX: lastX, clientY: lastY }, { ...opts, onDragEnd: () => { opts.onDragEnd?.(); } });
+    // initPointerDrag only listens for pointermove after the drag threshold; nudge it with the next events.
+  }, 300);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', cleanup);
+  window.addEventListener('pointercancel', cleanup);
+}
+
 // ─── PLAN Tab (Split: day view left + task blocks right) ────
 
 const PLAN_HOUR_HEIGHT = 56;
@@ -1082,10 +1210,8 @@ function PlanTab() {
   const [dropPreviewMins, setDropPreviewMins] = useState<number | null>(null);
   const [confirmedMsg, setConfirmedMsg] = useState<string | null>(null);
 
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const dragTaskRef = useRef<Task | null>(null);
-  const ghostRef = useRef<HTMLDivElement | null>(null);
 
   const wakeHour = Math.floor(parseTimeToMinutes(wakeTime || '8:00') / 60);
   const sleepHour = Math.ceil(parseTimeToMinutes(sleepTime || '23:00') / 60);
@@ -1121,6 +1247,7 @@ function PlanTab() {
   }, [timeBlocks, events, selectedDate, categories]);
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+  const dragTask = dragTaskId ? tasks.find((t) => t.id === dragTaskId) : undefined;
 
   const navigateDate = (dir: -1 | 1) => {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -1140,77 +1267,58 @@ function PlanTab() {
     return Math.round(raw / 15) * 15;
   }, [gridStartMins]);
 
-  const handleTaskPointerDown = useCallback((e: React.PointerEvent, task: Task) => {
-    e.preventDefault();
-    dragTaskRef.current = task;
-    isDraggingRef.current = false;
+  // Drop zone for the shared pointer-drag system (utils/dragState): dragging a todo/note card
+  // from the right column onto the timeline creates a block at the snapped time.
+  const placeTaskAt = useCallback((taskId: string, startMins: number) => {
+    const t = useStore.getState().tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    const durationMins = t.estimatedMinutes || 30;
+    saveSnapshot();
+    addTimeBlock({
+      taskId: t.id, title: t.title, date: selectedDate,
+      start: minutesToHHMM(startMins), end: minutesToHHMM(startMins + durationMins),
+      mode: 'planned', source: 'manual',
+      categoryId: t.categoryId,
+      calendarContainerId: t.calendarContainerId ?? calendarContainers[0]?.id ?? '',
+      tagIds: t.tagIds ?? [],
+    });
+    setConfirmedMsg(`Scheduled at ${formatTime12(minutesToHHMM(startMins))} for ${durationMins}m`);
+    setTimeout(() => setConfirmedMsg(null), 2000);
+  }, [saveSnapshot, addTimeBlock, selectedDate, calendarContainers]);
 
-    // Create ghost element
-    const ghost = document.createElement('div');
-    ghost.style.cssText = `position:fixed;pointer-events:none;z-index:200;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;color:#FFFFFF;background:${categories.find(c => c.id === task.categoryId)?.color ?? THEME.primary};box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;transform:translate(-50%,-50%);opacity:0;transition:opacity 0.1s;`;
-    ghost.textContent = task.title;
-    document.body.appendChild(ghost);
-    ghostRef.current = ghost;
+  useEffect(() => {
+    const el = leftPanelRef.current;
+    if (!el) return;
+    registerDropZone(el, {
+      onOver: (_x, y) => {
+        if (activeDrag.type !== 'task') return;
+        setDropPreviewMins(Math.max(gridStartMins, getMinsFromClientY(y)));
+        setDragTaskId(activeDrag.id);
+      },
+      onLeave: () => setDropPreviewMins(null),
+      onDrop: (_x, y) => {
+        if (activeDrag.type !== 'task' || !activeDrag.id) return;
+        placeTaskAt(activeDrag.id, Math.max(gridStartMins, getMinsFromClientY(y)));
+        setDropPreviewMins(null);
+      },
+    });
+    return () => unregisterDropZone(el);
+  }, [gridStartMins, getMinsFromClientY, placeTaskAt]);
 
-    const onMove = (me: PointerEvent) => {
-      if (!dragTaskRef.current) return;
-      isDraggingRef.current = true;
-      ghost.style.left = `${me.clientX}px`;
-      ghost.style.top = `${me.clientY}px`;
-      ghost.style.opacity = '1';
-
-      // Check if over left panel
-      const panel = leftPanelRef.current;
-      if (panel) {
-        const rect = panel.getBoundingClientRect();
-        if (me.clientX >= rect.left && me.clientX <= rect.right && me.clientY >= rect.top && me.clientY <= rect.bottom) {
-          const snapped = Math.max(gridStartMins, getMinsFromClientY(me.clientY));
-          setDropPreviewMins(snapped);
-        } else {
-          setDropPreviewMins(null);
-        }
-      }
-    };
-
-    const onUp = (ue: PointerEvent) => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-      ghost.remove();
-      ghostRef.current = null;
-
-      if (isDraggingRef.current && dropPreviewMinsRef.current !== null && dragTaskRef.current) {
-        const t = dragTaskRef.current;
-        const startMins = dropPreviewMinsRef.current;
-        const durationMins = t.estimatedMinutes || 30;
-        const endMins = startMins + durationMins;
-        const fmtTime = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-        const cat = categories.find((c) => c.id === t.categoryId);
-        saveSnapshot();
-        addTimeBlock({
-          taskId: t.id, title: t.title, date: selectedDate,
-          start: fmtTime(startMins), end: fmtTime(endMins),
-          mode: 'planned', source: 'manual',
-          categoryId: t.categoryId,
-          calendarContainerId: t.calendarContainerId ?? calendarContainers[0]?.id ?? '',
-          tagIds: t.tagIds ?? [],
-        });
-        if (t.status === 'inbox' || !t.status) updateTask(t.id, { status: 'planned' });
-        setConfirmedMsg(`Scheduled: ${fmtTime(startMins)} for ${durationMins}m`);
-        setTimeout(() => setConfirmedMsg(null), 2000);
-      }
-
-      setDropPreviewMins(null);
-      isDraggingRef.current = false;
-      dragTaskRef.current = null;
-    };
-
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
-  }, [categories, getMinsFromClientY, gridStartMins, selectedDate, saveSnapshot, addTimeBlock, updateTask, calendarContainers]);
-
-  // Keep dropPreviewMins in a ref so the pointerup closure can read current value
-  const dropPreviewMinsRef = useRef<number | null>(null);
-  useEffect(() => { dropPreviewMinsRef.current = dropPreviewMins; }, [dropPreviewMins]);
+  const startCardDrag = useCallback((e: React.PointerEvent, task: Task) => {
+    const color = categories.find((c) => c.id === task.categoryId)?.color ?? THEME.primary;
+    startLongPressDrag(e, {
+      type: 'task', id: task.id, duration: task.estimatedMinutes || 30, color, title: task.title,
+      createGhost: () => {
+        const ghost = document.createElement('div');
+        ghost.style.cssText = `padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;color:#fff;background:${color};box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis;`;
+        ghost.textContent = task.title;
+        return ghost;
+      },
+      onDragStart: () => setDragTaskId(task.id),
+      onDragEnd: () => { setDropPreviewMins(null); setDragTaskId(null); },
+    });
+  }, [categories]);
 
   // Tap-to-schedule (alternative to drag for precision)
   const handleLeftPanelTap = (clientY: number) => {
@@ -1218,7 +1326,7 @@ function PlanTab() {
     const snapped = Math.max(gridStartMins, getMinsFromClientY(clientY));
     const durationMins = selectedTask.estimatedMinutes || 30;
     const endMins = snapped + durationMins;
-    const fmtTime = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+    const fmtTime = minutesToHHMM;
     saveSnapshot();
     addTimeBlock({
       taskId: selectedTask.id, title: selectedTask.title, date: selectedDate,
@@ -1228,7 +1336,6 @@ function PlanTab() {
       calendarContainerId: selectedTask.calendarContainerId ?? calendarContainers[0]?.id ?? '',
       tagIds: selectedTask.tagIds ?? [],
     });
-    if (selectedTask.status === 'inbox' || !selectedTask.status) updateTask(selectedTask.id, { status: 'planned' });
     setSelectedTaskId(null);
     setConfirmedMsg(`Scheduled at ${fmtTime(snapped)}`);
     setTimeout(() => setConfirmedMsg(null), 2000);
@@ -1274,7 +1381,7 @@ function PlanTab() {
           </p>
         ) : (
           <p style={{ fontSize: 11, color: COLOR.muted, margin: 0 }}>
-            Tap a task on the right, then tap a time to schedule
+            Press and hold a card, drag it onto the timeline - or tap it, then tap a time
           </p>
         )}
         {selectedTask && (
@@ -1335,15 +1442,15 @@ function PlanTab() {
               })}
 
               {/* Drop preview */}
-              {dropPreviewMins !== null && dragTaskRef.current && (
-                <div style={{
+              {dropPreviewMins !== null && dragTask && (
+                <div data-testid="plan-drop-preview" style={{
                   position: 'absolute',
                   top: ((dropPreviewMins - gridStartMins) / 60) * PLAN_HOUR_HEIGHT,
                   left: 0, right: 0,
-                  height: Math.max(14, ((dragTaskRef.current.estimatedMinutes || 30) / 60) * PLAN_HOUR_HEIGHT),
+                  height: Math.max(14, ((dragTask.estimatedMinutes || 30) / 60) * PLAN_HOUR_HEIGHT),
                   borderRadius: 4,
-                  border: `2px dashed ${categories.find(c => c.id === dragTaskRef.current?.categoryId)?.color ?? THEME.primary}`,
-                  backgroundColor: hexToRgba(categories.find(c => c.id === dragTaskRef.current?.categoryId)?.color ?? THEME.primary, 0.12),
+                  border: `2px dashed ${categories.find(c => c.id === dragTask.categoryId)?.color ?? THEME.primary}`,
+                  backgroundColor: hexToRgba(categories.find(c => c.id === dragTask.categoryId)?.color ?? THEME.primary, 0.12),
                   pointerEvents: 'none',
                 }} />
               )}
@@ -1399,7 +1506,8 @@ function PlanTab() {
               return (
                 <div
                   key={task.id}
-                  onPointerDown={(e) => handleTaskPointerDown(e, task)}
+                  data-testid="plan-task-card"
+                  onPointerDown={(e) => startCardDrag(e, task)}
                   onClick={() => setSelectedTaskId(isSelected ? null : task.id)}
                   className="touch-manipulation"
                   style={{
@@ -1420,7 +1528,8 @@ function PlanTab() {
                     justifyContent: 'space-between',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
-                    touchAction: 'none',
+                    // Vertical pan still scrolls the list; a long-press arms the drag (startLongPressDrag).
+                    touchAction: 'pan-y',
                   }}
                 >
                   <p style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: Math.max(1, Math.floor((blockH - 24) / 14)), WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>
@@ -1487,6 +1596,7 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   const wakeTime = useStore((s) => s.wakeTime);
   const sleepTime = useStore((s) => s.sleepTime);
   const { saveSnapshot } = useHistoryStore();
+  const actions = React.useContext(MobileActionsContext);
 
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [detailItem, setDetailItem] = useState<AgendaItem | null>(null);
@@ -1558,13 +1668,17 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
         section: getSection(startM),
       });
     }
-    for (const e of events.filter((e) => e.date === selectedDate)) {
+    // Cross-midnight events show on both days: from their start to 23:59, then from 00:00 to their end.
+    for (const e of events.filter((e) => e.date <= selectedDate && selectedDate <= (e.endDate ?? e.date))) {
       const cat = categories.find((c) => c.id === e.categoryId);
-      const startM = parseTimeToMinutes(e.start);
-      const endM = parseTimeToMinutes(e.end);
+      const last = e.endDate ?? e.date;
+      const start = selectedDate === e.date ? e.start : '00:00';
+      const end = selectedDate === last ? e.end : '23:59';
+      const startM = parseTimeToMinutes(start);
+      const endM = parseTimeToMinutes(end);
       items.push({
         type: 'event', id: e.id, title: e.title,
-        start: e.start, end: e.end, startMins: startM, endMins: endM,
+        start, end, startMins: startM, endMins: endM,
         color: cat?.color ?? THEME.primary,
         section: getSection(startM),
       });
@@ -1649,13 +1763,17 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
     if (!eventTitle.trim() || !eventStart || !eventEnd || !eventCategoryId) return;
     const cat = categories.find((c) => c.id === eventCategoryId);
     if (!cat) return;
+    if (parseTimeToMinutes(eventEnd) <= parseTimeToMinutes(eventStart)) {
+      toast.error('End time must be after the start time.');
+      return;
+    }
     saveSnapshot();
     addEvent({
       title: eventTitle.trim(),
       calendarContainerId: eventCalendarId || (cat.calendarContainerId ?? calendarContainers[0]?.id ?? ''),
       categoryId: cat.id,
-      start: eventStart,
-      end: eventEnd,
+      start: padTime(eventStart),
+      end: padTime(eventEnd),
       date: selectedDate,
       recurring: false,
       source: 'manual',
@@ -1727,17 +1845,22 @@ function ScheduleTab({ addEventTriggerRef }: { addEventTriggerRef?: React.Mutabl
   }, [swipeOffset]);
 
   const handleDeleteItem = useCallback((item: ScheduleCardItem) => {
-    saveSnapshot();
-    if (item.type === 'block') {
-      useStore.getState().deleteTimeBlock(item.id);
-    } else {
-      const evt = useStore.getState().events.find((e) => e.id === item.id);
-      if (evt?.googleEventId) dismissGcalEventId(item.id);
-      useStore.getState().deleteEvent(item.id);
+    // Same path as the detail sheet and desktop (scope / notify / remove-vs-delete prompts).
+    if (item.type === 'block' && actions.deleteBlock) actions.deleteBlock(item.id);
+    else if (item.type === 'event' && actions.deleteEvent) actions.deleteEvent(item.id);
+    else {
+      saveSnapshot();
+      if (item.type === 'block') {
+        useStore.getState().deleteTimeBlock(item.id);
+      } else {
+        const evt = useStore.getState().events.find((e) => e.id === item.id);
+        if (evt?.googleEventId) dismissGcalEventId(item.id);
+        useStore.getState().deleteEvent(item.id);
+      }
     }
     setSwipedItemId(null);
     setSwipeOffset(0);
-  }, [saveSnapshot]);
+  }, [saveSnapshot, actions]);
 
   // Section label with icon
   const sectionConfig: Record<TimeOfDaySection, { label: string; icon: string; startMins: number; endMins: number }> = {
@@ -2312,8 +2435,31 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
   const updateTask = useStore((s) => s.updateTask);
   const categories = useStore((s) => s.categories);
   const { saveSnapshot } = useHistoryStore();
+  const actions = React.useContext(MobileActionsContext);
   const [mins, setMins] = useState(task.estimatedMinutes || 30);
   const [showReschedulePicker, setShowReschedulePicker] = useState(false);
+  // Inline edit (N-04): title, due date, priority, notes, note <-> to-do.
+  const [editing, setEditing] = useState(false);
+  const [eTitle, setETitle] = useState(task.title);
+  const [eDue, setEDue] = useState(task.dueDate ?? '');
+  const [ePriority, setEPriority] = useState<number>(task.priority ?? 0);
+  const [eNotes, setENotes] = useState(task.notes ?? '');
+  const [eIsTodo, setEIsTodo] = useState(task.isTodo !== false);
+  const saveEdit = () => {
+    if (!eTitle.trim()) return;
+    saveSnapshot();
+    updateTask(task.id, {
+      title: eTitle.trim(),
+      dueDate: eDue || null,
+      priority: ePriority > 0 ? ePriority : undefined,
+      notes: eNotes.trim() || null,
+      isTodo: eIsTodo,
+    });
+    // Keep the calendar blocks' titles in sync, as on desktop.
+    useStore.getState().timeBlocks.filter((b) => b.taskId === task.id).forEach((b) => useStore.getState().updateTimeBlock(b.id, { title: eTitle.trim() }));
+    setEditing(false);
+  };
+  const inputBase: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)', fontSize: 16, color: THEME.textPrimary, backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', minHeight: 44 };
 
   // Reschedule picker state
   const todayStr = getLocalDateString();
@@ -2385,8 +2531,7 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
       updateTask(task.id, { estimatedMinutes: mins });
     }
     // Normalize time: pickerTime is HH:MM, convert to H:MM
-    const [h, m] = pickerTime.split(':').map(Number);
-    const normTime = `${h}:${String(m).padStart(2, '0')}`;
+    const normTime = padTime(pickerTime);
     onScheduleLater({ ...task, estimatedMinutes: mins }, pickerDate, normTime);
     setShowReschedulePicker(false);
   };
@@ -2427,6 +2572,47 @@ function TodoExpandedPanel({ task, color, onScheduleToday, onScheduleLater }: {
           style={{ fontSize: 11, color: COLOR.accent, display: 'block', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {(task as any).link}
         </a>
+      )}
+      {/* Edit / Delete */}
+      {editing ? (
+        <div data-testid="todo-edit-form" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+          <input type="text" value={eTitle} onChange={(e) => setETitle(e.target.value)} placeholder="Title" style={inputBase} />
+          <div>
+            <SectionLabel as="label" mb={4}>Due date</SectionLabel>
+            <input type="date" value={eDue} onChange={(e) => setEDue(e.target.value)} style={inputBase} />
+          </div>
+          <div>
+            <SectionLabel as="label" mb={4}>Priority</SectionLabel>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => setEPriority(n)} className="touch-manipulation"
+                  style={{ flex: 1, minHeight: 36, borderRadius: 8, fontSize: 12, fontWeight: 600, border: ePriority === n ? 'none' : '1px solid rgba(0,0,0,0.10)', backgroundColor: ePriority === n ? `${THEME.primary}20` : 'transparent', color: ePriority === n ? THEME.primary : COLOR.text2 }}>
+                  {n === 0 ? 'None' : n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <textarea value={eNotes} onChange={(e) => setENotes(e.target.value)} rows={3} placeholder="Notes" style={{ ...inputBase, fontSize: 14, resize: 'none', fontFamily: 'inherit' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: THEME.textPrimary }}>
+            <input type="checkbox" checked={eIsTodo} onChange={(e) => setEIsTodo(e.target.checked)} style={{ width: 18, height: 18, accentColor: THEME.primary }} />
+            To-do (with a checkbox)
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setEditing(false)} className="touch-manipulation" style={{ flex: 1, padding: 10, borderRadius: 10, fontSize: 13, border: '1px solid rgba(0,0,0,0.10)', background: 'transparent', color: COLOR.text2 }}>Cancel</button>
+            <button type="button" data-testid="todo-edit-save" onClick={saveEdit} disabled={!eTitle.trim()} className="touch-manipulation" style={{ flex: 2, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, border: 'none', backgroundColor: THEME.primary, color: '#FFFFFF' }}>Save</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2" style={{ marginBottom: 10 }}>
+          <button type="button" data-testid="todo-edit" onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="touch-manipulation"
+            style={{ flex: 1, minHeight: 36, borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', background: 'transparent', color: THEME.textPrimary, fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <PencilIcon style={{ width: 13, height: 13 }} /> Edit
+          </button>
+          <button type="button" data-testid="todo-delete" onClick={(e) => { e.stopPropagation(); if (actions.deleteTask) actions.deleteTask(task.id); else { saveSnapshot(); useStore.getState().deleteTask(task.id); } }} className="touch-manipulation"
+            style={{ flex: 1, minHeight: 36, borderRadius: 8, border: '1px solid rgba(200,120,104,0.35)', background: 'transparent', color: '#C87868', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <TrashIcon style={{ width: 13, height: 13 }} /> Delete {task.isTodo === false ? 'note' : 'todo'}
+          </button>
+        </div>
       )}
       {/* Duration slider */}
       <div style={{ marginBottom: 10 }}>
@@ -2631,8 +2817,13 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const { saveSnapshot } = useHistoryStore();
 
   const [title, setTitle] = useState('');
-  const [filter, setFilter] = useState<'all' | 'today' | 'done'>('all');
+  const [filter, setFilter] = useState<'all' | 'today'>('all');
+  // Quick capture creates a note by default (same as the Add sheet and desktop); tick "To-do" for a checkbox item.
+  const [captureAsTodo, setCaptureAsTodo] = useState(false);
+  const [doneOpen, setDoneOpen] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const actions = React.useContext(MobileActionsContext);
+  const expandRecurringTasks = useStore((s) => s.expandRecurringTasks);
   const [isListening, setIsListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -2650,6 +2841,13 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const [speechSupported, setSpeechSupported] = useState(false);
 
   const todayStr = getLocalDateString();
+
+  // Repeating todos materialize lazily; make sure the next two weeks exist even if only mobile is used (B-39).
+  useEffect(() => {
+    const days: string[] = [];
+    for (let i = 0; i < 14; i++) { const d = new Date(); d.setDate(d.getDate() + i); days.push(getLocalDateString(d)); }
+    expandRecurringTasks(days);
+  }, [expandRecurringTasks, tasks.length]);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -2758,10 +2956,11 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       tagIds: [],
       flexible: true,
       status: 'inbox',
+      isTodo: captureAsTodo,
     });
     setTitle('');
     inputRef.current?.focus();
-  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask]);
+  }, [parsed, defaultCalendar, defaultCategory, calendarContainers, categories, saveSnapshot, addTask, captureAsTodo]);
 
   // Tasks with blocks scheduled for today
   const todayTaskIds = useMemo(() => {
@@ -2774,7 +2973,6 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
 
   const activeTasks = useMemo(() => {
     const filtered = tasks.filter((t) => {
-      if (filter === 'done') return t.status === 'done';
       if (filter === 'today') return t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id);
       return t.status !== 'done' && t.status !== 'archived';
     });
@@ -2798,13 +2996,20 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
   const counts = useMemo(() => ({
     all: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived').length,
     today: tasks.filter((t) => t.status !== 'done' && t.status !== 'archived' && todayTaskIds.has(t.id)).length,
-    done: tasks.filter((t) => t.status === 'done').length,
   }), [tasks, todayTaskIds]);
 
+  // Completed to-dos live in a folded "Done" section at the bottom; they can be un-ticked there.
+  const doneTasks = useMemo(
+    () => tasks.filter((t) => t.status === 'done' && t.isTodo !== false).sort((a, b) => a.title.localeCompare(b.title)),
+    [tasks],
+  );
+
   const handleToggleDone = useCallback((task: Task) => {
+    // Same as desktop: completing also confirms the todo's blocks; un-completing reverses it (B-39).
+    if (actions.markTaskDone) { actions.markTaskDone(task.id); return; }
     saveSnapshot();
     updateTask(task.id, { status: task.status === 'done' ? 'inbox' : 'done' });
-  }, [saveSnapshot, updateTask]);
+  }, [saveSnapshot, updateTask, actions]);
 
   const handleScheduleToday = useCallback((task: Task) => {
     const now = new Date();
@@ -2812,7 +3017,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
     const duration = task.estimatedMinutes || 30;
     const slot = findNextAvailableSlot(timeBlocks, events, todayStr, duration, currentTime, '23:00');
     if (!slot) {
-      alert('No available time slot today. Try scheduling later.');
+      toast.error('No available time slot today. Try scheduling later.');
       return;
     }
     saveSnapshot();
@@ -2829,21 +3034,18 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       tagIds: task.tagIds ?? [],
     });
     setExpandedTaskId(null);
-    if (task.status === 'inbox' || !task.status) {
-      updateTask(task.id, { status: 'planned' });
-    }
-  }, [timeBlocks, events, todayStr, saveSnapshot, addTimeBlock, updateTask]);
+  }, [timeBlocks, events, todayStr, saveSnapshot, addTimeBlock]);
 
   const handleScheduleLater = useCallback((task: Task, date: string, time: string) => {
     const duration = task.estimatedMinutes || 30;
     const endMins = parseTimeToMinutes(time) + duration;
-    const endTime = `${Math.floor(endMins / 60)}:${String(endMins % 60).padStart(2, '0')}`;
+    const endTime = minutesToHHMM(endMins);
     saveSnapshot();
     addTimeBlock({
       taskId: task.id,
       title: task.title,
       date,
-      start: time,
+      start: padTime(time),
       end: endTime,
       mode: 'planned',
       source: 'manual',
@@ -2852,13 +3054,10 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
       tagIds: task.tagIds ?? [],
     });
     setExpandedTaskId(null);
-    if (task.status === 'inbox' || !task.status) {
-      updateTask(task.id, { status: 'planned' });
-    }
     const d = new Date(date + 'T00:00:00');
     const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    setTimeout(() => alert(`Scheduled for ${dayLabel} at ${formatTime12(time)}`), 50);
-  }, [saveSnapshot, addTimeBlock, updateTask]);
+    toast.success(`Scheduled for ${dayLabel} at ${formatTime12(time)}`);
+  }, [saveSnapshot, addTimeBlock]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', boxSizing: 'border-box' }}>
@@ -2871,7 +3070,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleCapture(); }}
-            placeholder='Add task... (e.g. "Read book 30min")'
+            placeholder='Add a note... (e.g. "Read book 30min")'
             style={{
               flex: 1,
               padding: '10px 12px',
@@ -2906,6 +3105,10 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             </svg>
           </button>
         </div>
+        <label className="touch-manipulation" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, color: COLOR.text2 }}>
+          <input type="checkbox" data-testid="capture-as-todo" checked={captureAsTodo} onChange={(e) => setCaptureAsTodo(e.target.checked)} style={{ width: 16, height: 16, accentColor: THEME.primary }} />
+          To-do (with a checkbox)
+        </label>
         {title.trim() && parsed.minutes !== 30 && (
           <p style={{ fontSize: 11, color: THEME.primary, margin: '4px 0 0 2px', fontWeight: 500 }}>
             {parsed.minutes}min estimated
@@ -2914,7 +3117,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
 
         {/* Filter chips */}
         <div className="flex gap-2" style={{ marginTop: 12, marginBottom: 10 }}>
-          {(['all', 'today', 'done'] as const).map((f) => {
+          {(['all', 'today'] as const).map((f) => {
             const isActive = filter === f;
             const count = counts[f];
             return (
@@ -2951,7 +3154,7 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <p style={{ fontSize: 14, color: COLOR.muted, margin: 0 }}>
-              {filter === 'done' ? 'No completed tasks' : filter === 'today' ? 'Nothing scheduled today' : 'No tasks yet'}
+              {filter === 'today' ? 'Nothing scheduled today' : 'No notes or to-dos yet'}
             </p>
           </div>
         )}
@@ -3074,6 +3277,46 @@ function TodoTab({ addTriggerRef }: { addTriggerRef?: React.MutableRefObject<(()
             </div>
           );
         })}
+
+        {/* Done - folded away by default; untick to bring a to-do back */}
+        {doneTasks.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              data-testid="done-section-toggle"
+              onClick={() => setDoneOpen((v) => !v)}
+              aria-expanded={doneOpen}
+              className="touch-manipulation"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '10px 2px', border: 'none', background: 'transparent', textAlign: 'left', minHeight: 44 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: doneOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s ease', color: COLOR.muted }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: THEME.textPrimary }}>Done</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: COLOR.muted }}>{doneTasks.length}</span>
+            </button>
+            {doneOpen && doneTasks.map((task) => {
+              const color = categories.find((c) => c.id === task.categoryId)?.color ?? THEME.primary;
+              return (
+                <div key={task.id} data-testid="done-task-row" style={{ display: 'flex', alignItems: 'center', gap: 10, borderRadius: 5, padding: '8px 12px', marginBottom: 6, backgroundColor: hexToRgba(color, 0.12), borderTop: `3px solid ${hexToRgba(color, 0.35)}`, opacity: 0.75 }}>
+                  <button
+                    type="button"
+                    aria-label={`Mark "${task.title}" not done`}
+                    onClick={() => handleToggleDone(task)}
+                    className="touch-manipulation"
+                    style={{ flexShrink: 0, width: 44, height: 44, margin: -11, padding: 0, border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <span style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    </span>
+                  </button>
+                  <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 13, color: THEME.textPrimary, textDecoration: 'line-through', wordBreak: 'break-word' }}>{task.title}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Floating mic FAB */}
