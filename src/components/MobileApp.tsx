@@ -491,6 +491,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
   // Nudge: shift the item by 15m / 1h / to tomorrow. Events go through the shell's move path
   // (This/Following/All prompt for repeating events, guest-notify for shared ones).
+  const isNoteItem = isBlock && linkedTask?.isTodo === false;
   const canNudge = !(fullEvent?.readOnly || fullEvent?.sharedFromShareId) && (!!fullBlock || !!fullEvent);
   const handleNudge = (kind: '15m' | '1h' | 'tomorrow') => {
     const curDate = fullBlock?.date ?? fullEvent?.date ?? today;
@@ -832,7 +833,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 12, marginTop: 4 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Nudge: shift without opening the editor */}
-              {canNudge && (
+              {canNudge && !isNoteItem && (
                 <div data-testid="nudge-row" style={{ display: 'flex', gap: 8, padding: '4px 0 8px' }}>
                   {([['15m', '+15m'], ['1h', '+1h'], ['tomorrow', 'Tomorrow']] as const).map(([k, label]) => (
                     <button
@@ -866,7 +867,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               </button>
 
               {/* Confirm / Skip for past unconfirmed events */}
-              {isBlock && isPast && !isConfirmed && !isSkipped && onConfirm && (
+              {isBlock && !isNoteItem && isPast && !isConfirmed && !isSkipped && onConfirm && (
                 <button
                   type="button"
                   onClick={() => { onConfirm(item.id); onClose(); }}
@@ -882,7 +883,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
                   Mark as done
                 </button>
               )}
-              {isBlock && isPast && !isConfirmed && !isSkipped && onSkip && (
+              {isBlock && !isNoteItem && isPast && !isConfirmed && !isSkipped && onSkip && (
                 <button
                   type="button"
                   onClick={() => { onSkip(item.id); onClose(); }}
@@ -954,7 +955,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               )}
 
               {/* Didn't happen — red cross on the card */}
-              <button
+              {!isNoteItem && <button
                 type="button"
                 onClick={() => { handleToggleMissed(); onClose(); }}
                 className="touch-manipulation"
@@ -967,7 +968,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
               >
                 <XMarkIcon style={{ width: 18, height: 18 }} />
                 {missedSticker ? "Undo didn't happen" : "Didn't happen"}
-              </button>
+              </button>}
 
               {/* Delete */}
               <button
@@ -1949,12 +1950,13 @@ function ScheduleTab() {
     const scheduledTaskIds = new Set(
       timeBlocks.filter((b) => b.date === selectedDate && b.taskId).map((b) => b.taskId!)
     );
+    const everScheduledIds = new Set(timeBlocks.filter((b) => b.taskId).map((b) => b.taskId!));
     return tasks.filter((t) => {
       if (t.status === 'done' || t.status === 'archived') return false;
       if (scheduledTaskIds.has(t.id)) return false;
-      // Show tasks due today, or inbox tasks with no due date (on today only)
+      // Show tasks due today, or inbox tasks with no due date and no block anywhere (on today only)
       if (t.dueDate === selectedDate) return true;
-      if (selectedDate === today && !t.dueDate && (t.status === 'inbox' || !t.status)) return true;
+      if (selectedDate === today && !t.dueDate && (t.status === 'inbox' || !t.status) && !everScheduledIds.has(t.id)) return true;
       return false;
     });
   }, [tasks, timeBlocks, selectedDate, today]);
@@ -2170,6 +2172,7 @@ function ScheduleTab() {
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            {item.isNote && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.6, color: 'var(--tb-note-text)' }}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z" /><polyline points="14 21 14 15 20 15" /></svg>}
               <span style={{
                 fontSize: 14,
                 fontWeight: 500,
@@ -2179,7 +2182,6 @@ function ScheduleTab() {
                 flex: 1,
                 ...(item.isNote ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, wordBreak: 'break-word' as const } : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }),
               }}>
-                {item.isNote && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, verticalAlign: '-2px', opacity: 0.6 }}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z" /><polyline points="14 21 14 15 20 15" /></svg>}
                 {item.title}
               </span>
               {isConfirmed && <CheckBadge color={item.color} />}
