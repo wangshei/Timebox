@@ -355,7 +355,7 @@ export function TaskCard({
           {recordedMins > 0 ? 'Schedule again' : 'Schedule todo'}
         </button>
 
-        {onRescheduleLater && (
+        {onRescheduleLater && !isNote && (
           <button type="button"
             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors tb-hv-bg"
             style={{ '--hv-bg': hexRgba(catColor, 0.07), color: '#636366' } as React.CSSProperties}

@@ -714,7 +714,7 @@ function TimeBlockCardInner({
 
         {/* Mark done / Reschedule / Add time — below the line */}
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} className="pt-1 -mx-3 px-3">
-        {!locked && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
+        {!locked && !isNote && (isTask || isEvent) && (onConfirm || onUnconfirm) && (
           <button
             type="button"
             className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"
@@ -746,7 +746,7 @@ function TimeBlockCardInner({
             Split around overlaps
           </button>
         )}
-        {!locked && isTask && onRescheduleLater && (
+        {!locked && isTask && !isNote && onRescheduleLater && (
           <button
             type="button"
             className="w-full flex items-center gap-1.5 py-1.5 font-medium rounded-md transition-colors tb-hv-bg"

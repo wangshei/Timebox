@@ -1470,14 +1470,14 @@ function PlanTab() {
     const items: AgendaItem[] = [];
     for (const b of timeBlocks.filter((b) => b.date === selectedDate)) {
       const cat = categories.find((c) => c.id === b.categoryId);
-      items.push({ type: 'block', id: b.id, title: b.title ?? 'Untitled', start: b.start, end: b.end, color: cat?.color ?? THEME.primary, confirmationStatus: b.confirmationStatus, taskId: b.taskId });
+      items.push({ type: 'block', id: b.id, title: b.title ?? 'Untitled', start: b.start, end: b.end, color: cat?.color ?? THEME.primary, confirmationStatus: b.confirmationStatus, taskId: b.taskId, isNote: !!b.taskId && tasks.find((t) => t.id === b.taskId)?.isTodo === false });
     }
     for (const e of events.filter((e) => e.date === selectedDate)) {
       const cat = categories.find((c) => c.id === e.categoryId);
       items.push({ type: 'event', id: e.id, title: e.title, start: e.start, end: e.end, color: cat?.color ?? THEME.primary });
     }
     return items;
-  }, [timeBlocks, events, selectedDate, categories]);
+  }, [timeBlocks, events, selectedDate, categories, tasks]);
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
   const dragTask = dragTaskId ? tasks.find((t) => t.id === dragTaskId) : undefined;
@@ -1505,9 +1505,10 @@ function PlanTab() {
   const placeTaskAt = useCallback((taskId: string, startMins: number) => {
     const t = useStore.getState().tasks.find((x) => x.id === taskId);
     if (!t) return;
-    const durationMins = t.estimatedMinutes || 30;
+    const isNoteT = t.isTodo === false;
+    const durationMins = isNoteT ? 60 : t.estimatedMinutes || 30;
     saveSnapshot();
-    undoToast(`Scheduled "${t.title}"`);
+    undoToast(isNoteT ? `Placed note "${t.title}"` : `Scheduled "${t.title}"`);
     addTimeBlock({
       taskId: t.id, title: t.title, date: selectedDate,
       start: minutesToHHMM(startMins), end: minutesToHHMM(startMins + durationMins),
@@ -1558,11 +1559,12 @@ function PlanTab() {
   const handleLeftPanelTap = (clientY: number) => {
     if (!selectedTask) return;
     const snapped = Math.max(gridStartMins, getMinsFromClientY(clientY));
-    const durationMins = selectedTask.estimatedMinutes || 30;
+    const isNoteT = selectedTask.isTodo === false;
+    const durationMins = isNoteT ? 60 : selectedTask.estimatedMinutes || 30;
     const endMins = snapped + durationMins;
     const fmtTime = minutesToHHMM;
     saveSnapshot();
-    undoToast(`Scheduled "${selectedTask.title}"`);
+    undoToast(isNoteT ? `Placed note "${selectedTask.title}"` : `Scheduled "${selectedTask.title}"`);
     addTimeBlock({
       taskId: selectedTask.id, title: selectedTask.title, date: selectedDate,
       start: fmtTime(snapped), end: fmtTime(endMins),
@@ -1682,7 +1684,10 @@ function PlanTab() {
                   backgroundColor: COLOR.accentSoft, borderLeft: `3px solid ${COLOR.accent}`, border: `1px dashed ${COLOR.accentRing}`,
                 }} />
               )}
-              {agenda.map((item) => {
+              {(() => {
+                const ovl = computeOverlapLayout(agenda.map((i) => ({ id: i.id, start: i.start, end: i.end })));
+                return agenda.map((item) => {
+                const lay = ovl.get(item.id) ?? { columnIndex: 0, totalColumns: 1 };
                 const startM = parseTimeToMinutes(item.start);
                 const endM = parseTimeToMinutes(item.end);
                 const top = ((startM - gridStartMins) / 60) * PLAN_HOUR_HEIGHT;
@@ -1691,17 +1696,20 @@ function PlanTab() {
                 const cat = categories.find((c) => c.id === (timeBlocks.find(b => b.id === item.id)?.categoryId ?? events.find(e => e.id === item.id)?.categoryId));
                 return (
                   <div key={item.id} style={{
-                    position: 'absolute', top, left: 0, right: 0, height,
-                    padding: '2px 4px', overflow: 'hidden', borderRadius: 4,
+                    position: 'absolute', top, height,
+                    left: `${(lay.columnIndex / lay.totalColumns) * 100}%`, width: `calc(${100 / lay.totalColumns}% - ${lay.totalColumns > 1 ? 2 : 0}px)`,
+                    padding: '2px 4px', overflow: 'hidden', borderRadius: 4, boxSizing: 'border-box',
                     borderLeft: `3px solid ${item.color}`,
-                    backgroundColor: hexToRgba(item.color, isEvent ? 0.10 : 0.14),
+                    backgroundColor: item.isNote ? 'var(--tb-note-bg)' : hexToRgba(item.color, isEvent ? 0.10 : 0.14),
+                    ...(item.isNote ? { border: '1px solid var(--tb-note-border)', borderLeft: `3px solid ${item.color}` } : {}),
                   }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: THEME.textPrimary, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {item.title}
                     </span>
                   </div>
                 );
-              })}
+              });
+              })()}
 
               {/* Drop preview */}
               {dropPreviewMins !== null && dragTask && (
