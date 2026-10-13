@@ -130,3 +130,14 @@ export function createRangeToParams(r: CreateRange): { date: string; startTime: 
     endTime,
   };
 }
+
+/** Free strip (px) kept on the right of each day column so a drag-create can start beside existing items. */
+export const CREATE_GUTTER_PX = 14;
+
+/** left/width CSS for an overlap-layout slot (percentages of the column), leaving the create gutter free. */
+export function gutterBox(leftPercent: number, widthPercent: number): { left: string; width: string } {
+  return {
+    left: `calc((100% - ${CREATE_GUTTER_PX}px) * ${leftPercent / 100})`,
+    width: `calc((100% - ${CREATE_GUTTER_PX}px) * ${widthPercent / 100})`,
+  };
+}

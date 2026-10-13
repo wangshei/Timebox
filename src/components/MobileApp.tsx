@@ -997,7 +997,7 @@ function DetailSheet({ item, onClose, onConfirm, onSkip }: DetailSheetProps) {
 
 // ─── Full-Detail Add Sheet ─────────────────────────────────
 
-interface AddSheetPrefill { title: string; date: string; startTime: string; endTime: string; isTodo: boolean; asTask?: boolean }
+interface AddSheetPrefill { title: string; date: string; startTime: string; endTime: string; isTodo: boolean; asTask?: boolean; categoryId?: string }
 
 function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose: () => void; prefill?: AddSheetPrefill }) {
   const calendarContainers = useStore((s) => s.calendarContainers);
@@ -1012,8 +1012,9 @@ function AddSheet({ mode, onClose, prefill }: { mode: 'task' | 'event'; onClose:
 
   // Shared
   const [title, setTitle] = useState(prefill?.title ?? '');
-  const [calendarId, setCalendarId] = useState(calendarContainers[0]?.id ?? '');
-  const [categoryId, setCategoryId] = useState('');
+  const preCat = prefill?.categoryId ? categories.find((c) => c.id === prefill.categoryId) : undefined;
+  const [calendarId, setCalendarId] = useState(preCat?.calendarContainerId ?? calendarContainers[0]?.id ?? '');
+  const [categoryId, setCategoryId] = useState(preCat?.id ?? '');
   const [notes, setNotes] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -1442,12 +1443,12 @@ function PlanTab() {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', cancel);
   };
-  const finishTimelineCreate = (title: string | null, todoOn = true) => {
+  const finishTimelineCreate = (title: string | null, todoOn = true, categoryId?: string) => {
     const ic = mobInline;
     setMobInline(null);
     if (!ic || !title) return;
     const cals = calendarContainers.filter((c) => !c.id.startsWith('gcal-'));
-    const cat = categories.find((c) => c.calendarContainerId && cals.some((k) => k.id === c.calendarContainerId)) ?? categories[0];
+    const cat = categories.find((c) => c.id === categoryId) ?? categories.find((c) => c.calendarContainerId && cals.some((k) => k.id === c.calendarContainerId)) ?? categories[0];
     const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId)) || cals[0];
     if (!cal || !cat) { toast.error('Create a calendar and category first.'); return; }
     saveSnapshot();
@@ -1615,8 +1616,8 @@ function PlanTab() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
       {mobInline && (
         <InlineCreate mode={mobInline.mode} anchor={mobInline.anchor} label={`${mobInline.startTime}–${mobInline.endTime}`}
-          onSave={(t, todoOn) => finishTimelineCreate(t, todoOn)} onCancel={() => finishTimelineCreate(null)}
-          onExpand={(t, _pos, todoOn) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' && todoOn, asTask: ic.mode === 'todo' }); }} />
+          onSave={(t, todoOn, cid) => finishTimelineCreate(t, todoOn, cid)} onCancel={() => finishTimelineCreate(null)}
+          onExpand={(t, _pos, todoOn, cid) => { const ic = mobInline; setMobInline(null); if (ic) setMobSheet({ title: t, date: selectedDate, startTime: ic.startTime, endTime: ic.endTime, isTodo: ic.mode === 'todo' && todoOn, asTask: ic.mode === 'todo', categoryId: cid }); }} />
       )}
       {mobSheet && <AddSheet mode={mobSheet.asTask ?? mobSheet.isTodo ? 'task' : 'event'} prefill={mobSheet} onClose={() => setMobSheet(null)} />}
       <ScheduleHeader selectedDate={selectedDate} today={today} onNavigate={navigateDate} onToday={() => setSelectedDate(today)} miniOpen={miniOpen} onToggleMini={() => setMiniOpen((o) => !o)} />
@@ -1669,16 +1670,24 @@ function PlanTab() {
 
             {/* Scheduled blocks */}
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: PLAN_TIME_COL + 2, right: 4 }}>
-              {mobCreate && (
+              {mobCreate && (() => {
+                const ml = computeOverlapLayout([
+                  ...agenda.map((i) => ({ id: i.id, start: i.start, end: i.end })),
+                  { id: '__create__', start: minutesToHHMM(mobCreate.startMins), end: minutesToHHMM(Math.min(mobCreate.endMins, 1439)) },
+                ]).get('__create__') ?? { columnIndex: 0, totalColumns: 1 };
+                return (
                 <div style={{
-                  position: 'absolute', left: 0, right: 0, zIndex: 5, pointerEvents: 'none', borderRadius: 4,
+                  position: 'absolute', left: `calc((100% - 12px) * ${ml.columnIndex / ml.totalColumns})`, width: `calc((100% - 12px) * ${1 / ml.totalColumns})`, zIndex: 5, pointerEvents: 'none', borderRadius: 4,
                   top: ((mobCreate.startMins - gridStartMins) / 60) * PLAN_HOUR_HEIGHT,
                   height: ((mobCreate.endMins - mobCreate.startMins) / 60) * PLAN_HOUR_HEIGHT,
                   backgroundColor: COLOR.accentSoft, borderLeft: `3px solid ${COLOR.accent}`, border: `1px dashed ${COLOR.accentRing}`,
                 }} />
-              )}
+                ); })()}
               {(() => {
-                const ovl = computeOverlapLayout(agenda.map((i) => ({ id: i.id, start: i.start, end: i.end })));
+                const ovl = computeOverlapLayout([
+                  ...agenda.map((i) => ({ id: i.id, start: i.start, end: i.end })),
+                  ...(mobCreate ? [{ id: '__create__', start: minutesToHHMM(mobCreate.startMins), end: minutesToHHMM(Math.min(mobCreate.endMins, 1439)) }] : []),
+                ]);
                 return agenda.map((item) => {
                 const lay = ovl.get(item.id) ?? { columnIndex: 0, totalColumns: 1 };
                 const startM = parseTimeToMinutes(item.start);
@@ -1690,7 +1699,7 @@ function PlanTab() {
                 return (
                   <div key={item.id} style={{
                     position: 'absolute', top, height,
-                    left: `${(lay.columnIndex / lay.totalColumns) * 100}%`, width: `calc(${100 / lay.totalColumns}% - ${lay.totalColumns > 1 ? 2 : 0}px)`,
+                    left: `calc((100% - 12px) * ${lay.columnIndex / lay.totalColumns})`, width: `calc((100% - 12px) * ${1 / lay.totalColumns} - ${lay.totalColumns > 1 ? 2 : 0}px)`,
                     padding: '2px 4px', overflow: 'hidden', borderRadius: 4, boxSizing: 'border-box',
                     borderLeft: `3px solid ${item.color}`,
                     backgroundColor: item.isNote ? 'var(--tb-note-bg)' : hexToRgba(item.color, isEvent ? 0.10 : 0.14),

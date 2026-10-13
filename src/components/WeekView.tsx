@@ -12,7 +12,7 @@ import {
   offsetYToMinutes as offsetYToMinsUtil, absMinsToEndParts, dayOffsetBetween, resolveGridColumnAtPoint,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
-import { computeCreateRange, createRangeSegment, createRangeToParams, CreateRange } from '../utils/gridUtils';
+import { gutterBox, computeCreateRange, createRangeSegment, createRangeToParams, CreateRange } from '../utils/gridUtils';
 import { hexToRgba } from '../utils/color';
 import { activeDrag, registerDropZone, unregisterDropZone } from '../utils/dragState';
 import { DueBadge } from './DueBadge';
@@ -204,6 +204,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
   // Drag-to-create state
   const MIN_CREATE_MINUTES = 15;
   const [creatingBlock, setCreatingBlock] = React.useState<CreateRange | null>(null);
+  const previewLayouts: Record<string, { columnIndex: number; totalColumns: number }> = {};
   const creatingBlockRef = React.useRef(creatingBlock);
   React.useEffect(() => { creatingBlockRef.current = creatingBlock; }, [creatingBlock]);
 
@@ -668,7 +669,10 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 return { id: `event-${seg.event.id}`, start: trunc ? trunc.effectiveStart : seg.displayStart, end: trunc ? trunc.effectiveEnd : seg.displayEnd };
                               }),
                           ];
+                          const cSeg = creatingBlock ? createRangeSegment(creatingBlock, dateStr) : null;
+                          if (cSeg) allItems.push({ id: '__create__', start: minsToTime(cSeg.startMins), end: minsToTime(Math.min(cSeg.endMins, 1439)) });
                           const dayOverlapMap = computeOverlapLayout(allItems);
+                          if (cSeg) previewLayouts[dateStr] = dayOverlapMap.get('__create__')!;
                           const dayTimeStickers = allStickers.filter((s) => s.date === dateStr && !s.blockId && !s.eventId);
                           return (
                             <>
@@ -709,13 +713,13 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 const bColWidth = layout ? 100 / layout.totalColumns : 100;
                                 const leftPercent = layout ? layout.columnIndex * bColWidth : 0;
                                 const isLastCol = !layout || layout.columnIndex === layout.totalColumns - 1;
-                                const widthPercent = isLastCol && leftPercent + bColWidth > 92 ? 92 - leftPercent : bColWidth;
+                                const widthPercent = bColWidth;
                                 return (
                                   <TimeBlockCard
                                     key={block.id}
                                     block={block}
                                     mode={mode}
-                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%`, ...(bTrunc?.hidden ? { opacity: 0.15 } : {}) }}
+                                    style={{ top: `${top}px`, height: `${height}px`, ...gutterBox(leftPercent, widthPercent), ...(bTrunc?.hidden ? { opacity: 0.15 } : {}) }}
                                     isSelected={currentSelected === block.id}
                                     onSelectBlock={handleSelect}
                                     todayStr={todayStr}
@@ -755,12 +759,12 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                                 const eColWidth = layout ? 100 / layout.totalColumns : 100;
                                 const leftPercent = layout ? layout.columnIndex * eColWidth : 0;
                                 const isLastEvCol = !layout || layout.columnIndex === layout.totalColumns - 1;
-                                const widthPercent = isLastEvCol && leftPercent + eColWidth > 92 ? 92 - leftPercent : eColWidth;
+                                const widthPercent = eColWidth;
                                 return (
                                   <EventCard
                                     key={seg.event.id}
                                     event={seg.event}
-                                    style={{ top: `${top}px`, height: `${height}px`, width: `${widthPercent}%`, left: `${leftPercent}%`, ...(eTrunc?.hidden ? { opacity: 0.15 } : {}) }}
+                                    style={{ top: `${top}px`, height: `${height}px`, ...gutterBox(leftPercent, widthPercent), ...(eTrunc?.hidden ? { opacity: 0.15 } : {}) }}
                                     isSelected={currentSelected === `event-${seg.event.id}`}
                                     onSelect={() => handleSelect(`event-${seg.event.id}`)}
                                     onDeselect={() => handleSelect(null)}
@@ -816,8 +820,9 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                       {/* Create-block preview */}
                       {creatingBlock && createRangeSegment(creatingBlock, dateStr) && (() => { const seg = createRangeSegment(creatingBlock, dateStr)!; return (
                         <div
-                          className="absolute left-0 right-0 top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
+                          className="absolute top-0 z-30 pointer-events-none rounded-r rounded-l overflow-hidden"
                           style={{
+                            ...(() => { const l = previewLayouts[dateStr]; return l ? gutterBox(l.columnIndex * 100 / l.totalColumns, 100 / l.totalColumns) : gutterBox(0, 100); })(),
                             top: `${((seg.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                             height: `${((seg.endMins - seg.startMins) / 60) * PX_PER_HOUR}px`,
                             backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
@@ -839,7 +844,7 @@ export function WeekView({ mode, timeBlocks, currentDate, selectedBlock, onSelec
                         const pEndMins = parseTimeToMins(pendingBlockPreview.endTime);
                         return (
                           <div
-                            className="absolute left-0 right-0 z-30 pointer-events-none rounded-r-md overflow-hidden"
+                            className="absolute z-30 pointer-events-none rounded-r-md overflow-hidden"
                             style={{
                               top: `${((pStartMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
                               height: `${((pEndMins - pStartMins) / 60) * PX_PER_HOUR}px`,

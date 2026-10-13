@@ -3,6 +3,8 @@ import { ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 import { IconButton } from './ds/IconButton';
 import { COLOR, RADIUS, SHADOW, Z, FONT_SIZE } from '../styles/tokens';
 import { TodoToggle } from './TodoToggle';
+import { Popover } from './ds/Popover';
+import { useStore } from '../store/useStore';
 import type { CreateMode } from '../utils/createMode';
 
 interface InlineCreateProps {
@@ -12,11 +14,15 @@ interface InlineCreateProps {
   /** Human-readable range, e.g. "Mon 9:00 → Wed 11:00". */
   label: string;
   /** Called with a non-empty trimmed title. */
-  onSave: (title: string, isTodo: boolean) => void;
+  onSave: (title: string, isTodo: boolean, categoryId?: string) => void;
   onCancel: () => void;
   /** Expand into the full add form, carrying the typed title (may be empty). */
-  onExpand?: (title: string, pos: { x: number; y: number }, isTodo: boolean) => void;
+  onExpand?: (title: string, pos: { x: number; y: number }, isTodo: boolean, categoryId?: string) => void;
 }
+
+const LAST_CAT_KEY = 'timebox.inlineCreate.lastCategory';
+function readLastCat(): string | null { try { return localStorage.getItem(LAST_CAT_KEY); } catch { return null; } }
+function writeLastCat(id: string) { try { localStorage.setItem(LAST_CAT_KEY, id); } catch { /* ignore */ } }
 
 /**
  * Compact title input shown right after a drag-to-create on the calendar grid.
@@ -27,6 +33,16 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
   const [isTodo, setIsTodo] = React.useState(mode === 'todo');
   const doneRef = React.useRef(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const calendars = useStore((st) => st.calendarContainers).filter((c) => !c.id.startsWith('gcal-'));
+  const categories = useStore((st) => st.categories);
+  const selectable = categories.filter((c) => c.calendarContainerId && calendars.some((k) => k.id === c.calendarContainerId));
+  const [catId, setCatId] = React.useState<string | undefined>(() => {
+    const last = readLastCat();
+    return (selectable.find((c) => c.id === last) ?? selectable[0])?.id;
+  });
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const curCat = selectable.find((c) => c.id === catId);
+  const curCal = calendars.find((k) => k.id === curCat?.calendarContainerId);
 
   React.useEffect(() => {
     // Focus after the originating mouseup/click has settled so it can't steal focus back.
@@ -39,7 +55,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
     if (doneRef.current) return;
     doneRef.current = true;
     const t = title.trim();
-    if (save && t) onSave(t, isTodo); else onCancel();
+    if (save && t) { if (catId) writeLastCat(catId); onSave(t, isTodo, catId); } else onCancel();
   };
 
   const W = 220;
@@ -49,7 +65,8 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
   const expand = () => {
     if (doneRef.current || !onExpand) return;
     doneRef.current = true;
-    onExpand(title.trim(), { x: left, y: top }, isTodo);
+    if (catId) writeLastCat(catId);
+    onExpand(title.trim(), { x: left, y: top }, isTodo, catId);
   };
 
   return (
@@ -67,7 +84,7 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         // Keep the input from blurring (and saving) when the popup itself is pressed.
         if (e.target !== inputRef.current) e.preventDefault();
       }}
-      onClick={(e) => { if (e.target !== inputRef.current) expand(); }}
+      onClick={(e) => { if (e.target !== inputRef.current && !(e.target as HTMLElement).closest('[data-cal-chip],[data-cal-popover]')) expand(); }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {mode === 'todo' && <TodoToggle checked={isTodo} onChange={setIsTodo} />}
@@ -92,6 +109,53 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         }}
       />
       </div>
+      {curCat && curCal && (
+        <div style={{ position: 'relative', marginTop: 4 }}>
+          <button
+            type="button"
+            data-cal-chip
+            onClick={(e) => { e.stopPropagation(); setPickerOpen((o) => !o); }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', border: `1px solid ${COLOR.border}`, borderRadius: 999,
+              background: 'transparent', padding: '1px 8px 1px 6px', cursor: 'pointer', fontSize: FONT_SIZE['2xs'], color: COLOR.text,
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: curCal.color, flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{curCal.name} · {curCat.name}</span>
+          </button>
+          {pickerOpen && (
+            <Popover
+              data-cal-popover
+              style={{ position: 'absolute', left: 0, top: '100%', marginTop: 4, width: 200, maxHeight: 240, overflowY: 'auto', padding: 4 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {calendars.map((cal) => {
+                const cats = selectable.filter((c) => c.calendarContainerId === cal.id);
+                if (!cats.length) return null;
+                return (
+                  <div key={cal.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 6px', fontSize: FONT_SIZE['2xs'], color: COLOR.muted, fontWeight: 600 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: cal.color }} />{cal.name}
+                    </div>
+                    {cats.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setCatId(c.id); setPickerOpen(false); inputRef.current?.focus(); }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer', borderRadius: RADIUS.sm,
+                          padding: '4px 6px 4px 19px', fontSize: FONT_SIZE.sm, color: COLOR.text,
+                          background: c.id === catId ? COLOR.accentSoft : 'transparent',
+                        }}
+                      >{c.name}</button>
+                    ))}
+                  </div>
+                );
+              })}
+            </Popover>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>
         <span style={{ fontSize: FONT_SIZE['2xs'], color: COLOR.muted }}>{mode === 'todo' && !isTodo ? 'Note · 1h block' : label}</span>
         {onExpand && <IconButton icon={ArrowsPointingOutIcon} size="sm" aria-label="More options" title="More options" onClick={(e) => { e.stopPropagation(); expand(); }} />}

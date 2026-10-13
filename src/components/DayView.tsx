@@ -11,7 +11,7 @@ import {
   PX_PER_HOUR, SNAP_MINUTES as SNAP_MINUTES_UTIL, MINS_PER_DAY,
   minutesToTimeString,
   offsetYToMinutes as offsetYToMinsUtil,
-  parseTimeToMins, absMinsToEndParts, dayOffsetBetween,
+  parseTimeToMins, absMinsToEndParts, dayOffsetBetween, gutterBox,
 } from '../utils/gridUtils';
 import { BLOCK_PREVIEW, THEME } from '../constants/colors';
 import { hexToRgba } from '../utils/color';
@@ -469,8 +469,9 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
           };
         }),
     ];
+    if (creatingBlock) allItems.push({ id: '__create__', start: minutesToTimeString(creatingBlock.startMins), end: minutesToTimeString(Math.min(creatingBlock.endMins, 1439)) });
     return computeOverlapLayout(allItems);
-  }, [timeBlocks, eventSegments, truncationMap]);
+  }, [timeBlocks, eventSegments, truncationMap, creatingBlock]);
 
   const blockStylesMap = React.useMemo(() => {
     const map = new Map<string, React.CSSProperties>();
@@ -486,12 +487,11 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
       const leftPercent = layout ? layout.columnIndex * colWidth : 0;
       // Cap rightmost column so there's always a clickable gutter for creating new blocks
       const isLastColumn = !layout || layout.columnIndex === layout.totalColumns - 1;
-      const widthPercent = isLastColumn && leftPercent + colWidth > 92 ? 92 - leftPercent : colWidth;
+      const widthPercent = colWidth;
       map.set(block.id, {
         top: `${top}px`,
         height: `${height}px`,
-        width: `${widthPercent}%`,
-        left: `${leftPercent}%`,
+        ...gutterBox(leftPercent, widthPercent),
         ...(trunc?.hidden ? { opacity: 0.15 } : {}),
       });
     });
@@ -769,7 +769,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
             const leftPercent = layout ? layout.columnIndex * evColWidth : 0;
             // Cap rightmost column so there's always a clickable gutter for creating new blocks
             const isLastEvCol = !layout || layout.columnIndex === layout.totalColumns - 1;
-            const widthPercent = isLastEvCol && leftPercent + evColWidth > 92 ? 92 - leftPercent : evColWidth;
+            const widthPercent = evColWidth;
             return (
               <EventCard
                 key={seg.event.id}
@@ -777,8 +777,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 style={{
                   top: `${top}px`,
                   height: `${height}px`,
-                  width: `${widthPercent}%`,
-                  left: `${leftPercent}%`,
+                  ...gutterBox(leftPercent, widthPercent),
                   ...(trunc?.hidden ? { opacity: 0.15 } : {}),
                 }}
                 isSelected={selectedBlock === `event-${seg.event.id}`}
@@ -866,22 +865,24 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
 
         {/* Create-block preview — event-style (left stripe) since block creation always creates an event-type block */}
         {creatingBlock && (
-          <div
-            className={`absolute ${gridLeftClass} right-2 z-30 pointer-events-none rounded-r-md overflow-hidden`}
-            style={{
-              ...gridLeftStyle,
-              top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
-              height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
-              backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
-              borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
-              borderTop: '1px dashed rgba(0,0,0,0.08)',
-              borderRight: '1px dashed rgba(0,0,0,0.08)',
-              borderBottom: '1px dashed rgba(0,0,0,0.08)',
-            }}
-          >
-            <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
-              {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
-            </span>
+          <div className={`absolute ${gridLeftClass} right-0 top-0 z-30 pointer-events-none`} style={{ height: GRID_HEIGHT, ...gridLeftStyle }}>
+            <div
+              className="absolute rounded-r-md overflow-hidden"
+              style={{
+                ...(() => { const l = overlapMap.get('__create__'); return l ? gutterBox(l.columnIndex * 100 / l.totalColumns, 100 / l.totalColumns) : gutterBox(0, 100); })(),
+                top: `${((creatingBlock.startMins - START_HOUR * 60) / 60) * PX_PER_HOUR}px`,
+                height: `${((creatingBlock.endMins - creatingBlock.startMins) / 60) * PX_PER_HOUR}px`,
+                backgroundColor: hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.bgAlpha),
+                borderLeft: `3px solid ${hexToRgba(BLOCK_PREVIEW.color, BLOCK_PREVIEW.stripeAlpha)}`,
+                borderTop: '1px dashed rgba(0,0,0,0.08)',
+                borderRight: '1px dashed rgba(0,0,0,0.08)',
+                borderBottom: '1px dashed rgba(0,0,0,0.08)',
+              }}
+            >
+              <span className="absolute bottom-1 left-2 text-xs font-medium" style={{ color: THEME.textPrimary }}>
+                {minutesToTimeString(creatingBlock.startMins)}–{minutesToTimeString(creatingBlock.endMins)} ({creatingBlock.endMins - creatingBlock.startMins}m)
+              </span>
+            </div>
           </div>
         )}
 

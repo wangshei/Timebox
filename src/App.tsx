@@ -202,6 +202,7 @@ export default function App() {
   const [addModalInitialTitle, setAddModalInitialTitle] = useState<string | null>(null);
   const [addModalInitialEndDate, setAddModalInitialEndDate] = useState<string | null>(null);
   const [addModalInitialTodo, setAddModalInitialTodo] = useState(false);
+  const [addModalInitialCategoryId, setAddModalInitialCategoryId] = useState<string | null>(null);
   const [addModalAnchor, setAddModalAnchor] = useState<{ x: number; y: number } | null>(null);
   const [addModalAnchorExact, setAddModalAnchorExact] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -2319,7 +2320,7 @@ export default function App() {
   };
 
   /** Popup clicked: hand the drag range + typed title to the full AddModal (nothing saved yet). */
-  const expandInlineCreate = (title: string, pos: { x: number; y: number }, todoOn = true) => {
+  const expandInlineCreate = (title: string, pos: { x: number; y: number }, todoOn = true, categoryId?: string) => {
     const ic = inlineCreate;
     setInlineCreate(null);
     if (!ic) { setPendingBlockPreview(null); return; }
@@ -2338,13 +2339,14 @@ export default function App() {
     }
     setAddModalInitialEndDate(isTodo ? null : ic.endDate ?? null);
     setAddModalInitialTitle(title);
+    setAddModalInitialCategoryId(categoryId ?? null);
     setAddModalInitialTodo(isTodo && todoOn);
     setAddModalAnchor(pos);
     setAddModalAnchorExact(true);
     setIsAddModalOpen(true);
   };
 
-  const finishInlineCreate = (title: string | null, todoOn = true) => {
+  const finishInlineCreate = (title: string | null, todoOn = true, categoryId?: string) => {
     const ic = inlineCreate;
     setInlineCreate(null);
     setPendingBlockPreview(null);
@@ -2353,7 +2355,7 @@ export default function App() {
     const cals = st.calendarContainers.filter((c) => !c.id.startsWith('gcal-'));
     const cats = st.categories;
     const pool = focusedCalendarId ? cats.filter((c) => c.calendarContainerId === focusedCalendarId) : cats;
-    const cat = (focusedCategoryId && cats.find((c) => c.id === focusedCategoryId))
+    const cat = (categoryId && cats.find((c) => c.id === categoryId)) || (focusedCategoryId && cats.find((c) => c.id === focusedCategoryId))
       || pool.find((c) => c.calendarContainerId && cals.some((k) => k.id === c.calendarContainerId)) || pool[0] || cats[0];
     const cal = (cat?.calendarContainerId && cals.find((c) => c.id === cat.calendarContainerId))
       || (focusedCalendarId && cals.find((c) => c.id === focusedCalendarId)) || cals[0];
@@ -4307,7 +4309,7 @@ export default function App() {
           mode={inlineCreate.mode}
           anchor={inlineCreate.anchor}
           label={`${inlineCreate.date.slice(5)} ${inlineCreate.startTime}${inlineCreate.endDate ? ` → ${inlineCreate.endDate.slice(5)} ${inlineCreate.endTime}` : `–${inlineCreate.endTime}`}`}
-          onSave={(t, td) => finishInlineCreate(t, td)}
+          onSave={(t, td, cid) => finishInlineCreate(t, td, cid)}
           onCancel={() => finishInlineCreate(null)}
           onExpand={expandInlineCreate}
         />
@@ -4368,6 +4370,7 @@ export default function App() {
         initialStartTime={addModalInitialStart}
         initialEndTime={addModalInitialEnd}
         initialTitle={addModalInitialTitle}
+        initialCategoryId={addModalInitialCategoryId}
         initialEndDate={addModalInitialEndDate}
         initialIsTodo={addModalInitialTodo}
         anchorPoint={addModalAnchor}
