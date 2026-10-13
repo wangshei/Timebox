@@ -1033,7 +1033,16 @@ export function AddModal({
                 );
                 return (
                   <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-                    <Dropdown dot={calColor} value={selectedCalendar} onChange={(e: any) => setSelectedCalendar(e.target.value)} title="Calendar">
+                    <Dropdown dot={calColor} value={selectedCalendar} onChange={(e: any) => {
+                      const calId = e.target.value as string;
+                      setSelectedCalendar(calId);
+                      // Category belongs to a calendar: switch to one of the new calendar's categories so color/category never go stale.
+                      const forCal = getCategoriesForCalendar(calId);
+                      if (!selectedCategory || !forCal.some((c) => c.id === selectedCategory.id)) {
+                        const next = (lastCategoryId ? forCal.find((c) => c.id === lastCategoryId) : undefined) ?? forCal[0];
+                        if (next) setSelectedCategory(next);
+                      }
+                    }} title="Calendar">
                       {calendars.map((cal) => <option key={cal.id} value={cal.id}>{cal.name}</option>)}
                     </Dropdown>
                     <Dropdown

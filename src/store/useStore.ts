@@ -270,6 +270,13 @@ export const undoHooks: { snapshot?: () => void } = {};
 
 // --- Store ---
 
+/** Keep calendarContainerId in sync with the category: the category owns its calendar, so a categoryId change without an explicit calendar follows the category's calendar. */
+function withCatCalendar<T extends { categoryId?: string | null; calendarContainerId?: string }>(updates: T, categories: Array<{ id: string; calendarContainerId?: string }>): T {
+  if (!updates.categoryId || updates.calendarContainerId) return updates;
+  const cat = categories.find((c) => c.id === updates.categoryId);
+  return cat?.calendarContainerId ? { ...updates, calendarContainerId: cat.calendarContainerId } : updates;
+}
+
 export const useStore = create<AppState & AppActions>()(
   subscribeWithSelector((set, get) => ({
   ...getInitialState(),
@@ -305,7 +312,7 @@ export const useStore = create<AppState & AppActions>()(
   },
   updateTask: (id, updates) =>
     set((s) => ({
-      tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...withCatCalendar(updates, s.categories) } : t)),
     })),
   deleteTask: (id) =>
     set((s) => {
@@ -407,7 +414,7 @@ export const useStore = create<AppState & AppActions>()(
   updateTimeBlock: (id, updates) =>
     set((s) => {
       const result: Partial<AppState> = {
-        timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...updates, editedAt: Date.now() } : b)),
+        timeBlocks: s.timeBlocks.map((b) => (b.id === id ? { ...b, ...withCatCalendar(updates, s.categories), editedAt: Date.now() } : b)),
       };
       // When a block moves to a different date, sync its stickers' dates
       if (updates.date) {
@@ -860,7 +867,7 @@ export const useStore = create<AppState & AppActions>()(
         }
       }
       const result: Partial<AppState> = {
-        events: s.events.map((e) => (e.id === id ? { ...e, ...updates, ...epochUpdates, editedAt: Date.now() } : e)),
+        events: s.events.map((e) => (e.id === id ? { ...e, ...withCatCalendar(updates, s.categories), ...epochUpdates, editedAt: Date.now() } : e)),
       };
       // When an event moves to a different date, sync its stickers' dates
       if (updates.date) {
@@ -1088,6 +1095,18 @@ export function hydrateFromLocalStorage() {
         ...(b.recordedEnd ? { recordedEnd: padTime(b.recordedEnd) } : {}),
       }));
     }
+    // Repair stale category/calendar mismatches (category changed without its calendar following).
+    const cats = parsed.categories ?? useStore.getState().categories;
+    const fixCal = <T extends { categoryId?: string | null; calendarContainerId?: string; googleEventId?: string | null }>(it: T): T => {
+      if (!it.categoryId || it.googleEventId) return it;
+      const cat = cats.find((c) => c.id === it.categoryId);
+      if (!cat?.calendarContainerId || cat.calendarContainerId.startsWith('gcal-')) return it;
+      const ok = cat.calendarContainerId === it.calendarContainerId || cat.calendarContainerIds?.includes(it.calendarContainerId ?? '');
+      return ok ? it : { ...it, calendarContainerId: cat.calendarContainerId };
+    };
+    if (Array.isArray(parsed.events)) parsed.events = parsed.events.map(fixCal);
+    if (Array.isArray(parsed.timeBlocks)) parsed.timeBlocks = parsed.timeBlocks.map(fixCal);
+    if (Array.isArray(parsed.tasks)) parsed.tasks = parsed.tasks.map(fixCal);
     useStore.setState((prev) => ({
       ...prev,
       ...parsed,
