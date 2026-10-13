@@ -14,6 +14,7 @@ import { ShareModal } from './components/ShareModal';
 import type { ShareRole, Collaborator } from './components/ShareModal';
 import type { ShareScope } from './types/sharing';
 import { toast, Toaster } from 'sonner';
+import { MultiSelectBar } from './components/MultiSelectBar';
 import { InlineCreate } from './components/InlineCreate';
 import { getCreateMode, setCreateMode, CreateMode } from './utils/createMode';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -4151,6 +4152,8 @@ export default function App() {
         selectionModeActive={schedulingSelectionMode}
       />
       )}
+
+      <MultiSelectBar />
 
       {/* Generic scope chooser (recurring delete, todo delete vs remove from calendar) */}
       {scopePrompt && createPortal(

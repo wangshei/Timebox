@@ -1,3 +1,4 @@
+import { useMultiSelect, isMultiSelectClick } from '../store/useMultiSelect';
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import { RADIUS } from '../styles/tokens';
 import React, { useState, useRef, useLayoutEffect, useEffect, memo } from 'react';
@@ -215,6 +216,9 @@ function TimeBlockCardInner({
   const skipped = block.confirmationStatus === 'skipped';
   const matchedSet = compareMatchedTaskIds ? new Set(compareMatchedTaskIds) : null;
 
+  const msKey = `block:${block.id}`;
+  const multiSelected = useMultiSelect((st) => st.keys.includes(msKey));
+  const msStyle = (st: React.CSSProperties): React.CSSProperties => (multiSelected ? { ...st, outline: '2px solid #1C1C1E', outlineOffset: -2, zIndex: 25 } : st);
   const doSelect = onSelectBlock ? () => onSelectBlock(block.id) : (onSelect ?? (() => {}));
   const doDeselect = onSelectBlock ? () => onSelectBlock(null) : (onDeselect ?? (() => {}));
 
@@ -868,10 +872,12 @@ function TimeBlockCardInner({
       <div
         ref={blockRef}
         className={cn('absolute group pointer-events-auto', 'overflow-hidden', noDrag ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
-        style={style}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLocked) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
-        onPointerDown={!noDrag && !activeStampEmoji ? handlePointerDragStart : undefined}
+        data-multisel-key={msKey}
+        data-ms-primary={isSelected ? 'true' : undefined}
+        style={msStyle(style)}
+        onMouseDown={(e) => { e.stopPropagation(); if (isMultiSelectClick(e)) e.preventDefault(); }}
+        onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLocked && isMultiSelectClick(e)) { e.stopPropagation(); setShowPopover(false); useMultiSelect.getState().toggleWithPrimary(msKey); doDeselect(); return; } if (!effectivelyLocked) { useMultiSelect.getState().clear(); doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+        onPointerDown={!noDrag && !activeStampEmoji ? (e) => { if (isMultiSelectClick(e)) return; handlePointerDragStart(e); } : undefined}
       >
         <div
           data-slot="block-container"
@@ -1032,10 +1038,12 @@ function TimeBlockCardInner({
     <div
       ref={blockRef}
       className={cn('absolute group pointer-events-auto', 'overflow-hidden', activeStampEmoji ? 'cursor-pointer' : noDragFull ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
-      style={style}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLockedFull) { doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
-      onPointerDown={!noDragFull && !activeStampEmoji ? handlePointerDragStart : undefined}
+      data-multisel-key={msKey}
+        data-ms-primary={isSelected ? 'true' : undefined}
+        style={msStyle(style)}
+      onMouseDown={(e) => { e.stopPropagation(); if (isMultiSelectClick(e)) e.preventDefault(); }}
+      onClick={(e) => { if (dragEndedRef.current) { dragEndedRef.current = false; return; } if (activeStampEmoji) { handleStamp(e); return; } if (!effectivelyLockedFull && isMultiSelectClick(e)) { e.stopPropagation(); setShowPopover(false); useMultiSelect.getState().toggleWithPrimary(msKey); doDeselect(); return; } if (!effectivelyLockedFull) { useMultiSelect.getState().clear(); doSelect(); popoverOpenedAtRef.current = Date.now(); setShowPopover(true); setShowDetails(false); setShowTimePicker(false); } }}
+      onPointerDown={!noDragFull && !activeStampEmoji ? (e) => { if (isMultiSelectClick(e)) return; handlePointerDragStart(e); } : undefined}
     >
       <div
         data-slot="block-container"

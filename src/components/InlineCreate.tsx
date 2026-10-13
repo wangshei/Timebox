@@ -3,7 +3,7 @@ import { ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 import { IconButton } from './ds/IconButton';
 import { COLOR, RADIUS, SHADOW, Z, FONT_SIZE } from '../styles/tokens';
 import { TodoToggle } from './TodoToggle';
-import { Popover } from './ds/Popover';
+import { CategoryChipPicker } from './CategoryChipPicker';
 import { useStore } from '../store/useStore';
 import type { CreateMode } from '../utils/createMode';
 
@@ -42,7 +42,6 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
   });
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const curCat = selectable.find((c) => c.id === catId);
-  const curCal = calendars.find((k) => k.id === curCat?.calendarContainerId);
 
   React.useEffect(() => {
     // Focus after the originating mouseup/click has settled so it can't steal focus back.
@@ -109,51 +108,9 @@ export function InlineCreate({ mode, anchor, label, onSave, onCancel, onExpand }
         }}
       />
       </div>
-      {curCat && curCal && (
-        <div style={{ position: 'relative', marginTop: 4 }}>
-          <button
-            type="button"
-            data-cal-chip
-            onClick={(e) => { e.stopPropagation(); setPickerOpen((o) => !o); }}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', border: `1px solid ${COLOR.border}`, borderRadius: 999,
-              background: 'transparent', padding: '1px 8px 1px 6px', cursor: 'pointer', fontSize: FONT_SIZE['2xs'], color: COLOR.text,
-            }}
-          >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: curCal.color, flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{curCal.name} · {curCat.name}</span>
-          </button>
-          {pickerOpen && (
-            <Popover
-              data-cal-popover
-              style={{ position: 'absolute', left: 0, top: '100%', marginTop: 4, width: 200, maxHeight: 240, overflowY: 'auto', padding: 4 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {calendars.map((cal) => {
-                const cats = selectable.filter((c) => c.calendarContainerId === cal.id);
-                if (!cats.length) return null;
-                return (
-                  <div key={cal.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 6px', fontSize: FONT_SIZE['2xs'], color: COLOR.muted, fontWeight: 600 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: cal.color }} />{cal.name}
-                    </div>
-                    {cats.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setCatId(c.id); setPickerOpen(false); inputRef.current?.focus(); }}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer', borderRadius: RADIUS.sm,
-                          padding: '4px 6px 4px 19px', fontSize: FONT_SIZE.sm, color: COLOR.text,
-                          background: c.id === catId ? COLOR.accentSoft : 'transparent',
-                        }}
-                      >{c.name}</button>
-                    ))}
-                  </div>
-                );
-              })}
-            </Popover>
-          )}
+      {curCat && (
+        <div style={{ marginTop: 4 }}>
+          <CategoryChipPicker value={catId} onChange={(id) => { setCatId(id); inputRef.current?.focus(); }} />
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, cursor: onExpand ? 'pointer' : undefined }}>

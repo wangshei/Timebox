@@ -29,12 +29,12 @@ export function isOwnedEvent(event: Event): boolean {
  * whole event / whole series -> METHOD:CANCEL via cancel_share; a partial series delete ->
  * text note (+ shortened RRULE for "this and following").
  */
-export function deleteEventScoped(id: string, scope: DeleteScope, notifyGuests: boolean, senderName?: string): void {
+export function deleteEventScoped(id: string, scope: DeleteScope, notifyGuests: boolean, senderName?: string, snapshot = true): void {
   const st = useStore.getState();
   const allBefore = st.events;
   const event = allBefore.find((e) => e.id === id);
   if (!event) return;
-  useHistoryStore.getState().saveSnapshot();
+  if (snapshot) useHistoryStore.getState().saveSnapshot();
 
   // Determine series grouping key: native recurrence or Google recurring event
   const seriesKey = event.recurrenceSeriesId

@@ -1,4 +1,5 @@
 import { RADIUS } from '../styles/tokens';
+import { useMultiSelect, isMultiSelectClick } from '../store/useMultiSelect';
 import { MissedOverlay, MISSED_STAMP } from './MissedOverlay';
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -101,6 +102,8 @@ export function EventCard({
   focusedCalendarId = null,
 }: EventCardProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const msKey = `event:${event.id}`;
+  const multiSelected = useMultiSelect((st) => st.keys.includes(msKey));
   // Esc closes the popover (N-14).
   useEffect(() => {
     if (!showPopover) return;
@@ -349,17 +352,21 @@ export function EventCard({
         'absolute w-full min-w-0 pointer-events-auto group overflow-hidden',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       )}
-      style={style}
-      onMouseDown={(e) => e.stopPropagation()}
+      data-multisel-key={msKey}
+      data-ms-primary={isSelected ? 'true' : undefined}
+      style={multiSelected ? { ...style, outline: '2px solid #1C1C1E', outlineOffset: -2, zIndex: 25 } : style}
+      onMouseDown={(e) => { e.stopPropagation(); if (isMultiSelectClick(e)) e.preventDefault(); }}
       onClick={(e) => {
         if (dragEndedRef.current) { dragEndedRef.current = false; return; }
         if (activeStampEmoji) { handleStamp(e); return; }
+        if (isMultiSelectClick(e)) { e.stopPropagation(); setShowPopover(false); useMultiSelect.getState().toggleWithPrimary(msKey); onDeselect(); return; }
+        useMultiSelect.getState().clear();
         onSelect();
         popoverOpenedAtRef.current = Date.now();
         setShowPopover(true);
         setShowDetails(false);
       }}
-      onPointerDown={!activeStampEmoji && draggable ? handlePointerDragStart : undefined}
+      onPointerDown={!activeStampEmoji && draggable ? (e) => { if (isMultiSelectClick(e)) return; handlePointerDragStart(e); } : undefined}
     >
       <div
         className={cn(
