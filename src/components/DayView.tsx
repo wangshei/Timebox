@@ -738,9 +738,10 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
                 style={{ '--hv-tf': 'translate(-50%, -50%) scale(1.2)', left: `${sticker.offsetXPercent ?? 50}%`,
                   top: `${top}px`,
                   transform: 'translate(-50%, -50%)',
-                  fontSize: 20,
+                  width: 34, height: 34, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22,
                   lineHeight: 1,
-                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                  boxShadow: 'var(--tb-sh-1)',
                   transition: 'transform 0.1s', } as React.CSSProperties}
                 onClick={(e) => {
                   e.stopPropagation();
