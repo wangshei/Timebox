@@ -75,6 +75,19 @@ export function MultiSelectBar() {
     return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
   }, [keys, last]);
 
+  // Dragging on a calendar grid (create / move / resize) must never highlight text.
+  React.useEffect(() => {
+    const GRID = '[data-3day-grid],[data-week-grid],[data-day-grid]';
+    let down = false;
+    const onDown = (e: MouseEvent) => { down = e.button === 0 && !!(e.target as HTMLElement)?.closest?.(GRID); };
+    const onSel = (e: Event) => { if (down) e.preventDefault(); };
+    const onUp = () => { if (down) { down = false; window.getSelection()?.removeAllRanges(); } };
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('selectstart', onSel, true);
+    window.addEventListener('mouseup', onUp, true);
+    return () => { document.removeEventListener('mousedown', onDown, true); document.removeEventListener('selectstart', onSel, true); window.removeEventListener('mouseup', onUp, true); };
+  }, []);
+
   const clear = () => useMultiSelect.getState().clear();
 
   const requestDelete = React.useCallback(() => {

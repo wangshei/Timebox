@@ -169,6 +169,15 @@ export async function loadSupabaseState(isInitialLoad = true) {
     ];
   }
 
+  // Repair stale category/calendar mismatches: the category owns its calendar. Only the calendar id is corrected.
+  const fixCal = (catId: string | null | undefined, calId: string): string => {
+    const cat = categories.find((c) => c.id === catId);
+    const owner = cat?.calendar_container_id;
+    if (!owner || owner === calId) return calId;
+    const multi: string[] | null | undefined = (cat as any).calendar_container_ids;
+    return multi?.includes(calId) ? calId : owner;
+  };
+
   useStore.setState((prev) => {
     // Preserve gcal items that only exist in memory (not persisted to Supabase)
     const prevGcalContainers = prev.calendarContainers.filter(c => c.id.startsWith('gcal-'));
@@ -231,7 +240,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
         id: t.id,
         title: t.title,
         estimatedMinutes: t.estimated_minutes,
-        calendarContainerId: t.calendar_container_id,
+        calendarContainerId: fixCal(t.category_id, t.calendar_container_id),
         categoryId: t.category_id,
         tagIds: t.tag_ids ?? [],
         flexible: t.flexible,
@@ -267,7 +276,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
         id: b.id,
         taskId: b.task_id ?? null,
         title: b.title ?? undefined,
-        calendarContainerId: b.calendar_container_id,
+        calendarContainerId: fixCal(b.category_id, b.calendar_container_id),
         categoryId: b.category_id,
         tagIds: b.tag_ids ?? [],
         start: padTime(b.start),
@@ -291,7 +300,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
           return {
             id: e.id,
             title: e.title,
-            calendarContainerId: e.calendar_container_id,
+            calendarContainerId: (e as any).google_event_id ? e.calendar_container_id : fixCal(e.category_id, e.calendar_container_id),
             categoryId: e.category_id,
             start: padTime(e.start),
             end: padTime(e.end),

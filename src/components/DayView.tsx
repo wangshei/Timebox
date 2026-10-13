@@ -503,6 +503,7 @@ export function DayView({ mode, timeBlocks, events = [], selectedDate, selectedB
   return (
     <div
       ref={outerRef}
+      data-day-grid
       className={`flex-1 min-w-0 ${disableScroll || showDateHeader ? '' : 'overflow-y-auto'} ${mode === 'compare' ? 'px-2 md:px-3 py-3' : 'px-3 md:px-6 py-4'}`}
       style={mode === 'compare' && selectedIsPast ? { backgroundColor: 'rgba(0,0,0,0.025)' } : undefined}
     >
