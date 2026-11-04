@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { shallow } from 'zustand/shallow';
 import { useStore } from './store/useStore';
 import { DEFAULT_PALETTE_COLOR } from './constants/colors';
 import { getLocalTimeZone, padTime } from './utils/dateTime';
@@ -41,6 +42,17 @@ const isMissingRelation = (err: { message?: string; code?: string } | null | und
 // and loadSupabaseState completion.
 let supabaseLoaded = false;
 
+// Row ids this client has seen on the server, per table. Orphan-delete only touches these:
+// a row missing from the store is a local delete only if we once had it. Anything else was
+// created elsewhere (another tab/device) after our last load and must not be deleted.
+const knownServerIds = new Map<string, Set<string>>();
+const rowIds = (rows: unknown[] | null | undefined) => new Set((rows ?? []).map((r) => (r as { id: string }).id));
+
+// Bumped on every persistable store change; savedLocalSeq is the value last fully saved.
+// A reload that would replace unsaved or mid-load changes is dropped (see loadSupabaseState).
+let localChangeSeq = 0;
+let savedLocalSeq = 0;
+
 async function getCurrentUserId(): Promise<string | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
@@ -68,6 +80,7 @@ export async function loadSupabaseState(isInitialLoad = true) {
   }
   // eslint-disable-next-line no-console
   console.log('[supabasePersistence] Loading state for user', userId);
+  const seqAtStart = localChangeSeq;
 
   const [containersRes, categoriesRes, tagsRes, tasksRes, blocksRes, eventsRes, settingsRes, stickersRes] = await Promise.all([
     supabase.from('calendar_containers').select('*').eq('user_id', userId),
@@ -177,6 +190,24 @@ export async function loadSupabaseState(isInitialLoad = true) {
     const multi: string[] | null | undefined = (cat as any).calendar_container_ids;
     return multi?.includes(calId) ? calId : owner;
   };
+
+  // The snapshot above can't contain anything changed since it was requested, or not yet
+  // saved. Applying it would drop those changes from the store and the queued save, so skip
+  // it; the next poll picks up remote changes. The session's first load has nothing to protect.
+  if (supabaseLoaded && (localChangeSeq !== seqAtStart || localChangeSeq !== savedLocalSeq)) {
+    // eslint-disable-next-line no-console
+    console.log('[supabasePersistence] Dropping reload — local changes are newer');
+    return;
+  }
+
+  // Raw rows, not the filtered lists: leaked gcal/shared rows stay eligible for orphan-delete.
+  knownServerIds.set('calendar_containers', rowIds(containersRes.data));
+  knownServerIds.set('categories', rowIds(categoriesRes.data));
+  knownServerIds.set('tags', rowIds(tagsRes.data));
+  knownServerIds.set('tasks', rowIds(tasksRes.data));
+  knownServerIds.set('time_blocks', rowIds(blocksRes.data));
+  knownServerIds.set('events', rowIds(eventsRes.data));
+  knownServerIds.set('stickers', rowIds(stickersRes.data));
 
   useStore.setState((prev) => {
     // Preserve gcal items that only exist in memory (not persisted to Supabase)
@@ -601,10 +632,12 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
         if (error) {
           if (isMissingRelation(error)) stickersTableOk = false;
         } else {
-          const orphans = (rows ?? []).map((r: { id: string }) => r.id).filter((id: string) => !keep.has(id));
+          const known = knownServerIds.get('stickers');
+          const orphans = (rows ?? []).map((r: { id: string }) => r.id).filter((id: string) => !keep.has(id) && known?.has(id));
           for (let i = 0; i < orphans.length; i += 150) {
             await supabase.from('stickers').delete().eq('user_id', userId).in('id', orphans.slice(i, i + 150));
           }
+          knownServerIds.set('stickers', keep);
         }
       }
     } catch (e) {
@@ -636,7 +669,8 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
   const MAX_NOT_IN_IDS = 150;
 
   /**
-   * Delete orphans for a table: rows on the server that are no longer in the store.
+   * Delete orphans for a table: rows this client knew about that are no longer in the store.
+   * Server rows it has never seen are left alone — they're new from another tab/device.
    *
    * We always compute the orphan set explicitly (fetch server IDs, diff against the
    * keep-list) and delete by ID with `.select('id')` so we can VERIFY how many rows
@@ -655,7 +689,11 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       check(table, 'delete-orphans-fetch', { error: fetchErr });
       return;
     }
-    const orphanIds = (serverRows || []).map((r: { id: string }) => r.id).filter((id: string) => !keepSet.has(id));
+    const known = knownServerIds.get(table);
+    const orphanIds = (serverRows || []).map((r: { id: string }) => r.id).filter((id: string) => !keepSet.has(id) && known?.has(id));
+    // Upserted rows are now known; orphans stay known until a delete actually removes them.
+    const nextKnown = new Set([...keepIds, ...orphanIds]);
+    knownServerIds.set(table, nextKnown);
     if (orphanIds.length === 0) return;
 
     let deletedCount = 0;
@@ -663,7 +701,10 @@ async function saveSupabaseStateForUser(userId: string, state: PersistableState)
       const batch = orphanIds.slice(i, i + MAX_NOT_IN_IDS);
       const res = await supabase!.from(table).delete().eq('user_id', userId).in('id', batch).select('id');
       check(table, 'delete-orphans', res);
-      if (!res.error) deletedCount += (res.data?.length ?? 0);
+      if (!res.error) {
+        deletedCount += (res.data?.length ?? 0);
+        for (const row of res.data ?? []) nextKnown.delete(row.id);
+      }
     }
 
     // Verification: if we asked to remove N orphans but the DB removed 0 (and reported
@@ -749,6 +790,9 @@ export function startSupabasePersistence() {
 
   // Reset the loaded flag so saves are blocked until loadSupabaseState finishes.
   supabaseLoaded = false;
+  knownServerIds.clear();
+  localChangeSeq = 0;
+  savedLocalSeq = 0;
 
   let saving = false;
   let lastSaveHadErrors = false;
@@ -806,6 +850,7 @@ export function startSupabasePersistence() {
       } else {
         lastSaveHadErrors = false;
         lastSaveCompletedAt = Date.now();
+        if (!pendingSlice) savedLocalSeq = localChangeSeq;
         // eslint-disable-next-line no-console
         console.log('[supabasePersistence] Save completed OK');
         // Clear any previous error on success
@@ -858,8 +903,11 @@ export function startSupabasePersistence() {
       stickers: state.stickers,
     }),
     (slice) => {
+      localChangeSeq += 1;
       scheduleFlush(slice);
-    }
+    },
+    // The selector builds a new object each time; compare fields so UI-only changes don't save.
+    { equalityFn: shallow }
   );
 
   // Flush pending saves before the user leaves the page
@@ -938,7 +986,24 @@ export function startSupabasePersistence() {
   // Realtime: reload state when another client makes a change.
   // Queue changes while the tab is hidden and do ONE reload when it becomes visible.
   let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  let catchUpTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingRemoteChange = false;
+
+  const reloadBlocked = () =>
+    saving || !!pendingSlice || !!debounceTimer ||
+    Date.now() - lastSaveCompletedAt < 5000 || Date.now() - lastLocalChangeAt < 5000;
+
+  // Catch-up after returning to the tab: unlike doReload's self-write filtering, this must
+  // not be dropped by the guards, or the client stays stale until the next poll.
+  function reloadWhenIdle() {
+    if (lastSaveHadErrors) return;
+    if (reloadBlocked()) {
+      catchUpTimer = setTimeout(reloadWhenIdle, 1000);
+      return;
+    }
+    catchUpTimer = null;
+    void doReload();
+  }
 
   async function doReload() {
     // Skip if we're actively saving or have pending local changes — those changes
@@ -987,8 +1052,8 @@ export function startSupabasePersistence() {
     if (!document.hidden && pendingRemoteChange) {
       pendingRemoteChange = false;
       // Debounce slightly so multiple queued events collapse into one reload
-      if (reloadTimer) clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(doReload, 600);
+      if (catchUpTimer) clearTimeout(catchUpTimer);
+      catchUpTimer = setTimeout(reloadWhenIdle, 600);
     }
   };
   document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -1029,6 +1094,7 @@ export function startSupabasePersistence() {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     clearInterval(syncInterval);
     void supabase!.removeChannel(channel);
+    if (catchUpTimer) clearTimeout(catchUpTimer);
     if (reloadTimer) clearTimeout(reloadTimer);
     if (debounceTimer) clearTimeout(debounceTimer);
   };
